@@ -143,9 +143,11 @@ A new or changed shipped data file therefore needs a new `PINS` entry in the sam
 against the package. The schema is passed to the bridge as its project-relative installed path, because the bridge reads
 `--schema` from inside the project and the engine writes no file.
 
-**The call.** `wb run action-review review [--log-row] <command text>`. The command text is exactly one argument, the
+**The call.** `wb run action-review review [--log-row] [--collect] <command text>`. The command text is exactly one argument, the
 raw text the harness is about to run; the launcher allows at most 4,096 characters, so a longer command is
-unreviewable. `--log-row`, if given, comes first. Any other option, a second text, or none is a refusal (exit 1).
+unreviewable. `--log-row` and `--collect`, if given, come first, in either order and each once; a flag that repeats is read as the text, as a
+second `--log-row` always was, so the call without `--collect` reads exactly what it read before. Any other option, a second
+text, or none is a refusal (exit 1).
 
 **The rule file.** One file per rule in `rules/`, named `<module>-<action>.json` (for example `safe-git-commit.json`),
 UTF-8, strict JSON (a duplicate key, `NaN` or a non-object is an error, as for `.workbench/review.json`), at most 16,384
@@ -280,6 +282,22 @@ more line on standard error: `log-row: ` followed by the row as one JSON object 
 log", and no field is added to the verdict object. A row is printed for a verdict only (approve or decline, exit 0);
 a refusal or failure prints its `refused:` or `failed:` line and no row, and the hook writes a note of its own if it
 wants one. The engine reads the clock for `ts` and writes nothing. (Author's call.)
+
+**The collect lines (plan `2026-10-29-action-review-shadow-hook`, Increment B).** `--collect` adds two kinds of line on standard
+error, after any `log-row:` line, for the owner's shadow hook ("The shadow hook"). Without the flag the output, the exit code and
+the verdict object are byte-equal to what they were. `facts: ` followed by the `describe` object as received, in canonical JSON
+(sorted keys, no spaces, ASCII only), is printed when `describe` produced a valid object, whether the review then ended in a
+verdict, a refusal or a failure, and is left out when the line would pass 393,216 characters, twice the object cap. `outcome: `
+followed by one JSON object with the single field `reason` is printed on every exit and is always the last line. The reason is
+`reviewed` (a verdict), `no_rule` (no rule matches the command, which includes a push and a remote-job command), `unreviewable`
+(the grammar, a flag, a blocked or ambiguous rule), `refused` (any other refusal: the rules, `describe`, the setting, the rubric,
+the bridge not run, a usage error), `failed` (any other failure) or `timeout` (`describe` or the bridge ran out of time). It comes
+from the engine's own parse and exit path; the hook never parses the command. A bridge that reports its own timeout is
+`timeout` too: the bridge is given a shorter time than the engine so that it reports first. A `reviewed` outcome with no `facts:`
+line (the line was over the bound) is a command the hook cannot collect. If a write of these lines fails after the verdict
+object was printed, the exit is 2 as for the row, and the fallback may repeat the `facts:` line before `failed:` and the final
+`outcome:`; a hook that takes the last line of each kind and trusts the exit code reads it correctly. (Decided by the owner on
+2026-10-29.)
 
 **The time budget (author's call, provisional).** The engine's 25 seconds are one deadline for the whole review. `describe`
 may use up to 5 of them and the bridge call gets the rest; the bridge is always passed `--timeout 20` and the engine's

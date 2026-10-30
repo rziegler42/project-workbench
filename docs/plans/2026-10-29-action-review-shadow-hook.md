@@ -374,3 +374,43 @@ Verification as run on 2026-10-30: `wb check .` and `wb run code-work check` rep
 else exists to run.
 
 Not done: "The owner's steps", "As built" and the open-questions list, which Increment H rewrites.
+
+### Increment B
+
+Where the work is. Editing a file of `packages/workbench/` changes the module's hash, the installer then stops treating the package
+as first-party, and the project's command gate stops knowing the `claude` harness: every Bash command is refused until the owner runs
+`wb release-approvals`. That happened once, when a test file was first written into the tree (the owner removed it, and the gate
+returned). So Increment B was built and tested in a scratch clone of the repository at `d87de04` (session scratchpad,
+`wb-b/`), and its three changed files plus one new test file are copied into the real tree only when the owner is ready to release
+the approvals. Until then the real tree holds nothing of B. The same will apply to Increments C and D, which add shipped files.
+
+Changed (in the scratch clone): `packages/workbench/action-review/helper/action-review`,
+`packages/workbench/action-review/tests/test_actionreview_collect.py` (new), `docs/specs/action-review.md`, `docs/development.md`.
+
+Done: `review` accepts `--collect` and `--log-row` in either order. With `--collect` it prints a `facts:` line (the `describe` object
+in canonical ASCII JSON, left out over 393,216 characters) when `describe` produced a valid object, and an `outcome:` line, always
+last, with one reason: `reviewed`, `no_rule`, `unreviewable`, `refused`, `failed` or `timeout`. The reasons come from exception
+kinds set where the engine already decides (`NoRule`, `DescribeTimeout`, `BridgeTimeout`); the bridge's own `timeout` error counts as
+a timeout. A flag that repeats is read as the text, so the call without `--collect` reads what it always read.
+
+Verification as run in the scratch clone on 2026-10-30: the new tests failed before the change for the right reasons (the flag was a
+usage error; `MAX_FACTS_LINE` absent); after it the module's 480 tests pass (3 skipped) and the full suite `python3 -B -W error
+tests/run_all.py` passes (6,099 tests in 13 roots). Twelve mutations of the new code were each caught by the new tests.
+
+Review: the `reviewer` agent, one exchange, four findings.
+- F1 (blocking, applied): a repeated `--log-row` without `--collect` had become a usage error where it was a command text; the
+  parser now reads a repeated flag as the text, and two tests pin it.
+- F2 (blocking, applied): a bridge that reports `error: timeout` itself, which is the normal timeout, was classed `failed`; it is
+  `timeout` now, with a test for it and for a non-timeout bridge error.
+- F3 (applied): the spec says a failed write after the verdict may repeat the `facts:` line, and how a hook reads it.
+- F4 (applied): the spec says a `reviewed` outcome with no `facts:` line is a command the hook cannot collect. Increment D must
+  treat it so.
+
+Then, on 2026-10-30: the four files were copied byte-for-byte into the real tree (`cmp` equal), the owner ran `wb release-approvals`
+("wrote 13 approvals for 1 first-party packages"; it warned that the shipped records `81627aea5dba` and `b0ad94d0ff0f` belong to no
+release and are to be removed by hand, which was not done), and in the real tree `wb check .`, `wb run code-work check`,
+`python3 -B -W error tests/run_all.py` (6,099 tests in 13 roots, OK) and `git diff --check` were clean. The two new shipped package
+records (`10a1da2fc18a…`, `9ea0fd32c92b…`, each an `approval.json`) are part of the increment's commit.
+
+Not done: the two stale shipped records are still tracked, awaiting the owner's word to delete them. No hook reads the new lines yet
+(Increment D).
