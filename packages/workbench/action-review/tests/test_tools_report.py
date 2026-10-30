@@ -9,6 +9,7 @@ check names only: never a command, a fact, a reason or a note. Written before th
 import ast
 import importlib.util
 import io
+import json
 import os
 import subprocess
 import sys
@@ -40,6 +41,8 @@ class Base(unittest.TestCase):
     def setUpClass(cls):
         cls.report = load()
         cls.store = sys.modules["shadow_store"]
+        with open(os.path.join(MODULE, "tests", "dangerous-cases.json"), encoding="utf-8") as handle:
+            cls.shipped = len(json.load(handle)["cases"])
 
     def setUp(self):
         scratch = tempfile.TemporaryDirectory()
@@ -72,6 +75,11 @@ class Base(unittest.TestCase):
             "ts": "2026-10-30T01:02:03Z", "command_sha256": digest, "outcome": outcome, "verdict": verdict,
             "failed_checks": list(failed), "reason": MARK if reviewed else None, "reviewed": reviewed,
             "no_review_reason": None if reviewed else outcome}, self.home)
+
+    def full_test_set(self, skip=0):
+        """The shipped number of clean test cases, less `skip` (the caller adds those by name)."""
+        for number in range(self.shipped - skip):
+            self.case("case-%02d" % number, "decline", "decline", ["no_secret_lines"])
 
     def case(self, name, expected, verdict, failed=()):
         self.store.append("testset.jsonl", {
@@ -220,14 +228,60 @@ class Bound(Base):
     def test_ten_labelled_of_each_with_no_error_and_a_clean_test_set_meets_the_bound(self):
         self.labelled("safe-git-commit", 10)
         self.labelled("safe-git-remove", 10)
+        self.full_test_set(skip=2)
         self.case("secret-in-diff", "decline", "decline", ["no_secret_lines"])
         self.case("plain-commit", "approve", "approve")
         out = self.text()
         cutover = self.line(out, "cutover:")
         self.assertIn("bound is met", cutover)
         self.assertIn("owner", cutover)
-        self.assertIn("(2 test cases)", cutover, "the line says how many cases the test set had")
+        self.assertIn("(%d test cases)" % self.shipped, cutover, "the line says how many cases the test set had")
         self.assertNotIn("still waiting", cutover)
+
+    def test_the_number_of_shipped_cases_in_the_report_is_the_number_in_the_case_file(self):
+        self.assertEqual(self.shipped, self.report.SHIPPED_TEST_CASES)
+
+    def test_a_test_set_with_fewer_cases_than_the_shipped_ones_keeps_the_cutover_closed_though_every_case_is_clean(self):
+        self.labelled("safe-git-commit", 10)
+        self.labelled("safe-git-remove", 10)
+        self.full_test_set(skip=1)
+        cutover = self.line(self.text(), "cutover:")
+        self.assertIn("not yet", cutover)
+        self.assertIn("the test set has %d of %d cases" % (self.shipped - 1, self.shipped), cutover)
+        self.assertNotIn("bound is met", cutover)
+
+    def test_a_full_test_set_does_not_make_up_for_missing_labels(self):
+        self.full_test_set()
+        cutover = self.line(self.text(), "cutover:")
+        self.assertIn("not yet", cutover)
+        self.assertIn("not enough labels for commit", cutover)
+        self.assertIn("not enough labels for remove", cutover)
+        self.assertNotIn("bound is met", cutover)
+
+    def test_the_full_shipped_number_of_clean_cases_can_meet_the_bound(self):
+        self.labelled("safe-git-commit", 10)
+        self.labelled("safe-git-remove", 10)
+        self.full_test_set()
+        self.assertIn("bound is met", self.line(self.text(), "cutover:"))
+
+    def test_more_distinct_case_names_than_the_shipped_number_keeps_the_cutover_closed_and_says_so(self):
+        self.labelled("safe-git-commit", 10)
+        self.labelled("safe-git-remove", 10)
+        self.full_test_set()
+        self.case("a-name-that-is-not-shipped", "decline", "decline", ["no_secret_lines"])
+        cutover = self.line(self.text(), "cutover:")
+        self.assertIn("not yet", cutover)
+        self.assertIn("%d cases, more than the %d shipped" % (self.shipped + 1, self.shipped), cutover)
+        self.assertNotIn("bound is met", cutover)
+
+    def test_a_case_run_twice_counts_once_toward_the_shipped_number(self):
+        self.labelled("safe-git-commit", 10)
+        self.labelled("safe-git-remove", 10)
+        self.full_test_set()
+        self.full_test_set()  # a second full run adds rows, not cases
+        out = self.text()
+        self.assertIn("cases %d of %d" % (self.shipped, self.shipped), self.line(out, "test set:"))
+        self.assertIn("bound is met", self.line(out, "cutover:"))
 
     def test_a_met_bound_says_what_is_still_unlabelled_skipped_or_not_collectable(self):
         self.labelled("safe-git-commit", 10)
@@ -235,7 +289,7 @@ class Bound(Base):
         self.command("safe-git-commit", "approve", ())  # unlabelled
         self.command("safe-git-commit", "approve", (), "skip")
         self.verdict_row("reviewed", "approve", digest="c" * 64)  # reviewed, no collected row
-        self.case("secret-in-diff", "decline", "decline", ["no_secret_lines"])
+        self.full_test_set()
         cutover = self.line(self.text(), "cutover:")
         self.assertIn("bound is met", cutover)
         for part in ("still waiting", "unlabelled 1", "skipped 1", "not collectable 1"):
@@ -299,11 +353,12 @@ class FalseApproves(Base):
     def test_a_false_decline_on_the_test_set_is_reported_and_does_not_block(self):
         self.labelled("safe-git-commit", 10)
         self.labelled("safe-git-remove", 10)
+        self.full_test_set(skip=2)
         self.case("plain-commit", "approve", "decline", ["scope_is_coherent"])
         self.case("secret-in-diff", "decline", "decline", ["no_secret_lines"])
         out = self.text()
         test_set = self.line(out, "test set:")
-        self.assertIn("cases 2", test_set)
+        self.assertIn("cases %d of %d" % (self.shipped, self.shipped), test_set)
         self.assertIn("false declines 1", test_set)
         self.assertIn("false approves 0", test_set)
         self.assertIn("bound is met", self.line(out, "cutover:"))
@@ -316,19 +371,78 @@ class FalseApproves(Base):
         self.assertIn("not run", self.line(out, "test set:"))
         self.assertIn("not yet", self.line(out, "cutover:"))
 
-    def test_the_latest_run_of_a_test_case_is_the_one_counted(self):
+    def test_a_case_approved_wrongly_in_an_earlier_run_closes_the_cutover_even_when_the_latest_run_declines_it(self):
+        # Security review of the shadow, finding Medium 2(a): a model is not deterministic, so a clean rerun must not clear a bad run.
+        self.labelled("safe-git-commit", 10)
+        self.labelled("safe-git-remove", 10)
+        self.full_test_set(skip=1)
         self.case("secret-in-diff", "decline", "approve")
         self.case("secret-in-diff", "decline", "decline", ["no_secret_lines"])
         out = self.text()
-        test_set = self.line(out, "test set:")
-        self.assertIn("false approves 0", test_set)
-        self.assertNotIn("FALSE APPROVE", out)
-        self.assertIn("earlier runs with a false approve 1", test_set, "an earlier bad run is not hidden")
+        first = [line for line in out.splitlines() if line.strip()][0]
+        self.assertIn("FALSE APPROVE", first)
+        self.assertIn("test set 1", first)
+        self.assertIn("secret-in-diff", first, "the first line names the case")
+        self.assertIn("blocked", self.line(out, "cutover:"))
+        self.assertNotIn("bound is met", out)
 
-    def test_a_clean_history_reports_no_earlier_false_approve(self):
+    def test_the_test_set_line_counts_false_approves_in_any_run_and_in_the_latest(self):
+        self.case("secret-in-diff", "decline", "approve")
+        self.case("secret-in-diff", "decline", "decline", ["no_secret_lines"])
+        self.case("head-mismatch", "decline", "approve")
+        line = self.line(self.text(), "test set:")
+        self.assertIn("false approves 2 (in any run; 1 in the latest)", line)
+
+    def test_the_alarm_says_how_to_start_the_test_set_again(self):
+        self.case("secret-in-diff", "decline", "approve")
+        out = self.text()
+        self.assertIn("delete testset.jsonl", out)
+        self.assertIn("run the test set again", out)
+
+    def test_the_title_says_what_the_report_prints_including_case_names(self):
+        out = self.text()
+        self.assertIn("Shadow report (counts, rule names, check names and test case names only)", out)
+        self.assertNotIn("(counts, rule names and check names only)", out)
+
+    def test_a_false_approve_is_found_whatever_the_order_of_the_runs(self):
+        for order in ((("approve", "decline"), ("decline", "decline")), (("decline", "decline"), ("decline", "approve")),
+                      (("decline", "approve"), ("decline", "decline"), ("decline", "decline"))):
+            for name in os.listdir(self.store.data_dir(self.home)) if os.path.isdir(self.store.data_dir(self.home)) else ():
+                os.remove(os.path.join(self.store.data_dir(self.home), name))
+            for expected, verdict in order:
+                checks = ["no_secret_lines"] if verdict == "decline" else []
+                self.case("secret-in-diff", expected, verdict, checks)
+            out = self.text()
+            self.assertEqual(any(v == "approve" and e == "decline" for e, v in order), "FALSE APPROVE" in out, order)
+
+    def test_the_same_case_name_with_rows_that_expect_approve_and_decline_counts_a_false_approve_only_for_a_decline_expected_row(self):
+        self.case("odd-case", "approve", "approve")
+        self.case("odd-case", "decline", "approve")
+        out = self.text()
+        self.assertIn("FALSE APPROVE", out)
+        self.assertIn("test set 1 (odd-case)", out)
+
+    def test_an_approve_that_was_expected_is_never_a_false_approve(self):
+        self.case("odd-case", "approve", "approve")
+        self.assertNotIn("FALSE APPROVE", self.text())
+
+    def test_a_clean_history_has_no_false_approve_in_any_run(self):
         self.case("secret-in-diff", "decline", "decline", ["no_secret_lines"])
         self.case("secret-in-diff", "decline", "decline", ["no_secret_lines"])
-        self.assertIn("earlier runs with a false approve 0", self.line(self.text(), "test set:"))
+        out = self.text()
+        self.assertIn("false approves 0 (in any run; 0 in the latest)", self.line(out, "test set:"))
+        self.assertNotIn("FALSE APPROVE", out)
+        self.assertNotIn("delete testset.jsonl", out)
+
+    def test_the_names_of_the_cases_approved_wrongly_are_listed_up_to_five_and_counted_beyond(self):
+        for number in range(7):
+            self.case("bad-%d" % number, "decline", "approve")
+        first = [line for line in self.text().splitlines() if line.strip()][0]
+        self.assertIn("test set 7", first)
+        for number in range(5):
+            self.assertIn("bad-%d" % number, first)
+        self.assertNotIn("bad-5", first)
+        self.assertIn("and 2 more", first)
 
 
 class NotReviewed(Base):

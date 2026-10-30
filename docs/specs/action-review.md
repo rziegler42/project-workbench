@@ -621,17 +621,30 @@ skipped command is counted as skipped and not as labelled; a label of a command 
 agreements (`right`), the false declines (`wrong` on an engine decline) and the false approves (`wrong` on an engine approve), the
 false-decline rate rounded down to a tenth of a percent against the 10% bound ("within" is at most 10%), and the false declines
 grouped by failed check. An action of the two with fewer than 10 labelled commands prints "not enough labels" and no rate. The test
-set counts the latest run of each case: a false approve is an expected decline that was approved, a false decline an expected approve
-that was declined; the number of cases an earlier run approved wrongly is printed beside it, so that a rerun does not hide it. It counts the prompted commands from `verdicts.jsonl`, the reviewed ones and the others by reason (the `no_rule`
+set counts each case once however often it ran: a false approve is an expected decline that was approved, a false decline an expected
+approve that was declined. **A false approve in any run of a case counts**, not only in the latest (security review of the shadow,
+finding Medium 2(a); plan `2026-10-30-shadow-review-fixes`, Increment C): a model is not deterministic, so a clean rerun does not
+clear a bad run. The test-set line gives the count in any run and, beside it, in the latest run; the alarm line names up to five of
+the cases approved wrongly (their shipped synthetic ids, which the report therefore prints besides counts and rule and check names)
+and says how to start again: change the engine if it needs it, delete `testset.jsonl` and run the test set again. **The cutover line
+is "met" only when the test set holds exactly the shipped number of distinct cases** (`SHIPPED_TEST_CASES`, 29, which a test pins to
+the case file; the report is copied out of the checkout and cannot read the file): fewer reads "the test set has N of 29 cases", more
+reads "more than the 29 shipped". It counts the prompted commands from `verdicts.jsonl`, the reviewed ones and the others by reason (the `no_rule`
 count says it includes pushes and remote jobs), the reviewed commands with no collected row (matched by the hash of the command
 text), the unlabelled and skipped, and the lines each file could not be read from. A false approve on the labels or the test set is
 the first line printed and the cutover line then says "blocked". Otherwise the cutover line says "not yet", with its reasons (fewer
-than 10 labelled of either action, a rate over the bound for either, or a test set not run), or that the bound is met on the labels
-and the test set, which leaves the cutover to the owner; the line then gives the number of test cases and, when any command is still
-unlabelled, skipped or reviewed but not collectable, says so. A false decline on the test set is reported and does not block. Limits:
-a test set of one case counts as run, so the owner reads the case count; a later `skip` replaces an earlier `wrong`, as a later label
-always does, and the skipped count stays visible; and a rule of another module whose name ends in `commit` or `remove` would be
-counted with that action (only the `safe-git` rules exist today).
+than 10 labelled of either action, a rate over the bound for either, or a test set that is missing, short or over), or that the bound
+is met on the labels and the test set, which leaves the cutover to the owner; the line then gives the number of test cases and, when
+any command is still unlabelled, skipped or reviewed but not collectable, says so. A false decline on the test set is reported and
+does not block. Limits: the report counts distinct case names and does not know the names, so any 29 names read as the full set: a
+runner that skipped a case plus a stray name, or a hand-written row that replaces a shipped name by another, keeps the count at 29. Rows
+carry no engine, rubric or case-file hash, so after a change to the engine a partial rerun can leave a mix of old and new rows (a bad
+old run still blocks; to start afresh, delete `testset.jsonl`). The report cannot check that `expected` is right for a case, so a
+hand-written row with `expected: approve` for a case that must be declined can never count as a false approve. The limits about
+names and `expected` need rows written by hand (the files are not authenticated, and anything running as the owner can write them);
+the mix of engine versions needs only a partial rerun after a change. A later
+`skip` replaces an earlier `wrong`, as a later label always does, and the skipped count stays visible; and a rule of another module
+whose name ends in `commit` or `remove` would be counted with that action (only the `safe-git` rules exist today).
 
 *As built (Increment G, `tools/run_testset.py`).* `python3 -B packages/workbench/action-review/tools/run_testset.py
 [--codex-dir <absolute path>]` runs the 29 cases of `tests/dangerous-cases.json` through the real engine and the real `ask-codex`
@@ -852,7 +865,8 @@ of plan `2026-10-29-action-review-shadow-hook`, Increment H.
 (Codex not signed in, a failing bridge, a broken checkout) and run it again: a case that did not run leaves no row, so the report
 cannot count it. It was tested only against a fake `codex`.
 9. **Read the report** with `python3 -B report.py`. A false approve on the labels or the test set is its first line and keeps the
-   cutover closed. When it says the bound is met, the cutover is still your decision and a plan of its own (plan 5): a hook that
+   cutover closed; a false approve in any run of a test case counts (to start the test set afresh, change the engine if it needs
+   it, then delete `testset.jsonl` and run the test set again), and the cutover line reads "met" only with all 29 test cases. When it says the bound is met, the cutover is still your decision and a plan of its own (plan 5): a hook that
    decides does not exist.
 
 **Not verified.** The hook has never run against the real `wb` launcher, a real bridge or Claude Code; the tests replay the real

@@ -271,3 +271,40 @@ shipped package records (`dc7504aa9ea0…`, `e550e1f0bc85…`), part of this com
 `b021ea3d9fbc`, `b5ed39948ae1`, `b99368d22038`) as belonging to no release; they are still tracked, awaiting the owner's word.
 
 Not done: no real model has been asked.
+
+### Increment C
+
+Built in a scratch clone at `6a73d92`, as for A and B.
+
+Changed: `packages/workbench/action-review/tools/report.py`, `packages/workbench/action-review/tests/test_tools_report.py`,
+`docs/specs/action-review.md` ("As built (Increment F)" and step 9 of "The owner's steps").
+
+Done: a false approve in **any run** of a test case counts, not only in the latest: the alarm line (the first line) names up to
+five such cases and says how to start again (change the engine if it needs it, delete `testset.jsonl`, run the test set again), and
+the cutover line says "blocked". The test-set line reads `cases N of 29, false approves A (in any run; L in the latest), false
+declines D`. The cutover line is "met" only when the test set holds exactly 29 distinct case names: fewer reads "the test set has N
+of 29 cases", more reads "more than the 29 shipped". `SHIPPED_TEST_CASES` is 29 and a test pins it to the number of cases in
+`tests/dangerous-cases.json`. A case run many times counts once. The title and the docstring now say the report prints test case
+names (the shipped synthetic ids, which the store's regex limits to 1 to 64 of `a-z`, `0-9`, `_` and `-`).
+
+Verification as run in the scratch clone on 2026-10-30: the new tests failed before the change and pass after (52 tests of
+`test_tools_report.py` under `-W error`) and the full suite passes (6,314 tests in 13 roots). Thirty-nine mutations of the report are
+each caught; none survived (two older mutation entries no longer matched the changed code and were retargeted).
+
+Review: the `reviewer` agent, one exchange, five findings, none blocking.
+- F4 (applied): the printed title still said "counts, rule names and check names only"; it names test cases now, with a test.
+- F5 (applied): tests for runs in any order, for one case name with an approve-expected and a decline-expected row, for an
+  approve that was expected, and for a full test set without labels.
+- F1, F2, F3 (recorded in the spec): the report counts names and does not know them, so any 29 names read as the full set; rows
+  carry no engine hash, so a partial rerun after a change to the engine can leave a mix of old and new rows (a bad old run still
+  blocks); and the report cannot check that `expected` is right. The first and third need rows written by hand; the second needs
+  only a partial rerun.
+
+Not done: nothing is collected yet, and no real model has been asked, so no real report has been read.
+
+Then, on 2026-10-30: the three files were copied byte-for-byte into the real tree (`cmp` equal), the owner ran `wb release-approvals`
+("wrote 13 approvals for 1 first-party packages"), and in the real tree `wb check .`, `wb run code-work check`,
+`python3 -B -W error tests/run_all.py` (6,314 tests in 13 roots, OK) and `git diff --check` were clean. The release wrote two new
+shipped package records (`0729b4e7ca1c…`, `dc0ccd49870e…`), part of this commit, and named six older ones as belonging to no
+release (`b01a2ea3bdce`, `b021ea3d9fbc`, `b5ed39948ae1`, `b99368d22038`, `dc7504aa9ea0`, `e550e1f0bc85`); they are still tracked,
+awaiting the owner's word.
