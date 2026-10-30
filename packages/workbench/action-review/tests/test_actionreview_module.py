@@ -20,7 +20,7 @@ PACKAGE = os.path.join(ROOT, "packages", "workbench")
 MODULE = os.path.join(PACKAGE, "action-review")
 HELPER = "helper/action-review"
 RULES = ("rules/safe-git-commit.json", "rules/safe-git-remove.json")
-DATA = ("rubric/rubric.md", "reply-schema.json")
+DATA = ("rubric/rubric.md", "reply-schema.json", "hook/shadow_store.py")
 
 
 def declaration():

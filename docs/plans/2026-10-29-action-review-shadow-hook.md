@@ -412,5 +412,55 @@ release and are to be removed by hand, which was not done), and in the real tree
 `python3 -B -W error tests/run_all.py` (6,099 tests in 13 roots, OK) and `git diff --check` were clean. The two new shipped package
 records (`10a1da2fc18a…`, `9ea0fd32c92b…`, each an `approval.json`) are part of the increment's commit.
 
-Not done: the two stale shipped records are still tracked, awaiting the owner's word to delete them. No hook reads the new lines yet
-(Increment D).
+Not done: the two stale shipped records are still tracked, awaiting the owner's word to delete them (the owner said to remove them
+later on 2026-10-30, and they were removed in commit `71cd4fb`). No hook reads the new lines yet (Increment D).
+
+### Increment C
+
+**A departure from the plan's text, for the owner to accept.** The plan names the shipped file `hook/store.py`. The installer's
+boundary test (`test_the_installer_and_its_tests_name_no_module_helper_harness_or_path`) refuses a module file whose name is the
+name of a file of the installer, and `workbench/store.py` exists. The file is `hook/shadow_store.py`. The plan's later text that
+says `store.py` (Scope, the Increment C and D steps) means this file. Nothing else about the increment changes.
+
+Where the work is. Built in a scratch clone at `71cd4fb`, as for B; copied into the real tree and released by the owner afterwards
+(see the end of this section).
+
+Changed: `packages/workbench/action-review/hook/shadow_store.py` (new), `packages/workbench/action-review/tests/test_hook_store.py`
+(new), `packages/workbench/action-review/module.json` (`ships`), `packages/workbench/action-review/helper/action-review` (a `PINS`
+entry; the helper reads no file of `hook/`, so the entry is for the owner's comparison of a copy), `tests/test_actionreview_module.py`
+(the expected `ships`), `docs/specs/action-review.md` (the placement paragraph and the rules the store enforces).
+
+Done: `shadow_store.py` keeps the four files below `~/.config/project-workbench/action-review/`. It imports only the standard
+library. It finds the directory from the home directory with no environment variable or option; makes the store root and the
+directory mode 0700 and refuses any other mode, a link, another owner or a file in place of either; opens files with no-follow,
+non-blocking opens and checks the descriptor (regular, owner, one link, no group or other access); appends one ASCII line of strict
+JSON under a lock, with a short-write loop, a cut-back after a failed or interrupted write, and a new line first if a killed writer
+left a fragment; refuses a row that does not fit its format or line cap; and on read skips and counts any line that does not fit,
+including raw non-ASCII, duplicate keys, a number too large for a float and an unfinished last line. The formats are those of
+"The data files", with the rules written into the spec after the review.
+
+Verification as run in the scratch clone on 2026-10-30: the new tests failed before the file existed; then 46 tests of
+`test_hook_store.py` pass, the module's tests pass, and the full suite `python3 -B -W error tests/run_all.py` passes (6,145 tests in
+13 roots). Twenty-seven mutations of `shadow_store.py` are each caught by the tests; nine first survived and were closed with new
+tests, and six more were added for the review's fixes. One run of the full suite first failed on the boundary test above, which is
+how the name clash was found.
+
+Review: the `reviewer` agent, one exchange, eight findings, none blocking.
+- F1 (applied): a FIFO in place of a file would hold the opener; the opens are non-blocking and the descriptor check refuses it.
+- F2 (applied): a killed writer could leave a torn line that swallowed the next good row; the next row now starts a new line.
+  An interrupt inside the write is cut back too.
+- F3 (applied): the docstring now says what is made (the store root, the directory, and `~/.config` only if missing).
+- F4 (applied): the reader is as strict as the writer (ASCII only, no infinite number).
+- F5 (applied): the labels line cap is 4 KiB so that a 300-character note outside the Basic Multilingual Plane fits.
+- F6 (applied): the spec states the approve/decline rule and that the hook records an approve that names a failed check as `failed`.
+- F7 (applied): the spec says a `reviewed` outcome with no `facts:` line is a verdict row with no collected row, counted by the report
+  as reviewed but not collectable. Increment D follows this.
+- F8: the rename above, recorded here for the owner's acceptance.
+
+Then, on 2026-10-30: the six files were copied byte-for-byte into the real tree (`cmp` equal), the owner ran `wb release-approvals`
+("wrote 13 approvals for 1 first-party packages"), and in the real tree `wb check .`, `wb run code-work check`,
+`python3 -B -W error tests/run_all.py` (6,145 tests in 13 roots, OK) and `git diff --check` were clean. The release wrote two new
+shipped package records (`334b92357c9b…`, `7bb3173b7a69…`), which are part of the increment's commit, and warned that the two records
+of the release before it (`10a1da2fc18a`, `9ea0fd32c92b`) belong to no release; they are still tracked, awaiting the owner's word.
+
+Not done: no hook uses the store yet (Increment D).

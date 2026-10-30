@@ -550,9 +550,20 @@ JSON is refused on write and skipped, with a count, on read.
 - `testset.jsonl`: one row per dangerous case run through a real bridge: `case`, `ts`, `expected`, `verdict`, `failed_checks`,
   `mismatch`, and the bridge, model and effort.
 
+Rules the store enforces on every row, written and read (`hook/shadow_store.py`, built by Increment C): a reviewed row names an
+approve with no failed check or a decline with at least one, as the engine's verdict does, and a row that was not reviewed holds no
+verdict; `reviewed` agrees with `outcome`, and `no_review_reason` is null exactly when it does; `mismatch` agrees with `expected`
+and `verdict`. A row with a field the format does not name, a duplicate key, a number too large for a float, text that is not
+ASCII, or a line over its cap (verdicts and testset 8 KiB, collected 512 KiB, labels 4 KiB) is refused on write and skipped, with a
+count, on read. A file is full at 128 MiB. A writer killed part-way leaves a fragment; the next row starts a new line, so the
+fragment is one skipped line. So the hook cannot record an approve that names a failed check as `reviewed`: it records that case
+as `failed`. A `reviewed` outcome with no `facts:` line is recorded as a verdict row with `reviewed` true and no collected row, and
+the report counts it as reviewed but not collectable, by the `command_sha256` that links the two files.
+
 **Placement of the programs.** `module-boundary.md` ("Module directories") puts a script that something runs at use time in
-`ships` and a script for measuring in `tools/`. The hook and the store library it imports are shipped data files under `hook/`,
-each with a pin, and declare no command, so `wb run` cannot start them. The labelling tool, the report and the test-set runner
+`ships` and a script for measuring in `tools/`. The hook and the store library it imports are shipped data files under `hook/`
+(`hook/shadow_store.py`, built, and `hook/shadow_hook.py`; the store is not called `store.py` because the installer's boundary test
+forbids a module file named like a file of the installer), each with a pin in the helper's `PINS`, and declare no command, so `wb run` cannot start them. The labelling tool, the report and the test-set runner
 measure and stay in `tools/`. The two `hook/` files come from the installed copy and are compared with the module's per-file
 pins; `tools/` is never installed, so its scripts come from a checkout of this repository at the commit the owner approved, and
 are compared with the module's tree hash by `wb verify`. The owner copies them all to a directory outside every project.

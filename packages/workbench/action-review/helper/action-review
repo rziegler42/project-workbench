@@ -46,6 +46,9 @@ PINS = {
     "rules/safe-git-remove.json": "dd1ce89e628c0eaef5967aa01202f9f2e94da3490b89c3887f87160aec3af917",
     "rubric/rubric.md": "5ac359f2eaf51fa3895b57f41d51f932c2fa810db508320db9580aef17c4ddbe",
     "reply-schema.json": "ead8d9b7c80e962ad890685ef6c0c054bf10bb5b0796374c02cc59e336d3570a",
+    # Not read by the review: the owner's shadow hook, which is copied out of the project, and the owner compares the copy's
+    # hash with this one (plan `2026-10-29-action-review-shadow-hook`).
+    "hook/shadow_store.py": "db5fafbf8c64b03a3c1d1b74c011512225f09b06e6b96f1155a0dd96050e2c32",
 }
 MAX_RULE = 16384
 MAX_RULES = 64
