@@ -552,4 +552,45 @@ Then, on 2026-10-30: the four files were copied byte-for-byte into the real tree
 `python3 -B -W error tests/run_all.py` (6,217 tests in 13 roots, OK) and `git diff --check` were clean. The release wrote two new
 shipped package records (`0ffb922facc1…`, `25313634e84f…`), part of this commit. Four older records (`334b92357c9b`,
 `7bb3173b7a69`, `1bdd06490378`, `3c47398a9e15`) are still tracked and listed by the release as belonging to no release; the owner
-declined their removal earlier, so none was removed.
+declined their removal earlier, so none was removed in this commit. (The owner later said to remove them, and they were removed in
+commit `40a29a8`.)
+
+### Increment F
+
+Built in a scratch clone at `40a29a8`, as for B to E. `tools/report.py` is a maintainer script like `label.py`: no `ships` entry, no
+`PINS` entry; the owner copies it with `hook/shadow_store.py`.
+
+Changed: `packages/workbench/action-review/tools/report.py` (new), `packages/workbench/action-review/tests/test_tools_report.py` (new),
+`docs/specs/action-review.md` ("As built" paragraph under "Labelling and the report").
+
+Done: `python3 -B report.py` takes no argument and needs no terminal, because it prints only counts, rule names and check names, all
+printable ASCII. Per action (the last word of the rule name) it prints the labelled count, the agreements, the false declines and false
+approves, the false-decline rate rounded down to a tenth of a percent against the 10% bound, and the false declines by failed check;
+an action of `commit` and `remove` with fewer than 10 labelled prints "not enough labels". It prints the test set's cases and its
+false approves and false declines (latest run of each case, with the number of cases an earlier run approved wrongly), the prompted
+commands and those not reviewed by reason, the reviewed commands with no collected row, the unlabelled and skipped, and the
+unreadable lines of each file. A false approve on the labels or the test set is the first line and the cutover line says "blocked";
+otherwise it says "not yet" with its reasons, or that the bound is met (with the number of test cases and what is still waiting).
+
+Verification as run in the scratch clone on 2026-10-30: the tests failed before the file existed; then 39 tests of
+`test_tools_report.py` pass under `-W error` and the full suite `python3 -B -W error tests/run_all.py` passes (6,256 tests in 13
+roots). Thirty mutations of the tool are each caught; five first survived and were closed with new tests.
+
+Review: the `reviewer` agent, one exchange, eight findings, none blocking.
+- F1 (applied): a test set of one case read as "run"; the cutover line now says how many cases it had.
+- F2 (applied): a rerun could hide an earlier false approve; the number of such cases is printed beside the test-set counts.
+- F4 (applied): the cutover line said "met" with commands still unlabelled, skipped or not collectable; it now lists them.
+- F5 (applied): a test that a command collected twice cannot hide a false approve or count twice.
+- F6 (recorded): a rule of another module ending in `commit` or `remove` would merge into that action; only `safe-git` rules exist.
+- F7 (applied): a weak assertion in a test was made exact.
+- F3, F8 (no change): a later `skip` replacing an earlier `wrong` is the labelling rule, with the skipped count visible; the
+  source-scan tests are crude but not vacuous.
+
+Then, on 2026-10-30: the three files were copied byte-for-byte into the real tree (`cmp` equal), the owner ran `wb release-approvals`
+("wrote 13 approvals for 1 first-party packages"), and in the real tree `wb check .`, `wb run code-work check`,
+`python3 -B -W error tests/run_all.py` (6,256 tests in 13 roots, OK) and `git diff --check` were clean. The release wrote two new
+shipped package records (`c16c2be88b16…`, `de11bc09aa24…`), part of this commit, and named the two of the release before it
+(`0ffb922facc1`, `25313634e84f`) as belonging to no release; they are still tracked, awaiting the owner's word.
+
+Not done: the tool has not been run on the owner's real files; nothing is collected yet. The test-set rows it reads are written by
+Increment G, not yet built.

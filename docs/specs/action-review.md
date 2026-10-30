@@ -603,6 +603,26 @@ characters, the backslash and every escape sequence are written as visible escap
 terminal. Each label is one whole row or none; an interrupt ends the tool with 130 and a store that cannot be read or written ends
 it with 1. It starts no program and opens no file but the store's.
 
+*As built (Increment F, `tools/report.py`).* `python3 -B report.py`, copied with `shadow_store.py`, takes no argument (any argument
+exits 2) and needs no terminal, because it prints only counts, rule names and check names: never a command, a fact, a reason or a
+note, and nothing that is not printable ASCII. It writes nothing. The latest label of each collected command is the one counted; a
+skipped command is counted as skipped and not as labelled; a label of a command with no collected row is counted apart. Per action
+(the last word of the rule's name, so `commit` and `remove`; others appear as they are met) it prints the labelled count, the
+agreements (`right`), the false declines (`wrong` on an engine decline) and the false approves (`wrong` on an engine approve), the
+false-decline rate rounded down to a tenth of a percent against the 10% bound ("within" is at most 10%), and the false declines
+grouped by failed check. An action of the two with fewer than 10 labelled commands prints "not enough labels" and no rate. The test
+set counts the latest run of each case: a false approve is an expected decline that was approved, a false decline an expected approve
+that was declined; the number of cases an earlier run approved wrongly is printed beside it, so that a rerun does not hide it. It counts the prompted commands from `verdicts.jsonl`, the reviewed ones and the others by reason (the `no_rule`
+count says it includes pushes and remote jobs), the reviewed commands with no collected row (matched by the hash of the command
+text), the unlabelled and skipped, and the lines each file could not be read from. A false approve on the labels or the test set is
+the first line printed and the cutover line then says "blocked". Otherwise the cutover line says "not yet", with its reasons (fewer
+than 10 labelled of either action, a rate over the bound for either, or a test set not run), or that the bound is met on the labels
+and the test set, which leaves the cutover to the owner; the line then gives the number of test cases and, when any command is still
+unlabelled, skipped or reviewed but not collectable, says so. A false decline on the test set is reported and does not block. Limits:
+a test set of one case counts as run, so the owner reads the case count; a later `skip` replaces an earlier `wrong`, as a later label
+always does, and the skipped count stays visible; and a rule of another module whose name ends in `commit` or `remove` would be
+counted with that action (only the `safe-git` rules exist today).
+
 **Recorded limit: the harness does not deny the agent's reads of the store.** The rendered rules deny edits to
 `~/.config/project-workbench/**` and not reads (read on 2026-10-30 in the rendered `settings.local.json`). The collected file is
 outside every project, so the vendor program, which starts in the project, does not find it by walking the project, but an agent
