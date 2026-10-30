@@ -322,7 +322,22 @@ Not run by the agent: the hook against Claude Code in a live session, any real b
 
 ## Review record
 
-Empty until a review is asked for.
+Plan review, before approval: Codex (`gpt-5.6-terra`) through the review engine, three rounds, five findings. Applied: the `skip`
+label value (R1-F2), one verdict row for every prompted command with a closed list of no-review reasons (R2-F1), the hook and
+store as shipped pinned files with the measuring scripts in `tools/` (R3-F1), and an `outcome:` line on every `--collect` run
+(R3-F2). Rejected: R1-F1, because a user-level `ask` is an ordinary rule in the owner's own settings file. The plan was approved
+on 2026-10-30 by the owner at the `ask` level.
+
+Increment A, `reviewer` agent, one exchange, seven findings.
+- F3 (blocking, applied): the acceptance criteria still promised the approver's counts; they now say the comparison cannot be
+  made.
+- F1 (applied): the spec says `store_error` was dropped from the plan's list because it could never appear in a row. Increment D
+  follows the spec's list.
+- F2 (applied): `collected.jsonl` gained `rule` and `command_sha256`, so the report can count per action.
+- F4 (applied for the stale sentences in the engine and split sections; "The owner's steps" and "As built" are Increment H's).
+- F5 (applied): the spec now says the owner chose `--collect` and defines the `facts:` and `outcome:` lines.
+- F6 (applied): the spec says where each program comes from and which hash is compared.
+- F7 (applied): the spec says a `Read` deny does not stop a shell `cat`.
 
 ## Deferred work
 
@@ -335,4 +350,27 @@ Empty until a review is asked for.
 
 ## Result
 
-Empty until work starts.
+### Increment A
+
+Changed: `docs/specs/action-review.md` only (uncommitted until the owner says to commit).
+
+Done: the new section "The shadow hook" (Claude format with provenance, the hook's behaviour, the collect lines, the data files,
+placement of the programs, labelling and the report, the recorded limit that the harness does not deny reads of the store);
+steps 3 to 5 and the bound of "Accuracy and cutover" amended with the departure marked; the acceptance criteria, the plan split and
+the log location sentences corrected.
+
+Facts established. Claude Code 2.1.314; hooks page retrieved 2026-10-30, 283,477 bytes, SHA-256
+`b755d9c7c166ec77e36ee2388e3299dd149a9f160171b6e97e427be439f942f9` (untracked, cited by URL, date and hash). A `PermissionRequest`
+hook fires only when a prompt is about to show; empty output with exit 0 is no decision; a failure does not block unless
+`onFailure` is `block`, and then it denies; the default time limit is 600 seconds. `Store.ensure` checks only the store root and
+its four directories, so the `action-review/` subdirectory is tolerated. The rendered settings deny edits to the store and not
+reads.
+
+Not established: whether the hook fires in auto mode when the classifier decides without a prompt, and whether it fires on the two
+module spellings in an interactive session. Both are the owner's check in Increment H. The plan's step 3 lists a `store_error`
+outcome that the spec drops; Increment D follows the spec.
+
+Verification as run on 2026-10-30: `wb check .` and `wb run code-work check` report no problems; `git diff --check` clean. Nothing
+else exists to run.
+
+Not done: "The owner's steps", "As built" and the open-questions list, which Increment H rewrites.

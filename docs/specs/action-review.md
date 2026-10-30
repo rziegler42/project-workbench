@@ -393,7 +393,7 @@ setting's request only when the bridge reports none; all three null when the bri
 format number). It holds no command text, no fact and no diff, with two residual exposures: `reason` is bounded,
 display-cleaned model output that could quote a path or a line it was shown, and a hash of a short argument list can be
 guessed by dictionary, so "hashes, never text" is not secrecy. It lives outside every project, in the owner's own data
-directory beside the approver's verdict log, so a vendor program that opens files in the project cannot find it. The owner
+directory (`~/.config/project-workbench/action-review/`, see "The shadow hook"), so a vendor program that opens files in the project cannot find it. The owner
 decided on 2026-10-25 that the owner's thin hook writes it, from the row the engine hands back, and that a failed write
 never withholds an approve (below, "Decided by the owner"). The engine writes nothing outside the project; the row
 reaches the hook through the `--log-row` flag, which prints it as one `log-row:` line on standard error, without
@@ -455,10 +455,104 @@ project would like. It is a request and never an authorization.
 
 ### The enforcement point (default; not built)
 
-The hook is plan 4 and does not exist. The owner's hook becomes a thin program: match the prompted command to a spelling, run `wb run action-review
+The owner's hook becomes a thin program: match the prompted command to a spelling, run `wb run action-review
 review`, and turn the verdict into the hook's answer. What the hook allows without the owner (`DELEGABLE`, the
 mode setting) stays a code constant there. The hook is the owner's to write and install; the agent prepares and
-tests it on a scratch copy, as it did for the patch of option 1a.
+tests it on a scratch copy, as it did for the patch of option 1a. Plan `2026-10-29-action-review-shadow-hook` builds the
+**shadow** form of it, which decides nothing ("The shadow hook" below). A hook that decides is for the plan after the shadow.
+
+### The shadow hook (specified by plan `2026-10-29-action-review-shadow-hook`, Increment A; not built)
+
+During the shadow the hook runs the engine on each prompted command and records what the engine would have said. It answers
+nothing: the owner sees the normal prompt, and the owner's later label says whether the engine was right. This replaces the
+earlier text of "Accuracy and cutover", whose shadow ran the engine beside the approver while the approver's answer still
+decided. The approver was removed when the user-level configuration was reset on 2026-10-29, so no program decides today.
+
+**The Claude format, checked.** Provenance: Claude Code 2.1.314 installed; the page `https://code.claude.com/docs/en/hooks.md`,
+retrieved 2026-10-30, 283,477 bytes, SHA-256 `b755d9c7c166ec77e36ee2388e3299dd149a9f160171b6e97e427be439f942f9`, read in full for
+`PermissionRequest`, "Timeouts", "Block the action when a hook fails" and "Exit code 2 behavior per event". The page is data. It
+is kept untracked and is cited here by URL, date and hash. The installed version was read from `claude --version`; no hook was
+run for this reading.
+
+- **When it fires.** "When Claude Code is about to ask you for permission to use a tool", and for a call that would otherwise be
+  auto-denied because it cannot prompt. It matches on tool name (`Bash`). It does not fire for a command that an `allow` rule
+  or a permission mode lets through without a prompt. The page does not say whether it fires when auto mode's classifier decides
+  a call without a prompt; the owner's check in Increment H finds out, and until then a shadow in auto mode may see less than
+  every command.
+- **Input.** JSON on standard input with `session_id`, `transcript_path`, `cwd`, `permission_mode`, `hook_event_name`
+  (`PermissionRequest`), `tool_name`, `tool_input` (for Bash `command` and `description`) and an optional
+  `permission_suggestions` array. There is no `tool_use_id`.
+- **Answers.** A decision is `hookSpecificOutput.decision.behavior` of `allow` or `deny`. Empty standard output with exit 0 is no
+  decision, and the permission flow goes on to the prompt. Exit 2 is not honoured on this event: the flow is unchanged and
+  standard error is discarded. A hook that fails (cannot start, exits other than 0 or 2, times out, prints invalid JSON) does not
+  block unless the entry sets `onFailure` to `block`, and with that set a failure **denies** the request. So the shadow entry
+  must not set `onFailure`. The default time limit for a command hook is 600 seconds, so the entry sets `timeout` to 30.
+- **Not run for** a sandboxed command's network request, and not for `EndConversation`.
+- **In a session that cannot prompt** (a background subagent in non-interactive mode) the hook still runs and, if no hook decides,
+  the call is denied. That is the harness's rule, not an effect of the shadow hook, which decides nothing.
+
+**The engine's collect lines (decided by the owner on 2026-10-29; Increment B builds them).** With `--collect` the engine prints,
+on standard error after the `log-row:` line, a `facts:` line holding the canonical JSON of the `describe` object when `describe`
+ran, and an `outcome:` line, always last, of strict JSON with one `reason` of `reviewed`, `no_rule`, `unreviewable`, `refused`,
+`failed` or `timeout`, taken from the engine's own parse and exit path. The command is parsed once, by the engine; the hook
+never reruns `describe` and never parses the command. Without the flag the output is unchanged.
+
+**What the hook does.** It reads the input within a bound and takes `tool_name`, `command` and `cwd`. It does nothing for a tool
+other than `Bash`. It calls `wb run action-review review --log-row --collect '<command>'` from `cwd`, by an absolute path to
+`wb` that the owner sets when installing it, never found through `PATH` or the project, with a clean environment, the shell
+requirements of "The reviewed command is the command that runs", and a 30-second limit. It takes the `log-row:`, `facts:` and
+`outcome:` lines only from the last line of each kind on standard error, writes its rows (below), and prints nothing to standard
+output. In every case its exit status is 0. The engine's own parser decides whether a command is reviewable; the hook parses
+nothing. A command that matches no rule, including a push and a remote-job command, is `no_rule`, and the engine cannot
+tell the two apart from any other command with no rule, so the report does not split them.
+
+**The data files.** The directory is `~/.config/project-workbench/action-review/`, a subdirectory of the guarded store found from
+the account's home directory; no environment variable, option or file moves it (`2026-10-20-fixed-store-location`). The owner
+decided this on 2026-10-29. The store check of the installer (`workbench/store.py`, `Store.ensure`) creates and checks only the
+store's root and its four directories (`packages`, `cache`, `projects`, `bin`), reads no other entry, and so tolerates this
+subdirectory; read on 2026-10-30. The hook creates it with mode 0700 and its files with 0600, and writes only below it, never to
+`settings`, `projects/`, `packages/`, `cache/` or `bin/`. Every file is strict JSON lines, appended with one write under a lock,
+through no link and with no second hard link; a line over its cap, with a field the format does not name or that is not strict
+JSON is refused on write and skipped, with a count, on read.
+
+- `verdicts.jsonl`: one row for every prompted command the hook sees. Fields: `ts` (UTC, to the second); `command_sha256` (of the
+  raw command text, to link a collected row); `outcome`, one of `reviewed`, `no_rule`, `unreviewable`, `refused`, `failed`,
+  `timeout`, `malformed_input`, `not_bash`; `verdict` (`approve`, `decline` or null); `failed_checks`; `reason`; `reviewed`
+  (a boolean); `no_review_reason` (null when reviewed, else the outcome); and the engine's log-row fields when there is one
+  (`rule`, `facts_sha256`, `rubric_sha256`, `bridge`, `model`, `effort`, `format`). It holds no command text. A case where the
+  directory cannot be written leaves no row and is noted on standard error; the plan's earlier `store_error` outcome is dropped
+  for that reason, since it could never appear in a row.
+- `collected.jsonl`: one row per reviewed command. Fields: `id` (a random 128-bit hex string), `ts`, `rule` (the engine's rule
+  name, such as `safe-git-commit`, which names the action for the per-action counts), `command_sha256` (of the raw text, equal to
+  the verdict row's), `command` (the raw text, at most 4,096 characters), `facts` (the `describe` object as received, at most the object cap of `safe-git.md`), `verdict`,
+  `failed_checks`, `reason`. It may hold diffs and secrets and is never tracked or inside a project.
+- `labels.jsonl`: `id` (a collected id), `label` (`right`, `wrong` or `skip`), `ts`, optional `note` (at most 300 characters). A
+  `skip` is a row the owner could not judge; it counts toward neither the labels nor the per-action minimums, and a later row for
+  the same `id` replaces an earlier one.
+- `testset.jsonl`: one row per dangerous case run through a real bridge: `case`, `ts`, `expected`, `verdict`, `failed_checks`,
+  `mismatch`, and the bridge, model and effort.
+
+**Placement of the programs.** `module-boundary.md` ("Module directories") puts a script that something runs at use time in
+`ships` and a script for measuring in `tools/`. The hook and the store library it imports are shipped data files under `hook/`,
+each with a pin, and declare no command, so `wb run` cannot start them. The labelling tool, the report and the test-set runner
+measure and stay in `tools/`. The two `hook/` files come from the installed copy and are compared with the module's per-file
+pins; `tools/` is never installed, so its scripts come from a checkout of this repository at the commit the owner approved, and
+are compared with the module's tree hash by `wb verify`. The owner copies them all to a directory outside every project.
+A program run from inside a project would be code that project could change.
+
+**Labelling and the report.** For an approve, `right` means the owner would have approved the action; for a decline, `right` means
+the owner would not have. A **false decline** is a decline the owner marks `wrong`; a **false approve** is an approve the owner
+marks `wrong`, and is the worse error. The report prints counts and check names only, never a command or a fact. It prints, per
+action (commit, remove), the labelled count, the false declines and false approves, the false-decline rate against the bound,
+the false declines grouped by failed check, the count of commands not reviewed by `no_review_reason`, and the unlabelled and
+skipped counts; any false approve on the labels or the test set is printed first and blocks the cutover line.
+
+**Recorded limit: the harness does not deny the agent's reads of the store.** The rendered rules deny edits to
+`~/.config/project-workbench/**` and not reads (read on 2026-10-30 in the rendered `settings.local.json`). The collected file is
+outside every project, so the vendor program, which starts in the project, does not find it by walking the project, but an agent
+that can read user-level paths can read it. The owner's steps include a user-level `Read` deny for
+`~/.config/project-workbench/action-review/**`. This is the owner's rule, not one the workbench renders, and a `Read` deny does
+not stop a `cat` through the shell, so it narrows the gap and does not close it.
 
 ### Accuracy and cutover (default)
 
@@ -474,14 +568,19 @@ labelled set, not against the approver.
    or wrong. A new file is needed because the old log has no text to label. The facts can contain diffs, and a
    vendor program can open any file inside the project, so the file lives outside every project, in the owner's
    own data directory beside the verdict log, and is never tracked. The owner-side collector writes it; the agent
-   does not. A project path for it would be readable by the vendor and is not allowed.
-3. **Shadow.** The thin hook runs the engine beside the approver. The approver's answer still decides; the
-   engine's is logged. Nothing the engine says takes effect.
-4. **Measure.** The report gives false declines and false approves of both programs against the owner's labels. A
-   disagreement is settled by the owner's label, not by assuming either is right.
+   does not. A project path for it would be readable by the vendor and is not allowed. (Amended 2026-10-30: the directory is
+   `~/.config/project-workbench/action-review/`; see "The shadow hook".)
+3. **Shadow.** The thin hook runs the engine on each prompted command and logs what it says. *Amended 2026-10-30:* the
+   earlier text had the approver's answer still decide beside it. No approver runs now, so the hook answers nothing and the
+   owner's own prompt decides. Nothing the engine says takes effect.
+4. **Measure.** The report gives the engine's false declines and false approves against the owner's labels and the test
+   set. *Amended 2026-10-30:* the earlier text counted both programs; the approver's answers are no longer collected, so
+   there is nothing to compare on the same commands, and its old rate in "Evidence" is context only. A disagreement is settled
+   by the owner's label.
 5. **Cut over only when the owner says.** The engine replaces the approver when its false-approve count on the
    test set and the labelled set is zero and its false declines are below a bound the owner sets. The old program and `claude-workflow` stay
-   installed until then (rule 6 of `global-config-inventory.md`).
+   installed until then (rule 6 of `global-config-inventory.md`). *Amended 2026-10-30:* both programs went in the reset of
+   the user-level configuration; the cutover is now the owner's decision to let a hook allow, in the plan after the shadow.
 
 The cost is the owner's time to label, and two model calls per prompted command during the shadow.
 
@@ -495,10 +594,14 @@ and false declines on the labels under the owner's bound.
 
 **The bound (the owner chose the author's recommendation, 2026-10-25).** At most 10% of the labelled real commands
 are false declines, on at least 30 labelled commands, and strictly below the approver's rate on the same commands.
+*Decided by the owner on 2026-10-29, replacing the sentence above:* at most 10% false declines among the labelled real
+commands, with at least 10 labelled commits and 10 labelled removals, and no false approve on the labels or the test set. The
+clause "strictly below the approver's rate" is dropped because no approver runs, and a single count of 30 is replaced by a
+minimum for each action, so that easy commits cannot pass a rule that has never seen a removal.
 The 10% is provisional and the owner may tighten it once plan 1 has counted the approver's declines by failed check.
 A false decline costs the owner a prompt (under `delegate` a decline falls back to the normal prompt); a false
 approve is the harm, so it has no bound: any false approve on either set blocks cutover. The report groups false
-declines by check, so a few fixable checks are not hidden in a count. The 10% and the 30 are the author's judgment,
+declines by check, so a few fixable checks are not hidden in a count. The 10% and the minimums are the author's judgment (the 30 of the earlier text became the two minimums of 10),
 not measured.
 
 ### What moves, and what does not
@@ -593,7 +696,7 @@ cases (`tests/dangerous-cases.json` in the module, 29 cases; the model-only case
 
 ## Proposed split into plans (default)
 
-Each is a plan of its own, in this order. Plan 3 is done (below); plans 4 and 5 do not exist yet, and the owner approves each.
+Each is a plan of its own, in this order. Plan 3 is done (below); plan 4 is `2026-10-29-action-review-shadow-hook` (approved, in progress) and plan 5 does not exist yet, and the owner approves each.
 
 1. **The interface, documented. Done by plan `2026-10-25-describe-interface-documented`.** The `describe` decision
    is accepted. The plan settled what it left open: the form of a module's declaration in `module-contract.md` and
@@ -700,7 +803,8 @@ left open.
   not (the plan of the engine lists them).
 - On the test set of dangerous cases (reviewed by the owner) and on the labelled set of the owner's real commands,
   the engine has no false approve; on the labelled set its false-decline count is below the owner's bound; and the
-  report shows the approver's counts on the same sets for comparison.
+  report shows the engine's counts against the labels and the test set (the approver's counts on the same sets can no longer
+  be collected; amended 2026-10-30, see "The shadow hook").
 - The count of the approver's declines by failed check exists before the engine's rubric is written.
 - `review` prints only the verdict object described above and exits 0, 1 or 2 as the table says; an approve with a
   non-empty `failed_checks`, a decline with an empty one, an extra field or a `reason` over 300 characters is never
