@@ -190,4 +190,44 @@ Empty until a review is asked for.
 
 ## Result
 
-Empty until work starts.
+### Increment A
+
+Built in a scratch clone at `6c0642a`, as in the earlier plan.
+
+Changed: `packages/workbench/action-review/hook/shadow_hook.py`, `packages/workbench/action-review/tests/test_hook_shadow_hook.py`, the
+`PINS` entry of `hook/shadow_hook.py` in `packages/workbench/action-review/helper/action-review`, and `docs/specs/action-review.md`
+("As built (Increment D)" and step 3 of "The owner's steps").
+
+Done: the `PATH` the hook gives the engine begins with the launcher's own directory, then `/usr/local/bin:/usr/bin:/bin`, so the
+engine's lookup (`trusted_which("wb", ...)`) finds the launcher; the launcher's file name must be `wb` and its directory name must
+not hold the path separator; the hook waits 27 seconds and then at most `SECOND_WAIT` (2), 29 in all. The environment given to the
+engine is exactly `PATH`, `HOME` and `LANG`.
+
+Verification as run in the scratch clone on 2026-10-30: the new tests failed before the change, among them a test that runs the
+engine's own `trusted_which` on the environment the hook gave it and could not find the launcher (the fault, demonstrated); then the
+48 tests of `test_hook_shadow_hook.py` pass under `-W error` and the full suite passes (6,290 tests in 13 roots). Thirty-one mutations
+of the hook are each caught; three first survived or no longer matched the changed code and were closed (the planted-program test
+now names its planted file `wb`, so it still proves the absolute-path check).
+
+Review: the `reviewer` agent, one exchange, eight findings, none blocking.
+- F1 (applied): the launcher's directory is first on the `PATH` of the engine and everything it starts; the spec now says it should
+  hold nothing but `wb` and be writable by the owner alone.
+- F3 (applied): the environment test is an exact comparison now, with a mutation for an extra variable.
+- F7 (applied): a test that was nearly vacuous was replaced by one that plants a launcher under a fake `.git` ancestor and shows the
+  engine's own lookup drops it though it is first on the `PATH`.
+- F8 (applied): the spec explains the separator rule.
+- F2 (recorded, not done): the hook refuses a launcher inside the command's own directory but not one in a repository above it
+  (`<repo>/bin/wb` with the command in `<repo>/sub`). It predates this increment and needs the owner to name such a path with
+  `--wb`; the engine's lookup would drop it. Closing it is more than this increment's steps allow and is for the owner to add.
+- F4 (recorded, not done): the plan's Assumptions say "the hook waits 28"; the steps, the criterion and the code say 27 and 2. The
+  approved text is not edited here.
+- F5, F6 (no defect): the waits and the name and separator checks are right as built.
+
+Then, on 2026-10-30: the four files were copied byte-for-byte into the real tree (`cmp` equal), the owner ran `wb release-approvals`
+("wrote 13 approvals for 1 first-party packages"), and in the real tree `wb check .`, `wb run code-work check`,
+`python3 -B -W error tests/run_all.py` (6,290 tests in 13 roots, OK) and `git diff --check` were clean. The release wrote two new
+shipped package records (`b01a2ea3bdce…`, `b021ea3d9fbc…`), part of this commit, and named the two before them (`b5ed39948ae1`,
+`b99368d22038`) as belonging to no release; they are still tracked, awaiting the owner's word.
+
+Not done: the hook has not run against the real launcher, so the fix is shown by the engine's own lookup on the hook's environment
+and not by a real review; that is the owner's hand run.

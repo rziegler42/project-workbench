@@ -29,7 +29,8 @@ import shadow_store as store  # noqa: E402  the store beside this file, whose di
 
 # The engine's own limit is 25 seconds and the hook's, in the owner's settings, is 30: this wait is between them, so the engine
 # reports first and the hook records a timeout before the harness stops it.
-WAIT_SECONDS = 28
+WAIT_SECONDS = 27
+SECOND_WAIT = 2  # after the group is killed, for the output of a program that left it; the two add up to under 30
 MAX_INPUT = 1 << 20
 MAX_COMMAND = 4096
 MAX_STREAM = 2 << 20
@@ -81,10 +82,11 @@ def parse_arguments(argv, home_dir):
 
 
 def usable_launcher(wb, cwd):
-    """True when `wb` is an absolute path to an executable file that is not inside the command's own directory, which a
-    repository could change."""
+    """True when `wb` is an absolute path to an executable file named ``wb`` that is not inside the command's own directory,
+    which a repository could change. The name is `wb` because the engine looks for that name in the trusted entries of its
+    ``PATH``, which the hook builds from the launcher's own directory (so that directory must not hold the path separator)."""
     if not isinstance(wb, str) or "\0" in wb or not os.path.isabs(wb) or not os.path.isfile(wb) \
-            or not os.access(wb, os.X_OK):
+            or not os.access(wb, os.X_OK) or os.path.basename(wb) != "wb" or os.pathsep in os.path.dirname(wb):
         return False
     real, base = os.path.realpath(wb), os.path.realpath(cwd)
     return not (real == base or real.startswith(base + os.sep))
@@ -94,7 +96,8 @@ def usable_launcher(wb, cwd):
 
 def run_engine(wb, command, cwd, home_dir):
     """``(exit code, standard output, standard error, timed out)`` of the engine, run in its own process group."""
-    environment = dict(ENVIRONMENT, HOME=home_dir)
+    # The engine finds `wb` by name in the trusted entries of the PATH it inherits, so the launcher's own directory comes first.
+    environment = dict(ENVIRONMENT, HOME=home_dir, PATH=os.pathsep.join([os.path.dirname(wb), ENVIRONMENT["PATH"]]))
     proc = subprocess.Popen([wb, "run", "action-review", "review", "--log-row", "--collect", command], cwd=cwd,
                             env=environment, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                             start_new_session=True, close_fds=True)
@@ -107,7 +110,7 @@ def run_engine(wb, command, cwd, home_dir):
         except OSError:
             pass
         try:
-            out, err = proc.communicate(timeout=2)
+            out, err = proc.communicate(timeout=SECOND_WAIT)
         except subprocess.TimeoutExpired:  # a program that left the group still holds the pipes: do not wait for it
             out, err = b"", b""
         timed_out = True

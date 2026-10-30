@@ -444,13 +444,13 @@ class Program(Base):
         marker = os.path.join(self.base, "planted-ran")
         planted = "#!%s\nopen(%r, 'w').close()\n" % (sys.executable, marker)
         for directory in (self.base, self.cwd):  # the hook's own directory, and the command's, which the repository controls
-            with open(os.path.join(directory, "evilwb"), "w") as handle:
+            with open(os.path.join(directory, "wb"), "w") as handle:
                 handle.write(planted)
-            os.chmod(os.path.join(directory, "evilwb"), 0o755)
+            os.chmod(os.path.join(directory, "wb"), 0o755)
         before = os.getcwd()
         os.chdir(self.base)
         try:
-            code, _ = self.run_hook(self.engine(), argv=["--wb", "./evilwb"])
+            code, _ = self.run_hook(self.engine(), argv=["--wb", "./wb"])
         finally:
             os.chdir(before)
         self.assertEqual(0, code)
@@ -561,6 +561,73 @@ class Program(Base):
 
     def test_the_wait_is_shorter_than_the_hooks_own_30_seconds_and_longer_than_the_engines_25(self):
         self.assertTrue(25 < self.mod.WAIT_SECONDS < 30, self.mod.WAIT_SECONDS)
+
+
+class Launcher(Base):
+    """The engine finds `wb` by name in the trusted entries of the PATH it inherits (`wbkit/call.py`), so the hook's PATH must
+    hold the launcher's own directory. Security review of the shadow, finding Low 4: it did not, and every review was refused."""
+
+    def recorded_environment(self):
+        self.run_hook(self.engine())
+        return self.wb_args()["env"]
+
+    def test_the_path_the_engine_gets_begins_with_the_launchers_own_directory_then_the_fixed_entries(self):
+        path = self.recorded_environment()["PATH"].split(os.pathsep)
+        self.assertEqual(self.wbdir, path[0])
+        self.assertEqual(self.mod.ENVIRONMENT["PATH"].split(os.pathsep), path[1:])
+
+    def test_the_engine_finds_the_launcher_by_its_own_lookup_in_the_environment_the_hook_gives_it(self):
+        from workbench.wbkit import call
+        env = self.recorded_environment()
+        with unittest.mock.patch.dict(os.environ, {"PATH": env["PATH"]}):
+            found = call.trusted_which("wb", call.outermost_boundary(self.cwd))
+        self.assertEqual(self.wb, found)
+
+    def test_a_directory_inside_a_repository_is_dropped_by_the_engines_own_lookup_even_when_it_is_first_on_the_path(self):
+        # The hook already refuses a launcher in the command's directory; this shows that the engine would not use one in a
+        # repository above it either, which is what makes a PATH that begins with the launcher's directory safe to give.
+        from workbench.wbkit import call
+        repo = os.path.join(self.base, "repo")
+        for folder in (os.path.join(repo, ".git"), os.path.join(repo, "bin"), os.path.join(repo, "sub")):
+            os.makedirs(folder)
+        planted = os.path.join(repo, "bin", "wb")
+        with open(planted, "w") as handle:
+            handle.write("#!/bin/sh\n")
+        os.chmod(planted, 0o755)
+        path = os.pathsep.join([os.path.join(repo, "bin"), self.mod.ENVIRONMENT["PATH"]])
+        with unittest.mock.patch.dict(os.environ, {"PATH": path}):
+            self.assertIsNone(call.trusted_which("wb", call.outermost_boundary(os.path.join(repo, "sub"))))
+
+    def test_the_environment_holds_exactly_path_home_and_lang(self):
+        self.assertEqual({"PATH", "HOME", "LANG"}, set(self.recorded_environment()))
+
+    def test_a_launcher_that_is_not_named_wb_is_not_run_because_the_engine_looks_for_that_name(self):
+        other = os.path.join(self.wbdir, "mywb")
+        self.install_wb(self.engine())
+        with open(self.wb, "rb") as source, open(other, "wb") as target:
+            target.write(source.read())
+        os.chmod(other, 0o755)
+        code, err = self.run_hook(argv=["--wb", other])
+        self.assertEqual(0, code)
+        self.assertEqual("failed", self.one_verdict()["outcome"])
+        self.assertIsNone(self.wb_args())
+
+    def test_a_launcher_in_a_directory_whose_name_holds_the_path_separator_is_not_run(self):
+        odd = os.path.join(self.base, "a" + os.pathsep + "b")
+        os.mkdir(odd)
+        self.install_wb(self.engine())
+        with open(self.wb, "rb") as source, open(os.path.join(odd, "wb"), "wb") as target:
+            target.write(source.read())
+        os.chmod(os.path.join(odd, "wb"), 0o755)
+        code, _ = self.run_hook(argv=["--wb", os.path.join(odd, "wb")])
+        self.assertEqual(0, code)
+        self.assertEqual("failed", self.one_verdict()["outcome"])
+        self.assertIsNone(self.wb_args())
+
+    def test_the_two_waits_add_up_to_less_than_the_hooks_own_30_seconds_and_more_than_the_engines_25(self):
+        total = self.mod.WAIT_SECONDS + self.mod.SECOND_WAIT
+        self.assertGreater(total, 25)
+        self.assertLessEqual(total, 29)
 
 
 class Failing(Base):

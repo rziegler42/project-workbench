@@ -527,11 +527,20 @@ tell the two apart from any other command with no rule, so the report does not s
 
 *As built (Increment D, `hook/shadow_hook.py`).* It is called `python3 -B /path/to/shadow_hook.py [--wb <absolute path>]` with
 `shadow_store.py` beside it; with no argument the launcher is `~/.config/project-workbench/bin/wb`. Any other argument is noted on
-standard error and nothing is recorded. The launcher must be an absolute path to an executable file that is not inside the
-command's own directory (after links are resolved); otherwise the engine is not started and the command is recorded as `failed`. The
-engine runs in its own process group with `PATH`, `HOME` and `LANG` and nothing else in its environment, and is stopped after 28
-seconds, which is between the engine's 25 and the hook's 30, and recorded as `timeout`; its group is killed, and the hook waits at
-most 2 more seconds for the output of a program that left the group. The hook believes the engine's `outcome:`
+standard error and nothing is recorded. The launcher must be an absolute path to an executable file **named `wb`** that is not inside
+the command's own directory (after links are resolved) and whose directory name does not hold the path separator; otherwise the
+engine is not started and the command is recorded as `failed` (a `:` in the directory's name would split the `PATH` entry). The
+launcher's directory is first on the `PATH` of the engine and of everything the engine starts, so it should hold nothing but `wb`
+and be writable by the owner alone: anything named `git`, `python3` or `codex` there would shadow the system program (the default,
+`~/.config/project-workbench/bin`, holds `wb` and a `run/` directory). The hook does not check the directory's owner or mode, and
+it refuses a launcher inside the command's own directory but not one in a repository above it; the engine's own lookup drops any
+`PATH` entry inside the outermost repository of the command's directory. The engine runs in its own process group with `PATH`, `HOME` and
+`LANG` and nothing else in its environment. **The `PATH` begins with the launcher's own directory**, then `/usr/local/bin:/usr/bin:/bin`:
+the engine finds `wb` by name in the trusted entries of the `PATH` it inherits (`wbkit/call.py`), so a `PATH` without that directory
+made every review `refused: describe could not be started` (security review of the shadow, finding Low 4; plan
+`2026-10-30-shadow-review-fixes`, Increment A). The engine is stopped after 27 seconds, which is between the engine's 25 and the
+hook's 30, and recorded as `timeout`; its group is killed, and the hook waits at most 2 more seconds for the output of a program
+that left the group, so the two waits total 29. The hook believes the engine's `outcome:`
 line only when it is the last line of standard error and agrees with the exit code (0 for `reviewed`, 1 for `no_rule`,
 `unreviewable` and `refused`, 2 for `failed`, and 1 or 2 for `timeout`: 1 when `describe` ran out of time, 2 when the bridge did) and, for `reviewed`, with a whole verdict object (one line, three
 fields, an approve with no failed check); otherwise the command is `failed`. With no `outcome:` line, exit 1 is `refused` and any
@@ -799,7 +808,7 @@ of plan `2026-10-29-action-review-shadow-hook`, Increment H.
    them). A program run from inside a project is code that project could change. The test-set runner is not copied; it runs from
    the checkout (step 8).
 3. **Register the hook in your user-level Claude settings, never in a project,** with the entry below. The `--wb` path is the
-   launcher in the guarded store and is also the default. There is **no `onFailure`**: with `"block"` a failure of the hook would
+   launcher in the guarded store and is also the default; its file name must be `wb`. There is **no `onFailure`**: with `"block"` a failure of the hook would
    deny the request. Claude Code's own format and rules for the hook are under "The shadow hook".
    ```json
    {"hooks": {"PermissionRequest": [{"matcher": "Bash", "hooks": [{"type": "command", "timeout": 30,
