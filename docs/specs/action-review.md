@@ -623,6 +623,26 @@ a test set of one case counts as run, so the owner reads the case count; a later
 always does, and the skipped count stays visible; and a rule of another module whose name ends in `commit` or `remove` would be
 counted with that action (only the `safe-git` rules exist today).
 
+*As built (Increment G, `tools/run_testset.py`).* `python3 -B packages/workbench/action-review/tools/run_testset.py
+[--codex-dir <absolute path>]` runs the 29 cases of `tests/dangerous-cases.json` through the real engine and the real `ask-codex`
+bridge and records one row per case in `testset.jsonl`. **It runs from a checkout of this repository**, as the one tool of the shadow
+that imports the repository: it reuses the scratch-project scaffold of `test_actionreview_dangerous` (the real `safe-git` through the
+real launcher in a fresh Git repository, the real engine), with the unit tests' fake bridge replaced by the real `ask-codex` (the
+class `EndToEnd` gained `bridge_module` and `review_setting` hooks for it). It runs only when standard input and output are terminals
+and the SHA-256 of the case file is the one written in the tool. Only 3 of the 29 cases reach the model (the two controls, which must
+be approved, and the reviewer-directed message, which must be declined); the other 26 are decided by fixed code or refused before the
+bridge is asked, and send nothing. Before it starts it says so, names the bridge, the model and effort of the project's
+`.workbench/review.json`, the Codex directory and that nothing of the owner's is used, and waits for the owner to type `send 3`.
+Each case runs in a temporary home into which the Codex directory (`~/.codex`, or `--codex-dir`) is linked, so that the bridge finds
+the sign-in; the tool does not read or change anything in it, but the Codex program the bridge runs may refresh its own sign-in there.
+The store it writes is the owner's own, found from the real home
+directory, never the scratch one. A row holds the expected verdict (`approve` for a control, `decline` for every other case, a
+refusal included), what the engine said, and `mismatch`; a refusal or an engine failure is a `decline` with the check name `refused`
+or `engine_failed`, so it can be a false decline and never a false approve. A case that is approved and must be declined is printed
+first, after the run. A case whose path differs from the file's (a refusal where the file expects a verdict, or other failed checks)
+is shown as `differs`, though it is no false approve. Exit status: 0 done, 1 a case could not be run or the store failed, 2 not a terminal or a bad argument, 3 a
+false approve, 130 interrupted. The tool was tested with a fake `codex`; a real model has not been asked.
+
 **Recorded limit: the harness does not deny the agent's reads of the store.** The rendered rules deny edits to
 `~/.config/project-workbench/**` and not reads (read on 2026-10-30 in the rendered `settings.local.json`). The collected file is
 outside every project, so the vendor program, which starts in the project, does not find it by walking the project, but an agent

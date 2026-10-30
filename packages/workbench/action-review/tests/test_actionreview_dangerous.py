@@ -159,6 +159,22 @@ class EndToEnd(support_project.Project):
     """One case at a time in a fresh scratch project: the real `safe-git`, a real repository and a fake bridge."""
 
     SCRIPT = ("#!/bin/sh\necho ran >> '%(log)s'\ncat > '%(stdin)s'\ncat '%(answer)s'\n")
+    # The bridge's command name (also its module name and pin), its helper path and its kit; `tools/run_testset.py` overrides
+    # them, and `bridge_module` and `review_setting`, to put the real `ask-codex` in place of the fake.
+    BRIDGE = "bridge"
+    BRIDGE_HELPER = support_project.HELPER_PATH
+    BRIDGE_KIT = None
+
+    def bridge_module(self):
+        """The scratch bridge as ``(declaration, files)``: a script that logs the call, keeps the prompt and prints the answer."""
+        bridge, files = tool(commands={"bridge": {"helper": support_project.HELPER_PATH, "arguments": ["ask"]}},
+                             helper=(self.SCRIPT % {"log": self.log, "stdin": self.stdin,
+                                                    "answer": self.answer}).encode())
+        bridge["provides"] = ["p:model-bridge"]
+        return bridge, files
+
+    def review_setting(self):
+        return '{"format": 1, "bridge": "bridge", "model": "m1", "effort": "low"}'
 
     def setUp(self):
         support_project.Project.setUp(self)
@@ -172,20 +188,17 @@ class EndToEnd(support_project.Project):
             declared = json.load(handle)
         with open(os.path.join(PACKAGE, "safe-git", "helper", "safe-git"), "rb") as handle:
             real = handle.read()
-        bridge, bridge_files = tool(commands={"bridge": {"helper": support_project.HELPER_PATH, "arguments": ["ask"]}},
-                                    helper=(self.SCRIPT % {"log": self.log, "stdin": self.stdin,
-                                                           "answer": self.answer}).encode())
-        bridge["provides"] = ["p:model-bridge"]
+        bridge, bridge_files = self.bridge_module()
         # The unprefixed capability `commit` is the first-party package's; the scratch package does not need it.
         safe_git = {key: value for key, value in declared.items()
                     if key not in ("name", "version", "description", "provides")}
         self.MODULES = {"h": (support_project.HARNESS, {}), "safe-git": (safe_git, {"helper/safe-git": real}),
-                        "bridge": (bridge, bridge_files)}
+                        self.BRIDGE: (bridge, bridge_files)}
         self.store_root = os.path.join(self.home, ".config", "project-workbench")
         self.guarded = store.Store(self.store_root)
         self.guarded.ensure()
         self.ready()
-        self.pin("bridge", self.installed("bridge"))
+        self.pin(self.BRIDGE, self.installed(self.BRIDGE, self.BRIDGE_HELPER), kit=self.BRIDGE_KIT)
         self.pin("safe-git", self.installed("safe-git", "helper/safe-git"), kit=1)
         launch.install_wrapper(self.guarded, firstparty.default_distribution())
         for patch in (unittest.mock.patch.dict(os.environ, {"HOME": self.home, "PATH": os.pathsep.join(
@@ -197,7 +210,7 @@ class EndToEnd(support_project.Project):
         self.make_repository()
 
     def install_module_files(self):
-        self.put(".workbench/review.json", '{"format": 1, "bridge": "bridge", "model": "m1", "effort": "low"}')
+        self.put(".workbench/review.json", self.review_setting())
         for name in ("rubric/rubric.md", "reply-schema.json", "rules/safe-git-commit.json",
                      "rules/safe-git-remove.json"):
             with open(os.path.join(MODULE, *name.split("/")), "rb") as handle:

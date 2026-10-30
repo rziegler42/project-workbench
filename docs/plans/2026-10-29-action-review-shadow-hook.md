@@ -593,4 +593,55 @@ shipped package records (`c16c2be88b16…`, `de11bc09aa24…`), part of this com
 (`0ffb922facc1`, `25313634e84f`) as belonging to no release; they are still tracked, awaiting the owner's word.
 
 Not done: the tool has not been run on the owner's real files; nothing is collected yet. The test-set rows it reads are written by
-Increment G, not yet built.
+Increment G (next).
+
+### Increment G
+
+**A design the owner chose in session, which departs from the plan's text.** The plan says the runner "sends the 29 synthetic
+dangerous cases through the real engine and a real bridge" and does not say how. Only 3 of the 29 cases reach a model (the two
+controls and the reviewer-directed message); the other 26 are decided by fixed code and never ask the bridge. Each case needs a real
+Git repository, the real `safe-git` through the real launcher, and a scratch workbench project, which the unit tests already build.
+The owner was asked on 2026-10-30 and chose: (1) all 29 cases, built on the unit tests' scaffold with the real `ask-codex` bridge
+in place of the fake one, run from a checkout of this repository; (2) the scratch home gets a symlink to the owner's Codex
+directory (default `~/.codex`, or `--codex-dir`) so the bridge finds the sign-in. So `tools/run_testset.py` is the one tool of the
+shadow that imports the repository and is not copied out of the checkout.
+
+Built in a scratch clone at `c11918d`, as for B to F. Changed: `packages/workbench/action-review/tools/run_testset.py` (new),
+`packages/workbench/action-review/tests/test_tools_run_testset.py` (new), `packages/workbench/action-review/tests/test_actionreview_dangerous.py`
+(a small refactor of the class `EndToEnd`: `BRIDGE`, `BRIDGE_HELPER`, `BRIDGE_KIT`, `bridge_module()` and `review_setting()`, with the old
+defaults, so the runner can override them; its 37 tests still pass), `docs/specs/action-review.md` ("As built" paragraph).
+
+Done: `python3 -B packages/workbench/action-review/tools/run_testset.py [--codex-dir <absolute path>]` runs only at a terminal and
+from a checkout, checks the SHA-256 of `tests/dangerous-cases.json` against the one written in the tool, says what it will send (29
+synthetic cases, 3 expected to reach the model, the bridge, model and effort of the project's `.workbench/review.json`, the Codex
+directory, that nothing of the owner's is used, and that the Codex program itself may refresh its sign-in) and waits for the typed
+`send 3`. It then runs each case in a fresh scratch project and writes one row per case to the owner's own store: expected verdict,
+the engine's verdict, failed checks and `mismatch`. A refusal or an engine failure is a `decline` with the check name `refused` or
+`engine_failed`, so it can be a false decline and never a false approve. After the run a false approve is printed first, then each
+case as `ok`, `differs` (another path than the file expects) or `MISMATCH`, then the counts. Exit status: 0, 1, 2, 3 (a false approve)
+or 130.
+
+Verification as run in the scratch clone on 2026-10-30: the tests failed before the file existed; then 27 tests of
+`test_tools_run_testset.py` pass under `-W error` (about 35 s: they run the real scaffold, launcher and `ask-codex` helper against a
+fake `codex` program with an honest mode, an approve-everything mode and a failing mode) and the full suite `python3 -B -W error
+tests/run_all.py` passes (6,283 tests in 13 roots). Thirty mutations of the tool are each caught; none survived. No real `codex`
+and no real model was run.
+
+Review: the `reviewer` agent, one exchange, four findings, none blocking.
+- F1 (applied): `setUp` ran outside the `try`, so a scratch project that failed half-built left `HOME` patched; it is inside now, with a test.
+- F2 (applied): the text said the Codex directory is "not read or changed" without saying the Codex program may refresh its own
+  sign-in there; the tool, the docstring and the spec now say so.
+- F3 (applied): an unexpected refusal was shown as `ok`; a case whose exit or failed checks differ from the file is `differs` now.
+- F4 (recorded): the model and effort come from the checkout's `.workbench/review.json`, and the rubric, rules and reply schema are
+  copied from the checkout; none is covered by the case file's hash. The tool runs from a checkout the owner trusts.
+- The setup steps of a case are joined to the scratch repository without a containment check; safety rests on the hash pin of the case
+  file (none of its steps names a path outside the repository).
+
+Not done: no real model has been asked, so the test-set evidence for the cutover does not exist yet. That run is the owner's, in
+Increment H or after.
+
+Then, on 2026-10-30: the four files were copied byte-for-byte into the real tree (`cmp` equal), the owner ran `wb release-approvals`
+("wrote 13 approvals for 1 first-party packages"), and in the real tree `wb check .`, `wb run code-work check`,
+`python3 -B -W error tests/run_all.py` (6,283 tests in 13 roots, OK) and `git diff --check` were clean. The release wrote two new
+shipped package records (`b5ed39948ae1…`, `b99368d22038…`), part of this commit, and named the two of the release before it
+(`c16c2be88b16`, `de11bc09aa24`) as belonging to no release; they are still tracked, awaiting the owner's word.
