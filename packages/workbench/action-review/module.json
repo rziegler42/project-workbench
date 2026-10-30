@@ -15,7 +15,8 @@
     "rules/safe-git-remove.json",
     "rubric/rubric.md",
     "reply-schema.json",
-    "hook/shadow_store.py"
+    "hook/shadow_store.py",
+    "hook/shadow_hook.py"
   ],
   "commands": {
     "action-review": {

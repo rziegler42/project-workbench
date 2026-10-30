@@ -524,6 +524,21 @@ output. In every case its exit status is 0. The engine's own parser decides whet
 nothing. A command that matches no rule, including a push and a remote-job command, is `no_rule`, and the engine cannot
 tell the two apart from any other command with no rule, so the report does not split them.
 
+*As built (Increment D, `hook/shadow_hook.py`).* It is called `python3 -B /path/to/shadow_hook.py [--wb <absolute path>]` with
+`shadow_store.py` beside it; with no argument the launcher is `~/.config/project-workbench/bin/wb`. Any other argument is noted on
+standard error and nothing is recorded. The launcher must be an absolute path to an executable file that is not inside the
+command's own directory (after links are resolved); otherwise the engine is not started and the command is recorded as `failed`. The
+engine runs in its own process group with `PATH`, `HOME` and `LANG` and nothing else in its environment, and is stopped after 28
+seconds, which is between the engine's 25 and the hook's 30, and recorded as `timeout`; its group is killed, and the hook waits at
+most 2 more seconds for the output of a program that left the group. The hook believes the engine's `outcome:`
+line only when it is the last line of standard error and agrees with the exit code (0 for `reviewed`, 1 for `no_rule`,
+`unreviewable` and `refused`, 2 for `failed`, and 1 or 2 for `timeout`: 1 when `describe` ran out of time, 2 when the bridge did) and, for `reviewed`, with a whole verdict object (one line, three
+fields, an approve with no failed check); otherwise the command is `failed`. With no `outcome:` line, exit 1 is `refused` and any
+other status is `failed`. A command over 4,096 characters is `unreviewable` without starting the engine; malformed input is
+`malformed_input` and a tool other than `Bash` is `not_bash`, each with no command hash. A verdict row is written first, then the
+collected row, and a failed write is noted without changing anything else. Nothing the hook prints, writes or returns can be an
+answer to the harness: its source holds no answer object and no write to standard output, and the tests read both.
+
 **The data files.** The directory is `~/.config/project-workbench/action-review/`, a subdirectory of the guarded store found from
 the account's home directory; no environment variable, option or file moves it (`2026-10-20-fixed-store-location`). The owner
 decided this on 2026-10-29. The store check of the installer (`workbench/store.py`, `Store.ensure`) creates and checks only the

@@ -464,3 +464,52 @@ shipped package records (`334b92357c9b…`, `7bb3173b7a69…`), which are part o
 of the release before it (`10a1da2fc18a`, `9ea0fd32c92b`) belong to no release; they are still tracked, awaiting the owner's word.
 
 Not done: no hook uses the store yet (Increment D).
+
+### Increment D
+
+Built in a scratch clone at `29b04da`, as for B and C. The shipped file is `hook/shadow_hook.py` (the plan's step 2 names no file; the
+store it imports is `hook/shadow_store.py`, see Increment C).
+
+Changed: `packages/workbench/action-review/hook/shadow_hook.py` (new), `packages/workbench/action-review/tests/test_hook_shadow_hook.py`
+(new), `packages/workbench/action-review/module.json` (`ships`), `packages/workbench/action-review/helper/action-review` (a `PINS`
+entry), `tests/test_actionreview_module.py` (the expected `ships`), `docs/specs/action-review.md` ("As built" paragraph of "The shadow
+hook").
+
+Done: `python3 -B shadow_hook.py [--wb <absolute path>]` reads the `PermissionRequest` event, runs `wb run action-review review
+--log-row --collect '<command>'` from the command's directory in its own process group with `PATH`, `HOME` and `LANG` only, stops it
+after 28 seconds, and records what the engine said: one verdict row for every prompted command, and a collected row for a reviewed
+command with its facts and rule. It prints nothing to standard output and exits 0 in every case, including an interrupt, a bad
+argument and a store that cannot be written (noted on standard error with fixed text). It believes the engine's `outcome:` line only
+when it is the last line and agrees with the exit code and, for a review, with a whole verdict object; a `wb` that is relative,
+missing or inside the command's directory is not run. The outcomes `unreviewable` (a command over 4,096 characters, with no engine
+run), `malformed_input` and `not_bash` are the hook's own.
+
+Verification as run in the scratch clone on 2026-10-30: the tests failed before the file existed; then 41 tests of
+`test_hook_shadow_hook.py` pass and the full suite `python3 -B -W error tests/run_all.py` passes (6,186 tests in 13 roots). Twenty-four
+mutations of the hook (an answer or output printed, a nonzero exit, an interrupt not caught, the environment passed on, the process
+group not killed, a relative or in-directory `wb` run, the exit-code and last-line rules dropped, a long command run and others) are
+each caught; seven first survived and were closed with new tests. The engine's bytes in the tests are the real helper's own, replayed
+by a fake `wb`; the real launcher, a real bridge and Claude Code were not used. One run of the full suite first failed because the
+subprocess tests wrote a `__pycache__` into the package; they now run with `-B`.
+
+Review: the `reviewer` agent, one exchange, five findings, none blocking.
+- F1 (applied): a `describe` timeout is exit 1 in the engine, and the hook's table allowed only exit 2 for `timeout`, so it was
+  recorded as `failed`. The table allows 1 or 2 now (1 for `describe`, 2 for the bridge); the spec says so, with a test on the
+  engine's own bytes.
+- F2 (applied): after the group kill the hook waited without limit for the output pipes; a program that left the group could hold it.
+  It waits 2 seconds more, then goes on, with a test.
+- F3 (applied): tests were added for a command that begins with a dash or holds a newline, metacharacters or a tab (it arrives as the
+  one last argument), for a NUL and a lone surrogate (recorded as `failed`, no engine started), for a describe timeout, and for the
+  process-group kill with a program the engine started.
+- F4 (applied): the static scan also bans `os.write` and its relatives; the subprocess tests read the real standard output.
+- F5 (no change): a forged `facts:` line could be trusted only if the engine omitted its own and an earlier line began with
+  `facts: `; every other line the engine writes begins `rule error:`, `refused:`, `failed:`, `log-row:` or `outcome:`. Left as is.
+
+Then, on 2026-10-30: the six files were copied byte-for-byte into the real tree (`cmp` equal), the owner ran `wb release-approvals`
+("wrote 13 approvals for 1 first-party packages"), and in the real tree `wb check .`, `wb run code-work check`,
+`python3 -B -W error tests/run_all.py` (6,186 tests in 13 roots, OK) and `git diff --check` were clean. The release wrote two new
+shipped package records (`1bdd06490378…`, `3c47398a9e15…`), part of this commit. The two records of the release before it
+(`334b92357c9b`, `7bb3173b7a69`) are still tracked: the owner declined the removal preview when it was run, so they were not removed.
+
+Not done: the hook has not run against the real `wb` launcher, a real bridge or Claude Code; that is the owner's check in
+Increment H. The hook is not installed anywhere.
