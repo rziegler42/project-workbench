@@ -67,7 +67,10 @@ class Declaration(unittest.TestCase):
         found = []
         for base, dirs, files in os.walk(MODULE):
             if base == MODULE:
-                dirs.remove("tests")  # the module's own tests are not part of what it installs
+                # the module's own tests and its maintainer scripts are not part of what it installs
+                for maintainer in ("tests", "tools"):
+                    if maintainer in dirs:
+                        dirs.remove(maintainer)
             for name in files:
                 found.append(os.path.relpath(os.path.join(base, name), MODULE))
         self.assertEqual(sorted(["module.json", HELPER, *RULES, *DATA]), sorted(found))

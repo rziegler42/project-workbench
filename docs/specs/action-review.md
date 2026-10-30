@@ -591,6 +591,18 @@ action (commit, remove), the labelled count, the false declines and false approv
 the false declines grouped by failed check, the count of commands not reviewed by `no_review_reason`, and the unlabelled and
 skipped counts; any false approve on the labels or the test set is printed first and blocks the cutover line.
 
+*As built (Increment E, `tools/label.py`).* `python3 -B label.py [--skipped]`, copied with `shadow_store.py` to a directory outside
+the project, runs only when standard input and output are both terminals (otherwise it prints one line to standard error and exits
+2). It shows the collected commands that have no label, oldest first: the command, the rule, the engine's verdict, failed checks and
+reason, and the facts by name with a value only where it is a number, a boolean or null (text by its length, lists and objects by
+their size). `f` shows every fact in full, cleaned, each text cut at 4,000 characters and the whole at 40,000, with a count of what
+is left out. `r`, `w` and `s`, each with an optional note after a space (printable ASCII, 300 characters), record `right`, `wrong`
+and `skip`; `q` stops; any other answer is asked again. A command whose latest label exists is not shown again, except that
+`--skipped` shows those whose latest label is `skip`, and a later label replaces it. Everything shown is printable ASCII: other
+characters, the backslash and every escape sequence are written as visible escapes, so a command or a diff cannot drive the
+terminal. Each label is one whole row or none; an interrupt ends the tool with 130 and a store that cannot be read or written ends
+it with 1. It starts no program and opens no file but the store's.
+
 **Recorded limit: the harness does not deny the agent's reads of the store.** The rendered rules deny edits to
 `~/.config/project-workbench/**` and not reads (read on 2026-10-30 in the rendered `settings.local.json`). The collected file is
 outside every project, so the vendor program, which starts in the project, does not find it by walking the project, but an agent

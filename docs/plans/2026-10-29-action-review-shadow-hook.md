@@ -513,3 +513,43 @@ shipped package records (`1bdd06490378…`, `3c47398a9e15…`), part of this com
 
 Not done: the hook has not run against the real `wb` launcher, a real bridge or Claude Code; that is the owner's check in
 Increment H. The hook is not installed anywhere.
+
+### Increment E
+
+Built in a scratch clone at `b05b194`, as for B to D. `tools/label.py` is a maintainer script (`tools/` is accounted for by the
+verifier, covered by the module's hash and never installed), so it has no `ships` entry and no `PINS` entry; the owner copies it with
+`hook/shadow_store.py` to a directory outside the project.
+
+Changed: `packages/workbench/action-review/tools/label.py` (new), `packages/workbench/action-review/tests/test_tools_label.py` (new),
+`packages/workbench/action-review/tests/test_actionreview_module.py` (the file-list test now skips `tools/` as it skips `tests/`),
+`docs/specs/action-review.md` ("As built" paragraph under "Labelling and the report").
+
+Done: `python3 -B label.py [--skipped]` runs only when standard input and output are terminals (exit 2 otherwise). It shows the
+collected commands with no label, oldest first: the command, the rule, the engine's verdict, failed checks and reason, and the facts
+by name with a value only for a number, a boolean or null; `f` shows them in full, cleaned and bounded. `r`, `w` and `s` with an
+optional note record `right`, `wrong` and `skip`; `q` stops; the end of input and an interrupt record nothing. A command with a label
+is not shown again; `--skipped` revisits the skipped. Every character that is not printable ASCII, the backslash and every escape
+sequence are written as visible escapes, in the command, reason, fact names and values and error messages alike. Every command is
+shown with "right = you would have judged as the engine did; wrong = you would not".
+
+Verification as run in the scratch clone on 2026-10-30: the tests failed before the file existed; then 31 tests of `test_tools_label.py`
+pass under `-W error` (one of them runs the copied script on a real pseudo-terminal and a pipe), and the full suite `python3 -B -W
+error tests/run_all.py` passes (6,217 tests in 13 roots). Thirty mutations of the tool are each caught; five first survived or
+were missing tests and were closed. One run of the suite first failed because the file-list test did not skip `tools/`.
+
+Review: the `reviewer` agent, one exchange, four findings, none blocking.
+- F1 (applied): the meaning of `right` and `wrong` was only in the docstring and the spec; it is now printed with every command, with
+  a test, because a flipped reading for a decline would corrupt the counts the cutover rests on.
+- F2 (applied): error text from the store is passed through the same cleaning as everything else.
+- F3 (applied): input that is not text ends the tool with a message and exit 1, with no label written.
+- F4 (applied): tests for hostile fact names in both views, a long command of control characters (cut, with the verdict and prompt
+  last), and an all-ASCII standard error.
+
+Not done: the tool has not been run by the owner on a real terminal with real collected rows; that is Increment H.
+
+Then, on 2026-10-30: the four files were copied byte-for-byte into the real tree (`cmp` equal), the owner ran `wb release-approvals`
+("wrote 13 approvals for 1 first-party packages"), and in the real tree `wb check .`, `wb run code-work check`,
+`python3 -B -W error tests/run_all.py` (6,217 tests in 13 roots, OK) and `git diff --check` were clean. The release wrote two new
+shipped package records (`0ffb922facc1…`, `25313634e84f…`), part of this commit. Four older records (`334b92357c9b`,
+`7bb3173b7a69`, `1bdd06490378`, `3c47398a9e15`) are still tracked and listed by the release as belonging to no release; the owner
+declined their removal earlier, so none was removed.
