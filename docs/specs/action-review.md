@@ -8,7 +8,7 @@ separately chosen; the owner may still change it. The approval is of the design 
 `describe` interface is a decision record of its own, accepted by the owner on 2026-10-25
 (`2026-10-25-describe-interface-for-action-review`). The rule schema, the module's layout and declaration, the bridge setting and the checks for `commit` and `remove` were
 written on 2026-10-26 by Increment A of plan `2026-10-26-action-review-engine` and wait for the owner's reading
-("The rule schema, the module and the checks"). The engine is built for `commit` and `remove` (plan `2026-10-26-action-review-engine`, Increments B to K; "As built, and its limits" at the end of the design says where it differs from the text and what it does not do), and so are the `describe` side of `safe-git` (for `commit`, `remove` and `push`) and the launcher rule (plans `2026-10-25-safe-git-describe` and `2026-10-26-safe-git-describe-push`). The status stays `Draft` because the owner has not read the engine's sections, and because the push rule, the owner's hook, the log writer, the labelled set, the report and the shadow period are not built (plans 4 and 5 of the split below).
+("The rule schema, the module and the checks"). The engine is built for `commit` and `remove` (plan `2026-10-26-action-review-engine`, Increments B to K; "As built, and its limits" at the end of the design says where it differs from the text and what it does not do), and so are the `describe` side of `safe-git` (for `commit`, `remove` and `push`) and the launcher rule (plans `2026-10-25-safe-git-describe` and `2026-10-26-safe-git-describe-push`). The shadow (the hook that records and decides nothing, its store, the labelling tool, the report and the test-set runner) is built by plan `2026-10-29-action-review-shadow-hook`, Increments A to G ("The shadow hook"); it has not been installed or run by the owner. The status stays `Draft` because the owner has not read the engine's sections, because the shadow has not been run on real commands, and because the push rule, a hook that decides, the owner's personal setting and the cutover are not built (plan 5 of the split below).
 
 Terms are defined in `terms.md`. The engine sits above the bridge of `model-bridge.md` and beside the engine of
 `review-engine.md`. The decision behind it is `2026-10-22-model-calls-go-through-vendor-bridges` (decisions 3, 6, 7
@@ -266,7 +266,7 @@ selects a program, so `head_matches` fails with `repo_config_safe`. The extra na
 decline is the same. The checks for a push are
 deferred with the push rule (`outgoing_known` and the others in that table), because they need `describe push`, which
 exists, and a rule and checks that the follow-up plan writes; until that rule exists a command with no rule is refused
-(exit 1) and a push stays with the approver.
+(exit 1) and a push stays with the approver (since 2026-10-29 no approver runs, so a push is not reviewed at all).
 
 **The rubric.** `rubric/rubric.md` holds one section per rubric name, `## <name>` with `commit` and `remove` at first,
 and under it one `### <question>` heading per question with the text of the question. It was ported from the approver's
@@ -400,8 +400,9 @@ nothing). A decline also exits 0, so a hook that tested the status alone would r
 spec rules that out and the hook's tests show it. This contract differs from the bridge's (`model-bridge.md`), where
 exit 1 with a valid object is a failure; the engine's exit 1 and 2 print no object.
 
-**The log.** As built, the engine hands back the row (`--log-row`) and nothing writes the file yet: the writer is the
-owner's hook (plan 4). One JSON line per review, append-only, with these fields and no others: `ts` (UTC, to the second);
+**The log.** The engine hands back the row (`--log-row`); the writer is the owner's shadow hook (`hook/shadow_hook.py`), which
+keeps it in `verdicts.jsonl` with a hook timestamp and the outcome of every prompted command ("The data files"; the engine's
+`command_sha256` is replaced there by the hash of the raw command text). The engine's row is one JSON line per review, append-only, with these fields and no others: `ts` (UTC, to the second);
 `rule` (the rule file's name without `.json`, for example `safe-git-commit`, which the loader forces to equal
 `<module>-<action>`; not the spelling-plus-subcommand key);
 `verdict`; `failed_checks`; `reason` (as above); `command_sha256` (of the JSON of `[module, "describe", action, *arguments]`, the canonical argument list the engine
@@ -471,7 +472,7 @@ project would like. It is a request and never an authorization.
   requires.
 - A missing or unreadable setting, or a bridge failure of any class, yields no approval.
 
-### The enforcement point (default; not built)
+### The enforcement point (default; the form that decides is not built)
 
 The owner's hook becomes a thin program: match the prompted command to a spelling, run `wb run action-review
 review`, and turn the verdict into the hook's answer. What the hook allows without the owner (`DELEGABLE`, the
@@ -479,7 +480,7 @@ mode setting) stays a code constant there. The hook is the owner's to write and 
 tests it on a scratch copy, as it did for the patch of option 1a. Plan `2026-10-29-action-review-shadow-hook` builds the
 **shadow** form of it, which decides nothing ("The shadow hook" below). A hook that decides is for the plan after the shadow.
 
-### The shadow hook (specified by plan `2026-10-29-action-review-shadow-hook`, Increment A; not built)
+### The shadow hook (plan `2026-10-29-action-review-shadow-hook`; built, not yet installed or run by the owner)
 
 During the shadow the hook runs the engine on each prompted command and records what the engine would have said. It answers
 nothing: the owner sees the normal prompt, and the owner's later label says whether the engine was right. This replaces the
@@ -723,9 +724,11 @@ run, and the installer's copying of the module was not run (the first test throu
 
 **What exists.** The module `action-review` with its command `review`, the loader and matcher, the grammar and its parser,
 `describe` through the launcher, the fourteen code checks for `commit` and `remove`, the rubric and the reply schema, the
-bridge call, the verdict object, the exit table, the log row and the pins of the shipped data files. **What does not:** the
-rule and checks for `push`, the owner's hook, the writer of the log, the labelled set, the report and the shadow period
-(plan 4), cutover and the removal of `claude-workflow` (plan 5), and the owner's personal setting (below).
+bridge call, the verdict object, the exit table, the log row and the pins of the shipped data files. **What did not, when
+the engine was built:** the rule and checks for `push`, the owner's hook, the writer of the log, the labelled set, the report and the
+shadow period (plan 4), cutover and the removal of `claude-workflow` (plan 5), and the owner's personal setting (below). Plan 4
+(`2026-10-29-action-review-shadow-hook`) has since built the shadow side ("The shadow hook"); the push rule, a hook that decides,
+the cutover and the personal setting are still not built.
 
 **Where the build departs from the text Increment A wrote.** Each is written into the sections above; the list is here so
 the owner can find them.
@@ -780,19 +783,62 @@ was reviewed by the approver and declines under `describe` (`safe-git.md`).
   in the directory where the command will run.
 - The personal setting is not built (see "Settings and the bridge").
 
-**The owner's steps.** The agent does not run these. (1) `python3 -m workbench preview add --dir <this checkout> --package
-packages/workbench --select action-review`, then the same with `add` instead of `preview add`, installs the module into this
-repository, which is the first test of the pins through the installer; run `acknowledge` first if it lists changes. (2) The
-hook, when plan 4 exists: it must call `wb run action-review review --log-row '<command>'` from the directory where the
-harness will run the command, with the shell reading the command running with no alias or start-up option, allow only on
-exit 0 together with a whole, valid object, write the row from the last standard-error line that begins `log-row: ` (rule-error notes come first and can quote that
-text, so a search anywhere in standard error is wrong) and note a failed write
-without withholding an approve, and keep a limit of 30 seconds. (3) Labelling the commands and reviewing the dangerous
-cases (`tests/dangerous-cases.json` in the module, 29 cases; the model-only case is not claimed as covered).
+**The owner's steps.** The agent does not run these, and nothing below is done until the owner does it. The shadow hook records and
+allows nothing: the prompt stays the owner's, and removing its settings entry stops it. The module's files are the ones at the commit
+of plan `2026-10-29-action-review-shadow-hook`, Increment H.
+
+1. **Install the module into a project you work in** (this repository first): `python3 -m workbench preview add --dir <checkout>
+   --package packages/workbench --select action-review`, then the same with `add` instead of `preview add`; run `acknowledge` first
+   if it lists changes. The hook runs `wb run action-review review`, so the project needs the module installed and pinned, a
+   `safe-git` and a `model-bridge` module (`ask-codex`) installed and pinned, and `.workbench/review.json` naming the bridge. After
+   a later change to the module, `wb release-approvals` and `upgrade` are yours to run.
+2. **Copy four files out of the project** to one directory of your own that no project contains, so that `shadow_store.py` sits
+   beside each of the others: `hook/shadow_hook.py` and `hook/shadow_store.py` (the SHA-256 of each is in the helper's `PINS`; compare
+   it with `sha256sum` of the copy), and `tools/label.py` and `tools/report.py` (never installed; take them from a checkout at the
+   approved commit, check each is byte-equal to the committed file, and let `wb verify` check the module's tree hash, which covers
+   them). A program run from inside a project is code that project could change. The test-set runner is not copied; it runs from
+   the checkout (step 8).
+3. **Register the hook in your user-level Claude settings, never in a project,** with the entry below. The `--wb` path is the
+   launcher in the guarded store and is also the default. There is **no `onFailure`**: with `"block"` a failure of the hook would
+   deny the request. Claude Code's own format and rules for the hook are under "The shadow hook".
+   ```json
+   {"hooks": {"PermissionRequest": [{"matcher": "Bash", "hooks": [{"type": "command", "timeout": 30,
+     "command": "python3 -B /your/directory/shadow_hook.py --wb /home/<you>/.config/project-workbench/bin/wb"}]}]}}
+   ```
+   **What leaves your machine from here on:** every prompted command that matches a rule is reviewed by the engine, which sends
+   its facts, a commit's diff included, to the bridge's vendor (two model calls at most per command). `collected.jsonl` keeps the
+   command text and those facts on your disk (mode 0600, outside every project) until you delete it, and a diff may hold a secret.
+4. **To collect commits as well as removals,** add a user-level `ask` rule for `wb run safe-git commit`, in the form your other rules
+   use. Every commit then raises a prompt, which changes your workflow while the shadow runs; remove the rule when it ends. The
+   module's `remove` already asks; the accepted decision `2026-10-29-workbench-asks-for-remove-submit-and-fetch` leaves `commit`
+   unprompted, and a permission-request hook sees only a command that raised a prompt. A command your `allow` rules or a permission
+   mode let through is not seen. Pushes and remote jobs are seen only if they prompt, and the engine reports them as `no_rule`.
+5. **Add a user-level `Read` deny for `~/.config/project-workbench/action-review/**`.** The rendered rules deny the agent's edits
+   to the store and not its reads. This narrows the gap and does not close it (a shell `cat` still works).
+6. **Check that it fires, and write down what you see** (this is the hand run of Increment H): work as usual and look at
+   `python3 -B report.py`, whose `prompted` line should rise by one for each prompted command. Note whether it fires on a project
+   `ask` in an interactive session, on the two module commands (`remove`, and `commit` once step 4 is done), and in auto mode when
+   the classifier decides without a prompt (the hooks page does not say; "The shadow hook"). Note a `refused` or `failed` outcome:
+   it means the launcher, the module or the bridge is not set up.
+7. **Label** at a terminal with `python3 -B label.py` (`--skipped` revisits the skipped). `right` means you would have judged as the
+   engine did, `wrong` that you would not. Until there are at least 10 labelled commits and 10 labelled removals the report says "not
+   enough labels".
+8. **Run the test set against a real model, once,** from the root of a checkout you trust: `python3 -B
+   packages/workbench/action-review/tools/run_testset.py [--codex-dir <absolute path>]`. It needs the `codex` program on your
+   `PATH` and a Codex directory (`~/.codex` by default) with your sign-in, and refuses without them. It sends 3 synthetic prompts
+   (not yours) to Codex through `ask-codex`, after you type `send 3`; this tool sends nothing else (the hook of step 3 is a separate
+   matter). It writes the rows the report reads. It was tested only against a fake `codex`.
+9. **Read the report** with `python3 -B report.py`. A false approve on the labels or the test set is its first line and keeps the
+   cutover closed. When it says the bound is met, the cutover is still your decision and a plan of its own (plan 5): a hook that
+   decides does not exist.
+
+**Not verified.** The hook has never run against the real `wb` launcher, a real bridge or Claude Code; the tests replay the real
+engine's own output bytes through a fake `wb`. Whether it fires in auto mode, on a project `ask` in an interactive session and on the
+two module commands is open until step 6. No real model has been asked: the test-set evidence for the cutover does not exist yet.
 
 ## Proposed split into plans (default)
 
-Each is a plan of its own, in this order. Plan 3 is done (below); plan 4 is `2026-10-29-action-review-shadow-hook` (approved, in progress) and plan 5 does not exist yet, and the owner approves each.
+Each is a plan of its own, in this order. Plan 3 is done (below); plan 4 is `2026-10-29-action-review-shadow-hook` (approved; built and committed in Increments A to H; the owner's installation, labelling and real-model run are outstanding, see "The owner's steps") and plan 5 does not exist yet, and the owner approves each.
 
 1. **The interface, documented. Done by plan `2026-10-25-describe-interface-documented`.** The `describe` decision
    is accepted. The plan settled what it left open: the form of a module's declaration in `module-contract.md` and
@@ -809,13 +855,15 @@ Each is a plan of its own, in this order. Plan 3 is done (below); plan 4 is `202
    extending `push-check` on 2026-10-26; plan `2026-10-26-safe-git-describe-push`; the design is in `safe-git.md`,
    "`describe push`", and the narrowing of the accepted `describe` decision is the accepted record
    `2026-10-26-describe-push-takes-the-push-arguments`). Built, so the engine's rule for a push has its facts; until that
-   rule exists a push stays with the approver.
+   rule exists a push stays with the approver (since 2026-10-29 no approver runs, so a push is not reviewed at all).
 3. **The engine. Built by plan `2026-10-26-action-review-engine`** (Increments A to L; the plan's own status is the record of
    whether it is complete; see "As built, and its limits"),
    for `commit` and `remove`: its checks, rules, rubric, log row and bridge call, tested with a fake bridge and a set
    of dangerous cases. No hook, no push rule and no log writer.
 4. **The shadow hook, the labelled set, the test set and the report**, prepared on a scratch copy; the owner installs
-   the hook, labels the commands and reviews the test set. The test set is written in plan 3 with the checks.
+   the hook, labels the commands and reviews the test set. The test set is written in plan 3 with the checks. *Built by plan
+   `2026-10-29-action-review-shadow-hook`* (the hook, its store, the labelling tool, the report and the test-set runner); see "The
+   shadow hook" for what it does differently from this text, because no approver runs now.
 5. **Cutover and M14**: the thin hook replaces the approver, the global `claude-workflow` program goes, and the
    paragraphs OP5 and OP7 are repointed. Facts for remote jobs follow M16.
 
@@ -866,11 +914,29 @@ left open.
   reason for the order are under "The verdict, the output and the log". They are revisited with the shadow period's
   own durations.
 
+## Decided by the owner (2026-10-29 and 2026-10-30)
+
+Decided in session while plan `2026-10-29-action-review-shadow-hook` was drafted and built; each is written where it applies.
+
+- **The shadow's data directory is `~/.config/project-workbench/action-review/`**, a subdirectory of the guarded store, fixed (no
+  environment variable moves it), mode 0700 ("The data files").
+- **The engine hands the facts to the collector on `--collect`,** so the command is parsed once, by the engine ("The collect
+  lines").
+- **The cutover bound has no comparison with the approver:** at most 10% false declines among the labelled real commands, at least
+  10 labelled commits and 10 labelled removals, no false approve on the labels or the test set. The 10% is provisional ("The
+  bound").
+- **The test-set runner covers all 29 cases on the unit tests' scaffold with the real `ask-codex`, runs from a checkout, and links
+  the owner's Codex directory into the scratch home for the sign-in** ("As built (Increment G)").
+
 ## Open questions for the owner
 
 - Is a separate `describe` subcommand the right shape, or should the interface be something else?
 - Decided: you label real commands and review a test set, with the bound above. Open: whether 10% stays after
-  plan 1's count.
+  the shadow has counted real commands.
+- The plan names the store `hook/store.py`; it is `hook/shadow_store.py` because the installer's boundary test forbids a module file
+  named like a file of the installer. The plan's Result records the departure for the owner's acceptance.
+- Whether to run a security review over the hook, the store and the engine's `--collect` flag (they touch a subprocess, the
+  filesystem, untrusted command text and, through the bridge, a network boundary). It runs only when the owner asks.
 - `safe-committer` (F-A7) and `amend-message`: decided, see "Decisions on the two leftovers".
 - The capability name `action-review`: the built module provides it, and the owner has not confirmed it as the final name.
 

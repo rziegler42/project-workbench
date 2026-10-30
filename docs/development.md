@@ -53,6 +53,10 @@ ambiguous blank.
 | Report what a commit, a removal or a push would act on (read-only) | `python3 -m workbench run safe-git describe commit\|remove <the arguments of the real command>` or `describe push <the arguments that follow git push>` (a push is described locally and never contacts the remote): prints one JSON object (`contract`, `action`, `ok`, `truncated`, `errors`, `facts`), changes nothing, and exits 0 for a refusal of the real command (`ok: false` with an error code); see `docs/specs/safe-git.md`, "Describe" |
 | Ask a model one read-only question | `python3 -m workbench run --provides model-bridge ask-codex ask [--model <name>] [--effort low\|medium\|high] [--timeout <seconds>] [--root <path>] [--schema <path>]` with the prompt on standard input (the `ask-codex` module's command; needs a `codex` program and a sign-in; see "The ask-codex bridge") |
 | Review one command the harness is about to run (read-only) | `python3 -m workbench run action-review review [--log-row] [--collect] '<the command text>'` (the `action-review` module's command; needs the command's module and a `model-bridge` installed and pinned, and `.workbench/review.json`; prints one verdict object and exits 0, or exits 1 or 2 (allow only on exit 0 with a whole, valid object); see "The action-review engine") |
+| Owner-installed: record what the engine would say about each prompted command (the action-review shadow hook; registered by the owner in the user-level settings, never run by the agent; it prints nothing and always exits 0) | `python3 -B <dir>/shadow_hook.py [--wb <absolute path of the wb launcher>]` with the hook's JSON on standard input, from a directory that holds a copy of `hook/shadow_hook.py` and `hook/shadow_store.py` of the `action-review` module; rows go to `~/.config/project-workbench/action-review/`; see "The shadow hook" in `docs/specs/action-review.md` |
+| Owner-run: label the collected commands (terminal only) | `python3 -B <dir>/label.py [--skipped]` with a copy of `tools/label.py` and `hook/shadow_store.py` beside it; records `right`, `wrong` or `skip` in `labels.jsonl` |
+| Owner-run: the shadow report (counts only; needs no terminal) | `python3 -B <dir>/report.py` with a copy of `tools/report.py` and `hook/shadow_store.py` beside it; prints the false declines and false approves against the labels and the test set, the bound, and the cutover line |
+| Owner-run: run the dangerous cases against a real model (terminal only; from a trusted checkout; sends 3 synthetic prompts to Codex after you type `send 3`) | `python3 -B packages/workbench/action-review/tools/run_testset.py [--codex-dir <absolute path>]`; writes `testset.jsonl`; exit 3 on a false approve |
 | Search the owner's memory (agent-safe) | `python3 -m workbench run mempalace status`, and `python3 -m workbench run mempalace search [--wing <name>] [--room <name>] [--results <1-20>] [--since <date>] [--before <date>] -- <query>` (the `mempalace` module's command; needs a `mempalace` program and its cached embedding model; see "The mempalace module") |
 | Owner-run: build the memory (terminal only) | `python3 -m workbench run mempalace init <dir> [--yes] [--allow-project-root]`, and `python3 -m workbench run mempalace mine <dir> [--confirm] [--wing <name>] [--mode projects\|convos] [--allow-project-root]` (refuse unless standard input and output are terminals; `mine` is a dry run without `--confirm`) |
 | Show a project's remote job profiles | `python3 -m workbench run remote-runner profiles` (the `remote-runner` module's command; reads `.workbench/remote-runner.toml`, starts no program; `wb check` also reports a refused file and a leftover `.claude/remote-runner.toml`; see `docs/specs/remote-runner.md`) |
@@ -123,9 +127,11 @@ flush could not be written after the object was printed, which exits 2 with the 
 on exit 0 together with a whole, valid object.
 
 - **What is built.** The engine for `commit` and `remove`, its rules, rubric, reply schema and pins, and a set of 29
-  dangerous cases (`packages/workbench/action-review/tests/dangerous-cases.json`). **What is not:** a rule for a push, the
-  owner's hook, the writer of the log, the labelled set, the report and the shadow period, cutover and the removal of
-  `claude-workflow`. Nothing the engine says takes effect anywhere, and no command is run on its word.
+  dangerous cases (`packages/workbench/action-review/tests/dangerous-cases.json`), and the shadow (plan
+  `2026-10-29-action-review-shadow-hook`): the `--collect` flag, the hook that records and decides nothing, its store, the labelling
+  tool, the report and the test-set runner, all in the rows above. **What is not:** a rule for a push, a hook that decides, the
+  cutover and the removal of `claude-workflow`, and the owner's personal setting. Nothing the engine says takes effect anywhere, and
+  no command is run on its word.
 - **What a real call needs.** The `safe-git` module and a model bridge (`ask-codex`) installed and pinned, a
   `.workbench/review.json` naming the bridge, and a working directory inside the project where the command would run.
   The bridge sends the facts, including the diff of a commit, to its vendor; the tests use a fake bridge and send nothing.
@@ -134,11 +140,11 @@ on exit 0 together with a whole, valid object.
   with `add` instead of `preview add` (run `acknowledge` first if it lists changes). `add` is owner-run in a terminal,
   verifies the module and needs it approved on this machine, and the module's files changed after the shipped approvals
   were written, so `release-approvals` may have to run first; the installed `safe-git` must be current (it must declare
-  `describe`), and `upgrade` brings it up to date. The hook is plan 4; its requirements
-  are in the spec, "As built, and its limits".
+  `describe`), and `upgrade` brings it up to date. The shadow hook is built; the owner's steps to copy it out, register it,
+  label, run the test set and read the report are in the spec, "The owner's steps".
 - **Changing a shipped data file.** A rule, the rubric or the reply schema needs a new entry in `PINS` in the helper in
   the same change, and `release-approvals` afterwards; `test_actionreview_pins` fails otherwise.
-- **The module's tests.** `PYTHONPATH=. python3 -B -W error -m unittest discover -s packages/workbench/action-review/tests -t packages/workbench/action-review/tests` (458 tests, about a minute; they run the real `git`, `sh`, `zsh` and `bash`).
+- **The module's tests.** `PYTHONPATH=. python3 -B -W error -m unittest discover -s packages/workbench/action-review/tests -t packages/workbench/action-review/tests` (a few minutes; they run the real `git`, `sh`, `zsh` and `bash`, and the test-set runner's tests build 29 scratch projects against a fake `codex`).
 - **Recorded limits** are in the spec, "As built, and its limits".
 
 ## The mempalace module

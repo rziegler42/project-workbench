@@ -1,6 +1,6 @@
 # Build the action-review shadow hook, the labelled set and the report
 
-Status: Proposed
+Status: In Progress
 Created: 2026-10-29
 Candidate: workbench-v1#action-review-engine
 Specs: action-review, safe-git, module-boundary, module-contract, harness-modules, command-permissions
@@ -645,3 +645,42 @@ Then, on 2026-10-30: the four files were copied byte-for-byte into the real tree
 `python3 -B -W error tests/run_all.py` (6,283 tests in 13 roots, OK) and `git diff --check` were clean. The release wrote two new
 shipped package records (`b5ed39948ae1…`, `b99368d22038…`), part of this commit, and named the two of the release before it
 (`c16c2be88b16`, `de11bc09aa24`) as belonging to no release; they are still tracked, awaiting the owner's word.
+
+### Increment H
+
+Documentation only; nothing under `packages/` changed, so no release was needed and the command gate stayed open throughout.
+
+Changed: `docs/specs/action-review.md`, `docs/development.md`, `docs/specs/safe-git.md` (one phrase).
+
+Done: the spec's status paragraph, "The log", the headings of "The enforcement point" and "The shadow hook", "As built, and its
+limits", the plan split and the acceptance criteria now say the shadow is built and not installed or run; every statement that the
+hook, the writer of the log, the labelling tool, the report or the test-set runner is unbuilt was corrected (the historical
+description of plan 3 and `global-config-inventory.md`, a record of the state before the reset, were left as they were). "The
+owner's steps" is rewritten as nine numbered steps with a "Not verified" paragraph: install the module; copy four files out of the
+project and compare them; register the hook in the user-level settings (verbatim entry, a 30-second limit, no `onFailure`); add a
+user-level `ask` for `commit` if commits are to be collected; add a user-level `Read` deny for the data directory; check that the
+hook fires (the hand run); label; run the test set against a real model; read the report. It says what leaves the machine once the
+hook is registered, that the hook allows nothing and that removing its settings entry stops it. A new "Decided by the owner
+(2026-10-29 and 2026-10-30)" section lists the four decisions of the session, and "Open questions" lists the `shadow_store.py`
+departure and the security review. `docs/development.md` has four new rows (the hook, `label.py`, `report.py`, `run_testset.py`) and
+a corrected "What is built".
+
+Verification as run on 2026-10-30 in the real tree after the last edit: `wb check .` and `wb run code-work check` report no problems;
+`git diff --check` is clean; `python3 -B -W error tests/run_all.py` passes (6,283 tests in 13 roots). The plan's check 4, a run of the
+hook with the real engine and a fake bridge, was done at the level the tests allow: Increment D replays the real engine's own output
+bytes (the real helper's `main` with a fake launcher and bridge) through a fake `wb`. The real launcher, a real bridge and Claude Code
+were not used.
+
+Review: the `reviewer` agent, one exchange, seven findings, none blocking, all applied: step 2 now says which hash is compared for the
+`hook/` files and for `tools/`, and that `shadow_store.py` goes beside each tool; the owner's steps say what leaves the machine once
+the hook is registered and that `collected.jsonl` keeps the facts; step 3 has the verbatim settings entry; step 4 says every commit
+then prompts; step 8 lists the runner's prerequisites; a stale test count and two "stays with the approver" sentences were corrected.
+
+**Completion criteria.** 1 to 8 are met by Increments A to H as recorded above, with the departures recorded in the Results of C
+(`hook/shadow_store.py`) and G (the runner's design). **Criterion 9 is not met:** the owner has not installed the hook or seen a
+prompted command land in the log, and no real model has been asked. That is the owner's, by "The owner's steps" of the spec. Until
+then the plan is not complete and its `Status:` line reads `In Progress`.
+
+Not asked of the owner yet, as the plan's step 4 requires: whether to run a security review over the hook, the store and the engine's
+`--collect` flag (they touch a subprocess, the filesystem, untrusted command text and a network boundary). It runs only when the
+owner asks.

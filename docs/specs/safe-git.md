@@ -309,8 +309,9 @@ from the approver, and are recorded in `action-review.md`, "As built, and its li
 
 The checks of the approver's rule `git-push`, and where each goes in `describe push` (below). "Engine" is a
 check the engine makes in code over facts; "rubric" is a question the model answers over facts. **None of these is
-built in the engine yet:** the push rule, its checks and its rubric section wait for a follow-up plan (plan 4 or later),
-and until then a push stays with the approver. `describe push` itself is built.
+built in the engine yet:** the push rule, its checks and its rubric section wait for a follow-up plan (not plan 4, the shadow, which is built),
+and until then a push stays with the approver (since 2026-10-29 no approver runs, so a push is not reviewed at all).
+`describe push` itself is built.
 
 | Approver check | Action | Counterpart |
 |---|---|---|
