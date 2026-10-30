@@ -328,6 +328,28 @@ store as shipped pinned files with the measuring scripts in `tools/` (R3-F1), an
 (R3-F2). Rejected: R1-F1, because a user-level `ask` is an ordinary rule in the owner's own settings file. The plan was approved
 on 2026-10-30 by the owner at the `ask` level.
 
+Security review of the shadow (hook, store, `--collect` flag, and the labelling tool, report and test-set runner), asked for by the
+owner on 2026-10-30, by the `security-reviewer` agent. **It was a reading-only review: no experiment ran.** The agent gate refused
+every command and every write of the agent, because the agent used the scratch path of the main session and the gate derives the
+agent's scratch directory from the agent's own session; no way round was tried. The findings, by reading (none tested), none
+applied yet; the owner decides which become work:
+- Medium 1: `collected.jsonl` keeps the whole `describe` object, so a diff that the secret scan flagged is stored on disk, for every
+  project, in a file the assistant can read (the rendered rules deny its edits to the store and not its reads). Recorded in the
+  spec as a limit already; the smallest correction is to drop the text facts when `no_secret_lines` failed, which costs the owner
+  the sight of the flagged line when labelling.
+- Medium 2: the report can say "the bound is met" when the test-set evidence is weaker than it reads: (a) only the latest run of a
+  case blocks, so a bad run followed by a clean one clears it; (b) a refusal or engine failure of a model case is recorded as a
+  decline, so the test set can look clean when the model was never asked; (c) one case counts as "run", with no comparison against
+  the 29 shipped cases.
+- Low 1: `run_testset.py` prints the checkout's `review.json` model and effort without cleaning them. Low 2: `label.py` shows cut
+  facts and a model-written reason that a commit message can steer. Low 3: the hook's 28-second wait plus the 2-second wait equals
+  the hook's 30-second limit. Low 5: nothing authenticates the four data files (accepted by design).
+- **Low 4, confirmed by reading `workbench/wbkit/call.py` (a functional fault, not only a security one):** the engine finds the `wb`
+  launcher through the trusted entries of the `PATH` it inherits, and the hook gives it `/usr/local/bin:/usr/bin:/bin`, which does
+  not hold `~/.config/project-workbench/bin`. As built, every review would end `refused: describe could not be started` and be
+  recorded as `refused`. The tests missed it because they put the launcher's directory on `PATH`. Fail closed, but the shadow would
+  collect nothing.
+
 Increment A, `reviewer` agent, one exchange, seven findings.
 - F3 (blocking, applied): the acceptance criteria still promised the approver's counts; they now say the comparison cannot be
   made.
