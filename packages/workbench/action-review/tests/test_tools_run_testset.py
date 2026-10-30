@@ -270,16 +270,44 @@ class Running(Base):
         self.assertEqual(1, sum(row["mismatch"] for row in rows.values()))
         self.assertIn("MISMATCH", out)
 
-    def test_a_bridge_that_fails_is_a_decline_with_a_visible_reason_and_a_mismatch_for_the_controls(self):
+    def test_a_bridge_that_fails_leaves_no_row_for_the_cases_that_needed_the_model_and_they_are_named_as_not_run(self):
+        # Security review of the shadow, finding Medium 2(b): a refused or failed model case read as a clean decline.
         self.install_codex("fail")
         code, out, _ = self.run_runner("send 3")
+        rows = {row["case"] for row in self.rows()[0]}
+        self.assertEqual(26, len(rows))
+        self.assertEqual(set(), MODEL_CASES & rows)
+        self.assertEqual(1, code)
+        self.assertIn("cases run 26 of 29", out)
+        line = [line for line in out.splitlines() if line.startswith("not run: ")]
+        self.assertEqual(1, len(line), out)
+        for ident in MODEL_CASES:
+            self.assertRegex(line[0], ident + r" \(the engine failed \(exit 2\)\)")
+        self.assertIn("false approves 0", out)
+
+    def test_a_model_case_that_never_asked_the_model_leaves_no_row(self):
+        real = self.runner.run_case
+        answer = json.dumps({"verdict": "decline", "failed_checks": ["no_reviewer_directed_text"], "reason": "x"})
+
+        def unasked(case, *args, **kwargs):
+            if case["id"] == REVIEWER_CASE:
+                return 0, answer, 0  # a decline that the file expects, but with no prompt sent
+            return real(case, *args, **kwargs)
+
+        with unittest.mock.patch.object(self.runner, "run_case", unasked):
+            code, out, _ = self.run_runner("send 3")
+        self.assertEqual(1, code)
+        self.assertNotIn(REVIEWER_CASE, [row["case"] for row in self.rows()[0]])
+        self.assertIn("%s (the model was not asked)" % REVIEWER_CASE, out)
+
+    def test_a_case_the_file_expects_to_be_refused_and_that_is_refused_still_leaves_its_decline_row(self):
+        self.run_runner("send 3")
         rows = {row["case"]: row for row in self.rows()[0]}
-        self.assertEqual(("approve", "decline", ["engine_failed"], True), (
-            rows["control-plain-commit"]["expected"], rows["control-plain-commit"]["verdict"],
-            rows["control-plain-commit"]["failed_checks"], rows["control-plain-commit"]["mismatch"]))
-        self.assertEqual(("decline", False), (rows[REVIEWER_CASE]["verdict"], rows[REVIEWER_CASE]["mismatch"]))
-        self.assertIn("false declines 2", out)
-        self.assertEqual(0, code)
+        refused = [case["id"] for case in self.cases if case["expect"].get("exit") == 1]
+        self.assertEqual(7, len(refused))
+        for ident in refused:
+            self.assertEqual(("decline", "decline", ["refused"], False), (
+                rows[ident]["expected"], rows[ident]["verdict"], rows[ident]["failed_checks"], rows[ident]["mismatch"]), ident)
 
     def test_a_scratch_project_that_fails_to_build_is_cleaned_up_and_does_not_leave_home_patched(self):
         class Failing(unittest.TestCase):
@@ -297,7 +325,7 @@ class Running(Base):
                 self.runner.run_case(self.cases[0], self.codex_dir, {})
         self.assertNotEqual("/scratch-home-that-must-not-stay", os.environ.get("HOME"))
 
-    def test_a_case_the_engine_refuses_when_the_file_expects_a_verdict_is_shown_as_differing_not_ok(self):
+    def test_a_case_the_engine_refuses_when_the_file_expects_a_verdict_leaves_no_row_and_is_named_as_not_run(self):
         real = self.runner.run_case
 
         def refusing(case, *args, **kwargs):
@@ -307,12 +335,129 @@ class Running(Base):
 
         with unittest.mock.patch.object(self.runner, "run_case", refusing):
             code, out, _ = self.run_runner("send 3")
+        self.assertEqual(1, code)
+        self.assertNotIn("secret-in-diff", [row["case"] for row in self.rows()[0]])
+        self.assertIn("secret-in-diff (the engine ended with exit 1 where the file expects 0)", out)
+        self.assertNotIn("FALSE APPROVE", out)
+
+    def test_a_case_decided_by_other_checks_than_the_file_names_is_recorded_and_shown_as_differing(self):
+        real = self.runner.run_case
+        other = json.dumps({"verdict": "decline", "failed_checks": ["head_matches"], "reason": "x"})
+
+        def elsewhere(case, *args, **kwargs):
+            if case["id"] == "secret-in-diff":
+                return 0, other, 0  # the file expects a decline by no_secret_lines
+            return real(case, *args, **kwargs)
+
+        with unittest.mock.patch.object(self.runner, "run_case", elsewhere):
+            code, out, _ = self.run_runner("send 3")
+        self.assertEqual(0, code)
+        row = {r["case"]: r for r in self.rows()[0]}["secret-in-diff"]
+        self.assertEqual(("decline", ["head_matches"], False), (row["verdict"], row["failed_checks"], row["mismatch"]))
         line = [line for line in out.splitlines() if "secret-in-diff:" in line]
         self.assertEqual(1, len(line))
         self.assertIn("differs", line[0])
-        self.assertNotIn("FALSE APPROVE", out)
-        row = {r["case"]: r for r in self.rows()[0]}["secret-in-diff"]
-        self.assertEqual(("decline", ["refused"], False), (row["verdict"], row["failed_checks"], row["mismatch"]))
+
+    def test_a_case_the_file_expects_to_be_refused_but_that_gets_a_verdict_leaves_no_row_either(self):
+        real = self.runner.run_case
+        verdict = json.dumps({"verdict": "approve", "failed_checks": [], "reason": "x"})
+
+        def approving(case, *args, **kwargs):
+            if case["id"] == "unreviewable-pipe":
+                return 0, verdict, 0  # the file expects a refusal (exit 1)
+            return real(case, *args, **kwargs)
+
+        with unittest.mock.patch.object(self.runner, "run_case", approving):
+            code, out, _ = self.run_runner("send 3")
+        self.assertEqual(1, code)
+        self.assertNotIn("unreviewable-pipe", [row["case"] for row in self.rows()[0]])
+        self.assertIn("unreviewable-pipe (the engine ended with exit 0 where the file expects 1)", out)
+
+    def test_a_model_or_effort_the_engine_would_refuse_ends_the_run_before_anything_is_sent(self):
+        for setting in ({"format": 1, "bridge": "ask-codex", "model": "bad\x1b[2Jmodel‮", "effort": "medium"},
+                        {"format": 1, "bridge": "ask-codex", "model": "m" * 65},
+                        {"format": 1, "bridge": "ask-codex", "model": "-leading-dash"},
+                        {"format": 1, "bridge": "ask-codex", "model": "ok", "effort": "extreme"},
+                        {"format": 1, "bridge": "ask-codex", "model": "line\nbreak"}):
+            with unittest.mock.patch.object(self.runner, "project_setting", return_value=setting):
+                code, out, err = self.run_runner("send 3")
+            self.assertEqual(2, code, setting)
+            self.assertEqual("", out, "nothing is shown or asked: " + repr(setting))
+            self.assertEqual(1, len(err.splitlines()), err)
+            self.assertIn("nothing was sent", err)
+            for char in err:
+                self.assertTrue(char == "\n" or " " <= char <= "~", repr(char))
+            self.assertEqual([], self.calls())
+            self.assertEqual(([], 0), self.rows())
+
+    def test_a_valid_model_and_effort_are_shown_in_the_confirmation(self):
+        setting = {"format": 1, "bridge": "ask-codex", "model": "gpt-5.6-terra", "effort": "medium"}
+        with unittest.mock.patch.object(self.runner, "project_setting", return_value=setting):
+            code, out, _ = self.run_runner("no")
+        self.assertEqual(0, code)
+        self.assertIn("model gpt-5.6-terra, effort medium", out)
+
+    def test_a_model_or_effort_that_is_not_text_in_review_json_is_refused_not_silently_dropped(self):
+        folder = os.path.join(self.base, "checkout")
+        os.makedirs(os.path.join(folder, ".workbench"))
+        for body, field in (('{"format": 1, "bridge": "ask-codex", "model": 5}', "model"),
+                            ('{"format": 1, "bridge": "ask-codex", "effort": ["high"]}', "effort"),
+                            ('{"format": 1, "bridge": "ask-codex", "model": null}', "model")):
+            with open(os.path.join(folder, ".workbench", "review.json"), "w") as handle:
+                handle.write(body)
+            with unittest.mock.patch.object(self.runner, "ROOT", folder):
+                setting = self.runner.project_setting()
+            self.assertEqual(field, self.runner.setting_problem(setting), body)
+
+    def test_a_missing_or_unreadable_review_json_gives_the_bridges_defaults(self):
+        folder = os.path.join(self.base, "checkout")
+        os.makedirs(os.path.join(folder, ".workbench"))
+        with unittest.mock.patch.object(self.runner, "ROOT", folder):
+            self.assertEqual({"format": 1, "bridge": "ask-codex"}, self.runner.project_setting())
+            with open(os.path.join(folder, ".workbench", "review.json"), "w") as handle:
+                handle.write("{not json")
+            self.assertEqual({"format": 1, "bridge": "ask-codex"}, self.runner.project_setting())
+
+    def test_not_recorded_names_every_way_a_case_did_not_run_as_the_file_says(self):
+        model = {"expect": {"exit": 0, "bridge_asked": True}}
+        fixed = {"expect": {"exit": 0, "bridge_asked": False}}
+        refused = {"expect": {"exit": 1, "bridge_asked": False}}
+        silent = {"expect": {}}
+        check = self.runner.not_recorded
+        for case, code, asked in ((model, 0, 1), (fixed, 0, 0), (refused, 1, 0), (model, 0, 2), (fixed, 0, 1)):
+            self.assertIsNone(check(case, code, asked), (case, code, asked))
+        for code in (2, 3, 127, 137, -9, -15, None, 255):
+            self.assertRegex(check(model, code, 1), r"^the engine failed", code)
+            self.assertRegex(check(fixed, code, 0), r"^the engine failed", code)
+        self.assertEqual("the engine ended with exit 1 where the file expects 0", check(model, 1, 1))
+        self.assertEqual("the engine ended with exit 0 where the file expects 1", check(refused, 0, 0))
+        self.assertEqual("the engine ended with exit 0 where the file expects None", check(silent, 0, 0))
+        self.assertEqual("the model was not asked", check(model, 0, 0))
+
+    def test_after_a_partial_run_it_says_to_run_the_test_set_again_and_not_to_read_the_report(self):
+        real = self.runner.run_case
+
+        def broken(case, *args, **kwargs):
+            if case["id"] == "secret-in-diff":
+                raise RuntimeError("scratch project failed")
+            return real(case, *args, **kwargs)
+
+        with unittest.mock.patch.object(self.runner, "run_case", broken):
+            _, out, _ = self.run_runner("send 3")
+        self.assertIn("run the test set again", out)
+        self.assertNotIn("Now run the report", out)
+        _, full, _ = self.run_runner("send 3")
+        self.assertIn("Now run the report", full)
+        self.assertNotIn("run the test set again", full)
+
+    def test_the_setting_check_is_the_engines_own_pattern(self):
+        ok = self.runner.setting_problem
+        for good in ({}, {"model": "gpt-5.6-terra"}, {"model": "a"}, {"model": "A" * 64}, {"model": "m1:2_3.4-5"},
+                     {"effort": "low"}, {"effort": "medium"}, {"effort": "high"}, {"model": "x", "effort": "high"}):
+            self.assertIsNone(ok(good), good)
+        for bad in ({"model": ""}, {"model": "A" * 65}, {"model": "_x"}, {"model": "a b"}, {"model": "a\n"},
+                    {"model": 5}, {"effort": "HIGH"}, {"effort": ""}, {"effort": 3}, {"model": "café"}):
+            self.assertIsNotNone(ok(bad), bad)
 
     def test_a_second_run_adds_rows_and_the_first_is_kept(self):
         self.run_runner("send 3")

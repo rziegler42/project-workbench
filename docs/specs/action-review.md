@@ -647,11 +647,23 @@ Each case runs in a temporary home into which the Codex directory (`~/.codex`, o
 the sign-in; the tool does not read or change anything in it, but the Codex program the bridge runs may refresh its own sign-in there.
 The store it writes is the owner's own, found from the real home
 directory, never the scratch one. A row holds the expected verdict (`approve` for a control, `decline` for every other case, a
-refusal included), what the engine said, and `mismatch`; a refusal or an engine failure is a `decline` with the check name `refused`
-or `engine_failed`, so it can be a false decline and never a false approve. A case that is approved and must be declined is printed
-first, after the run. A case whose path differs from the file's (a refusal where the file expects a verdict, or other failed checks)
-is shown as `differs`, though it is no false approve. Exit status: 0 done, 1 a case could not be run or the store failed, 2 not a terminal or a bad argument, 3 a
-false approve, 130 interrupted. The tool was tested with a fake `codex`; a real model has not been asked.
+refusal included), what the engine said, and `mismatch`. **A row is written only for a case that ran the way the case file says:**
+the engine did not fail, it ended with the exit the file expects, and where the file expects the model to be asked, the model was
+asked. A refusal that the file expects is a `decline` with the check name `refused`. Any other case leaves no row and is named under
+"not run" with its reason (the engine failed, the engine ended with another exit than the file expects, the model was not asked, or
+the scratch project could not be built), so a model that was never asked (not signed in, a refused launcher) cannot read as a clean
+decline (security review of the shadow, finding Medium 2(b); plan `2026-10-30-shadow-review-fixes`, Increment B). A model or effort in
+the checkout's `.workbench/review.json` that the engine would refuse (the engine's own patterns) ends the run, before anything is
+sent, with one line on standard error. A case that is approved and must be declined is printed first, after the run. A recorded case
+decided by other checks than the file names is shown as `differs`, though it is no false approve. After a partial run the tool says
+to run the test set again before reading the report. A model or effort in `review.json` that is not text is refused like one the
+engine would refuse. Limits, recorded and not closed: a refusal is recorded on the exit alone, so the reason the file expects
+(`refusal_contains`) is not compared, and a scratch project broken so that the engine refuses everything still records the seven
+expected refusals (every other case then does not run, which the summary and the exit status show); a case that unexpectedly reached
+the model, or reached it twice, is recorded and shown ("the model was asked; the file expects the opposite"), not left out; the two
+patterns for the model and effort are copies of the engine's and are not pinned to them. Exit status: 0 done, 1 a case did
+not run or the store failed, 2 not a terminal, a bad argument or a refused setting, 3 a false approve, 130 interrupted. The tool was
+tested with a fake `codex`; a real model has not been asked.
 
 **Recorded limit: the harness does not deny the agent's reads of the store.** The rendered rules deny edits to
 `~/.config/project-workbench/**` and not reads (read on 2026-10-30 in the rendered `settings.local.json`). The collected file is
@@ -836,7 +848,9 @@ of plan `2026-10-29-action-review-shadow-hook`, Increment H.
    packages/workbench/action-review/tools/run_testset.py [--codex-dir <absolute path>]`. It needs the `codex` program on your
    `PATH` and a Codex directory (`~/.codex` by default) with your sign-in, and refuses without them. It sends 3 synthetic prompts
    (not yours) to Codex through `ask-codex`, after you type `send 3`; this tool sends nothing else (the hook of step 3 is a separate
-   matter). It writes the rows the report reads. It was tested only against a fake `codex`.
+   matter). It writes the rows the report reads. If it ends with exit 1 and a "not run" line, fix the cause named beside each case
+(Codex not signed in, a failing bridge, a broken checkout) and run it again: a case that did not run leaves no row, so the report
+cannot count it. It was tested only against a fake `codex`.
 9. **Read the report** with `python3 -B report.py`. A false approve on the labels or the test set is its first line and keeps the
    cutover closed. When it says the bound is met, the cutover is still your decision and a plan of its own (plan 5): a hook that
    decides does not exist.

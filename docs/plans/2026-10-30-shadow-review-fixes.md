@@ -231,3 +231,43 @@ shipped package records (`b01a2ea3bdce…`, `b021ea3d9fbc…`), part of this com
 
 Not done: the hook has not run against the real launcher, so the fix is shown by the engine's own lookup on the hook's environment
 and not by a real review; that is the owner's hand run.
+
+### Increment B
+
+Built in a scratch clone at `f96fc89`, as for A.
+
+Changed: `packages/workbench/action-review/tools/run_testset.py`, `packages/workbench/action-review/tests/test_tools_run_testset.py`,
+`docs/specs/action-review.md` ("As built (Increment G)" and step 8 of "The owner's steps").
+
+Done: a row is written only for a case that ran the way the case file says (`not_recorded`): the engine did not fail (exit 0 or 1;
+any other code, a signal included, is a failure), it ended with the exit the file expects, and where the file expects the model to
+be asked, the model was asked. Every other case, an exception included, leaves no row and is named under "not run" with its
+reason; the exit status is 1. A refusal the file expects is still a `decline` row with `refused`. A model or effort in the
+checkout's `review.json` that the engine would refuse (its own patterns; a value that is not text is refused too, not dropped)
+ends the run, before anything is shown or sent, with one cleaned line on standard error and exit 2. After a partial run the tool
+says to run the test set again before reading the report.
+
+Verification as run in the scratch clone on 2026-10-30: the new tests failed before the change and pass after (38 tests of
+`test_tools_run_testset.py` under `-W error`, about 50 s) and the full suite passes (6,301 tests in 13 roots). Forty-one mutations
+of the tool are each caught; one first survived because the `ok` / `differs` test had become redundant once a recorded case always
+has the file's exit, and it was simplified and retargeted.
+
+Review: the `reviewer` agent, one exchange, six findings, none blocking.
+- F3 (applied): `project_setting` silently dropped a non-text model or effort; it now keeps it and the setting check refuses it.
+- F4 (applied): the closing line said "now run the report" even after a partial run; it says to run the test set again.
+- F5 (applied): the owner's step 8 now says what exit 1 and a "not run" line mean.
+- F6 (applied): unit tests of `not_recorded` for negative, `None` and other exit codes and a file entry with no `expect.exit`.
+- F1 (recorded, not done): a refusal is recorded on the exit alone; the reason the file expects (`refusal_contains`) is not
+  compared. A scratch project broken so that the engine refuses everything still records the seven expected refusals, but then no
+  other case runs, and the summary and exit status show it.
+- F2 (recorded, not done): a case that unexpectedly reached the model, or reached it twice, is recorded and shown ("the model was
+  asked; the file expects the opposite") but not left out. Refusing to record it would go beyond the steps of this increment.
+- The two patterns for the model and effort are copies of the engine's and are not pinned to them (recorded in the spec).
+
+Then, on 2026-10-30: the three files were copied byte-for-byte into the real tree (`cmp` equal), the owner ran `wb release-approvals`
+("wrote 13 approvals for 1 first-party packages"), and in the real tree `wb check .`, `wb run code-work check`,
+`python3 -B -W error tests/run_all.py` (6,301 tests in 13 roots, OK) and `git diff --check` were clean. The release wrote two new
+shipped package records (`dc7504aa9ea0…`, `e550e1f0bc85…`), part of this commit, and named four older ones (`b01a2ea3bdce`,
+`b021ea3d9fbc`, `b5ed39948ae1`, `b99368d22038`) as belonging to no release; they are still tracked, awaiting the owner's word.
+
+Not done: no real model has been asked.

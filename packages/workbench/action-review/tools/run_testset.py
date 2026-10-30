@@ -22,14 +22,19 @@ no file of it; the Codex program itself, run by the bridge, may refresh its own 
 
 What it records: one row per case in ``testset.jsonl`` of the shadow's store, as the report reads them: the expected
 verdict (``approve`` for a control, ``decline`` for every case that must not be approved, a refusal included), what the
-engine said, and whether the two differ. A refusal or a failure of the engine is a ``decline`` with the check name ``refused``
-or ``engine_failed``, so it is never a false approve. Exit status: 0 done, 1 a case could not be run or the store failed,
-2 not a terminal or a bad argument, 3 a case that must be declined was approved, 130 interrupted.
+engine said, and whether the two differ. A row is written only for a case that ran the way the case file says: the engine did
+not fail, it ended with the exit the file expects, and where the file expects the model to be asked, the model was asked. A
+refusal that the file expects is a ``decline`` with the check name ``refused``. Any other case leaves no row and is named as not
+run with its reason, so a model that was never asked (not signed in, a refused launcher) cannot read as a clean decline. A model
+or effort in the checkout's ``.workbench/review.json`` that the engine would refuse ends the run before anything is sent. Exit
+status: 0 done, 1 a case did not run or the store failed, 2 not a terminal, a bad argument or a refused setting, 3 a case that
+must be declined was approved, 130 interrupted.
 """
 
 import hashlib
 import json
 import os
+import re
 import sys
 import time
 import unittest.mock
@@ -42,6 +47,10 @@ CASES = os.path.join(MODULE, "tests", "dangerous-cases.json")
 CASES_SHA256 = "23b9498ce86996378c91855107754b48a2c7b07ab3d9e1ff567bd9ac6ec79312"
 USAGE = "usage: run_testset.py [--codex-dir <absolute path>]"
 BRIDGE = "ask-codex"
+# The patterns by which the engine reads the model and the effort of `.workbench/review.json` (`SETTING_MODEL` and `EFFORTS` in the
+# helper). A value the engine would refuse makes every case a refusal, so it ends the run before anything is sent.
+MODEL = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,63}")
+EFFORTS = ("low", "medium", "high")
 
 sys.path.insert(0, os.path.join(MODULE, "hook"))
 import shadow_store as store  # noqa: E402  the store of the shadow, in the checkout beside this tool
@@ -70,7 +79,7 @@ def project_setting():
         return setting
     if isinstance(mine, dict):
         for field in ("model", "effort"):
-            if isinstance(mine.get(field), str):
+            if field in mine:  # whatever it is: `setting_problem` refuses a value the engine would refuse
                 setting[field] = mine[field]
     return setting
 
@@ -135,13 +144,36 @@ def run_case(case, codex_dir, setting):
         run.doCleanups()
 
 
+def setting_problem(setting):
+    """The name of the field of `setting` that the engine would refuse (``model`` or ``effort``), or None."""
+    if "model" in setting and not (isinstance(setting["model"], str) and MODEL.fullmatch(setting["model"])):
+        return "model"
+    if "effort" in setting and not (isinstance(setting["effort"], str) and setting["effort"] in EFFORTS):
+        return "effort"
+    return None
+
+
+def not_recorded(case, code, asked):
+    """Why a case leaves no row, or None when it ran the way the case file says: the engine did not fail, it ended with the
+    exit the file expects, and where the file expects the model to be asked, the model was asked. A case that fails these is a
+    case that did not run as the test set means it, and a row would only read as a clean decline."""
+    if code not in (0, 1):
+        return "the engine failed (exit %s)" % code
+    if code != case["expect"].get("exit"):
+        return "the engine ended with exit %d where the file expects %s" % (code, case["expect"].get("exit"))
+    if case["expect"].get("bridge_asked") and not asked:
+        return "the model was not asked"
+    return None
+
+
 def judged(case, code, out):
-    """``(expected, verdict, failed checks)`` as the report reads them."""
+    """``(expected, verdict, failed checks)`` as the report reads them, for a case that `not_recorded` let through: a refusal
+    (exit 1, which the file expected) is a ``decline`` with the check name ``refused``."""
     expected = "approve" if case["expect"].get("verdict") == "approve" else "decline"
     if code == 0:
         body = json.loads(out)
         return expected, body["verdict"], list(body["failed_checks"])
-    return expected, "decline", ["refused" if code == 1 else "engine_failed"]
+    return expected, "decline", ["refused"]
 
 
 def run(argv, stdin, stdout, stderr, home):
@@ -166,6 +198,11 @@ def run(argv, stdin, stdout, stderr, home):
                      % plain(codex_dir))
         return 2
     setting = project_setting()
+    problem = setting_problem(setting)
+    if problem:
+        stderr.write("the project's .workbench/review.json holds a %s the engine would refuse (%s); nothing was sent\n"
+                     % (problem, plain(setting[problem], 60)))
+        return 2
     sends = sum(1 for case in cases if case["expect"].get("bridge_asked"))
     stdout.write("Test set of the action-review shadow\n")
     stdout.write("  %d cases, all synthetic: the shipped dangerous cases (hash checked). Nothing of yours is used or sent.\n"
@@ -188,9 +225,13 @@ def run(argv, stdin, stdout, stderr, home):
         for case in cases:
             try:
                 code, out, asked = run_case(case, codex_dir, setting)
-                expected, verdict, failed = judged(case, code, out)
+                why = not_recorded(case, code, asked)
+                if why is None:
+                    expected, verdict, failed = judged(case, code, out)
             except Exception:
-                not_run += [case["id"]]
+                why = "the scratch project could not be built or run"
+            if why is not None:
+                not_run += [(case["id"], why)]
                 stdout.write("?")
                 stdout.flush()
                 continue
@@ -217,9 +258,9 @@ def run(argv, stdin, stdout, stderr, home):
     if approves:
         stdout.write("\n")
     for case, row, asked, code in results:
-        # As the file expects: the same exit, and for a verdict the same failed checks. A refusal where the file expects a
-        # verdict (or the other way round) is a drift between the engine and the file, shown here though it is no false approve.
-        same = code == case["expect"].get("exit") and (code != 0 or list(case["expect"].get("failed_checks", [])) == row["failed_checks"])
+        # A recorded case ended with the exit the file expects (`not_recorded`); for a verdict it should also be decided by the
+        # checks the file names. Another set is a drift between the engine and the file, shown here though it is no false approve.
+        same = code != 0 or list(case["expect"].get("failed_checks", [])) == row["failed_checks"]
         mark = "MISMATCH" if row["mismatch"] else ("ok" if same else "differs")
         stdout.write("  %-8s %s: %s%s\n" % (mark, plain(row["case"], 80), row["verdict"],
                                            " (%s)" % ", ".join(row["failed_checks"]) if row["failed_checks"] else ""))
@@ -229,8 +270,12 @@ def run(argv, stdin, stdout, stderr, home):
     stdout.write("\ncases run %d of %d; mismatches %d; false approves %d; false declines %d; the model was asked %d times\n"
                  % (len(results), len(cases), sum(row["mismatch"] for _, row, _, _ in results), len(approves), len(declines), asks))
     if not_run:
-        stdout.write("not run: %s\n" % ", ".join(plain(ident, 80) for ident in not_run))
-    stdout.write("Now run the report to see the cutover line.\n")
+        stdout.write("not run: %s\n" % ", ".join("%s (%s)" % (plain(ident, 80), plain(why, 120)) for ident, why in not_run))
+    if not_run:
+        stdout.write("Some cases did not run, so the test set is incomplete: fix the cause and run the test set again before "
+                     "you read the report.\n")
+    else:
+        stdout.write("Now run the report to see the cutover line.\n")
     if approves:
         return 3
     return 1 if not_run else 0
