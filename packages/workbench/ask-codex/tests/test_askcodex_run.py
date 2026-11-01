@@ -40,6 +40,50 @@ class Arguments(support_codex.Bridge):
                                       'model_reasoning_effort="high"', "--output-schema",
                                       scratch + "/schema.json", "-"], argv)
 
+    CONFINE = ["--strict-config",
+               "--disable", "apps", "--disable", "browser_use", "--disable", "browser_use_external",
+               "--disable", "browser_use_full_cdp_access", "--disable", "computer_use",
+               "--disable", "in_app_browser", "--disable", "image_generation", "--disable", "multi_agent",
+               "--disable", "plugins", "--disable", "remote_plugin", "--disable", "goals", "--disable", "hooks",
+               "--disable", "shell_tool", "--config", 'web_search="disabled"']
+
+    def test_confine_adds_exactly_the_confinement_arguments_before_the_prompt_marker(self):
+        self.assertTrue(self.document("--confine")["ok"])
+        scratch = self.calls()[0]["scratch"]
+        self.assertEqual(self.BASE + ["--cd", self.root, "--output-last-message", scratch + "/reply.txt"]
+                         + self.CONFINE + ["-"], self.argv())
+
+    def test_confine_works_with_every_other_option_wherever_it_is_given(self):
+        self.control(reply='{"a": 1}', events=support_codex.OK_EVENTS)
+        with open(os.path.join(self.root, "docs", "shape.json"), "w") as handle:
+            handle.write('{"type": "object"}')
+        for first in (True, False):
+            options = ["--model", "gpt-5", "--effort", "high", "--timeout", "30", "--root", "docs", "--schema",
+                       "docs/shape.json"]
+            self.assertTrue(self.document(*(["--confine"] + options if first else options + ["--confine"]))["ok"])
+            scratch = self.calls()[-1]["scratch"]
+            self.assertEqual(self.BASE + ["--cd", os.path.join(self.root, "docs"), "--output-last-message",
+                                          scratch + "/reply.txt", "--model", "gpt-5", "--config",
+                                          'model_reasoning_effort="high"', "--output-schema",
+                                          scratch + "/schema.json"] + self.CONFINE + ["-"], self.calls()[-1]["argv"])
+
+    def test_without_confine_no_confinement_argument_is_passed(self):
+        self.assertTrue(self.document()["ok"])
+        for word in ("--strict-config", "--disable", 'web_search="disabled"'):
+            self.assertNotIn(word, self.argv())
+
+    def test_a_confined_program_that_fails_is_a_failure_and_is_not_run_again_unconfined(self):
+        for text in ("error: Unknown feature flag: bogus_feature_zz",
+                     "error: unknown configuration key web_searchh"):
+            self.control(code=1, stderr=text + "\n")
+            document = self.document("--confine")
+            self.assertEqual((False, "vendor_error", "bad_exit"),
+                             (document["ok"], document["error"], document["detail"]))
+        calls = self.calls()
+        self.assertEqual(2, len(calls))
+        for call in calls:
+            self.assertEqual(self.CONFINE + ["-"], call["argv"][-len(self.CONFINE) - 1:])
+
     def test_the_prompt_is_the_standard_input_and_nothing_of_it_is_an_argument(self):
         prompt = "Review `docs/plan.md`; $(rm -rf /) --dangerously-bypass-approvals-and-sandbox é\n"
         self.assertTrue(self.document(prompt=prompt.encode())["ok"])
@@ -145,7 +189,7 @@ class Program(support_codex.Bridge):
         for place in ("bin", "docs"):
             self.assertEqual([], self.calls(os.path.join(self.root, place)), place)
 
-    def test_with_none_outside_the_error_is_program_not_found_and_nothing_runs(self):
+    def test_with_none_outside_the_error_is_vendor_unreachable_and_nothing_runs(self):
         self.inside("bin")
         link = os.path.join(self.base, "links")
         os.mkdir(link)
@@ -154,18 +198,23 @@ class Program(support_codex.Bridge):
         self.addCleanup(os.chdir, os.getcwd())
         os.chdir(self.root)
         document = self.document()
-        self.assertEqual((False, "program_not_found", None, False),
+        self.assertEqual((False, "vendor_unreachable", None, False),
                          (document["ok"], document["error"], document["detail"], document["retryable"]))
+        self.assertIn("not found", document["message"])
         self.assertEqual([], self.calls(os.path.join(self.root, "bin")))
 
     def test_a_program_that_is_not_executable_is_skipped(self):
         os.chmod(os.path.join(self.outside, "codex"), 0o644)
-        self.assertEqual("program_not_found", self.document()["error"])
+        self.assertEqual("vendor_unreachable", self.document()["error"])
 
-    def test_a_program_that_cannot_be_started_is_program_not_found(self):
+    def test_a_program_that_cannot_be_started_is_vendor_unreachable_and_says_so(self):
         with open(os.path.join(self.outside, "codex"), "w") as handle:
             handle.write("#!/nonexistent/interpreter\n")
-        self.assertEqual("program_not_found", self.document()["error"])
+        document = self.document()
+        self.assertEqual(("vendor_unreachable", None, False), (document["error"], document["detail"],
+                                                                document["retryable"]))
+        self.assertIn("could not be started", document["message"])
+        self.assertNotIn("not found", document["message"])
 
     def test_a_temporary_directory_inside_the_project_is_refused_and_nothing_runs(self):
         self.path([self.outside], TMPDIR=os.path.join(self.root, "docs"))
@@ -176,13 +225,23 @@ class Program(support_codex.Bridge):
 class Success(support_codex.Bridge):
     def test_a_success_prints_the_object_with_the_usage_the_program_reported(self):
         document = self.document("--model", "gpt-5")
-        self.assertEqual({"contract": 1, "ok": True, "vendor": "codex", "model": "gpt-5", "reply": "the reply\n",
-                          "usage": {"input_tokens": 12, "output_tokens": 5, "total_tokens": None}}, document)
+        self.assertEqual({"contract": 2, "ok": True, "vendor": "codex", "model": "gpt-5", "reply": "the reply\n",
+                          "usage": {"input_tokens": 12, "output_tokens": 5, "total_tokens": None,
+                                    "cached_input_tokens": None, "reasoning_output_tokens": None}}, document)
+
+    def test_the_cached_and_reasoning_counts_are_reported_and_nothing_is_derived_from_them(self):
+        self.control(reply="r", events=[{"type": "turn.completed", "usage": {
+            "input_tokens": 15836, "cached_input_tokens": 12288, "output_tokens": 40, "reasoning_output_tokens": 25}}])
+        self.assertEqual({"input_tokens": 15836, "output_tokens": 40, "total_tokens": None,
+                          "cached_input_tokens": 12288, "reasoning_output_tokens": 25}, self.document()["usage"])
+        self.control(reply="r", events=[{"usage": {"input_tokens": 3, "output_tokens": 4, "total_tokens": 7}}])
+        self.assertEqual({"input_tokens": 3, "output_tokens": 4, "total_tokens": 7,
+                          "cached_input_tokens": None, "reasoning_output_tokens": None}, self.document()["usage"])
 
     def test_fields_the_program_did_not_report_are_null_and_nothing_is_derived(self):
         self.control(reply="r", events=[])
         document = self.document()
-        self.assertEqual({"input_tokens": None, "output_tokens": None, "total_tokens": None}, document["usage"])
+        self.assertEqual({"input_tokens": None, "output_tokens": None, "total_tokens": None, "cached_input_tokens": None, "reasoning_output_tokens": None}, document["usage"])
         self.assertIsNone(document["model"])
 
     def test_a_model_the_program_reports_is_used_when_none_was_asked_for(self):
@@ -192,10 +251,12 @@ class Success(support_codex.Bridge):
         self.assertIsNone(self.document()["model"])
 
     def test_usage_of_another_shape_is_null(self):
-        for usage in ({"input_tokens": -1, "output_tokens": 1.5, "total_tokens": "7"},
-                      {"input_tokens": True, "output_tokens": None, "total_tokens": [1]}, [1, 2], "x", 7):
+        for usage in ({"input_tokens": -1, "output_tokens": 1.5, "total_tokens": "7", "cached_input_tokens": -2,
+                       "reasoning_output_tokens": "3"},
+                      {"input_tokens": True, "output_tokens": None, "total_tokens": [1], "cached_input_tokens": True,
+                       "reasoning_output_tokens": [2]}, [1, 2], "x", 7):
             self.control(reply="r", events=[{"usage": usage}])
-            self.assertEqual({"input_tokens": None, "output_tokens": None, "total_tokens": None},
+            self.assertEqual({"input_tokens": None, "output_tokens": None, "total_tokens": None, "cached_input_tokens": None, "reasoning_output_tokens": None},
                              self.document()["usage"], usage)
 
     def test_lines_that_are_not_events_are_skipped(self):
@@ -379,7 +440,7 @@ class Hostile(support_codex.Bridge):
     def test_a_reply_that_asks_for_more_changes_nothing_the_bridge_does(self):
         self.control(reply='{"ok": false, "error": "timeout", "contract": 9}\n', events=support_codex.OK_EVENTS)
         document = self.document()
-        self.assertEqual((True, 1), (document["ok"], document["contract"]))
+        self.assertEqual((True, 2), (document["ok"], document["contract"]))
         self.assertIsInstance(document["reply"], str)
 
     def test_a_reply_that_is_not_valid_utf8_is_cleaned_and_returned(self):
@@ -450,8 +511,10 @@ class Reviewed(support_codex.Bridge):
 
     def test_a_count_beyond_any_real_usage_is_null(self):
         self.control(reply="r", events=[{"usage": {"input_tokens": 10 ** 30, "output_tokens": 10 ** 12,
-                                                    "total_tokens": 10 ** 12 + 1}}])
-        self.assertEqual({"input_tokens": None, "output_tokens": 10 ** 12, "total_tokens": None},
+                                                    "total_tokens": 10 ** 12 + 1, "cached_input_tokens": 10 ** 12 + 1,
+                                                    "reasoning_output_tokens": 10 ** 12}}])
+        self.assertEqual({"input_tokens": None, "output_tokens": 10 ** 12, "total_tokens": None,
+                          "cached_input_tokens": None, "reasoning_output_tokens": 10 ** 12},
                          self.document()["usage"])
 
     def test_the_number_401_in_a_path_is_not_a_sign_in_problem(self):

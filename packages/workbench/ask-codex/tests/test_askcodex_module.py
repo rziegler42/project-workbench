@@ -111,6 +111,35 @@ class Options(support_codex.Bridge):
         self.refused("extra", contains="not an option")
         self.refused("--MODEL", "a", contains="not an option")
 
+    def test_confine_is_a_flag_with_no_value_given_at_most_once(self):
+        self.refused("--confine", "--confine", contains="given twice")
+        self.refused("--confine", "yes", contains="not an option")
+        self.refused("--confine", "--model", contains="needs a value")
+        self.assertTrue(self.document("--confine")["ok"])
+
+    def test_server_is_recognized_and_refused_by_a_bridge_to_a_program(self):
+        for good in ("ned", "a", "gpu-1_b", "x" * 32, "0"):
+            self.refused("--server", good, contains="starts a program")
+        for bad in ("", "Ned", "-x", "_x", "a b", "a/b", "x" * 33, "é", "a.b", "a;b"):
+            self.refused("--server", bad, contains="--server")
+        self.refused("--server", "a", "--server", "b", contains="given twice")
+        self.refused("--server", contains="needs a value")
+        self.refused("--confine", "--server", "ned", contains="starts a program")
+
+    def test_a_path_that_starts_with_a_dash_is_refused_so_a_flag_is_never_read_as_a_path(self):
+        for name in ("--confine", "-x", "--server"):
+            with open(os.path.join(self.root, name), "w") as handle:
+                handle.write("{}")
+        os.makedirs(os.path.join(self.root, "-dir"))
+        for option, value in (("--schema", "--confine"), ("--schema", "-x"), ("--root", "-dir"),
+                              ("--root", "--confine"), ("--schema", "--server")):
+            self.refused(option, value, contains="start with a dash")
+        self.control(reply='{"a": 1}', events=support_codex.OK_EVENTS)
+        self.assertTrue(self.document("--schema", "./-x")["ok"])
+        self.assertTrue(self.document("--root", "./-dir")["ok"])
+        # the same names are still found when they are written as the contract's own paths
+        self.assertTrue(self.document("--schema", os.path.join(self.root, "-x"))["ok"])
+
     def test_a_model_outside_the_charset_or_length_is_refused(self):
         for bad in ("", "a b", "a;b", "$(x)", "a/b", "-x", "--effort", "m\n", "x" * 65, "é", "a=b"):
             self.refused("--model", bad, contains="--model")

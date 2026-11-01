@@ -1,8 +1,11 @@
 # model-bridge
 
-Status: Current. Contract version 1. Written by plan `2026-10-22-ask-codex-bridge` (increment A), before any
+Status: Current. Contract version 2. Written by plan `2026-10-22-ask-codex-bridge` (increment A), before any
 bridge or engine existed, so that both are built against this text; the first bridge, `ask-codex`, was built and
-reviewed by the same plan, and "As built, and its limits" lists what exists. The capability name `model-bridge`
+reviewed by the same plan, and "As built, and its limits" lists what exists. Plan `2026-11-01-bridge-confine-and-usage`
+moved the contract to version 2, as the accepted decision `2026-11-01-bridge-contract-version-2` sets it: a common core of seven
+options, the confinement option, one error class for a vendor that cannot be reached, two added token counts and a network
+guarantee for both kinds of bridge. Version 1 differed in those places only, and the engines still accept it. The capability name `model-bridge`
 is provided by the built `ask-codex` module and required by `review-engine` and `action-review`, and the owner has not confirmed it
 as the final name (see "Open questions").
 
@@ -47,7 +50,9 @@ because the launcher passes the caller's standard input through to the helper it
 
 - **Standard input** is the prompt: UTF-8 text of at most 262,144 bytes. Empty, blank (only whitespace), not UTF-8
   or larger is refused (exit 1, `refused:` line, nothing run).
-- **Options**, each at most once, a value as the next argument, and nothing else accepted:
+- **Options**, each at most once, and nothing else accepted. Every option takes a value as the next argument except
+  `--confine`, which is a flag with no value. Every bridge recognizes all seven; recognizing an option is not accepting it
+  (below):
 
 | option | meaning | default |
 |---|---|---|
@@ -56,15 +61,25 @@ because the launcher passes the caller's standard input through to the helper it
 | `--timeout <seconds>` | a whole number from 1 to 3600 for the whole call (the range and default are this spec's choice) | 600 |
 | `--root <path>` | the directory the vendor program starts in (it does not limit what the program reads) | the project root |
 | `--schema <path>` | a file holding a JSON Schema for the reply (below) | none |
+| `--server <name>` | which endpoint of the owner's guarded store a bridge to a server calls: 1 to 32 characters of `a-z0-9_-`, starting with a letter or digit; never an address | the store's default endpoint |
+| `--confine` | a flag with no value: start the vendor program with its tools that read files, run commands or reach a network switched off (below, "Confinement") | not confined |
 
 A name, a level or a number outside these ranges is refused before anything runs. The bridge does not interpret
-the prompt.
+the prompt. A value after `--confine` is read as the next argument and refused as an unknown option.
+
+**Recognized, accepted, ignored or refused.** An option that only tunes behaviour and that a vendor cannot use (`--root` for a
+bridge to a server, which has no working directory) is validated like any other and then ignored, and the success object does not
+say whether it took effect. An option that decides where content goes or what the vendor program may reach is never ignored: a
+bridge that cannot honour `--server` (a bridge to a program has no endpoint) or `--confine` (it can switch off none of the three
+kinds of tool) refuses it with a `refused:` line before anything runs, the same refusal as any other bad option, and never as an
+unknown option.
 
 **Paths.** `--root` and `--schema` are resolved against the project root found as `wb run` finds it, and a
 relative path is read that way, not against the caller's directory. Every component of the path must be inside
 the project and none may be a link. `--root` must exist, be a directory the program can enter, and not lie inside
 `.git` or `.workbench`; `--schema` must be a regular file. A path that breaks any rule is refused before anything
-runs.
+runs. A path may not start with a dash, so that a flag such as `--confine` is never read as the value of `--root` or
+`--schema`, as a `--model` cannot start with one either; a relative path that does is written with `./` before it.
 
 ## What the vendor program can read
 
@@ -73,8 +88,8 @@ starts in: it does not confine what the program reads. In the owner's probes of 
 directory inside the project read a file in that directory, a file one directory above it and a file outside the project by absolute
 path, listed the parent directory, and ran a shell command; only an attempt to create a file was refused. The exposure of read-only
 mode therefore includes running commands as well as reading files. The bridge does not restrict any of this beyond what the vendor's
-own read-only mode does. An opt-in option, `--confine`, that starts the program with its tool features, its shell tool and its web
-tool disabled is planned by plan `2026-11-01-bridge-confine-and-usage`; until it exists nothing here reduces the exposure. So:
+own read-only mode does. An opt-in option, `--confine` (below, "Confinement"), starts the program with its tool features, its
+shell tool and its web tool disabled; without it nothing here reduces the exposure. So:
 
 - Any file the vendor program can open, inside the project or outside it, can leave the machine, including untracked scratch, a file
   the prompt never named and a secret someone left in the tree. The prompt names the file that matters; it does
@@ -92,24 +107,33 @@ removed, except that `reply` keeps newline and tab.
 Success, exit 0:
 
 ```json
-{"contract": 1, "ok": true, "vendor": "codex", "model": "<name reported or requested, or null>",
- "reply": "<text>", "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}}
+{"contract": 2, "ok": true, "vendor": "codex", "model": "<name reported or requested, or null>",
+ "reply": "<text>", "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0,
+                              "cached_input_tokens": 0, "reasoning_output_tokens": 0}}
 ```
 
 - `reply` is a string of at most 262,144 bytes, measured as UTF-8 before JSON escaping. A longer reply is an
   error (`vendor_error`, `reply_too_large`), not a cut.
-- `usage` has those three fields, each a non-negative whole number of at most 10^12, or `null` when the vendor
-  did not report it or reported anything else. The bridge does not derive one from the others.
+- `usage` has those five fields, each a non-negative whole number of at most 10^12, or `null` when the vendor
+  did not report it or reported anything else. The bridge does not derive one from the others, so `total_tokens` is `null`
+  unless the vendor reports a total, and a caller that wants a sum adds the parts itself.
+- `cached_input_tokens` is part of `input_tokens`, not in addition to it: in the owner's runs 15,836 input tokens included 12,288
+  cached. A caller never adds the two.
+- `reasoning_output_tokens` is an informational count as the vendor reports it. No caller adds it to, or subtracts it from, any
+  other count, and nothing relies on whether the vendor includes it in `output_tokens`.
+- Version 1 had three counts (`input_tokens`, `output_tokens`, `total_tokens`) and `"contract": 1`.
 
 Failure, exit 1 (the object is still printed):
 
 ```json
-{"contract": 1, "ok": false, "vendor": "codex", "error": "<class>", "detail": "<code or null>",
+{"contract": 2, "ok": false, "vendor": "codex", "error": "<class>", "detail": "<code or null>",
  "retryable": false, "message": "<short text>"}
 ```
 
 - `error` is one of exactly six classes: `not_signed_in`, `model_unavailable`, `effort_unsupported`,
-  `program_not_found`, `timeout`, `vendor_error`.
+  `vendor_unreachable`, `timeout`, `vendor_error`. `vendor_unreachable` is a vendor that cannot be reached: a vendor program
+  that is not found or cannot be started, or a server that does not answer; `message` says which. Version 1 named it
+  `program_not_found`, and an object of either version names only its own.
 - `detail` is a code of at most 64 characters of `a-z0-9_`, and is never `null` for `vendor_error`. It is `null`
   for the other five classes. Anything the six classes do not name is `vendor_error` with a `detail`. The codes
   defined now: `usage_limit` (the vendor refused for quota), `unusable_reply` (no reply, or not one JSON object
@@ -117,8 +141,8 @@ Failure, exit 1 (the object is still printed):
   `bad_exit` (it exited non-zero and its text matches no other class). A bridge may add others; an engine treats
   an unknown code as `vendor_error`.
 - `retryable` is a boolean: whether the same call might succeed later. It is `true` for `timeout` and
-  `usage_limit` and `false` for the other classes and codes defined here. The bridge reports it and never
-  retries.
+  `usage_limit`, `true` for a server that did not answer, and `false` for the other classes and codes defined here, a missing
+  program included. The bridge reports it and never retries.
 - `message` is at most 500 characters and holds no more of the vendor's output than is needed to say what
   happened. It is for the owner to read, not for an engine to parse.
 
@@ -139,7 +163,49 @@ way that program supports. Then:
   is a thin translation and holds no validator.
 - A vendor program that rejects or cannot take the schema is reported as `vendor_error` with `bad_schema`.
 - The reply stays a string in `reply`; it is the engine that parses it.
+- The reply is one object, so a batch reply is an object that holds the array. The contract has no top-level array, and the
+  schema file is itself an object.
 - The engine validates the reply again, whatever the bridge or the vendor did. Both are untrusted.
+
+## Confinement
+
+`--confine` is opt-in and the default stays unconfined, because the review engine needs the program's file access to read the
+plans it reviews. A caller that sends captured text through a bridge to a program always passes it.
+
+**The rule every bridge meets.** A bridge accepts `--confine` only if it switches off, in the vendor program, every tool that
+reads files, runs commands or reaches a network that the bridge knows how to switch off, and it refuses the option when it can
+switch off none of the three kinds. A bridge with no such tool meets the rule by construction. The protection is a tripwire plus
+tests and not a boundary: a tool with no known switch stays available (below).
+
+**`ask-codex`.** With `--confine` it adds these arguments to the ones it passes today, in this order, among the options of `exec`
+and before the `-` that reads the prompt:
+
+1. `--strict-config`;
+2. `--disable <name>` once for each of `apps`, `browser_use`, `browser_use_external`, `browser_use_full_cdp_access`,
+   `computer_use`, `in_app_browser`, `image_generation`, `multi_agent`, `plugins`, `remote_plugin`, `goals` and `hooks`, in that
+   order;
+3. `--disable shell_tool`, a thirteenth feature flag and not a setting;
+4. `--config 'web_search="disabled"'`, a setting and not a feature flag.
+
+The list is fixed in the bridge and is not asked of the program at run time. It was taken from the program's own feature list in
+`codex-cli` 0.163.0, where each of the thirteen flags is stable and defaults to true, and the combination was run as one. A wrong
+feature name fails closed: the program stops with "Unknown feature flag" and exit code 1, so a renamed or removed flag breaks
+loudly. A wrong setting name fails open without `--strict-config`: it gave a warning, exit code 0 and left the web tool on. That is
+why `--strict-config` is always passed with `--confine`. A confined call that fails is reported as the failure it is and is never
+run again without the confinement arguments.
+
+**What it stops, as measured on 2026-11-01 (one run per variant, scripts not kept).** With default options the program read a
+file in its working directory and one directory above it. With the arguments above, six probes all failed for want of a tool: the
+same two reads, a read by absolute path outside the project, a shell command, a read through the exec function and the web tool.
+
+**What remains.** The confined program still lists an image viewer, a patch tool (its writes are refused by the read-only sandbox),
+MCP resource readers and functions that start agents. No switch for the image viewer is known: `tools.view_image=false` did
+nothing, but it was run without `--strict-config`, so whether the name is unrecognised or merely ineffective is not known. A tool
+list is the model's own report, so it is a tripwire and not proof. The owner accepted this residual exposure on 2026-11-01: it is
+the prompt's own contents, and text that must not reach a vendor goes to a bridge with no tools. The names are those of
+`codex-cli` 0.163.0 and can change, so a release is accepted for untrusted text only after a release check of the file, shell and
+web canaries and the tool list. Plan `2026-11-01-bridge-confine-and-usage` writes that check in its increment D; until it is
+written and run, no release has passed it.
 
 ## Guarantees
 
@@ -155,7 +221,8 @@ way that program supports. Then:
    outside the outermost repository that holds the project (the outermost ancestor with a `.git` entry, or the
    project root when there is none); a relative entry, an empty entry or an entry inside that repository is
    skipped, however a link or a letter case spells it; the found file is an executable regular file or a link to
-   one that does not resolve into it. If none is found the error is `program_not_found`.
+   one that does not resolve into it. If none is found, or the program cannot be started, the error is `vendor_unreachable` and
+   `message` says which (a bridge to a program only).
 4. **Nothing written in the project.** The vendor program's output goes to a private temporary directory outside
    the project, which the bridge removes. The bridge creates, changes and deletes no file in the project.
 5. **Bounded.** The prompt, the schema, the reply and the object are limited as above. The bridge reads the
@@ -163,8 +230,28 @@ way that program supports. Then:
    that writes more is stopped and reported as `vendor_error` with `reply_too_large`.
 6. **A timeout ends the whole call.** At the timeout the vendor program and its children are killed as a
    process group and the error is `timeout`.
-7. **No network of its own, no log.** The bridge opens no connection and writes the prompt and the reply to no
-   file and no log. Its only file is the vendor program's output file in the private temporary directory.
+7. **Network, and no log.** A bridge to a program opens no connection of its own. A bridge to a server opens a connection only to
+   the endpoint the store names, follows no redirect to another host, and has a hard timeout. It sends only the model request
+   built from the prompt and the validated options and, for an authenticated endpoint, the endpoint record's credential in the one
+   mechanism the record names, and nothing else that the caller or the prompt supplies. No bridge logs a prompt, a reply or a
+   credential, and none puts a credential in an object, a message or an argument. A bridge to a program writes the prompt and the
+   reply to no file and no log; its only file is the vendor program's output file in the private temporary directory.
+   - **The endpoint record (a bridge to a server).** An endpoint is a record in the owner's guarded store
+     (`2026-10-20-fixed-store-location`), found by its name. The exact format is written in the spec of the server bridge. A record
+     holds, and is refused if it does not: a name of the safe character set; a scheme of `http` or `https` and no other; a host and
+     a port, with no user name, password or token in the address; whether the endpoint is authenticated; a location class the owner
+     declares (this machine, the owner's network or a vendor's cloud); and a credential, where there is one, held in the store and
+     never in an argument, an address, the object or a message. The transport follows the scheme: `https` means TLS with the
+     server's certificate validated and `http` means none, so there is no separate TLS field that could disagree with it. An
+     authenticated endpoint must use `https`, except where the host is a literal loopback address, where `http` is allowed. An
+     unauthenticated `http` endpoint away from loopback is allowed, and a diagnostic warns that content is sent in the clear. A
+     record that is missing, unreadable, has a field outside these rules or names another scheme is refused before anything is
+     sent, with a `refused:` line, and is not turned into another endpoint or a default. The bridge connects to the host and port
+     the record names and to no other: an address that a redirect, a reply or the prompt supplies is never followed or used, and
+     the name the caller passes selects a record and is never itself an address. The location class is the owner's declaration and
+     is not verified: a record that names a remote host sends the text there.
+   - **Status.** No bridge to a server is built yet. These rules bind the one that is, and they are what its checklist items
+     (below) test.
 8. **Output is data.** What the vendor returns is never run, never used as a path or a command, and never
    believed. The bridge only classifies it and copies the reply.
 
@@ -180,17 +267,20 @@ standard input, shows each item. No item needs a real vendor, a sign-in or a net
    plan `2026-10-29-policy-and-module-asks`). The installer names no vendor: the module does.
 2. A missing, empty, non-UTF-8 or oversize prompt is refused and nothing runs.
 3. An unknown option, a repeated option, a missing value, a `--model` outside its charset or length, an
-   `--effort` outside the three levels, and a `--timeout` out of range are each refused and nothing runs.
+   `--effort` outside the three levels, a `--timeout` out of range, a `--server` outside its grammar and a value after
+   `--confine` are each refused and nothing runs.
 4. The vendor program is started with the read-only flags, a fresh unsaved session and no user configuration,
    and the fake records exactly that argument list.
 5. The environment the fake receives is the allow list and the trusted `PATH` only; a caller's `GIT_*` variable,
    token and `LD_*`/`DYLD_*` variable are absent.
 6. A program of the right name inside the project, on a relative entry or on an empty entry is never run; with
-   none outside the project the error is `program_not_found`.
-7. `--root` or `--schema` that is outside the project, has a link in any component, does not exist, or is the
-   wrong kind, is refused and nothing runs; a relative path is read against the project root; the fake starts
+   none outside the project, or with one that cannot be started, the error is `vendor_unreachable`, not retryable, with a
+   message that says which (a bridge to a program).
+7. `--root` or `--schema` that is outside the project, has a link in any component, does not exist, starts with a dash, or is
+   the wrong kind, is refused and nothing runs; a relative path is read against the project root; the fake starts
    in the root given.
-8. A success prints the object above, with `usage` fields `null` where the fake reported none.
+8. A success prints the object above, with `contract` 2 and `usage` fields `null` where the fake reported none or reported
+   another shape, and `total_tokens` `null` unless the fake reported a total.
 9. Each of the six classes is produced from a sample of the vendor's own error text (the samples and their
    mapping are the bridge's own test), with `retryable` as the contract sets it and `detail` `null` outside
    `vendor_error`.
@@ -208,8 +298,18 @@ standard input, shows each item. No item needs a real vendor, a sign-in or a net
     the private temporary directory, and that directory is gone.
 16. The output of every case above is exactly one object that obeys the field rules with nothing else on
     standard output, or, for a refusal, a `refused:` line on standard error and nothing on standard output.
-    Whether the bridge opens a connection is not tested against a fake; guarantee 7 is shown by reading the
+    Whether a bridge to a program opens a connection is not tested against a fake; guarantee 7 is shown by reading the
     helper for any network import.
+17. `--server` given to a bridge to a program, with a name in its grammar, is refused with a `refused:` line, nothing run and
+    nothing printed.
+18. With `--confine` the fake receives the confinement arguments of "Confinement" in that order, in addition to the arguments of
+    item 4, and nothing else differs; without it the argument list is exactly that of item 4; `--confine` works together with
+    every other option; a fake that exits non-zero when it is confined is reported as the failure it is, the fake is started once,
+    and it is never run again without the confinement arguments.
+19. A bridge to a server, against a fake server: an invalid, missing or substituted endpoint record is refused with nothing sent;
+    a redirect to another host is not followed; a credential or an address is absent from the object, the message and the
+    arguments the fake saw; an authenticated endpoint over `http` away from loopback is refused; and the timeout ends a server
+    that does not answer. (No bridge to a server exists yet, so no test shows these.)
 
 ## As built, and its limits
 
@@ -227,8 +327,14 @@ How it meets the contract:
 
 - **The command line.** `codex exec --sandbox read-only --ephemeral --ignore-user-config --ignore-rules --color
   never --json --cd <root> --output-last-message <file> [--model <name>] [--config
-  model_reasoning_effort="<level>"] [--output-schema <file>] -`, with the prompt on its standard input. The
-  `--ignore-rules` flag means the vendor's own rule files are not read.
+  model_reasoning_effort="<level>"] [--output-schema <file>] [the confinement arguments, with `--confine`] -`, with the prompt on
+  its standard input. The `--ignore-rules` flag means the vendor's own rule files are not read.
+- **Contract version 2 (plan `2026-11-01-bridge-confine-and-usage`, increment C).** The bridge prints `"contract": 2`, names
+  an unreachable vendor `vendor_unreachable` (a program that is not found, with the message "codex was not found in a trusted PATH
+  entry", and one that cannot be started, with "codex was found but could not be started", neither retryable), reads
+  `cached_input_tokens` and `reasoning_output_tokens` from the event stream's `usage` through the same check as the other counts,
+  recognizes `--server` and refuses it (a program has no endpoint), and takes `--confine`. The review engine and the action review
+  engine accept both versions (increment B).
 - **The schema is a copy.** The vendor program is given a copy of the schema in the private temporary directory,
   not the file in the project; it holds the bytes the bridge read.
 - **Paths and the temporary directory.** The temporary directory is checked before it is made: a `TMPDIR` inside
@@ -283,7 +389,8 @@ Limits:
 
 ## Acceptance criteria
 
-- The spec states contract version 1 and every item above can be tested against a fake vendor program.
+- The spec states contract version 2 and every item above (the items for a bridge to a server aside, which no bridge meets yet)
+  can be tested against a fake vendor program.
 - A first bridge passes the checklist (`ask-codex`, plan `2026-10-22-ask-codex-bridge`, increment C).
 - A synthetic engine calls a bridge only through `wb run`, accepts it only when it is an installed, pinned module
   that provides `model-bridge`, and treats its output as data.

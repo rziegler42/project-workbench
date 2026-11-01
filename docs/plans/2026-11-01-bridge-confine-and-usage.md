@@ -377,3 +377,58 @@ sentence about error classes was ambiguous about which class belongs to which ve
 test for `ok` false with a wrong exit code under version 2, because the check is the same code for both versions and the reviewer
 found no defect. Informational: the stored round check still compares with the three-count tuple, which is what keeps the stored
 shape fixed. The reviewer could not run anything; the results above are mine.
+
+### Increment C
+
+**Done:** `ask-codex` prints `"contract": 2`; names an unreachable vendor `vendor_unreachable` (not found: "codex was not found in a
+trusted PATH entry"; cannot be started: "codex was found but could not be started"; neither retryable, `detail` null); recognizes the
+seven options; reports `cached_input_tokens` and `reasoning_output_tokens` through the same count check as the other three, with
+`total_tokens` null unless the program reports one; and takes `--confine`, a flag with no value given at most once. With it the
+helper adds, in one function `confinement()` and in this order, among the options of `exec` and before the `-`: `--strict-config`,
+`--disable` once for each of the twelve names and for `shell_tool`, then `--config 'web_search="disabled"'`. The list is fixed in
+the helper. A confined call that fails is reported as the failure it is, the program is started once, and nothing runs it again
+without the arguments. `--server` is recognized: a name outside its grammar and a name inside it are both refused with a `refused:`
+line before anything runs, because a program has no endpoint. After the review a relative `--root` or `--schema` value that starts
+with a dash is refused too (a path is written `./-x`), so a flag is never read as a path. `docs/specs/model-bridge.md` now states
+contract version 2: the status header, the seven options and their grammar, the rule that an option is recognized, accepted, ignored
+or refused, the output with five counts and the relation of cached to input tokens, `vendor_unreachable`, the batch rule, the new
+"Confinement" section, guarantees 3 and 7 (with the endpoint constraints for a bridge to a server, marked as not yet built),
+checklist items 17 to 19, and the acceptance criteria. One test of the review engine that runs the real bridge now expects
+`vendor_unreachable`.
+
+**Verification as run:**
+- The new `ask-codex` tests were run before the helper changed and failed (102 tests: 60 failures and 1 error). The dash test was run
+  against the helper without the refusal and failed.
+- After the change: ask-codex root 103 tests OK, review-engine root 409 OK, action-review root 463 OK. The last two start the real
+  bridge through a fake `codex`, so a version 2 object went through both engines end to end.
+- The whole suite, `python3 -B -W error tests/run_all.py`, ran 6325 tests in 13 roots, OK, after the last package edit and release.
+- `wb check` and `wb run code-work check` (76 plans) report no problems.
+
+**Security review, as the owner asked.** The `security-reviewer` agent could not write to its scratch directory (its write gate
+refused), so it read the helper and the spec and tested nothing; it found no material finding by reading and said that this is a
+weaker claim. I then ran 713 probes myself against the real helper with a fake `codex` that records its arguments: six value options
+against 25 hostile values (leading dashes, `=` forms, empty values, newlines, NUL, 100,000 characters, `--confine`, `--disable`,
+`--sandbox=danger-full-access`), each with `--confine` before and after; flag forms; `--server` against 11 values and four
+combinations; other refusals; six hostile vendor outputs (huge, bool, float, infinite and nested counts, injected messages, control
+characters) with and without `--confine`; and seven exit codes against six error texts for fall back. These probes are mine and are
+not independent. Results: one Low, `--schema --confine` with a file literally named `--confine` in the project read the flag as the
+schema path and ran unconfined; it needs a caller error and a planted file. The correction (refuse a path that starts with a dash)
+has a regression test that fails before and passes after, and the probes were run again with no anomaly in 713 cases. The
+`reviewer` agent looked at the correction a second time and found no blocking finding. Everything else was found sound: no value was
+read as an option or smuggled into the argument list; the confinement block was always whole, in order and last; no call was confined
+without being asked; every refusal was one line and ran and left nothing; vendor output never changed the arguments or the message
+(always a fixed string) and bad counts became null; a failed confined call was never run again. Not tested: the option names against
+the real `codex-cli`; that is Increment D, run by the owner.
+
+**Review:** one round by the `reviewer` agent, no blocking finding. Applied: the helper docstring said contract version 1, and the
+spec's acceptance criteria said version 1 (both now 2); a one-line note on `--schema --confine`, replaced by the correction above.
+Not applied: the plan's step 8 asks for a test that compares the result of the single function, and the tests compare the argument
+list with a literal list written in the test, which also pins the names; I judged that equivalent and stronger. A second look at the
+correction by the same agent: no blocking finding; the prompt is read before the paths are checked, so an empty prompt is reported
+before a bad path, and I left that order alone.
+
+**Releases:** the shipped approvals were stale after each scripted pass and the owner released them after four of them, so Increment C
+needed four releases besides the one planned for Increment E.
+
+**Not done:** the untracked shipped records of all these releases are not part of this commit; Increment E releases and commits them
+and removes the stale ones. The release check against the real program (Increment D) is not run.

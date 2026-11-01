@@ -43,7 +43,7 @@ def judge(result):
         document = json.loads(result.stdout.decode("utf-8"))
     except ValueError:
         return {"accepted": False, "why": "no object"}
-    if not isinstance(document, dict) or document.get("contract") != 1 or type(document.get("ok")) is not bool:
+    if not isinstance(document, dict) or document.get("contract") != 2 or type(document.get("ok")) is not bool:
         return {"accepted": False, "why": "shape"}
     if document["ok"] != (result.code == 0):
         return {"accepted": False, "why": "exit code and object disagree"}
@@ -193,7 +193,7 @@ class SyntheticEngine(Engine):
 
     def test_a_vendor_program_that_is_missing_is_a_class_and_not_a_crash(self):
         os.remove(os.path.join(self.vendor, "codex"))
-        self.assertEqual({"accepted": False, "why": "failed", "error": "program_not_found"}, self.review())
+        self.assertEqual({"accepted": False, "why": "failed", "error": "vendor_unreachable"}, self.review())
 
 
 class Refusals(Engine):
@@ -295,8 +295,9 @@ class Launcher(Fixture, support_install.InstallBase):
         code, shown, err = self.helper_run(place, "ask", "--model", "gpt-5", "--effort", "low",
                                            prompt=b"Review docs/plan.md\n")
         self.assertEqual(("", 0), (err, code), shown)
-        self.assertEqual({"contract": 1, "ok": True, "vendor": "codex", "model": "gpt-5", "reply": "the reply\n",
-                          "usage": {"input_tokens": 12, "output_tokens": 5, "total_tokens": None}},
+        self.assertEqual({"contract": 2, "ok": True, "vendor": "codex", "model": "gpt-5", "reply": "the reply\n",
+                          "usage": {"input_tokens": 12, "output_tokens": 5, "total_tokens": None,
+                                    "cached_input_tokens": None, "reasoning_output_tokens": None}},
                          json.loads(shown))
         (record,) = self.calls()
         self.assertEqual("Review docs/plan.md\n", record["stdin"])
