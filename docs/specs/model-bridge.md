@@ -54,7 +54,7 @@ because the launcher passes the caller's standard input through to the helper it
 | `--model <name>` | the vendor's model name, at most 64 characters of `A-Za-z0-9._:-`, starting with a letter or digit (so it can never read as an option) | the vendor's default |
 | `--effort <level>` | one of `low`, `medium`, `high` | the vendor's default |
 | `--timeout <seconds>` | a whole number from 1 to 3600 for the whole call (the range and default are this spec's choice) | 600 |
-| `--root <path>` | the directory the vendor program works in | the project root |
+| `--root <path>` | the directory the vendor program starts in (it does not limit what the program reads) | the project root |
 | `--schema <path>` | a file holding a JSON Schema for the reply (below) | none |
 
 A name, a level or a number outside these ranges is refused before anything runs. The bridge does not interpret
@@ -68,10 +68,15 @@ runs.
 
 ## What the vendor program can read
 
-The vendor program runs read-only, but read-only is not blind. It reads files itself, starting in `--root`, and
-the bridge does not restrict that beyond what the vendor's own read-only mode does. So:
+The vendor program runs read-only, but read-only is not blind. It reads files itself, and `--root` is only the directory it
+starts in: it does not confine what the program reads. In the owner's probes of 2026-11-01 (below) a program started in an empty
+directory inside the project read a file in that directory, a file one directory above it and a file outside the project by absolute
+path, listed the parent directory, and ran a shell command; only an attempt to create a file was refused. The exposure of read-only
+mode therefore includes running commands as well as reading files. The bridge does not restrict any of this beyond what the vendor's
+own read-only mode does. An opt-in option, `--confine`, that starts the program with its tool features, its shell tool and its web
+tool disabled is planned by plan `2026-11-01-bridge-confine-and-usage`; until it exists nothing here reduces the exposure. So:
 
-- Anything in the project the vendor program can open can leave the machine, including untracked scratch, a file
+- Any file the vendor program can open, inside the project or outside it, can leave the machine, including untracked scratch, a file
   the prompt never named and a secret someone left in the tree. The prompt names the file that matters; it does
   not bound what is read.
 - An engine must keep secrets out of what it points a vendor at, and an owner who installs a bridge accepts
@@ -259,6 +264,16 @@ Limits:
   round is spent.
 - **A timeout is shown, not the process tree.** The hand run showed that the bridge reports `timeout`; it did not
   check that no `codex` process was left running afterwards.
+- **`--root` does not confine reads (the owner's measurements of 2026-11-01, one run per variant, scripts not kept).** The measurements
+  come from the owner's report of their knowledge-base project, whose spec is not tracked here, so they are quoted and not cited by
+  path. Two sets of runs are involved. In the first, the bridge was called seven times from a new empty directory inside the project,
+  each time with a harmless prompt and a canary file; the version of the program was not recorded. The program read a canary in its
+  working directory, a canary one directory above it and a canary outside the project by absolute path, listed the parent directory
+  and ran a shell command. Its attempt to create a file was refused by the read-only sandbox, and a network request made from the shell
+  failed to resolve a host. A one-word prompt used about 15,800 input tokens, and calls that used a tool about 31,000. In the second,
+  `codex-cli` 0.163.0 was run directly with the bridge's safety options, and a one-word prompt used 15,836 input tokens, which matches
+  the bridge; that set also showed that the program's web tool can still reach the network even where the shell cannot. The numbers
+  are a rough guide.
 - **The vendor reads the repository.** The program may also read the repository's own instruction files (an
   `AGENTS.md`, a `.codex` directory); the bridge does not stop it.
 - **No depth limit across `wb run`.** Each hop is an approved, pinned command and each call has a time limit, which

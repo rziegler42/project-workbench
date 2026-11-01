@@ -1,6 +1,6 @@
 # Bridge contract version 2 for ask-codex: confinement, token detail and a corrected spec
 
-Status: Proposed
+Status: In Progress
 Created: 2026-11-01
 Candidate: workbench-v1#bridge-confine-and-usage
 Specs: model-bridge, review-engine, action-review
@@ -313,4 +313,28 @@ Left for the owner: whether `action-review` should pass `--confine`. The review 
 
 ## Result
 
-Empty until work starts.
+### Increment A
+
+**Done:** `docs/specs/model-bridge.md` changed in three places and nowhere else. The `--root` row of the option table now says the
+directory the program starts in and that it does not limit what the program reads. "What the vendor program can read" says that
+`--root` does not confine reads, summarizes the probes (a file in the working directory, one above it and one outside the project by
+absolute path read; the parent directory listed; a shell command run; only file creation refused), says the exposure includes running
+commands, and names `--confine` as planned and opt-in. The first bullet of that section now covers any file the program can open,
+inside or outside the project. "As built, and its limits" has a new bullet with the measurements: the seven bridge calls, whose
+program version was not recorded, and the direct `codex-cli` 0.163.0 runs, with the date, "one run per variant, scripts not kept", and
+no path to an untracked file.
+
+**Verification as run:** `wb run code-work check` reported "checked 76 plans, check found no problems" and `wb check` reported "check
+found no problems", both after the last edit. The added text names no path outside the repository.
+
+**Not done:** nothing in the increment. No package was touched, so no shipped approval is stale.
+
+**Review:** one round by the read-only `reviewer` agent (one exchange). Findings:
+- Blocking, rejected: several specifics (seven calls, a new empty directory, about 31,000 tokens for tool calls, the refused file
+  creation, the failed host lookup) were not in the plan or the decision. They are in the owner's knowledge-base record, which I read;
+  the reviewer could not. The bullet now says the figures come from the owner's report and keeps the two sets of runs apart.
+- Not blocking, applied: it was unclear which figure belonged to which run (the bullet now separates the bridge calls from the
+  direct runs); the first bullet of the section was scoped to the project (now inside or outside); the `--confine` sentence now names
+  the shell and web tools as well as the tool features.
+- Not blocking, applied: the checks were re-run after the corrections.
+The reviewer's recommendation read "blocking findings", driven by the first item. After my evaluation no finding is left open.
