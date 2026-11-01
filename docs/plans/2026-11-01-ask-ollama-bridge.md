@@ -428,4 +428,38 @@ keys for the HTTPS tests may be kept in the repository. The review is not an app
 
 ## Result
 
-Empty until work starts.
+### Increment A
+
+**Done:** `docs/decisions/2026-11-01-endpoint-records-in-the-store.md`, `Proposed`. It decides: one file `endpoints.json` directly in
+the guarded store, for the whole account and written by the owner by hand; strict JSON of format 1, at most 65,536 bytes and 64
+records, with an optional `default`; a record of exactly `scheme`, `host`, `port`, `location`, `authenticated` (which must be `false`
+for now) and optionally `default_model`, `embedding_model` and `context`; a closed grammar for `host` (an IPv4 literal, an IPv6
+literal or a lower-case DNS name whose last label is not a number), with the addresses a server is never at refused; loopback
+written out and independent of the library's version; the bridge reads the file by a fixed path through the kit's no-follow layer,
+as the review engine reads its key, and refuses the whole file for any bad record; the module declares `ask_reads` for it; a
+call without `--server` uses `default`. Alternatives (a kit accessor, the launcher passing the record, a variable or an option, a
+tracked record, a per-project record, a credential in the file, skipping a bad record, trusting the library) are rejected with
+reasons, and the bad consequences are listed, among them that a namespaced model can be named only by the record and not by
+`--model`.
+
+**Verification as run:** `wb run code-work check` (77 plans) and `wb check` report no problems after the last edit. No code was
+run for the decision. Two short measurements with Python 3.15.0 on macOS (scripts not kept) are in its Evidence: how the standard
+library and the system resolver read numeric host forms, and how the library classifies special addresses.
+
+**Review:** two rounds by the read-only `reviewer` agent.
+- Round 1 found one blocking problem and nine smaller ones. The blocking one: the DNS-name form admitted strings such as `127.1`,
+  `2130706433`, `0177.0.0.1` and `0x7f.1`, which the resolver reads as `127.0.0.1` and the library refuses. Applied: a name's last
+  label may not be a number, the IPv6 form and loopback are written out in words, unspecified, multicast, link-local and broadcast
+  addresses are refused, numbers are integers, the missing-file and unknown-name refusals are listed, the sentence on a bad record
+  is rewritten, the https-unless-loopback rule is carried forward, citations are corrected, and the Evidence has the versions.
+- Round 2 (on the rewrite) found no blocking problem and five wording or grammar gaps. Applied: `0x` followed by zero or more digits;
+  any spelling of the IPv6 address 1 is loopback; the IPv6 form no longer defers to the library; `0.0.0.0/8` and `240.0.0.0/4` are
+  refused; a `default` that names no record is named in the refusals; the home of the diagnostic is stated; the `settings` claim and
+  the `ask_reads` source are cited. I measured the forms involved before editing (the resolver read `0`, `00` and `0x0` as `0.0.0.0`,
+  and refused a bare `0x`). The rewrite after round 2 has not been read by the reviewer again.
+
+**Not done:** the owner's acceptance. The record is `Proposed`, and Increment B waits for it. The accept level of `accept-decision`
+that `wb settings` prints is `ask`.
+
+**Open for the owner:** whether to accept the record; the narrowing of the contract decision (no authenticated record yet); and the
+question of widening the contract's `--model` charset (64 characters, no `/`), which the record lists as open.
