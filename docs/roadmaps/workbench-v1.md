@@ -614,7 +614,9 @@ require embeddings alone.
 **Boundary:** the new module, its tests against a fake server, and the contract: the bridge opens a connection, so guarantee 7 of
 `model-bridge.md` and the search for a vendor program are amended, by a decision record if the contract's version changes. Model
 names stay an option, validated like the codex bridge's. Redirects to another host are not followed and every request has a hard
-timeout. It installs, pulls and serves no model, and does not choose a model, retry or fall back. Two behaviours of the server are the
+timeout. It installs, pulls and serves no model, and does not choose a model, retry or fall back. It reads no files, so the review
+engine cannot use it as a reviewer yet: that engine relies on the vendor program opening the document from its working directory,
+and a change to send the document in the prompt is a separate piece of work, not part of this candidate. Two behaviours of the server are the
 plan's to settle, and neither was re-checked on 2026-11-01: the server's default context window is small and a longer prompt may be
 cut silently, so the bridge sets the context size from the store's record for the endpoint and checks that the reply was not cut off;
 and a model that reasons can use up its token limit in its reasoning and return an empty reply, so the plan maps `--effort` to the
