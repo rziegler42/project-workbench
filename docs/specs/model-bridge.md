@@ -5,7 +5,9 @@ bridge or engine existed, so that both are built against this text; the first br
 reviewed by the same plan, and "As built, and its limits" lists what exists. Plan `2026-11-01-bridge-confine-and-usage`
 moved the contract to version 2, as the accepted decision `2026-11-01-bridge-contract-version-2` sets it: a common core of seven
 options, the confinement option, one error class for a vendor that cannot be reached, two added token counts and a network
-guarantee for both kinds of bridge. Version 1 differed in those places only, and the engines still accept it. The capability name `model-bridge`
+guarantee for both kinds of bridge. Version 1 differed in those places only, and the engines still accept it. Plan
+`2026-11-01-ask-ollama-bridge` (increment B) amended the text so that it describes a bridge to a program and a bridge to a server
+consistently; the first bridge to a server, `ask-ollama`, is specified in `ask-ollama.md` and is not built yet. The capability name `model-bridge`
 is provided by the built `ask-codex` module and required by `review-engine` and `action-review`, and the owner has not confirmed it
 as the final name (see "Open questions").
 
@@ -18,14 +20,18 @@ authority rules are in `trust-and-approval.md`. The decision behind it is
 
 A **model bridge** is a thin module for one vendor. It lets a workbench engine ask that vendor's model one
 question, read-only, and get back one JSON object. It translates between the workbench's contract and the
-vendor's command line program and does nothing else.
+vendor's command line program (a **bridge to a program**, such as `ask-codex`) or the vendor's server (a **bridge to a server**,
+such as `ask-ollama`) and does nothing else. Where this spec says "the vendor program" it speaks of a bridge to a program; a bridge to
+a server has no program, and the rules that differ are named as such.
 
 Non-goals:
 
 - Review, rounds, findings, verdicts, rubrics or any policy. Those belong to the engines above the bridge.
 - State. A bridge keeps no record of a call, no counter and no cache, and writes nothing in the project.
 - Choosing a bridge, a model or an effort. The engines' settings choose (decision 5 of the accepted record).
-- Signing in. The bridge reports that the vendor program is not signed in and never handles credentials.
+- Signing in. The bridge reports that the vendor program is not signed in and never handles credentials. A bridge to a server
+  supports no credential until a credential has a decision of its own: it refuses an endpoint record that says it is
+  authenticated.
 - Retrying, falling back to another model or another vendor, or splitting a prompt.
 
 ## Declaration
@@ -33,12 +39,17 @@ Non-goals:
 | field | value |
 |---|---|
 | type | `module` |
-| provides | `model-bridge` |
+| provides | `model-bridge` (and, only through a further command, a further capability) |
 | requires, fills, writes | nothing |
 | ships | one helper, `helper/ask-<vendor>` |
-| commands | `ask-<vendor>`, with `helper` `helper/ask-<vendor>`, `runtime` `python`, `kit` 1 and `arguments` `["ask"]` |
+| commands | `ask-<vendor>`, with `helper` `helper/ask-<vendor>`, `runtime` `python`, `kit` 1 and `arguments` `["ask"]` (a bridge may add the read-only `check`; a further command for a further capability may name the same helper) |
 
-`<vendor>` is a lowercase name of the vendor's program or family (`codex`, `claude`, `gemini`). The capability
+A bridge module may also provide a further capability through a further command, as `ask-ollama` provides `text-embedding` through
+`embed-ollama`, and its `ask` command may be joined by a read-only argument `check` that starts no program and opens no connection.
+Installing a bridge is the owner's consent to send content to that vendor, and that consent covers every command the module ships.
+The rules of this spec bind the `ask` command and the capability `model-bridge`; the further capability has a contract of its own.
+
+`<vendor>` is a lowercase name of the vendor's program or family (`codex`, `claude`, `gemini`, `ollama`). The capability
 has no prefix, so only the first-party package may provide it (`module-contract.md`). A bridge is run as
 `wb run ask-<vendor> ask [options]`. The installer pins the helper when the owner confirms the install, so
 installing a bridge is the owner's consent to send content to that vendor. The command and the helper share
@@ -56,7 +67,7 @@ because the launcher passes the caller's standard input through to the helper it
 
 | option | meaning | default |
 |---|---|---|
-| `--model <name>` | the vendor's model name, at most 64 characters of `A-Za-z0-9._:-`, starting with a letter or digit (so it can never read as an option) | the vendor's default |
+| `--model <name>` | the vendor's model name, at most 64 characters of `A-Za-z0-9._:-`, starting with a letter or digit (so it can never read as an option) | the vendor's default; a server has none, so a bridge to a server uses the endpoint record's default model and refuses a call that names none, which means that leaving `--model` out is not interchangeable between the two kinds of bridge |
 | `--effort <level>` | one of `low`, `medium`, `high` | the vendor's default |
 | `--timeout <seconds>` | a whole number from 1 to 3600 for the whole call (the range and default are this spec's choice) | 600 |
 | `--root <path>` | the directory the vendor program starts in (it does not limit what the program reads) | the project root |
@@ -96,7 +107,8 @@ shell tool and its web tool disabled; without it nothing here reduces the exposu
   not bound what is read.
 - An engine must keep secrets out of what it points a vendor at, and an owner who installs a bridge accepts
   that.
-- The bridge itself reads only its prompt, its options, the `--schema` file and the vendor program's output.
+- The bridge itself reads only its prompt, its options, the `--schema` file and the vendor program's output. A bridge to a server
+  reads, besides the prompt, the options and the `--schema` file, the endpoint file and the server's response, and nothing else.
 
 ## Output
 
@@ -132,7 +144,8 @@ Failure, exit 1 (the object is still printed):
 
 - `error` is one of exactly six classes: `not_signed_in`, `model_unavailable`, `effort_unsupported`,
   `vendor_unreachable`, `timeout`, `vendor_error`. `vendor_unreachable` is a vendor that cannot be reached: a vendor program
-  that is not found or cannot be started, or a server that does not answer; `message` says which. Version 1 named it
+  that is not found or cannot be started, a server that does not answer, or a server whose certificate is not accepted; `message`
+  says which. Version 1 named it
   `program_not_found`, and an object of either version names only its own.
 - `detail` is a code of at most 64 characters of `a-z0-9_`, and is never `null` for `vendor_error`. It is `null`
   for the other five classes. Anything the six classes do not name is `vendor_error` with a `detail`. The codes
@@ -141,12 +154,14 @@ Failure, exit 1 (the object is still printed):
   `bad_exit` (it exited non-zero and its text matches no other class). A bridge may add others; an engine treats
   an unknown code as `vendor_error`.
 - `retryable` is a boolean: whether the same call might succeed later. It is `true` for `timeout` and
-  `usage_limit`, `true` for a server that did not answer, and `false` for the other classes and codes defined here, a missing
+  `usage_limit`, `true` for a server that did not answer, and `false` for the other classes and codes defined here, a server whose
+  certificate was not accepted and a missing
   program included. The bridge reports it and never retries.
 - `message` is at most 500 characters and holds no more of the vendor's output than is needed to say what
   happened. It is for the owner to read, not for an engine to parse.
 
-A refusal of the options, the paths or the prompt, and a refusal by the launcher, print a `refused:` line to
+A read-only `check` argument, where a bridge has one, prints lines and is outside this one-object rule; its own spec fixes its
+output. A refusal of the options, the paths or the prompt, and a refusal by the launcher, print a `refused:` line to
 standard error, nothing to standard output, and exit 1. So exit 1 with a valid object is a failure of the call,
 and exit 1 with no object is a refusal. An engine treats a missing, malformed or oversize object, an unknown `contract`, and
 any exit code other than 0 with `ok: true`, as a failure with no reply.
@@ -298,6 +313,9 @@ them. The probe script is not kept in the repository.
 
 ## Guarantees
 
+Guarantees 1 to 4 describe a bridge to a program. A bridge to a server meets guarantees 5 to 8: its bounds, its timeout, its
+network rules and the treatment of the reply as data. Its own rules for the connection are in guarantee 7 and in `ask-ollama.md`.
+
 1. **Read-only.** The vendor program is started in its read-only mode, with a fresh session that is not kept,
    and told to ignore the user's own configuration file. That is all "no user configuration" means: the
    program's sign-in state under `HOME` is still used, because the bridge handles no credentials and passes no
@@ -316,9 +334,10 @@ them. The probe script is not kept in the repository.
    the project, which the bridge removes. The bridge creates, changes and deletes no file in the project.
 5. **Bounded.** The prompt, the schema, the reply and the object are limited as above. The bridge reads the
    vendor program's output file and its standard output and error each to at most 1,048,576 bytes; a program
-   that writes more is stopped and reported as `vendor_error` with `reply_too_large`.
+   that writes more is stopped and reported as `vendor_error` with `reply_too_large`. A bridge to a server reads the response body
+   to a bound its spec names and stops at it, with the same error.
 6. **A timeout ends the whole call.** At the timeout the vendor program and its children are killed as a
-   process group and the error is `timeout`.
+   process group and the error is `timeout`. A bridge to a server closes the connection at the timeout, and the error is `timeout`.
 7. **Network, and no log.** A bridge to a program opens no connection of its own. A bridge to a server opens a connection only to
    the endpoint the store names, follows no redirect to another host, and has a hard timeout. It sends only the model request
    built from the prompt and the validated options and, for an authenticated endpoint, the endpoint record's credential in the one
@@ -326,32 +345,44 @@ them. The probe script is not kept in the repository.
    credential, and none puts a credential in an object, a message or an argument. A bridge to a program writes the prompt and the
    reply to no file and no log; its only file is the vendor program's output file in the private temporary directory.
    - **The endpoint record (a bridge to a server).** An endpoint is a record in the owner's guarded store
-     (`2026-10-20-fixed-store-location`), found by its name. The exact format is written in the spec of the server bridge. A record
+     (`2026-10-20-fixed-store-location`), found by its name. The place and format are set by the accepted decision
+     `2026-11-01-endpoint-records-in-the-store`, and the bridge's behaviour is in `ask-ollama.md`. A record
      holds, and is refused if it does not: a name of the safe character set; a scheme of `http` or `https` and no other; a host and
      a port, with no user name, password or token in the address; whether the endpoint is authenticated; a location class the owner
      declares (this machine, the owner's network or a vendor's cloud); and a credential, where there is one, held in the store and
      never in an argument, an address, the object or a message. The transport follows the scheme: `https` means TLS with the
      server's certificate validated and `http` means none, so there is no separate TLS field that could disagree with it. An
-     authenticated endpoint must use `https`, except where the host is a literal loopback address, where `http` is allowed. An
-     unauthenticated `http` endpoint away from loopback is allowed, and a diagnostic warns that content is sent in the clear. A
+     authenticated endpoint must use `https`, except where the host is a literal loopback address, where `http` is allowed. A bridge
+     may decline an authenticated record until a credential has a decision: it then refuses the record before anything is sent, and
+     the rule above is what a later bridge that supports one must meet. An
+     unauthenticated `http` endpoint away from loopback is allowed, and a diagnostic warns that content is sent in the clear: for a
+     bridge with a read-only `check` argument, that is where the warning is, because a call prints one object. A
      record that is missing, unreadable, has a field outside these rules or names another scheme is refused before anything is
      sent, with a `refused:` line, and is not turned into another endpoint or a default. The bridge connects to the host and port
      the record names and to no other: an address that a redirect, a reply or the prompt supplies is never followed or used, and
      the name the caller passes selects a record and is never itself an address. The location class is the owner's declaration and
      is not verified: a record that names a remote host sends the text there.
-   - **Status.** No bridge to a server is built yet. These rules bind the one that is, and they are what its checklist items
-     (below) test.
+   - **Status.** No bridge to a server is built yet. The first, `ask-ollama`, is specified in `ask-ollama.md`. These rules bind
+     it, and they are what its checklist items (below) test.
 8. **Output is data.** What the vendor returns is never run, never used as a path or a command, and never
    believed. The bridge only classifies it and copies the reply.
 
 ## Conformance checklist
 
-A bridge conforms when a test against a fake vendor program, which records its arguments, environment and
-standard input, shows each item. No item needs a real vendor, a sign-in or a network.
+A bridge conforms when a test against a fake vendor program (a fake server, for a bridge to a server), which records its
+arguments, environment and standard input (its request, for a server), shows each item. No item needs a real vendor, a sign-in or
+a network. Items 4, 5, 6, 11, 17 and 18 apply to a bridge to a program, and item 19 to a bridge to a server; the others apply to
+both, with the differences that "Input" and the guarantees name (a bridge to a server ignores `--root`, bounds a response body and
+closes a connection at the timeout) and these: in item 7 the fake starts in the root given only for a program; items 9 and 10
+cover the classes and codes the bridge can produce, and a bridge to a server never produces `not_signed_in` or `usage_limit`; and in
+item 15 the private temporary directory is a program's, a bridge to a server makes none, and what must be unchanged is the project
+and the store. The checklist of a bridge to a server is completed by its own spec (`ask-ollama.md`).
 
-1. The declaration is as above: type `module`, provides only `model-bridge`, one helper, command `ask-<vendor>`
-   with `runtime` `python`, `kit` 1 and `arguments` `["ask"]`, and no `requires`, `writes` or `fills`. A bridge may declare
-   `ask_reads` for the vendor's own login file under the home directory, so that a harness that provides `permissions` asks
+1. The declaration is as above: type `module`, provides `model-bridge` (and a further capability only through a further command),
+   one helper, command `ask-<vendor>` with `runtime` `python`, `kit` 1 and `arguments` `["ask"]` (and `check`, for a bridge
+   with that read-only argument), and no `requires`, `writes` or `fills`. A bridge may declare
+   `ask_reads` for the vendor's own login file under the home directory (a bridge to a server, for the file it reads to find its
+   server), so that a harness that provides `permissions` asks
    before the agent reads it (`module-contract.md`); `ask-codex` declares `["~/.codex/auth.json"]` (since 2026-10-29,
    plan `2026-10-29-policy-and-module-asks`). The installer names no vendor: the module does.
 2. A missing, empty, non-UTF-8 or oversize prompt is refused and nothing runs.
@@ -395,10 +426,14 @@ standard input, shows each item. No item needs a real vendor, a sign-in or a net
     item 4, and nothing else differs; without it the argument list is exactly that of item 4; `--confine` works together with
     every other option; a fake that exits non-zero when it is confined is reported as the failure it is, the fake is started once,
     and it is never run again without the confinement arguments.
-19. A bridge to a server, against a fake server: an invalid, missing or substituted endpoint record is refused with nothing sent;
-    a redirect to another host is not followed; a credential or an address is absent from the object, the message and the
-    arguments the fake saw; an authenticated endpoint over `http` away from loopback is refused; and the timeout ends a server
-    that does not answer. (No bridge to a server exists yet, so no test shows these.)
+19. A bridge to a server, against a fake server: an invalid, missing, unreadable or substituted endpoint file or record is refused
+    with nothing sent; a redirect is not followed; the destination of the connection and the `Host` header come only from the
+    selected validated record, which the server necessarily sees, and nothing else of the record is sent; a credential, a host or a
+    port is absent from the object, the message, any diagnostic and the arguments of the bridge's own process; a record that says it
+    is authenticated is refused when the bridge supports no credential, and an authenticated record over `http` away from a literal
+    loopback address is refused when it does; an `https` server whose certificate is not trusted, has expired or is for another host
+    is refused as `vendor_unreachable`, and a trusted matching one is accepted; and the timeout ends a server that does not answer.
+    (No bridge to a server is built yet, so no test shows these; `ask-ollama.md` lists them for its module.)
 
 ## As built, and its limits
 
@@ -488,6 +523,8 @@ Limits:
 - The spec states contract version 2 and every item above (the items for a bridge to a server aside, which no bridge meets yet)
   can be tested against a fake vendor program.
 - A first bridge passes the checklist (`ask-codex`, plan `2026-10-22-ask-codex-bridge`, increment C).
+- A bridge to a server passes the items that apply to it, including item 19 and the checklist of its own spec (`ask-ollama.md`,
+  plan `2026-11-01-ask-ollama-bridge`); none is built yet.
 - A synthetic engine calls a bridge only through `wb run`, accepts it only when it is an installed, pinned module
   that provides `model-bridge`, and treats its output as data.
 - Nothing here depends on a file outside the repository.

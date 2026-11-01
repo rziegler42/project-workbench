@@ -463,3 +463,69 @@ that `wb settings` prints is `ask`.
 
 **Open for the owner:** whether to accept the record; the narrowing of the contract decision (no authenticated record yet); and the
 question of widening the contract's `--model` charset (64 characters, no `/`), which the record lists as open.
+
+**Afterwards, the decision was reviewed by Codex** (`review-adr`, one round, converged, one minor finding on provenance, applied)
+and **accepted by the owner** at the level `ask` (`wb run groundwork preview`, then `accept` with the digest it printed). The
+accepted record is committed in its own commit, `c69b0f2`, after the increment's commit `51d908f`.
+
+### Increment B
+
+**Done:** the new spec `docs/specs/ask-ollama.md`, `Draft`, and an amendment of `docs/specs/model-bridge.md`. The new spec states:
+the module and its two commands that share one helper (`ask-ollama` with `ask` and `check`, `embed-ollama` with `embed`), its
+declaration and `ask_reads`; how the endpoint file is read and refused (the grammar itself stays in the accepted decision); the
+mapping of the seven options; the request and the reply; the five counts; the context window, truncation and thinking rules; an
+eleven-row table of errors with fixed messages, the rule for connecting versus timing out, how an error text is matched and the order
+when several conditions hold; the transport, with verified HTTPS and the bounds; the exact output of `check`; the embedding
+contract (input, options, request, output, failure, checks, the batch); a conformance checklist; fifteen numbered unconfirmed
+statements about the server, tagged where they are used; and acceptance criteria. The amendment of `model-bridge.md` names a
+bridge to a program and a bridge to a server, lets a bridge module provide a further capability through a further command and
+have a read-only `check`, says which guarantees and checklist items apply to which, lets a bridge decline authenticated records,
+notes that omitting `--model` is not interchangeable, and corrects checklist item 19 (the `Host` header and the destination come
+only from the selected record).
+
+**Verification as run:** `wb run code-work check` (77 plans) and `wb check` report no problems after the last edit. Measured once on
+2026-11-01 (Python 3.15.0, OpenSSL 4.0.3): with `SSL_CERT_FILE` set, `get_default_verify_paths().cafile` changed and `openssl_cafile`
+did not; the spec's context is built from the compile-time locations for that reason.
+
+**Review:** one round by the read-only `reviewer` agent, no blocking finding and eleven others. Applied: the trust-store claim was
+false for the obvious build (the default context honours `SSL_CERT_FILE` and `SSL_CERT_DIR`), so `tls_context()` is specified from
+the compile-time locations with a test that sets both variables; a connection that is not made is `vendor_unreachable` and only a
+connection that was made and then ran out of time is `timeout`; the order of the error conditions, the matching of error text and the
+absent `prompt_eval_count` are stated; the retryable rule names a rejected certificate; checklist items 7, 9, 10 and 15 are adapted
+for a server and item 1 names the endpoint file; the declaration table, the `--model` default and the sentence about what the bridge
+reads are no longer program-only; `embed` has a `model` rule, separate failure rows, input rules and a size estimate marked
+unconfirmed; the response bound is 4 MiB for `ask` because an escaped reply can reach about 1.6 MB; the request bound is counted after
+escaping; the output format of `check` is exact; and more unconfirmed statements are listed and tagged inline. Noted, not changed: the
+plan's step 9 and completion criterion 3 say that items 17 and 19 of `model-bridge.md` apply to this module, and item 17 (a program
+bridge's refusal of `--server`) cannot; the spec scopes it out and the plan is not edited. The module's `reply_cut` refines the contract
+decision's wording that a cut-off reply is `unusable_reply` (both are `vendor_error`), and the spec says so. The rewrite after the
+review has not been read by the reviewer again.
+
+**Codex review of the spec** (`review-spec` of `ask-ollama.md`, at the owner's request, `gpt-5.6-terra`): five rounds, the bound
+raised from 3 to 4 and then to 5 (the ceiling) by the owner; not converged; every finding was applied and the last fix has not been
+read again.
+- R1-F1 (major): the request bound was below what valid inputs need (an escaped prompt and a re-written schema). It is 2,100,000
+  bytes with the arithmetic, and an oversize request is refused before any connection.
+- R1-F2 (major): `--model` is validated by the contract's rule, which allows `a..b` that the record rule refuses, so the fallback
+  could not always fit. A name is now validated by both.
+- R1-F3 (minor): the `User-Agent` had no value. It is `ask-ollama/1`, and each header's content is named.
+- R2-F1 (major): the order of conditions contradicted the error-text rule for a non-object body. It is scoped: a body over its bound
+  is `reply_too_large` for any status, an error status follows the status rows, and the order applies to a success status.
+- R2-F2 (major): the embedding body was "exactly" three fields and also required `options.num_ctx`. It is those three plus
+  `options` only when the record has `context`.
+- R2-F3 (major): the embedding request named no headers. It uses those of `ask`, with the same transport and bounds.
+- R3-F1 (major): `done: false` was missing from the order of conditions. It is placed after the body check and before the overflow
+  and cut-reply checks.
+- R4-F1 (major): the embedding command inherited the order for `ask`, which requires `done: true`, a field an embedding reply does
+  not have; the round-3 fix had caused it. `embed` now has its own order: the body, the embeddings, then the size of the object.
+- R5-F1 (major): the embedding `usage.input_tokens` had no validation. It follows the rule for `ask`: a whole number from 0 to
+  10^12, else `null`, and a malformed count never makes a reply unusable.
+Two of the five rounds found a flaw that the previous round's fix had introduced, which is why the last two fixes (the order for
+`embed` and the usage rule) are the parts nobody has read after they were written.
+
+**Not done:** the owner's approval of the spec, which stays `Draft`; no code, no module, no test. The two specs go in one commit so
+that no tracked file points to an untracked one.
+
+**Open for the owner:** the capability name `text-embedding` (proposed, as `model-bridge` still is); the bounds this spec chose (4
+MiB and 16 MiB responses, 100 texts of 32 KB, a 10-second connection); whether two commands may name one helper (unconfirmed; the
+fallback is one command with three arguments); and whether to have Codex read the spec before it is committed.
