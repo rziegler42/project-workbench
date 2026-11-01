@@ -338,3 +338,42 @@ found no problems", both after the last edit. The added text names no path outsi
   the shell and web tools as well as the tool features.
 - Not blocking, applied: the checks were re-run after the corrections.
 The reviewer's recommendation read "blocking findings", driven by the first item. After my evaluation no finding is left open.
+
+### Increment B
+
+**Done:** `review-engine` and `action-review` accept contract versions 1 and 2. Each helper holds a table keyed by the contract
+number: version 1 has the six old class names and a `usage` of three counts; version 2 has `vendor_unreachable` in place of
+`program_not_found` and a `usage` of five. The number is checked as an `int` (not a bool) and as a key of the table before anything
+indexes it, and the class and the usage fields are checked against the table of the number the object names, so a mix is a failure.
+The review engine keeps filtering `usage` to the three counts it stores, so the sealed state and its checks are unchanged;
+`action-review` keeps no usage. New tests in `support_bridge.py` and `test_review_findings.py` (review engine) and
+`test_actionreview_bridge.py` (action review) cover: a version 2 success; the two added counts checked (null, zero and 10^12 accepted;
+negative, text, bool, a float and 10^12 + 1 refused) and never stored; the usage fields of each version; `vendor_unreachable` in a
+version 2 failure; the class that belongs to each version; the contract numbers 0 and 3 and bool refused. `docs/specs/review-engine.md`
+and `docs/specs/action-review.md` state the rule.
+
+**Verification as run:**
+- The new tests were run before the helpers changed and failed (review-engine findings file: 31 tests, 2 failures and 2 errors;
+  action-review bridge file: 95 tests, 2 failures and 2 errors).
+- After the helpers changed, the review-engine root ran 409 tests OK, and the action-review root ran 463 tests OK after one test was
+  corrected (below).
+- The whole suite, `python3 -B -W error tests/run_all.py`, ran 6317 tests in 13 roots, OK.
+- `wb run code-work check` (76 plans) and `wb check` report no problems.
+
+**How the pass was made, and a correction.** Changing a file under `packages/workbench/` makes the shipped record of the whole package
+stale, so `claude` stops being a known harness and the hooks refuse every edit and command until the owner releases the approvals.
+After one edit with the editing tool the hooks refused, and the owner undid that edit. With the owner's word, the package edits were
+then made by two scripts run as one command each (the tests were written and run first inside the first script). One new action-review
+test required the wording "not a valid answer" for a bad count, but the strict JSON reader stops some bad values earlier; the second
+script made it check only that the answer fails, as the older tests in that file do. The owner released the approvals after each
+script, so Increment B needed two releases besides the one planned for Increment E. Increment C will need the same.
+
+**Not done:** the shipped approval records of the two releases are untracked and are not part of this increment's commit; Increment E
+releases and commits them and the stale ones are removed there. No test was added for a version 2 object whose `ok` and exit code
+disagree: that check is shared by both versions.
+
+**Review:** one round by the read-only `reviewer` agent. No blocking finding. Not blocking, applied: the review-engine spec's
+sentence about error classes was ambiguous about which class belongs to which version, and it now says so. Not blocking, rejected: a
+test for `ok` false with a wrong exit code under version 2, because the check is the same code for both versions and the reviewer
+found no defect. Informational: the stored round check still compares with the three-count tuple, which is what keeps the stored
+shape fixed. The reviewer could not run anything; the results above are mine.

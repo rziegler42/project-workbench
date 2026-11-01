@@ -440,6 +440,10 @@ project would like. It is a request and never an authorization.
 - The bridge must be an installed, pinned module that provides `model-bridge`; the engine starts it through the kit's
   `run_command` with `--provides model-bridge`, and the launcher refuses one that is not. A name that is refused ends
   the review (exit 1) and no other vendor is tried.
+- The bridge's object is checked again under `model-bridge.md`, whatever the bridge did. The engine accepts contract
+  versions 1 and 2, and the object must fit the version it names: the error class `program_not_found` and a `usage` of
+  three counts belong to version 1, and the class `vendor_unreachable` and a `usage` of five counts belong to version 2. An
+  object that mixes the two is a failure. The engine keeps no usage, so the added counts are checked and ignored.
 - **Recorded limit: the personal setting is not built.** The owner's personal setting would be authoritative over the
   project's request. No helper can read the guarded store, as for the review engine, so the engine reads the project file
   only; a project file is not the owner's personal setting, and a project could name another installed bridge. Only an

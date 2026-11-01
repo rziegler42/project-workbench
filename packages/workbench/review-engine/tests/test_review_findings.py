@@ -6,7 +6,7 @@ import json
 import unittest
 
 import support_review
-from support_bridge import answer, failure, finding, reply, result
+from support_bridge import answer, answer_v2, failure, failure_v2, finding, reply, result
 
 
 class BridgeAnswer(support_review.Review):
@@ -56,13 +56,52 @@ class BridgeAnswer(support_review.Review):
             self.refused(result(raw=raw, code=0), "not a valid answer")
 
     def test_a_wrong_contract_number_or_a_wrong_type_is_a_failure(self):
-        for changes in ({"contract": 2}, {"contract": True}, {"contract": "1"}, {"ok": "yes"}, {"ok": 1},
+        for changes in ({"contract": 3}, {"contract": 0}, {"contract": True}, {"contract": "1"}, {"ok": "yes"},
+                        {"ok": 1},
                         {"vendor": 3}, {"reply": 3}, {"reply": None}, {"model": 3}, {"usage": None},
                         {"usage": {"input_tokens": 1}}, {"usage": {"input_tokens": "1", "output_tokens": 1,
                                                                    "total_tokens": 1}},
                         {"usage": {"input_tokens": -1, "output_tokens": 1, "total_tokens": 1}},
                         {"usage": {"input_tokens": True, "output_tokens": 1, "total_tokens": 1}}):
             self.refused(result(answer(**changes)), "not a valid answer")
+
+    def test_a_success_of_contract_2_gives_the_reply_and_only_the_three_counts_the_engine_stores(self):
+        got = self.helper.parse_bridge(result(answer_v2()))
+        self.assertEqual((reply(finding()), "m-1", {"input_tokens": 12, "output_tokens": 5, "total_tokens": None}),
+                         (got.reply, got.model, got.usage))
+
+    def test_the_two_added_counts_are_checked_but_never_stored_or_relied_on(self):
+        for added in ({"cached_input_tokens": None, "reasoning_output_tokens": None},
+                      {"cached_input_tokens": 0, "reasoning_output_tokens": 10 ** 12}):
+            usage = dict(answer_v2()["usage"], **added)
+            got = self.helper.parse_bridge(result(answer_v2(usage=usage)))
+            self.assertEqual(set(self.helper.USAGE_FIELDS), set(got.usage))
+        for bad in (-1, "1", True, 1.5, 10 ** 12 + 1):
+            usage = dict(answer_v2()["usage"], cached_input_tokens=bad)
+            self.refused(result(answer_v2(usage=usage)), "not a valid answer")
+            usage = dict(answer_v2()["usage"], reasoning_output_tokens=bad)
+            self.refused(result(answer_v2(usage=usage)), "not a valid answer")
+
+    def test_the_usage_must_have_the_fields_of_the_contract_the_object_names(self):
+        self.refused(result(answer(usage=answer_v2()["usage"])), "not a valid answer")
+        self.refused(result(answer_v2(usage=answer()["usage"])), "not a valid answer")
+        for drop in ("cached_input_tokens", "reasoning_output_tokens", "total_tokens"):
+            usage = {k: v for k, v in answer_v2()["usage"].items() if k != drop}
+            self.refused(result(answer_v2(usage=usage)), "not a valid answer")
+        self.refused(result(answer_v2(usage=dict(answer_v2()["usage"], more=1))), "not a valid answer")
+
+    def test_a_failure_of_contract_2_names_an_unreachable_vendor_with_the_new_class(self):
+        text = self.refused(result(failure_v2(error="vendor_unreachable", retryable=True)),
+                            "the bridge reported vendor_unreachable (retryable)")
+        self.assertIn("Not logged in.", text)
+
+    def test_the_class_belongs_to_the_contract_the_object_names(self):
+        self.refused(result(failure_v2(error="program_not_found")), "not a valid answer")
+        self.refused(result(failure(error="vendor_unreachable")), "not a valid answer")
+        for name in ("not_signed_in", "model_unavailable", "effort_unsupported", "timeout"):
+            self.refused(result(failure_v2(error=name)), "the bridge reported %s" % name)
+        self.refused(result(failure_v2(error="vendor_error", detail="usage_limit", retryable=True)),
+                     "the bridge reported vendor_error usage_limit")
 
     def test_a_missing_or_unknown_field_is_a_failure(self):
         missing = answer()
