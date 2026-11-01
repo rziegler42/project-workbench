@@ -127,7 +127,7 @@ class Declaration(unittest.TestCase):
 
     def test_the_package_lists_it_between_the_other_two(self):
         with open(os.path.join(PACKAGE, "package.json"), encoding="utf-8") as handle:
-            self.assertEqual(["ask-codex", "claude", "code-work", "groundwork", "safe-git", "review-engine",
+            self.assertEqual(["ask-codex", "ask-ollama", "claude", "code-work", "groundwork", "safe-git", "review-engine",
                               "action-review", "mempalace", "remote-runner", "security-review", "verilog", "freecad"],
                              json.load(handle)["modules"])
 

@@ -1,0 +1,26 @@
+{
+  "name": "ask-ollama",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A model bridge for an Ollama server: one prompt, one JSON answer, the server named by the owner's endpoint file.",
+  "provides": [
+    "model-bridge"
+  ],
+  "ships": [
+    "helper/ask-ollama"
+  ],
+  "ask_reads": [
+    "~/.config/project-workbench/endpoints.json"
+  ],
+  "commands": {
+    "ask-ollama": {
+      "helper": "helper/ask-ollama",
+      "runtime": "python",
+      "kit": 1,
+      "arguments": [
+        "ask",
+        "check"
+      ]
+    }
+  }
+}

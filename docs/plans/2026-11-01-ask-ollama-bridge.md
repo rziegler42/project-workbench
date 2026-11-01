@@ -529,3 +529,48 @@ that no tracked file points to an untracked one.
 **Open for the owner:** the capability name `text-embedding` (proposed, as `model-bridge` still is); the bounds this spec chose (4
 MiB and 16 MiB responses, 100 texts of 32 KB, a 10-second connection); whether two commands may name one helper (unconfirmed; the
 fallback is one command with three arguments); and whether to have Codex read the spec before it is committed.
+
+### Increment C
+
+**Done:** the module `packages/workbench/ask-ollama/` (`module.json`, `helper/ask-ollama`, and tests with throwaway certificate
+fixtures in `tests/certs/`) with the arguments `ask` and `check`; the module is added to `packages/workbench/package.json` and to
+the install-order lists of three module tests (claude, code-work, groundwork); `docs/specs/ask-ollama.md` was amended to what was
+built, with a new "Known limits" section; `docs/specs/model-bridge.md` says in four places that a bridge to a server is now built
+for `ask` and `check`.
+
+**Deviation from the plan:** the plan says two commands, `ask-ollama` and `embed-ollama`. The verifier (`workbench/declarations.py`)
+refuses two commands that name the same helper, so the module has ONE command `ask-ollama` with the arguments `ask`, `check` and,
+in increment E, `embed`. The spec says so. The plan is not edited, because that needs a new approval. Also, checklist item 17 of
+`model-bridge.md` does not apply to this module (noted in B).
+
+**Verification as run** (Python 3.15.0, macOS): the module's 144 tests pass; the new tests of the last pass failed against the
+old helper first (2 failures and 1 error) and pass against the new one. The whole suite: `python3 -B -W error tests/run_all.py`,
+6,469 tests in 14 roots, OK. `wb verify packages/workbench` accepts the modules. `wb check` and `wb run code-work check` report no
+problems. No call was made to a real Ollama server; every test uses a fake server on the loopback address, with real TLS for the
+https cases.
+
+**Review:**
+- The read-only `reviewer`, two reads. The first found no blocking finding; its points were applied (a reset after the answer
+  began is `unusable_reply`, before it `vendor_unreachable`; `1e999` and a deep or lone-surrogate document are refused by the
+  helper's own parser; the endpoint-file refusal names one of five causes; more tests). The second read, after the fixes, found no
+  blocking finding and nothing broken. Applied: the four stale statements in `model-bridge.md`, and five corrections and additions
+  in "Known limits". Deferred to increment D's pass, which edits the same helper and tests: the generic `OSError` branch should use
+  the `responded` flag, the digit-rule test needs a truer name, and a test of exactly 32 and 33 levels of nesting.
+- A security review at the owner's request (`security-reviewer`, read-only, with its own probes): no Critical or High finding; one
+  Medium (a cut reply or a silently cut prompt is returned as a success, which is increment D by the plan) and six Low items.
+  Applied: a deleted working directory is a refusal and not a traceback; a run of more than 4,300 digits in a server reply or a
+  schema is refused before parsing. Recorded in "Known limits" and not changed: `HOME` finds the store (the accepted decision
+  says so), a stuck name lookup, IPv6 ranges the decision does not refuse, a schema below `.workbench/` or a hard link (as
+  `ask-codex`), the model name a server asserts, and the unbounded wait for the prompt.
+- My own 747 probes (hostile options, endpoint file, server replies, environment, timing, TLS) are not independent of the code
+  and are no evidence of its soundness beyond what they show. They found nothing that was not already a known limit. The proxy
+  variables are not honoured, redirects are not followed, and the `SSL_CERT_*` variables do not change the trust.
+
+**Releases:** four of `wb release-approvals` by the owner in this increment, each after a scripted package edit.
+
+**Not done:** increments D to H; no real server; the shipped approvals of the new module are untracked and stay out of the commit
+until increment G; the six stale approval records still await the owner's list.
+
+**Open for the owner:** do not push between C and D (the module returns a cut reply as a success until D); the private-key fixtures
+in `tests/certs/` may be flagged by `safe-git push-check` (they guard nothing, and the spec says so); whether to test from your
+terminal that your Ollama server is reachable before F.

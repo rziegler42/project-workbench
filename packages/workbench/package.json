@@ -4,6 +4,7 @@
   "contract": 1,
   "modules": [
     "ask-codex",
+    "ask-ollama",
     "claude",
     "code-work",
     "groundwork",

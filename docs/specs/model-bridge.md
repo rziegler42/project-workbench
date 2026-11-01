@@ -7,7 +7,8 @@ moved the contract to version 2, as the accepted decision `2026-11-01-bridge-con
 options, the confinement option, one error class for a vendor that cannot be reached, two added token counts and a network
 guarantee for both kinds of bridge. Version 1 differed in those places only, and the engines still accept it. Plan
 `2026-11-01-ask-ollama-bridge` (increment B) amended the text so that it describes a bridge to a program and a bridge to a server
-consistently; the first bridge to a server, `ask-ollama`, is specified in `ask-ollama.md` and is not built yet. The capability name `model-bridge`
+consistently; the first bridge to a server, `ask-ollama`, is specified in `ask-ollama.md` and is built for `ask` and `check` (increment C of that
+plan; the context, truncation and thinking rules and the embedding argument are increments D and E, and no real server has been tried). The capability name `model-bridge`
 is provided by the built `ask-codex` module and required by `review-engine` and `action-review`, and the owner has not confirmed it
 as the final name (see "Open questions").
 
@@ -39,13 +40,14 @@ Non-goals:
 | field | value |
 |---|---|
 | type | `module` |
-| provides | `model-bridge` (and, only through a further command, a further capability) |
+| provides | `model-bridge` (and, only through a further argument of its one command, a further capability) |
 | requires, fills, writes | nothing |
 | ships | one helper, `helper/ask-<vendor>` |
-| commands | `ask-<vendor>`, with `helper` `helper/ask-<vendor>`, `runtime` `python`, `kit` 1 and `arguments` `["ask"]` (a bridge may add the read-only `check`; a further command for a further capability may name the same helper) |
+| commands | `ask-<vendor>`, with `helper` `helper/ask-<vendor>`, `runtime` `python`, `kit` 1 and `arguments` `["ask"]` (a bridge may add the read-only `check`, and a further argument for a further capability; the verifier refuses two commands that name one helper) |
 
-A bridge module may also provide a further capability through a further command, as `ask-ollama` provides `text-embedding` through
-`embed-ollama`, and its `ask` command may be joined by a read-only argument `check` that starts no program and opens no connection.
+A bridge module may also provide a further capability, through a further argument of its one command (the verifier refuses two
+commands that name one helper), as `ask-ollama` provides `text-embedding` through its argument `embed`, and its `ask` argument may
+be joined by a read-only argument `check` that starts no program and opens no connection.
 Installing a bridge is the owner's consent to send content to that vendor, and that consent covers every command the module ships.
 The rules of this spec bind the `ask` command and the capability `model-bridge`; the further capability has a contract of its own.
 
@@ -362,7 +364,8 @@ network rules and the treatment of the reply as data. Its own rules for the conn
      the record names and to no other: an address that a redirect, a reply or the prompt supplies is never followed or used, and
      the name the caller passes selects a record and is never itself an address. The location class is the owner's declaration and
      is not verified: a record that names a remote host sends the text there.
-   - **Status.** No bridge to a server is built yet. The first, `ask-ollama`, is specified in `ask-ollama.md`. These rules bind
+   - **Status.** The first bridge to a server, `ask-ollama`, is specified in `ask-ollama.md` and built for `ask` and `check`,
+     tested against a fake server; no real server has been tried. These rules bind
      it, and they are what its checklist items (below) test.
 8. **Output is data.** What the vendor returns is never run, never used as a path or a command, and never
    believed. The bridge only classifies it and copies the reply.
@@ -378,7 +381,7 @@ cover the classes and codes the bridge can produce, and a bridge to a server nev
 item 15 the private temporary directory is a program's, a bridge to a server makes none, and what must be unchanged is the project
 and the store. The checklist of a bridge to a server is completed by its own spec (`ask-ollama.md`).
 
-1. The declaration is as above: type `module`, provides `model-bridge` (and a further capability only through a further command),
+1. The declaration is as above: type `module`, provides `model-bridge` (and a further capability only through a further argument),
    one helper, command `ask-<vendor>` with `runtime` `python`, `kit` 1 and `arguments` `["ask"]` (and `check`, for a bridge
    with that read-only argument), and no `requires`, `writes` or `fills`. A bridge may declare
    `ask_reads` for the vendor's own login file under the home directory (a bridge to a server, for the file it reads to find its
@@ -433,7 +436,8 @@ and the store. The checklist of a bridge to a server is completed by its own spe
     is authenticated is refused when the bridge supports no credential, and an authenticated record over `http` away from a literal
     loopback address is refused when it does; an `https` server whose certificate is not trusted, has expired or is for another host
     is refused as `vendor_unreachable`, and a trusted matching one is accepted; and the timeout ends a server that does not answer.
-    (No bridge to a server is built yet, so no test shows these; `ask-ollama.md` lists them for its module.)
+    (`ask-ollama` shows them against a fake server in its tests, apart from an authenticated record over `http` away from loopback,
+    which it refuses outright because it supports no credential; `ask-ollama.md` lists them for its module.)
 
 ## As built, and its limits
 
@@ -524,7 +528,8 @@ Limits:
   can be tested against a fake vendor program.
 - A first bridge passes the checklist (`ask-codex`, plan `2026-10-22-ask-codex-bridge`, increment C).
 - A bridge to a server passes the items that apply to it, including item 19 and the checklist of its own spec (`ask-ollama.md`,
-  plan `2026-11-01-ask-ollama-bridge`); none is built yet.
+  plan `2026-11-01-ask-ollama-bridge`); `ask-ollama` is built for `ask` and `check` and passes the items that apply to it against
+  a fake server, and has not been run against a real one.
 - A synthetic engine calls a bridge only through `wb run`, accepts it only when it is an installed, pinned module
   that provides `model-bridge`, and treats its output as data.
 - Nothing here depends on a file outside the repository.

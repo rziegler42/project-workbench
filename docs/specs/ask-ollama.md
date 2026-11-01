@@ -1,9 +1,10 @@
 # ask-ollama
 
-Status: Draft. Written by plan `2026-11-01-ask-ollama-bridge` (increment B), before the module exists, so that the module and its
-tests are built against this text. Nothing here is built yet. Every statement about the Ollama server's own interface is listed
-under "Unconfirmed statements" and is confirmed or corrected by the owner's run against a real server (increment F of the plan). The
-spec stays `Draft` until the owner approves it.
+Status: Draft. Written by plan `2026-11-01-ask-ollama-bridge` (increment B), before the module existed, so that the module and its
+tests are built against this text. Increment C built the module for `ask` and `check` (against a fake server in its tests); the
+rules for the context window, a cut reply and thinking (increment D) and the `embed` argument (increment E) are not built yet.
+Every statement about the Ollama server's own interface is listed under "Unconfirmed statements" and is confirmed or corrected by
+the owner's run against a real server (increment F of the plan). The spec stays `Draft` until the owner approves it.
 
 Terms are in `terms.md`. The contract it satisfies is `model-bridge.md` (version 2), whose sections on a bridge to a server this
 spec fills in. The endpoint file is set by the accepted decision `2026-11-01-endpoint-records-in-the-store`; the contract by
@@ -11,11 +12,15 @@ spec fills in. The endpoint file is set by the accepted decision `2026-11-01-end
 
 ## Scope
 
-The first-party module `ask-ollama`: a model bridge to an Ollama server. It has two commands that share one helper:
+The first-party module `ask-ollama`: a model bridge to an Ollama server. It has one command, `ask-ollama`, with three arguments:
 
-- `ask-ollama`, with the arguments `ask` and `check`. `ask` answers one prompt with one contract version 2 object, as `ask-codex`
-  does, and `check` is a read-only diagnostic of the endpoint file.
-- `embed-ollama`, with the argument `embed`. It takes a batch of texts and returns vectors, under the capability `text-embedding`.
+- `ask` answers one prompt with one contract version 2 object, as `ask-codex` does.
+- `check` is a read-only diagnostic of the endpoint file.
+- `embed` takes a batch of texts and returns vectors, under the capability `text-embedding`. It is added by increment E of the plan;
+  until then the command has `ask` and `check` only.
+
+The verifier refuses two commands that name one helper, so the embedding is an argument of the one command and not a second command.
+(An earlier draft of this spec had a second command, `embed-ollama`.)
 
 This spec states the endpoint file as the module reads it, the mapping of every option, the request and the reply, the errors, the
 bounds, the rules for the context window, truncation and thinking, the transport, `check`, the embedding contract and the
@@ -52,13 +57,12 @@ conformance checklist.
 | provides | `model-bridge` and `text-embedding` |
 | requires, fills, writes | nothing |
 | ships | one helper, `helper/ask-ollama` |
-| commands | `ask-ollama` (`helper` `helper/ask-ollama`, `runtime` `python`, `kit` 1, `arguments` `["ask", "check"]`) and `embed-ollama` (the same helper, `arguments` `["embed"]`) |
+| commands | `ask-ollama` (`helper` `helper/ask-ollama`, `runtime` `python`, `kit` 1, `arguments` `["ask", "check"]`, and `"embed"` once increment E adds it) |
 | `ask_reads` | `~/.config/project-workbench/endpoints.json`, so that a harness which provides `permissions` asks before the agent reads it |
 
 The capability name `text-embedding` is this spec's proposal. Like `model-bridge`, it is the owner's to confirm. It has no prefix, so
-only the first-party package may provide it. That two commands may name one helper is unconfirmed: if the verifier refuses it, the
-embedding is a further argument of the one command `ask-ollama` (`ask`, `check`, `embed`) and the capability is provided by that
-module.
+only the first-party package may provide it. The module provides both `model-bridge` and `text-embedding` (the second from increment
+E), and a caller asks for an embedding as `wb run --provides text-embedding ask-ollama embed`.
 
 ### The endpoint file
 
@@ -88,7 +92,7 @@ value as the next argument except `--confine`, and a refusal of anything else be
 | `--effort <level>` | `low`, `medium` or `high`, validated as in the contract. Sent as the request's `think` with the same word. Without `--effort`, `think` is left out and the server decides. A server that rejects it for this model gives `effort_unsupported`. [unconfirmed 4] |
 | `--timeout <seconds>` | The whole call, from the start of the connection to the last byte of the reply. The connection itself is given at most 10 seconds (this spec's choice) or the whole timeout if that is shorter. |
 | `--root <path>` | Validated by the contract's path rules (inside the project, no link, exists, a directory, not in `.git` or `.workbench`) and then ignored: a server has no working directory. |
-| `--schema <path>` | Read as `ask-codex` reads it: inside the project, no link, a regular file, at most 65,536 bytes, one JSON object. Sent unchanged as the request's `format`. [unconfirmed 3] |
+| `--schema <path>` | Located as `ask-codex` locates it: inside the project, no link, a regular file, at most 65,536 bytes, one JSON object. Parsed more strictly than `ask-codex` parses it, because the schema is read and written out again: a repeated key, `NaN`, a number too large for a finite float (`1e999`), a run of more than 4,300 digits, a lone surrogate or nesting deeper than 32 levels is refused here, and a schema that has one of these and that `ask-codex` passes on is refused by this bridge, which is the one refusal the two bridges do not share. Sent as the request's `format`, with the same keys and values. [unconfirmed 3] |
 | `--server <name>` | Selects the record. |
 | `--confine` | Accepted and has no effect: the bridge has no tool to switch off. The object does not say so. |
 
@@ -104,8 +108,10 @@ header is sent. The request is built from the validated options and the selected
 
 ### `ask`: the reply
 
-The reply is read to a bound (below) and parsed as strict JSON. A reply that is not one object is `vendor_error` with
-`unusable_reply`. From the object the bridge takes `message.content` (a string), `model`, `done`, `done_reason`,
+The reply is read to a bound (below) and parsed as strict JSON: valid UTF-8, no repeated key, no `NaN` and no number that is too
+large to be finite, no lone surrogate, nested at most 32 levels, and no run of more than 4,300 digits anywhere (refused before it
+is parsed, because Python's own limit on the digits of an integer can be lifted by an environment variable of the caller). A reply
+that is not one object is `vendor_error` with `unusable_reply`. From the object the bridge takes `message.content` (a string), `model`, `done`, `done_reason`,
 `prompt_eval_count` and `eval_count`, and ignores everything else [unconfirmed 1]. In particular `message.thinking`, if present, is
 never returned, never put in a message and never counted as the reply [unconfirmed 8].
 
@@ -133,7 +139,8 @@ never returned, never put in a message and never counted as the reply [unconfirm
   `reply_cut`, not retryable, even if some text came back.
 - **A thinking model.** A model that reasons may spend its limit in its reasoning and return an empty `message.content`. That is
   `unusable_reply`. The thinking text is never returned as the reply.
-- **A server that closes early or sends a reply that is `done` false** is `unusable_reply`.
+- **A server that closes the connection or resets it after it began to answer, or sends a reply that is `done` false,** is
+  `unusable_reply`. Before it began to answer, a close or a reset is `vendor_unreachable` (below).
 
 ### Errors
 
@@ -161,14 +168,14 @@ cut-off reply is `unusable_reply`: both are `vendor_error`, so a caller sees the
 
 | situation | `error` | `detail` | `retryable` | `message` |
 |---|---|---|---|---|
-| the connection is refused, reset or not made, no route, a name that does not resolve | `vendor_unreachable` | null | true | "the server did not answer" |
+| the connection is refused, not made in time, reset or closed before the server began to answer, no route, a name that does not resolve, a handshake that does not finish | `vendor_unreachable` | null | true | "the server did not answer" |
 | `https` and the certificate is not trusted, has expired or is for another host | `vendor_unreachable` | null | false | "the server's certificate was not accepted" |
 | the connection was made and the whole call passes `--timeout` | `timeout` | null | true | "the server did not finish in time" |
 | status 404 with an error saying the model is not found | `model_unavailable` | null | false | "the server does not have the model" |
 | a status 400 whose error says the model does not support thinking | `effort_unsupported` | null | false | "the model does not support this effort" |
 | a status 400 whose error is about the format or schema | `vendor_error` | `bad_schema` | false | "the server rejected the schema" |
 | any other status outside 200 to 299, including a redirect (which is never followed) | `vendor_error` | `bad_exit` | false | "the server answered with an error" |
-| the reply is not one object, is empty, or is not `done` | `vendor_error` | `unusable_reply` | false | "the server returned no usable reply" |
+| the reply is not one object, is empty, is not `done`, or was cut short by a reset or an early close after the answer began | `vendor_error` | `unusable_reply` | false | "the server returned no usable reply" |
 | the reply or the response body is over its bound | `vendor_error` | `reply_too_large` | false | "the server returned more than the bridge accepts" |
 | the prompt filled the window | `vendor_error` | `context_overflow` | false | "the prompt does not fit the context window" |
 | the reply was cut at the server's limit | `vendor_error` | `reply_cut` | false | "the server stopped the reply at its length limit" |
@@ -201,8 +208,10 @@ the contract allows; an engine treats an unknown code as `vendor_error`.
   body is read to at most 4,194,304 bytes for `ask` (a reply of 262,144 bytes can escape to about 1.6 MB, and a reasoning model's
   thinking text counts against the same body) and 16,777,216 bytes for `embed`, and the call stops when it passes the bound; the
   printed object is at most 2,000,000 bytes, as the contract says.
-- **A deadline** covers the whole call. Each read is limited to the time left, so a server that sends a byte at a time ends at the
-  timeout.
+- **A deadline** covers the whole call. Each read is limited to the time left, and an alarm of the whole call ends it at the
+  timeout, so a server that sends a byte at a time ends at the timeout. **Limit:** the alarm is a signal that Python handles
+  between instructions, so a name lookup that is stuck inside the system's resolver may not be cut at the timeout; a record that
+  holds an IP literal does no lookup. The alarm needs the main thread, which a helper run by the launcher is.
 - **Nothing is written** in the project or the store, nothing is logged, and no file is made but none is needed: the schema is read,
   not copied.
 
@@ -224,7 +233,7 @@ address. The warning lines are what the contract decision calls the diagnostic.
 
 ### `embed`
 
-`embed-ollama embed [--model <name>] [--server <name>] [--timeout <seconds>] [--confine]`, with one JSON object on standard input.
+`ask-ollama embed [--model <name>] [--server <name>] [--timeout <seconds>] [--confine]`, with one JSON object on standard input.
 
 - **Input.** Strict JSON, at most 262,144 bytes (this binds well before 100 texts of 32,768 bytes), exactly one key, `texts`: a list
   of 1 to 100 strings, each of 1 to 32,768 bytes of UTF-8 that holds at least one character other than white space, and that is
@@ -236,7 +245,7 @@ address. The warning lines are what the contract decision calls the diagnostic.
   `truncate` `false`, so that a text longer than the model's window is an error and not a silent cut, and, only when the record has
   `context`, `options` holding `num_ctx` with that value; no other field. The headers are exactly those of `ask` (above: `Host`,
   `Content-Type: application/json`, `Content-Length`, `Accept: application/json`, `Connection: close` and `User-Agent:
-  ask-ollama/1`), and the transport, the bounds and the timeouts of "Transport" apply to it. [unconfirmed 9, 14] When the record has `context`, `options.num_ctx` is set.
+  ask-ollama/1`), and the transport, the bounds and the timeouts of "Transport" apply to it. [unconfirmed 9, 14]
 - **Output**, one object on standard output, at most 2,000,000 bytes:
   `{"contract": 1, "ok": true, "vendor": "ollama", "model": "<name>", "dimension": <n>, "vectors": [[<numbers>], ...], "usage":
   {"input_tokens": <n or null>}}`. `contract` is the version of the embedding contract, which starts at 1 and is separate from the
@@ -318,7 +327,8 @@ These come from memory of the Ollama documentation and are not shown by any test
 9. `POST /api/embed` with `model`, `input` (a list) and `truncate` returns `embeddings`, a list of vectors in the order of the input,
    and `prompt_eval_count`; with `truncate` false a text longer than the window is an error.
 10. A chat model sent to `/api/embed` gives an error or a result the checks refuse.
-11. The verifier accepts two commands of one module that name the same helper (a workbench fact, not an Ollama one).
+11. Resolved on 2026-11-01 (a workbench fact, not an Ollama one): the verifier refuses two commands of one module that name the same
+    helper (`workbench/declarations.py`: "two commands name the helper"). The embedding is an argument of the one command.
 12. The context built from `openssl_cafile` and `openssl_capath` verifies a certificate chain and a host name on the owner's machine
     with the machine's default bundle, and ignores `SSL_CERT_FILE` and `SSL_CERT_DIR` (a Python and OpenSSL fact, shown by the
     bridge's own test, and measured once on 2026-11-01 for `get_default_verify_paths`).
@@ -328,6 +338,41 @@ These come from memory of the Ollama documentation and are not shown by any test
 14. `/api/embed` honours `options.num_ctx`, returns the `model` it used, answers 404 for an embedding model that is not present, and
     answers 400 with an error about the input length when `truncate` is false and a text is too long.
 15. The size of a batch of embeddings, as printed, is close to the estimate in section "embed".
+
+## Known limits
+
+Found by the security review of increment C (2026-11-01) and left as they are, each with its reason:
+
+- **Until increment D, a cut reply and a silently cut prompt come back as a success.** The checks for `reply_cut` and
+  `context_overflow` are increment D. The module is in the package's list and in the install-order tests, so only the owner's act
+  of installing it stands between it and use; nothing installs it or points an engine at it, and the plan's order has D directly
+  after C. Do not push between C and D. Without `context` in a record the bridge cannot detect a cut prompt even after D.
+- **A name lookup that is stuck in the system's resolver may not end at the timeout, or at all** ("Transport"): the alarm is handled
+  between Python instructions and cannot run inside the resolver's call. An IP literal does no lookup.
+- **A connection that fails while the request is being sent** (a broken pipe or a reset) is `vendor_unreachable` even if the server
+  had begun to answer with an error status, and a garbage status line or any other protocol error is `unusable_reply` even before
+  the server began to answer. A generic operating system error after the connection is made is `unusable_reply` as well. These are
+  rare and are the same class either way for a caller that only retries `vendor_unreachable`.
+- **No server name is sent for an IP literal** in a TLS handshake, because the library does not send one; the certificate is still
+  checked against the address, so the fixture certificate for the loopback address works, and a name is sent as the server name.
+- **A run of more than 4,300 digits anywhere in a reply or a schema is refused**, including inside a string, so a legitimate reply
+  that contains such a run is `unusable_reply`.
+- **`HOME` finds the store**, as it does for the rest of the workbench (`2026-10-20-fixed-store-location`: `HOME` is honoured, as
+  the operating system does). A process that sets `HOME` for the helper chooses which endpoint file it reads; it is already the
+  caller, and the launcher's pin and approval live in the same store.
+- **The decision's refusals of IPv6 ranges are exactly the unspecified, IPv4-mapped, multicast and link-local ones.** Deprecated
+  and transitional ranges (IPv4-compatible `::/96`, NAT64, 6to4, site-local) are accepted. Apart from `::1` itself, which is loopback,
+  none of the addresses in them is loopback, so an unauthenticated `http` record in one of them gets the warning of `check`.
+  Refusing more needs a new decision.
+- **`--schema` may be a file below `.workbench/` and may be a hard link to a file outside the project.** The engines pass a schema
+  from `.workbench/`, so refusing it would break them, and `ask-codex` behaves the same way. The contract's rule is "no symbolic
+  link in the path"; an intermediate directory swapped for a link between the check and the open is not caught here, as in
+  `ask-codex`. Whoever can do that has write access to the project and already controls the prompt.
+- **The `model` in a reply is what the server says**, if it fits the rule for model names. It is cosmetic and is not a record
+  of which model answered.
+- **Reading the prompt has no deadline.** A caller that never closes standard input blocks the helper; the alarm starts at the
+  request. The read is bounded in memory (at most one byte over 262,144) and only the wait is not. The launcher passes the caller's
+  input through, and `ask-codex` behaves the same way.
 
 ## Acceptance criteria
 
