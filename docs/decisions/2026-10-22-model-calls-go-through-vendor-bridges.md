@@ -191,3 +191,10 @@ are in `docs/specs/model-bridge.md` and `docs/specs/review-engine.md`.
 - [2026-10-19-restrictive-only-permissions](2026-10-19-restrictive-only-permissions.md)
 - [2026-10-21-module-code-lives-in-modules](2026-10-21-module-code-lives-in-modules.md)
 - [2026-10-22-git-work-in-its-own-module](2026-10-22-git-work-in-its-own-module.md)
+
+## Clarification, 2026-11-01
+
+Added at the owner's word, after the unchanged body. The record
+[2026-11-01-bridge-contract-version-2](2026-11-01-bridge-contract-version-2.md) changes decision 2 above only where it lists the
+error classes and the options of a bridge, and the contract text that rests on that list. The rest of this record stands. Until that
+record is accepted, decision 2 stands as written; if it is rejected, this note is moot.
