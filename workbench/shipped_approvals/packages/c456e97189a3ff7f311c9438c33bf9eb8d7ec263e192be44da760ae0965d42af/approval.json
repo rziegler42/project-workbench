@@ -8,12 +8,12 @@
     {
       "declaration_hash": "bf26ca5125aaf3919a7bbeb1159116352ebfcd41f7fa1f3531c59824318253a8",
       "name": "action-review",
-      "tree_hash": "b430917e5b59ed45cbc6c9c71e57b3fc79801f1e96d99db558c17152773c3838"
+      "tree_hash": "74bf485cfb500a8aa6d22beb3be2a962814b164871311f629fcf5aea7c36c246"
     },
     {
       "declaration_hash": "900839874d3d1aa7cb173ae96d9e670256977bc334539b38a3d360fd9ffe62a5",
       "name": "ask-codex",
-      "tree_hash": "012a252e7fd21f00281990ba5c04e8cbcde1fa32d3e6ff02a80ef8dc27b8c1a0"
+      "tree_hash": "8b24a11ce754159e956a7e30b75599533ae9816def1e4cffd5e73c0a5aa8ac5c"
     },
     {
       "declaration_hash": "bbee74d628101045800cfe5e8d75672920a7d21a935171c914cdc932f0c2eb06",
@@ -48,7 +48,7 @@
     {
       "declaration_hash": "7af5f9f0a3e840f58f1808a7ebabc589416a1188813a08222504c742caa1d311",
       "name": "review-engine",
-      "tree_hash": "2752b03db3a33e641e94aa03451fb81051cb24d592b0560725e987f87d7bc86e"
+      "tree_hash": "839f98f4cc0138802b238af042d4ffa2e483c13e7e3e885befe3e09aea805de7"
     },
     {
       "declaration_hash": "0e95b236920f6f6052c769fa2112680d00581ce168c8002e9b252ac6cbe161bf",
@@ -68,6 +68,6 @@
   ],
   "subject": "workbench",
   "time": "1970-01-01T00:00:00Z",
-  "tree_hash": "dcbc58f4ea350d6be2943ea431ddaa97b879340dbb7f555fe2c417568c0f2d26",
+  "tree_hash": "8394811f42139ab257a6861374c4fdb018161dc1313674c5e464bf7743811076",
   "workbench_version": "0.1.0"
 }

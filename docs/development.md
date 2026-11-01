@@ -52,7 +52,7 @@ ambiguous blank.
 | Commit exact paths (local) | `python3 -m workbench run safe-git commit --expected-head <full hash or none> --subject <text> [--body <text>] [--trailer 'Key: value'] [--leave-other-staged] -- <path> ...` (the `safe-git` module's command; needs git; see "The safe-git helper") |
 | Preview and remove exact project paths | `python3 -m workbench run safe-git remove [--recursive] -- <path> ...`, then the same with `--confirm` after the owner approves |
 | Report what a commit, a removal or a push would act on (read-only) | `python3 -m workbench run safe-git describe commit\|remove <the arguments of the real command>` or `describe push <the arguments that follow git push>` (a push is described locally and never contacts the remote): prints one JSON object (`contract`, `action`, `ok`, `truncated`, `errors`, `facts`), changes nothing, and exits 0 for a refusal of the real command (`ok: false` with an error code); see `docs/specs/safe-git.md`, "Describe" |
-| Ask a model one read-only question | `python3 -m workbench run --provides model-bridge ask-codex ask [--model <name>] [--effort low\|medium\|high] [--timeout <seconds>] [--root <path>] [--schema <path>]` with the prompt on standard input (the `ask-codex` module's command; needs a `codex` program and a sign-in; see "The ask-codex bridge") |
+| Ask a model one read-only question | `python3 -m workbench run --provides model-bridge ask-codex ask [--model <name>] [--effort low\|medium\|high] [--timeout <seconds>] [--root <path>] [--schema <path>] [--confine]` with the prompt on standard input (the `ask-codex` module's command; needs a `codex` program and a sign-in; `--server <name>` is recognized and refused, because this bridge starts a program; see "The ask-codex bridge") |
 | Review one command the harness is about to run (read-only) | `python3 -m workbench run action-review review [--log-row] '<the command text>'` (the `action-review` module's command; needs the command's module and a `model-bridge` installed and pinned, and `.workbench/review.json`; prints one verdict object and exits 0, or exits 1 or 2 (allow only on exit 0 with a whole, valid object); see "The action-review engine") |
 | Search the owner's memory (agent-safe) | `python3 -m workbench run mempalace status`, and `python3 -m workbench run mempalace search [--wing <name>] [--room <name>] [--results <1-20>] [--since <date>] [--before <date>] -- <query>` (the `mempalace` module's command; needs a `mempalace` program and its cached embedding model; see "The mempalace module") |
 | Owner-run: build the memory (terminal only) | `python3 -m workbench run mempalace init <dir> [--yes] [--allow-project-root]`, and `python3 -m workbench run mempalace mine <dir> [--confirm] [--wing <name>] [--mode projects\|convos] [--allow-project-root]` (refuse unless standard input and output are terminals; `mine` is a dry run without `--confirm`) |
@@ -96,8 +96,13 @@ configuration or hooks select a program is refused, so such a repository is comm
 ## The ask-codex bridge
 
 `ask-codex ask` is a model bridge (`docs/specs/model-bridge.md`): it sends the prompt on standard input to the
-Codex command line program, read-only, and prints one JSON object (a reply, or one of six error classes). It keeps
-no state and writes nothing in the project.
+Codex command line program, read-only, and prints one JSON object of contract version 2 (a reply with five token
+counts, or one of six error classes). It keeps no state and writes nothing in the project.
+
+- **`--confine`** starts the program with its tool features, shell tool and web tool switched off. It is opt-in: the review
+  engine needs the program's file access, and a caller that sends captured text always passes it. It is a tripwire plus
+  tests and not a boundary; the spec's "Confinement" and "Release check for untrusted text" give what it stops, what remains
+  and the check a new release of the program must pass.
 
 - **What a real call needs.** A `codex` program in an absolute `PATH` entry outside the repository, and a sign-in
   that program already has under `HOME` (the bridge handles no credentials and reports `not_signed_in`). Installing
@@ -107,8 +112,10 @@ no state and writes nothing in the project.
   network.
 - **Time.** The default `--timeout` is 600 seconds. A caller's own time limit should be longer, so the bridge can
   report `timeout` and clean up.
-- **A first hand run** starts with `codex exec --help`, to check the flags the bridge passes against the installed
-  version; none has been run against a real Codex yet (`docs/specs/model-bridge.md`, "As built, and its limits").
+- **A hand run** starts with `codex exec --help`, to check the flags the bridge passes against the installed version. The
+  bridge has been run against a real Codex (`codex-cli` 0.163.0, by hand on 2026-10-23, and on 2026-11-01 through an agent
+  session's shell tool, with the release check of `--confine`); see `docs/specs/model-bridge.md`, "As built, and its
+  limits", for what was and was not tried, and for the places it could not run.
 - **The launcher** passes standard input through to the helper, so `wb run` forwards the prompt.
 
 ## The action-review engine

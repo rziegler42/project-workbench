@@ -453,7 +453,10 @@ Limits:
   match the schema, and a run on another version.
 - **The model and the total are not reported.** With no `--model` the success object has `model` null, so a stored
   round says "model unknown", and `total_tokens` is null; the event stream of this version did not give the bridge
-  either. Pass `--model` to name the model.
+  either. Pass `--model` to name the model. A real call of 2026-11-01 through the contract version 2 bridge (a one-word prompt, no
+  options, `codex-cli` 0.163.0) printed `model` null, `total_tokens` null, `input_tokens` 16157, `cached_input_tokens` 12288,
+  `output_tokens` 5 and `reasoning_output_tokens` 0: the two added counts are filled by the real program, and the cached count is
+  part of the input count. The review engine stores only the first three counts. One run, so the figures are a rough guide.
 - **The launcher must be on `PATH`.** A caller finds `wb` only in an absolute `PATH` entry outside the project, and
   nothing adds `~/.config/project-workbench/bin` there; without it a round is refused before anything runs, and no
   round is spent.
@@ -474,7 +477,11 @@ Limits:
 - **No depth limit across `wb run`.** Each hop is an approved, pinned command and each call has a time limit, which
   ends a loop; nothing counts the depth.
 - **Linux, and a virtual-environment `sys.executable`,** were not run.
-- **No live session.** The hand run above is the only run with a real vendor; no harness session has called a bridge.
+- **Where it has run.** Besides the hand run above, an agent session has called the bridge through its own shell tool: the review
+  engine's rounds of 2026-11-01 (a decision record and a plan, four and five rounds), the release check of "Confinement" and the call
+  above. The owner's terminal could not start the program ("Operation not permitted" while it started its own client, also with the
+  bridge's reduced environment) and the shell that the owner's session offers has no network, so the bridge has not run from those.
+  Why the program fails there is not known.
 
 ## Acceptance criteria
 

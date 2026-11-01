@@ -475,3 +475,57 @@ list `functions.exec`. That last point also showed that the accepted decision's 
 MCP readers, agent starters) is a subset of what Run 1 recorded: it also holds the exec function, wait and sleep functions, a clock
 and user-input functions. The spec's "What remains" now names the exec function, and its limits are not shown. Left for the owner: whether
 that wider list is accepted as the decision accepted the narrower one.
+
+### Increment E
+
+**Done:** "As built, and its limits" in `docs/specs/model-bridge.md` now says what is true. The command line includes the confinement
+arguments; contract version 2 is described; a real call of 2026-11-01 (a one-word prompt, no options, `codex-cli` 0.163.0) printed
+`"contract": 2`, `model` null, `total_tokens` null, `input_tokens` 16157, `cached_input_tokens` 12288, `output_tokens` 5 and
+`reasoning_output_tokens` 0, so the two added counts are filled by the real program and the cached count is part of the input count;
+and a new "Where it has run" bullet says where the bridge has run and where it could not (the owner's terminal and the shell that the
+owner's session offers). The limit that the model and the total are not reported stays, because the real call still showed both null.
+
+**Approvals.** The preview of the release showed one package and twelve modules, all `recorded`, so no further release was needed:
+the owner's releases after each scripted package edit (six in all: two for B and four for C, the last after the dash fix; none for
+A, D or E) left the current records in place. Thirteen records were stale: four tracked ones from earlier releases and nine
+untracked leftovers of this plan's releases. The owner approved that exact list, and `wb run safe-git remove --recursive --confirm`
+removed the thirteen directories (one `approval.json` each). Four untracked records are the current ones for the package and its
+modules that changed (`78d89319…`, `7977c071…`, `a8ef9508…`, `c456e971…`) and are committed with this increment; nine current records
+were already tracked.
+
+**Security review.** Asked and answered in Increment C: the owner asked for it, and its record is under C (read-only agent, then 713
+probes of my own and a regression test for the one Low found, with a second look at the fix).
+
+**Verification as run, on the final state:** `python3 -B -W error tests/run_all.py` ran 6325 tests in 13 roots, OK; `wb check`, `wb
+run code-work check` (76 plans) and `wb verify packages/workbench` (all twelve modules) report no problems; `wb preview
+release-approvals` reads `recorded` for the package and every module. `wb plan-status` reads the plan as approved.
+
+**Completion criteria, one by one.**
+1. Met (A, C). The spec says `--root` does not confine reads and states contract version 2 for a program bridge, with the seven
+   options, `--confine`, `vendor_unreachable`, the two added counts and the relation of cached to input tokens.
+2. Met (C). `ask-codex` prints contract 2 and `vendor_unreachable`, recognizes seven options and refuses `--server` with a `refused:`
+   line before anything runs; tests against a fake program show each.
+3. Met (C). `--confine` passes the arguments in the plan's order to the fake; a call without it passes today's list; a failed
+   confined call is never run again without them.
+4. Met (C, E). The success object has both counts; `total_tokens` is null unless the program reports one; the real call confirms it.
+5. Met (B). Both engines accept a version 2 object, reject a version 2 object with the old class name and a version 1 object with the
+   new one, still accept version 1, and the review engine stores the same three counts.
+6. Met with a deviation (D). The spec holds the release check and Run 1 for `codex-cli` 0.163.0; the run was made by the agent with
+   the owner's word, not by the owner, because neither of the owner's environments could run the program.
+7. Met (E). The suite, `wb check` and the plan check pass, and the owner's releases left the shipped approvals current.
+
+**Documents and review.** `docs/development.md` was updated (the command with `--confine` and the refused `--server`, contract
+version 2 with five counts, a short `--confine` entry, and the hand-run entry that said no real run had been made); the first draft of
+this Result had skipped it. The thirteen deletions went through the commit helper's `remove` (preview, the owner's approval of the
+list, then `--confirm`). The plan's `Status:` line still reads `In Progress`; it is changed to `Completed` only on the owner's word.
+One round by the read-only `reviewer` agent, no blocking finding. Applied: the `development.md` update, the swapped round counts in the
+spec (the decision took four rounds and the plan five), and the two gaps in this Result. The reviewer could not run anything or
+recompute a hash; the claim that every record reads `recorded` rests on my preview.
+
+**Not done, and open for the owner:**
+- Whether the wider residual exposure that Run 1 recorded (the exec function, wait and sleep functions, a clock and user-input
+  functions, besides the four the decision names) is accepted.
+- Whether `action-review` should pass `--confine` (deferred).
+- The `.workbench/` copies of three helpers and the manifest that `wb upgrade` changed are committed separately from this increment.
+- The Ollama bridge and the embedding command (`workbench-v1#ask-ollama-bridge`) are not started.
+- The probe and check scripts were kept in the scratch directory only.
