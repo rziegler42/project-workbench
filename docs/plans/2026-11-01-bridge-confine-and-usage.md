@@ -1,6 +1,6 @@
 # Bridge contract version 2 for ask-codex: confinement, token detail and a corrected spec
 
-Status: In Progress
+Status: Completed
 Created: 2026-11-01
 Candidate: workbench-v1#bridge-confine-and-usage
 Specs: model-bridge, review-engine, action-review
