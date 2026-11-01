@@ -432,3 +432,46 @@ needed four releases besides the one planned for Increment E.
 
 **Not done:** the untracked shipped records of all these releases are not part of this commit; Increment E releases and commits them
 and removes the stale ones. The release check against the real program (Increment D) is not run.
+
+### Increment D
+
+**Done:** `docs/specs/model-bridge.md` has a new section, "Release check for untrusted text". It says who runs the check (the owner,
+with the installed program), the step that comes first (a call that starts no program shows whether the installed bridge is the
+contract version 2 helper), the five probes (a file in the working directory, one above it, one outside the project by absolute path,
+a shell command, a web fetch), the control run of each without `--confine`, the tool list, the verdict, and where runs are recorded.
+Run 1 is recorded there with the program version, the date, each probe in both modes and the tool list the program reported, which is
+now the expected list for `codex-cli` 0.163.0. The status of `--confine` in "Confinement" now says that this version passed.
+
+**Result of the run (2026-11-01, `codex-cli` 0.163.0):** the four file and shell probes found their token without `--confine` and not
+with it. The web probe was inconclusive on the first page (a Hacker News comment permalink: the control said the web tool could not
+access it) and conclusive on the second (a public GitHub issue: the control returned the title, the confined run replied `CANNOT`).
+The confined tool list names no shell tool and no web tool, and does name `apply_patch`, `view_image`, the MCP resource tools, agent
+functions, `functions.exec`, wait and sleep functions, a clock and user-input functions. No confined probe reached anything.
+
+**Deviations from the plan, both with the owner's word.** (1) The plan has the owner run the check. The owner's runs failed for
+reasons outside the bridge: the shell of the owner's session has no network (DNS did not resolve), and in the owner's terminal the
+program failed while starting its own client ("Operation not permitted"), with the normal environment and with the bridge's reduced
+one. The owner then allowed the agent to run the check through the agent's shell tool, where the program starts (the Codex reviews of
+this plan ran through the same route). About 15 harmless prompts with random canary tokens and no project content were sent. (2) My
+first web probe asked the model to fetch a page that returns the caller's address, which cannot work because the vendor's web tool
+runs on the vendor's side; the procedure now uses a page title the model cannot know. A script that makes the canaries and runs the
+probes was kept in the scratch directory only and is not part of the repository.
+
+**Verification as run:** `wb run code-work check` (76 plans) and `wb check` report no problems after the last edit; the scratch
+folder `rc` the check makes is gone; the added text names no path to an untracked file.
+
+**Limits:** one run per probe and mode; the probes were written and run by the agent that wrote the bridge, so they are not
+independent; a tool list is the model's own report; and the result holds for this version of the program only.
+
+**Not done in this increment:** the installed copies of the helpers under `.workbench/` were updated by the owner's `wb upgrade`
+and show as modified files and a modified manifest; they are committed in Increment E with the approvals.
+
+**Review:** one round by the read-only `reviewer` agent, no blocking finding. All of its points were applied to the spec: the
+normative text said an agent runs no call to the program, which Run 1 contradicted, and now says the owner may allow it; the
+procedure now gives the commands, the prompts and the rules for choosing the web page, and the shell probe no longer claims a random
+token; the verdict now says that any difference from the recorded list stops acceptance until the owner decides (the first run of a
+version has no list, and the owner decides); and the claim that the confined list "lists no shell tool" is now exact, because it does
+list `functions.exec`. That last point also showed that the accepted decision's list of what remains (an image viewer, a patch tool,
+MCP readers, agent starters) is a subset of what Run 1 recorded: it also holds the exec function, wait and sleep functions, a clock
+and user-input functions. The spec's "What remains" now names the exec function, and its limits are not shown. Left for the owner: whether
+that wider list is accepted as the decision accepted the narrower one.
