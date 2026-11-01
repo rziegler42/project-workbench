@@ -1,6 +1,6 @@
 # Endpoint records for a bridge to a server live in one owner file in the guarded store
 
-Status: Proposed
+Status: Accepted by Robert Ziegler <25854477+rziegler42@users.noreply.github.com> on 2026-11-01
 Date: 2026-11-01
 
 ## Context
@@ -143,8 +143,10 @@ Three facts bound the choice:
   store by the fixed path, through the kit's no-follow layer, because the kit has no store accessor; the harness denies the agent
   writes to the store and does not make it unreadable), `docs/specs/model-bridge.md` (guarantee 7 and the `--model` charset) and
   `workbench/store.py` (the location, the layout, and that `ensure` creates what is missing and changes nothing else).
-- The listing of the store root on 2026-11-01 (`ls -A ~/.config/project-workbench`): `bin cache level-log packages projects
-  settings settings.bak`. A file in the root is therefore normal.
+- The listing of the store root on 2026-11-01 (`ls -A ~/.config/project-workbench`, the system `ls` on macOS, Darwin 25.6.0, run
+  from zsh by an agent): `bin cache level-log packages projects settings settings.bak`. A file in the root is therefore normal. The
+  files named above were read with the agent's file reader, and the standard library and `inet_aton` measurements ran in the same
+  environment.
 - Measured on 2026-11-01 with Python 3.15.0 on macOS (two short runs, scripts not kept): `ipaddress.ip_address` refused `127.1`,
   `2130706433`, `0177.0.0.1`, `0x7f.1`, `0x7f.0x1`, `127.00.0.1`, `0`, `00`, `0x0` and `999.999.999.999`; `socket.inet_aton` read
   all of those except the last as an address (`127.0.0.1` for the first seven, `0.0.0.0` for `0`, `00` and `0x0`) and refused
