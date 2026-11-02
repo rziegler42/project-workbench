@@ -268,6 +268,27 @@ class Skill(unittest.TestCase):
                      "Nothing tracked points to anything untracked", "`Proposed`"):
             self.assertIn(word, text, word)
 
+    def test_the_skill_and_the_template_ask_for_the_check_that_fits_and_never_default_to_the_whole_suite(self):
+        # Plan 2026-11-02-verification-effort-guidance, increment A (docs/specs/verification-effort.md, "Plans").
+        text = " ".join(skill_text().split())
+        for phrase in ("Write the verification as the check that fits the work",
+                       "Do not default it to the whole suite", "a specific risk calls for it",
+                       "is rerun because a later change invalidated it",
+                       "An approved plan's verification line is run as written"):
+            self.assertIn(phrase, text, phrase)
+        template = neutral_tree()["skills/draft-plan/template.md"].decode()
+        flat_template = " ".join(template.split())
+        for phrase in ("**Verification:** the check that fits this increment",
+                       "the specific risk that calls for it", "still stands unless a later increment changed its inputs",
+                       "only what that change invalidated is rerun"):
+            self.assertIn(phrase, flat_template, phrase)
+        for gone in ("the checks that must pass", "What is run when every increment is done."):
+            self.assertNotIn(gone, template, gone)
+        self.assertNotIn("the whole suite", template)
+        for word in ("unittest", "pytest", "python", "`make", "makefile", "npm", "cargo", "verilator", "sby", "tests/",
+                     "src/"):
+            self.assertNotIn(word, skill_text() + template, word)
+
     def test_the_template_is_proposed_and_has_one_candidate_the_header_before_any_section(self):
         lines = neutral_tree()["skills/draft-plan/template.md"].decode().splitlines()
         self.assertTrue(lines[0].startswith("# "))

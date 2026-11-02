@@ -177,7 +177,19 @@ asks or an increment's risk calls for it; if one does, the agent recommends it w
 
 ## Review record
 
-Empty until a review is asked for.
+### Increment A
+
+Reviewer: the `reviewer` agent (read-only). Rounds: 1 of 3. Outcome: no blocking findings; seven non-blocking findings.
+
+- **Applied:** (1) the qualifier "ask again only if a later change alters how input reaches privileged use" is added to step 5 of
+  `run-increment`; (2) the rule to use a documented way of selecting the affected tests is added to `test-first`; (4) the spec's
+  acceptance criterion now says steps 4 and 5 of `run-increment`; (5) step 6 of `run-increment` now says to rerun the checks the fix
+  affects.
+- **Rejected:** (3) the reviewer did not read `test_codework_module.py`, which holds the runner and layout guard for `draft-plan` and its
+  template; (6) "This skill names no language or runner" in `test-first` is existing wording, out of this plan's scope.
+- **No action:** (7) the template's shorter wording is acceptable for a template.
+- **Left for the owner:** nothing open. The second round was not asked for: the fixes are wording, pinned by tests that failed before
+  and passed after.
 
 ## Deferred work
 
@@ -187,4 +199,27 @@ Empty until a review is asked for.
 
 ## Result
 
-Empty until work starts.
+### Increment A
+
+**Done, not committed:** the five texts (`test-first`, `verify-before-claiming`, `run-increment`, `draft-plan`, and the plan template) and the
+three test files of `packages/workbench/code-work/`, in two scripted passes (the owner's word "run the pass" each time, and the owner's
+`wb release-approvals` after each). A first pass wrote the guidance; the second applied review findings 1, 2 and 5. The spec
+`docs/specs/verification-effort.md` has one correction (finding 4).
+
+**Verification as run** (macOS, Python 3.15.0, `-I -B -W error`): the module's tests before any change: 340 ran, OK, 2 skipped. In each pass, the
+new tests ran first against the old text and failed (first pass: 4 tests, all on a missing phrase; second pass: 2 tests, on the three new
+phrases; no import or syntax error in either), then against the new text: 343 ran, OK, 2 skipped. After the second release the module's tests
+were run again: 343 ran, OK, 2 skipped. `wb verify packages/workbench` listed all 13 modules and no refusal; `wb check` reported no problems;
+`wb plan-status` still reads `approved`; `git status` shows only the 8 package paths and the spec changed.
+
+**Not run, and why:** the whole suite and the tests of other modules. The repo-level search for tests that name these skills found two
+(`mempalace` and `groundwork`), and each checks only that its own skill text does not name these skills, so no way for this change to break
+them could be named. `wb run code-work check` was run after this record was written: 80 plans, no problems.
+
+**Deviations and choices, for the owner:** (1) the two passes cost two releases; the second was for review findings. (2) Two new tests are
+guards that pass before and after by design (the text names no tool, language or layout, and `run-increment` does not mention the whole
+suite). A first version of one guard flagged the ordinary word "make", which the dry run caught; it now refuses only a command spelling.
+(3) The plan's wording puts "stop and recommend" in step 4 of `run-increment`; the skill has it in a new step 5, so later steps are
+renumbered, and no other file cites those numbers. (4) Two old phrases of `test-first` that pinned the text removed here were replaced in
+`test_codework_practice.py`, for the stated reason. (5) The release printed two warnings about stale shipped records
+(`670a75728168`, `67192317fbbb`); increment D removes them.

@@ -24,7 +24,14 @@ ALLOWED = {"wb plan-status <plan>", "wb settings", "wb run code-work check", "wb
 PHRASES = {
     "run-increment": (
         "`wb plan-status <plan>`", "stop unless it says `approved`", "the plan changed", "test first",
-        "run the verification the increment names", "report it as run", "`request-review`",
+        "run the verification the increment names, as written", "run the check that fits the work",
+        "stop and recommend it to the owner", "what specifically could break outside the tested area",
+        "is not a reason", "once per surface", "accepts the risk", "any recommendation the owner declined",
+        "what you did not run", "run it as written", "rerun only what a later change invalidated",
+        "recommend anything wider with a named reason",
+        "ask again only if a later change alters how input reaches privileged use",
+        "rerun the checks the fix affects",
+        "report it as run", "`request-review`",
         "`evaluate-findings`", "review is mandatory", "`wb settings`", "the round cap", "the same finding twice",
         "no reply", "the same failure twice", "## result", "the verdict is the owner's", "report and wait",
         "`wb run safe-git commit`", "`plan:` trailer", "never push", "never start the next increment"),
@@ -99,6 +106,16 @@ class Skills(unittest.TestCase):
     def test_a_text_is_short_enough_to_read_in_one_go(self):
         for name in SKILLS:
             self.assertLessEqual(len(text_of(name).splitlines()), 60, name)
+
+    def test_run_increment_names_no_language_runner_or_test_layout_and_never_defaults_to_the_whole_suite(self):
+        # Plan 2026-11-02-verification-effort-guidance, increment A: the guidance holds for any project.
+        text = text_of("run-increment")
+        # A guard: it passes before this plan too, and keeps the text free of a tool or layout. "make" as a word is
+        # ordinary English here ("before you make it pass"), so only a command spelling is refused.
+        for word in ("unittest", "pytest", "python", "`make", "makefile", "npm", "cargo", "verilator", "sby", "tests/",
+                     "src/"):
+            self.assertNotIn(word, text, word)
+        self.assertNotIn("the whole suite", flat("run-increment"))
 
     def test_the_only_commands_named_are_the_allowed_wb_commands_each_in_backticks(self):
         for name in SKILLS:

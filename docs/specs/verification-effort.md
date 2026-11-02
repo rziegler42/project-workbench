@@ -126,7 +126,7 @@ loop" and the plan template's "Verification for the plan as a whole"), and the t
 
 - `test-first` no longer sends the agent from the narrowest check to "the verification the plan names" as a matter of
   course; it states the rules under "What the agent runs without asking".
-- `run-increment` step 4 tells the agent to run the check that fits the increment, and to stop and recommend, with a
+- `run-increment` steps 4 and 5 tell the agent to run the check that fits the increment, and to stop and recommend, with a
   named reason, before a wider run or a security review.
 - `draft-plan` no longer defaults a verification line to the whole suite.
 - A recommendation made without a specific reason is not within the guidance; the skills say so and give a generic

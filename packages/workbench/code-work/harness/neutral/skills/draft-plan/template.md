@@ -34,12 +34,12 @@ What the plan relies on, and the limits it works within.
 **Affected areas:** the files and areas it changes.
 **Steps:**
 1. A numbered step.
-**Verification:** the checks that must pass.
+**Verification:** the check that fits this increment: the nearest tests and the tests of the area it changes. Name a wider run only with the specific risk that calls for it.
 **Evidence:** the one local commit, with the trailer `Plan: <plan stem>#A`.
 
 ## Verification for the plan as a whole
 
-What is run when every increment is done.
+What is confirmed and what is rerun when every increment is done: each increment's recorded verification still stands unless a later increment changed its inputs, and only what that change invalidated is rerun. A wider run is named only with the specific risk that calls for it.
 
 ## Risks and sensitive actions
 
