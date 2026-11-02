@@ -732,3 +732,29 @@ only.
 **Releases:** none in this increment.
 
 **Open for the owner:** the same four items as at the end of F, and the push of the local commits.
+
+### Increment H
+
+**Done:** the owner ran `wb acknowledge`, which found nothing to acknowledge, and `wb upgrade`, which completed. The upgrade
+installed the new module under `.workbench/workbench/ask-ollama/` (its helper and `module.json`) and changed
+`.workbench/manifest.json`: two new rows for those files, the new module in the package's module list, and new trees for the package
+and for `code-work` and `groundwork` (whose changes were in tests only, so no installed file of theirs changed).
+
+**Verification as run** (Python 3.15.0, macOS): every installed helper under `.workbench/workbench/` was hashed against the helper of
+the same module in `packages/workbench/`: 12 compared, 0 differences, among them the installed `ask-ollama`. The manifest's package
+tree (`d570ecc9…`) and the `ask-ollama` tree (`96e4b594…`) are those of `wb preview release-approvals`. `wb check` reports no problem.
+
+**Not done:** no engine was set to use `ask-ollama` (choosing a bridge is the owner's setting, and this plan did not change it). H is committed locally and is not pushed.
+
+**Push of A to G:** made after G on the owner's word (`origin/main` at `ceb4df7`), with the six findings of the credential check on
+the test certificates accepted by the owner. G's "nothing is pushed" was true when G was committed.
+
+**Review:** one read by the read-only `reviewer`: no blocking finding. Applied: the push is reported under its own line. The reviewer
+could not hash the helpers itself; the comparison above is the author's run. A security review was not asked for: the increment
+records an installation and changes no code.
+
+**Releases:** none.
+
+**Open for the owner:** whether to plan a size rule for the silent cut of an oversize prompt; whether the test certificates and keys
+should be generated at run time instead of kept (a new increment); the name `text-embedding` and the bounds chosen for `embed`; and
+whether `action-review` should pass `--confine`.
