@@ -2,10 +2,10 @@
 
 Status: Draft. Written by plan `2026-11-01-ask-ollama-bridge` (increment B), before the module existed, so that the module and its
 tests are built against this text. Increment C built the module for `ask` and `check` (against a fake server in its tests);
-increment D built the rules for the context window, a cut reply and thinking; increment E built the `embed` argument. No real server
-has been tried.
-Every statement about the Ollama server's own interface is listed under "Unconfirmed statements" and is confirmed or corrected by
-the owner's run against a real server (increment F of the plan). The spec stays `Draft` until the owner approves it.
+increment D built the rules for the context window, a cut reply and thinking; increment E built the `embed` argument. Increment F
+ran the bridge once against a real server (2026-11-02; section "The run against a real server").
+Every statement about the Ollama server's own interface is listed under "Unconfirmed statements" and tagged with what that run
+showed. The spec stays `Draft` until the owner approves it.
 
 Terms are in `terms.md`. The contract it satisfies is `model-bridge.md` (version 2), whose sections on a bridge to a server this
 spec fills in. The endpoint file is set by the accepted decision `2026-11-01-endpoint-records-in-the-store`; the contract by
@@ -43,7 +43,8 @@ conformance checklist.
 - The helper imports the standard library and `wbkit` only, and uses `http.client` for the connection and `ssl` for `https`. It
   reads no proxy variable and no other environment variable that affects the connection.
 - No test reaches a host other than one the test starts on the loopback address.
-- The Ollama interface is described from memory of its documentation. It is unconfirmed until increment F.
+- The Ollama interface was described from memory of its documentation and was then checked against one real server on
+  2026-11-02 (increment F). Section "The run against a real server" says what the run showed and did not show.
 - A number below that is this spec's own choice (a bound, a limit) says so. The bounds can be changed by editing this spec and the
   tests together.
 
@@ -63,8 +64,8 @@ conformance checklist.
 The capability name `text-embedding` is this spec's proposal. Like `model-bridge`, it is the owner's to confirm. It has no prefix, so
 only the first-party package may provide it: the verifier accepts the module's declaration from the first-party package and refuses
 the name from any other (shown by the module's tests). The module provides both `model-bridge` and `text-embedding`, and a caller
-asks for an embedding as `wb run --provides text-embedding ask-ollama embed`. That launcher path is not run by the module's tests;
-the owner's run (increment F) is the first to use it.
+asks for an embedding as `wb run --provides text-embedding ask-ollama embed`. That launcher path is not run by the module's tests,
+and the run of increment F called the command as `wb run ask-ollama embed`, so the `--provides` route is still not exercised.
 
 ### The endpoint file
 
@@ -132,11 +133,12 @@ never returned, never put in a message and never counted as the reply [unconfirm
 
 - **The window.** When the record has `context`, the request sets `options.num_ctx` to it. When it has none, the request leaves the
   server's own window, and the bridge makes no overflow check, because it does not know the window. The spec states this because
-  the server's default window is small and a long prompt may be cut silently. [unconfirmed 6]
+  a long prompt may be cut silently, and the run shows that the server does so (corrected 6).
 - **A prompt that does not fit.** When the record has `context` and `prompt_eval_count` is at least `context`, the prompt was
   filled to the window and may have been cut. The call is `vendor_error` with `context_overflow`, not retryable, and no reply is
   returned. If the reply carries no `prompt_eval_count`, the check cannot run and does not; the spec states that rather than
-  implying it. [unconfirmed 6]
+  implying it. **Against the server of the run this check does not fire for a prompt that is cut:** that server cut the prompt and
+  reported about half the window (see "Known limits"). The check is shown only against the fake server, which reports the window.
 - **A reply that was cut.** When `done_reason` is `length`, the server stopped at a limit. The call is `vendor_error` with
   `reply_cut`, not retryable, even if some text came back.
 - **A thinking model.** A model that reasons may spend its limit in its reasoning and return an empty `message.content`. When the
@@ -157,8 +159,8 @@ route, a name that does not resolve, and a connection that is not made within it
 
 **Matching the server's error text.** An error status comes with a body. The bridge takes it as strict JSON of one object with a
 string `error` and matches that string in lower case by substring, only to choose a row: "not found" in a 404; "think" in a 400;
-"format" or "schema" in a 400. For `embed` the words are "not found" in a 404 and "input length", "context length" or "too long" in
-a 400 (section "`embed`"). A body that is not of that shape is not matched and the status falls to the `bad_exit` row. The text
+"format" or "schema" in a 400. For `embed` the words are "not found" in a 404, "does not support embeddings" in a 501 and "input length", "context length" or
+"too long" in a 400 (section "`embed`"). A body that is not of that shape is not matched and the status falls to the `bad_exit` row. The text
 is never copied into the object. [unconfirmed 13]
 
 **When several conditions hold**, one rule decides. A body over its bound is `reply_too_large`, whatever the status. For a status
@@ -268,9 +270,11 @@ address. The warning lines are what the contract decision calls the diagnostic.
   produced), and the same rows of the table of errors, with these differences. A status 400 whose error, in lower case, holds
   "input length", "context length" or "too long" is `vendor_error` with `context_overflow`, not retryable, with the message "the
   input does not fit the context window"; any other 400 is `bad_exit` (the thinking and format rows do not apply to an embedding);
-  a 404 whose error holds "not found" is `model_unavailable`, as for `ask`, and any other 404 is `bad_exit`. A model that is not an
-  embedding model, or a count of vectors different from the count of texts, is `vendor_error` with `unusable_reply`. The server's
-  words are matched only to choose a row and are never copied. [unconfirmed 9, 10, 14]
+  a 404 whose error holds "not found" is `model_unavailable`, as for `ask`, and any other 404 is `bad_exit`. A status 501 whose
+  error, in lower case, holds "does not support embeddings" (a chat model sent to `/api/embed`) is `model_unavailable` with the
+  message "the model cannot produce embeddings"; any other 501 is `bad_exit`. A model whose reply holds no usable vectors, or a
+  count of vectors different from the count of texts, is `vendor_error` with `unusable_reply`. The server's
+  words are matched only to choose a row and are never copied. [confirmed 9, 14 in part; corrected 10]
 - **Checks on the reply, and their order.** The chat-only checks of `ask` (`done`, the window, the cut reply and the content) do
   not apply to an embedding reply, which has none of those fields. A body over its bound is `reply_too_large`, whatever the status.
   For a status outside 200 to 299 the status rows apply, with the matching rule and the differences above. For a status from 200
@@ -285,7 +289,7 @@ address. The warning lines are what the contract decision calls the diagnostic.
   most three times the input in the worst case (a four-byte character on input is twelve bytes of escapes), so it is under the
   request bound of "Transport" for any valid input.
 - **The caller batches.** The bridge never splits or merges a batch. The caller chooses a batch it knows will fit. As an estimate
-  that increment F measures: a server that prints each number of a 1,024-number vector in about 12 characters gives about 12 KB
+  that no run has measured yet: a server that prints each number of a 1,024-number vector in about 12 characters gives about 12 KB
   per vector, so a batch of 100 prints to about 1.2 MB, inside the bound; longer numbers or larger vectors can pass it, and the
   call is then `reply_too_large`. [unconfirmed 15]
 
@@ -323,39 +327,64 @@ the request line, headers and body, shows each item. No item needs a real Ollama
 10. `embed`: the input rules, the request, the output shape, the checks on the reply and the size bound as above.
 11. The project and the store are byte for byte the same after every call.
 
+## The run against a real server
+
+Provenance: run on 2026-11-02 by the agent on the owner's word, through `wb run ask-ollama`, with the bridge as committed at
+`dfc860e`, against one Ollama server of version 0.35.1 on the owner's network, over plain `http` (the cleartext warning of `check`
+printed). The record named the models below; the host is not recorded here. Models on the server: the chat models `phi4:latest`,
+`gemma4:12b`, `qwen2.5-coder:7b`, `qwen2.5-coder:14b`, `qwen3-coder:latest` and `freehuntx/qwen3-coder:14b`; the reasoning model
+`gpt-oss:20b`; the embedding models `nomic-embed-text:latest` (768 values) and `bge-m3:latest` (1024 values).
+
+| Case | Result |
+|---|---|
+| Plain prompt, `phi4:latest` | success; a reply and a count of input and output tokens |
+| `--schema` (an object with one integer) | success; the reply was one JSON object of that shape |
+| A model the server does not have | `model_unavailable` |
+| `gpt-oss:20b` without and with `--effort low` | success both times; fewer output tokens with `low` |
+| `phi4:latest` with `--effort low` | `effort_unsupported` |
+| Prompt of about 11,000 tokens, `phi4:latest` | success, cut silently: see "Known limits" |
+| Embedding batch of 2, and of 100, `nomic-embed-text:latest` | success; 768 values each; 100 vectors for 100 texts |
+| Embedding with `bge-m3:latest` | success; 1024 values |
+| Embedding with `phi4:latest` | status 501, now `model_unavailable` "the model cannot produce embeddings" (was `bad_exit`) |
+| One text of 30,000 bytes, `nomic-embed-text:latest` | status 400, `context_overflow` |
+
+Not run: a server switched off (the run cannot switch the owner's server off), and a reply cut at the limit (it cannot be caused
+reliably). The fake-server tests are the proof for both.
+
 ## Unconfirmed statements
 
-These come from memory of the Ollama documentation and are not shown by any test, since the tests use a fake server. The owner's run
-(increment F) confirms or corrects each. A correction is made in this spec and the module with a test that fails before it.
+These came from memory of the Ollama documentation. Each is tagged with what the run of 2026-11-02 (section above) showed:
+**confirmed**, **corrected** (the statement was wrong and the text above is the corrected one) or **not shown** (the run did not
+reach it; the tests use a fake server and the statement stays unconfirmed).
 
-1. `POST /api/chat` with `stream` false returns one JSON object with `message.content`, `model`, `done`, `done_reason`,
+1. `POST /api/chat` with `stream` false returns one JSON object with `message.content`, `model`, `done`, `done_reason`, **[confirmed for all but `done_reason`, which the printed objects do not show (see 7)]**
    `prompt_eval_count` and `eval_count`.
-2. The request fields `model`, `messages`, `stream`, `options.num_ctx`, `format` and `think` have the meanings used above.
-3. `format` accepts a JSON Schema object, and the reply then is one JSON object.
-4. `think` accepts `low`, `medium` and `high` for a model that has levels, and a model without them rejects it with a status 400 whose
+2. The request fields `model`, `messages`, `stream`, `options.num_ctx`, `format` and `think` have the meanings used above. **[confirmed]**
+3. `format` accepts a JSON Schema object, and the reply then is one JSON object. **[confirmed]**
+4. `think` accepts `low`, `medium` and `high` for a model that has levels, and a model without them rejects it with a status 400 whose **[confirmed for `gpt-oss:20b` with `low`; the refusal text of a model without levels was shown only as `effort_unsupported`; the boolean case is not shown]**
    error says the model does not support thinking. A model with only on and off may need a boolean; if so, the mapping of
    `--effort` for such a model is decided in the run.
-5. A model that is not on the server gives a status 404 whose error says the model is not found.
-6. The server's default context window is small, a prompt longer than the window is cut without an error, and when `num_ctx` is set
+5. A model that is not on the server gives a status 404 whose error says the model is not found. **[confirmed]**
+6. The server's default context window is small, a prompt longer than the window is cut without an error, and when `num_ctx` is set **[corrected: the server cut a prompt that did not fit without an error, but with `num_ctx` set it reported about half the window plus 2 as `prompt_eval_count`, not the window; the unset default was not read]**
    and the prompt is longer than it, `prompt_eval_count` reaches `num_ctx`. The reply also always carries `prompt_eval_count`.
-7. `done_reason` is `length` when the reply was stopped at a limit.
-8. A reasoning model can return an empty `message.content` with its thinking in `message.thinking`.
-9. `POST /api/embed` with `model`, `input` (a list) and `truncate` returns `embeddings`, a list of vectors in the order of the input,
+7. `done_reason` is `length` when the reply was stopped at a limit. **[not shown]**
+8. A reasoning model can return an empty `message.content` with its thinking in `message.thinking`. **[not shown; `gpt-oss:20b` returned its reply in `message.content` for the prompts tried]**
+9. `POST /api/embed` with `model`, `input` (a list) and `truncate` returns `embeddings`, a list of vectors in the order of the input, **[confirmed for the order, the count and the dimension; `truncate` false confirmed by the 400 below]**
    and `prompt_eval_count`; with `truncate` false a text longer than the window is an error.
-10. A chat model sent to `/api/embed` gives an error or a result the checks refuse.
+10. A chat model sent to `/api/embed` gives an error or a result the checks refuse. **[corrected: the server answers 501 with an error, which is now `model_unavailable`]**
 11. Resolved on 2026-11-01 (a workbench fact, not an Ollama one): the verifier refuses two commands of one module that name the same
     helper (`workbench/declarations.py`: "two commands name the helper"). The embedding is an argument of the one command.
 12. The context built from `openssl_cafile` and `openssl_capath` verifies a certificate chain and a host name on the owner's machine
     with the machine's default bundle, and ignores `SSL_CERT_FILE` and `SSL_CERT_DIR` (a Python and OpenSSL fact, shown by the
     bridge's own test, and measured once on 2026-11-01 for `get_default_verify_paths`).
-13. An error status carries a body that is one JSON object with a string `error`, and the words matched in section "Errors"
+13. An error status carries a body that is one JSON object with a string `error`, and the words matched in section "Errors" **[confirmed for the missing model, the thinking error (a 400 with "think" in it gave `effort_unsupported`), the embedding 400 and the 501; not shown for the format and schema errors]**
     ("not found", "think", "format", "schema") appear in the error for a missing model, an unsupported thinking setting and a bad
     format.
-14. `/api/embed` honours `options.num_ctx`, returns the `model` it used, answers 404 for an embedding model that is not present, and
+14. `/api/embed` honours `options.num_ctx`, returns the `model` it used, answers 404 for an embedding model that is not present, and **[the 400 about the input length confirmed ("the input length exceeds the context length"); `num_ctx` for an embedding, and the 404 for a missing embedding model, not shown]**
     answers 400 with an error about the input length when `truncate` is false and a text is too long. The bridge recognizes that
     error by "input length", "context length" or "too long" in it (the first two from memory of the server's wording, "the input
     length exceeds the context length"); a different wording is `bad_exit` until the run corrects the words.
-15. The size of a batch of embeddings, as printed, is close to the estimate in section "embed".
+15. The size of a batch of embeddings, as printed, is close to the estimate in section "embed". **[not shown; no size was measured]**
 
 ## Known limits
 
@@ -363,12 +392,17 @@ Left as they are, each with its reason. Most were found by the security review o
 increment D and its review, and the one on embedding replies from increment E:
 
 - **Without `context` in the record a prompt cut by the server's own window is not detected.** The bridge does not know the window
-  then, and the server's default is small [unconfirmed 6]. With `context`, the check is "at least the window", so a prompt that
+  then, and a real server cut such a prompt without an error (corrected 6). With `context`, the check is "at least the window", so a prompt that
   fills the window exactly is reported as an overflow whether or not anything was cut. (Increment C had neither this check nor
   `reply_cut` and returned both cases as a success; increment D built them.)
-- **A server that caches the prompt or counts it differently may report a `prompt_eval_count` below the window for a prompt that
-  was cut,** and that prompt passes unreported. Whether a real server does is unconfirmed 6 and is settled only by the owner's run
-  (increment F). A record whose `context` is 1 makes every reply with a count of one or more an overflow, by the same rule.
+- **A server that cuts a prompt can report a `prompt_eval_count` far below the window, so the check for a prompt that does not fit
+  does not see it.** Measured on 2026-11-02 against Ollama 0.35.1 with `phi4:latest` and the same prompt of about 11,000 tokens:
+  with no `context` the count was 8194; with `context` 8192 (sent as `num_ctx`, the loaded window read as 8192) it was 4098; with
+  `context` 4096 it was 2050. Each cut prompt was answered as a success. The count is about half the window plus 2 once the prompt
+  is cut, so "at least `context`" never holds for it, and a prompt between half the window and the whole window is not told
+  apart from a cut one by the count alone. Corrected 6. The bridge does not count the tokens of a prompt itself; a caller that
+  must not lose the start of a prompt keeps it well under the window. A record whose `context` is 1 makes every reply with a
+  count of one or more an overflow, by the same rule.
 - **A name lookup that is stuck in the system's resolver may not end at the timeout, or at all** ("Transport"): the alarm is handled
   between Python instructions and cannot run inside the resolver's call. An IP literal does no lookup.
 - **A connection that fails while the request is being sent** (a broken pipe or a reset) is `vendor_unreachable` even if the server
@@ -409,7 +443,8 @@ increment D and its review, and the one on embedding replies from increment E:
 
 - Every item of the checklist above is shown by a test against a fake server, and the module passes `wb verify`.
 - The owner has run the bridge against a real server and the result is recorded here with the server's version and the date, with no
-  host in it, and the list of unconfirmed statements is empty or each remaining one says why.
+  host in it, and the list of unconfirmed statements is empty or each remaining one says why. (Done on 2026-11-02: each statement
+  carries its tag, and the ones not shown say why.)
 - The owner has approved this spec, which makes it `Current`.
 
 ## Governing decisions and references
@@ -421,4 +456,5 @@ increment D and its review, and the one on embedding replies from increment E:
   [2026-10-20-fixed-store-location](../decisions/2026-10-20-fixed-store-location.md).
 - Specs: `model-bridge.md` (the contract), `module-contract.md`, `module-boundary.md`, `terms.md`.
 - Plan: `docs/plans/2026-11-01-ask-ollama-bridge.md`.
-- References: none. The Ollama interface is described from memory and is listed above as unconfirmed.
+- References: none. The Ollama interface was described from memory and checked on one server on 2026-11-02; the statements the
+  run did not reach are tagged "not shown" above.

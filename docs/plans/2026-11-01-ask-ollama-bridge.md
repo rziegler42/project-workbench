@@ -658,3 +658,47 @@ are untracked and stay out of the commit until increment G; the stale approval r
 **Open for the owner:** the name `text-embedding`; the bounds chosen for `embed` (100 texts of 32 KB, an input of 262,144 bytes, a
 dimension of 8,192, 16 MiB of response, an object of 2,000,000 bytes); and whether to test from your terminal that the Ollama server
 is reachable before F.
+
+### Increment F
+
+**Done:** the bridge was run on 2026-11-02, on the owner's word and by the agent through `wb run ask-ollama`, against one Ollama
+server (version 0.35.1) on the owner's network over plain `http`. The results are in `ask-ollama.md`, section "The run against a real
+server", without the host; each of the statements 1 to 15 carries a tag (confirmed, corrected or not shown). Corrections found:
+(6) a prompt that does not fit is cut without an error and the server reports about half the window plus 2 as `prompt_eval_count`
+(8194, 4098 and 2050 for the window unset, 8192 and 4096), so the check "at least `context`" does not fire on that server; the spec
+now says so in "The window" and "Known limits", and the helper is unchanged because no rule on the count separates a cut prompt from
+a long one that fits; (10) a chat model sent to `/api/embed` gets status 501 "does not support embeddings", which the helper now
+reports as `model_unavailable` with the message "the model cannot produce embeddings" (it was `bad_exit`). Confirmed: the plain
+prompt, `--schema`, the missing model (404), `--effort low` on `gpt-oss:20b`, `effort_unsupported` for `phi4:latest`, embedding
+batches of 2 and 100 (768 values) and `bge-m3` (1024 values), and the 400 for a text over the embedding window. The three tightenings
+deferred from E went in: the port-absent check looks only in failure objects, the 200-deep case is renamed as a crash guard, and
+the 4,300-digit rule is pinned as it is (a run of more than 4,300 digits is refused even in a text, 4,300 is accepted); the
+`terms.md` and `module-contract.md` test now checks that both say the owner has not confirmed the name.
+
+**Deviation from the plan:** the owner did not run the cases; the agent did, after the owner wrote `endpoints.json`, ran
+`wb acknowledge` and `wb add`, because the agent's shell tool reaches the server. `--schema` had to sit inside the project, so a
+throwaway schema file was written under the ignored folder `.workbench/local/` (untracked; it remains until the owner says it may be
+removed). `wb upgrade` was not needed, since `wb add` installed the module.
+
+**Verification as run** (Python 3.15.0, macOS): before the correction the new 501 test failed against the old helper; after the first
+pass 222 of 223 module tests passed, the one failure being my own test of the 4,300-digit rule (wrong premise: the rule applies inside
+a text); after the second pass all 223 pass. The whole suite, `python3 -B -W error tests/run_all.py`: 6,548 tests in 14 roots, OK.
+`wb verify packages/workbench`, `wb check` and `wb run code-work check` report no problems.
+
+**Not run:** a server switched off (the agent cannot switch off the owner's server) and a reply cut at the limit (it cannot be
+caused reliably); the fake-server tests are the proof of both. Statements 4 (the boolean case), 7, 8, 13 (thinking and format
+errors), 14 (`num_ctx` for an embedding, a missing embedding model) and 15 stay unconfirmed and are tagged as such.
+
+**Review:** one read by the read-only `reviewer`: no blocking finding. Applied (spec only): the header and two sentences that still
+spoke of the run as future; the statement 1 tag (everything but `done_reason` is shown), the statement 13 tag (the thinking error is
+shown through `effort_unsupported`; the format and schema errors are not), the 501 words in "Matching the server's error text", and
+the estimate in "embed" now says no run has measured it. The `--provides text-embedding` route was not used by the run (the cases
+called `wb run ask-ollama embed`) and the spec says so. Not applied: the reviewer's note that the Result omits the switched-off server
+(it is under "Not run"); an optional test that a 400 or 404 carrying the 501 text stays on its own row (the order of the rules
+makes it so). A security review was not asked for: the change adds one status row and moves no boundary.
+
+**Releases:** two of `wb release-approvals` by the owner in this increment (after the first pass and after the second).
+
+**Open for the owner:** whether the silent cut is worth a later plan (counting the tokens of a prompt ahead of the call, or a
+conservative size rule), because the bridge cannot see it; whether `.workbench/manifest.json`, which `wb add` changed, goes in this
+commit; and whether the throwaway file under `.workbench/local/` may be removed.

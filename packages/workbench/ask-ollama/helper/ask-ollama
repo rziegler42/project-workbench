@@ -85,6 +85,7 @@ MESSAGES = {
     "context_overflow": "the prompt does not fit the context window",
     "reply_cut": "the server stopped the reply at its length limit",
     "input_overflow": "the input does not fit the context window",
+    "not_an_embedder": "the model cannot produce embeddings",
 }
 
 
@@ -757,6 +758,8 @@ def embed_error_for(status, body):
     text = text.lower() if isinstance(text, str) else ""
     if status == 404 and "not found" in text:
         return failure("model_unavailable", message=MESSAGES["model_unavailable"], contract=EMBED_CONTRACT)
+    if status == 501 and "does not support embeddings" in text:
+        return failure("model_unavailable", message=MESSAGES["not_an_embedder"], contract=EMBED_CONTRACT)
     if status == 400 and ("input length" in text or "context length" in text or "too long" in text):
         return failure("vendor_error", "context_overflow", MESSAGES["input_overflow"], contract=EMBED_CONTRACT)
     return failure("vendor_error", "bad_exit", MESSAGES["bad_exit"], contract=EMBED_CONTRACT)

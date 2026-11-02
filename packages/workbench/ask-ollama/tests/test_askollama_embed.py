@@ -42,7 +42,8 @@ class Embed(support_ollama.Bridge):
         self.assertEqual(code, 0 if document["ok"] else 1)
         self.assertEqual((1, "ollama"), (document["contract"], document["vendor"]))
         self.assertNotIn("127.0.0.1", out)
-        self.assertNotIn(str(self.fake.port), out)
+        if not document["ok"]:  # a success holds digits that may spell the port by chance
+            self.assertNotIn(str(self.fake.port), out)
         return document
 
     def bad(self, *args, error, detail=None, retryable=False, **kwargs):
@@ -195,9 +196,14 @@ class Input(Embed):
         self.assertTrue(self.result(raw=body + b" " * (262144 - len(body)))["ok"])
         self.refused_embed(raw=body + b" " * (262145 - len(body)), contains="larger than")
 
-    def test_a_deep_or_hostile_document_is_refused(self):
+    def test_a_deeply_nested_document_is_refused_and_does_not_crash(self):
         self.refused_embed(raw=b'{"texts": ' + b"[" * 200 + b"]" * 200 + b"}")
-        self.refused_embed(raw=b'{"texts": ["a"], "x": ' + b"9" * 4301 + b"}")
+
+    def test_a_run_of_more_than_4300_digits_is_refused_even_inside_a_text(self):
+        # The parser's own bound on a whole number applies to the document; the spec lists it among the known limits.
+        self.fake.reply(embedding(grid(1, 2)))
+        self.assertTrue(self.result(texts=["9" * 4300])["ok"])
+        self.refused_embed(texts=["9" * 4301], contains="strict JSON")
 
     def test_nothing_is_echoed_in_a_refusal(self):
         err = self.refused_embed(raw=b'{"texts": ["SECRET-TEXT", 5]}')
@@ -347,6 +353,14 @@ class Errors(Embed):
         document = self.bad(error="model_unavailable")
         self.assertEqual("the server does not have the model", document["message"])
         self.assertNotIn("nomic", json.dumps(document))
+
+    def test_a_model_that_cannot_embed_is_model_unavailable_with_its_own_message(self):
+        # Read from a real server (version 0.35.1): a chat model on /api/embed answers 501 with this text.
+        self.fake.reply({"error": "This server does not support embeddings. Start it with `--embeddings`"}, status=501)
+        document = self.bad(error="model_unavailable")
+        self.assertEqual("the model cannot produce embeddings", document["message"])
+        self.fake.reply({"error": "something else"}, status=501)
+        self.bad(error="vendor_error", detail="bad_exit")
 
     def test_a_text_too_long_for_the_model_is_context_overflow_and_nothing_is_returned(self):
         for text in ("the input length exceeds the context length", "Input is TOO LONG for this model",

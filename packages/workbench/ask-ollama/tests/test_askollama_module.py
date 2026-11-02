@@ -141,7 +141,12 @@ class Capability(unittest.TestCase):
             self.assertIn("`text-embedding`", text, name)
         with open(os.path.join(ROOT, "docs", "specs", "terms.md"), encoding="utf-8") as handle:
             terms = handle.read()
-        self.assertIn("ask-ollama.md", terms[terms.index("text-embedding"):])
+        entry = terms[terms.index("text-embedding"):]
+        self.assertIn("ask-ollama.md", entry)
+        self.assertIn("the owner has not confirmed it", " ".join(entry.split("\n\n")[0].split()))
+        with open(os.path.join(ROOT, "docs", "specs", "module-contract.md"), encoding="utf-8") as handle:
+            contract = " ".join(handle.read().split())
+        self.assertIn("the owner has not yet confirmed the names `model-bridge` and `text-embedding`", contract)
 
 
 if __name__ == "__main__":
