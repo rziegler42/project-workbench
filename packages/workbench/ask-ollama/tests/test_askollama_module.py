@@ -5,9 +5,12 @@ contain (checklist item 1 of `docs/specs/model-bridge.md` and `docs/specs/ask-ol
 import json
 import os
 import re
+import shutil
+import tempfile
 import unittest
 
 from tests import support_install
+from workbench import verify
 
 ROOT = support_install.ROOT
 PACKAGE = os.path.join(ROOT, "packages", "workbench")
@@ -26,14 +29,14 @@ def helper_text():
 
 
 class Declaration(unittest.TestCase):
-    def test_it_is_a_bridge_with_one_helper_and_one_command(self):
+    def test_it_is_a_bridge_and_an_embedder_with_one_helper_and_one_command(self):
         fields = declaration()
-        self.assertEqual(("ask-ollama", "module", ["model-bridge"], [HELPER]),
+        self.assertEqual(("ask-ollama", "module", ["model-bridge", "text-embedding"], [HELPER]),
                          (fields["name"], fields["type"], fields["provides"], fields["ships"]))
         for absent in ("requires", "fills", "writes", "slots", "checks"):
             self.assertNotIn(absent, fields)
-        self.assertEqual({"ask-ollama": {"helper": HELPER, "runtime": "python", "kit": 1, "arguments": ["ask", "check"]}},
-                         fields["commands"])
+        self.assertEqual({"ask-ollama": {"helper": HELPER, "runtime": "python", "kit": 1,
+                                         "arguments": ["ask", "check", "embed"]}}, fields["commands"])
 
     def test_it_asks_before_the_agent_reads_the_endpoint_file(self):
         self.assertEqual(["~/.config/project-workbench/endpoints.json"], declaration()["ask_reads"])
@@ -97,6 +100,48 @@ class Helper(unittest.TestCase):
         self.assertIn("CONTRACT = 2", text)
         self.assertIn('USER_AGENT = "ask-ollama/1"', text)
         self.assertIn('CHAT_PATH = "/api/chat"', text)
+        self.assertIn("EMBED_CONTRACT = 1", text)
+        self.assertIn('EMBED_PATH = "/api/embed"', text)
+
+
+class Capability(unittest.TestCase):
+    """The capability `text-embedding` has no prefix, so only the first-party package may provide it (plan
+    `2026-11-01-ask-ollama-bridge`, increment E, step 3)."""
+
+    def test_the_verifier_accepts_the_module_with_the_name_from_the_first_party_package(self):
+        result = verify.verify_package(PACKAGE, select=["ask-ollama"], first_party=True, harness_required=False)
+        self.assertTrue(result.accepted, [str(problem) for problem in result.problems])
+
+    def test_the_verifier_refuses_the_name_from_any_other_package(self):
+        # The verifier reports the first unprefixed name of a module, so the copy provides this one name only.
+        with tempfile.TemporaryDirectory() as holder:
+            package = os.path.join(holder, "other")
+            os.makedirs(package)
+            with open(os.path.join(package, "package.json"), "w", encoding="utf-8") as handle:
+                json.dump({"name": "other", "version": "0.1.0", "contract": 1, "modules": ["ask-ollama"]}, handle)
+            shutil.copytree(MODULE, os.path.join(package, "ask-ollama"), ignore=shutil.ignore_patterns("tests", "__pycache__"))
+            path = os.path.join(package, "ask-ollama", "module.json")
+            with open(path, encoding="utf-8") as handle:
+                fields = json.load(handle)
+            fields["provides"] = ["text-embedding"]
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump(fields, handle)
+            result = verify.verify_package(package, harness_required=False)
+            accepted_as_first_party = verify.verify_package(package, harness_required=False, first_party=True)
+        self.assertFalse(result.accepted)
+        text = " ".join(str(problem) for problem in result.problems)
+        self.assertIn("'text-embedding'", text)
+        self.assertIn("reserved for the first-party package", text)
+        self.assertTrue(accepted_as_first_party.accepted, [str(p) for p in accepted_as_first_party.problems])
+
+    def test_the_name_is_defined_in_the_terms_and_the_module_contract_as_the_owners_to_confirm(self):
+        for name in ("terms.md", "module-contract.md"):
+            with open(os.path.join(ROOT, "docs", "specs", name), encoding="utf-8") as handle:
+                text = handle.read()
+            self.assertIn("`text-embedding`", text, name)
+        with open(os.path.join(ROOT, "docs", "specs", "terms.md"), encoding="utf-8") as handle:
+            terms = handle.read()
+        self.assertIn("ask-ollama.md", terms[terms.index("text-embedding"):])
 
 
 if __name__ == "__main__":

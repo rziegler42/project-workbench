@@ -7,6 +7,8 @@ private copy of it through the kit runner with nothing beside it.
     ask-ollama ask [--model <name>] [--effort <level>] [--timeout <seconds>] [--root <path>]
                    [--schema <path>] [--server <name>] [--confine]      the prompt is on standard input
     ask-ollama check                                                   read-only: the endpoint file, no connection
+    ask-ollama embed [--model <name>] [--server <name>] [--timeout <seconds>] [--confine]
+                                              one JSON object ``{"texts": [...]}`` on standard input; vectors out
 
 The contract is ``docs/specs/model-bridge.md`` (version 2) and the behaviour is ``docs/specs/ask-ollama.md``. The
 server is a named record of ``endpoints.json`` in the guarded store (decision ``2026-11-01-endpoint-records-in-the-store``),
@@ -47,11 +49,19 @@ MAX_COUNT = 10 ** 12
 MAX_DEPTH = 32
 CONNECT_LIMIT = 10
 DEFAULT_TIMEOUT = 600
+EMBED_CONTRACT = 1  # the version of the embedding contract of docs/specs/ask-ollama.md, apart from the bridge contract
+MAX_INPUT = 262144  # the JSON object of texts on standard input
+MAX_TEXTS = 100
+MAX_TEXT = 32768
+MAX_DIMENSION = 8192
+MAX_EMBED_BODY = 16777216
 EFFORTS = ("low", "medium", "high")
 OPTIONS = ("--model", "--effort", "--timeout", "--root", "--schema", "--server")
+EMBED_OPTIONS = ("--model", "--timeout", "--server")
 FLAGS = ("--confine",)  # an option with no value
 USER_AGENT = "ask-ollama/1"
 CHAT_PATH = "/api/chat"
+EMBED_PATH = "/api/embed"
 ENDPOINT_FILE = "endpoints.json"
 _SECONDS = r"[0-9]{1,4}"
 _NAME = r"[a-z0-9][a-z0-9_-]{0,31}"
@@ -74,6 +84,7 @@ MESSAGES = {
     "reply_too_large": "the server returned more than the bridge accepts",
     "context_overflow": "the prompt does not fit the context window",
     "reply_cut": "the server stopped the reply at its length limit",
+    "input_overflow": "the input does not fit the context window",
 }
 
 
@@ -145,22 +156,27 @@ def _check_text(item):
 
 def _check_depth(value):
     """Raise ValueError when `value` is nested deeper than `MAX_DEPTH` or holds a string with a lone surrogate. Iterative, so a
-    hostile document cannot exhaust the stack here."""
+    hostile document cannot exhaust the stack here, and only a list or an object is put on the stack, so that a list of millions
+    of numbers (an embedding reply) costs no memory beyond itself."""
+    if not isinstance(value, (dict, list)):
+        _check_text(value)
+        return
     stack = [(value, 1)]
     while stack:
         item, depth = stack.pop()
-        if isinstance(item, (dict, list)):
-            if depth > MAX_DEPTH:
-                raise ValueError("nested too deeply")
-            if isinstance(item, dict):
-                for key in item:
-                    _check_text(key)
-                children = item.values()
-            else:
-                children = item
-            stack.extend((child, depth + 1) for child in children)
+        if depth > MAX_DEPTH:
+            raise ValueError("nested too deeply")
+        if isinstance(item, dict):
+            for key in item:
+                _check_text(key)
+            children = item.values()
         else:
-            _check_text(item)
+            children = item
+        for child in children:
+            if isinstance(child, (dict, list)):
+                stack.append((child, depth + 1))
+            else:
+                _check_text(child)
 
 
 def parse_json(data):
@@ -383,15 +399,15 @@ def select_record(records, default, server):
 # --------------------------------------------------------------------------------------- options and paths
 
 
-def parse_options(args):
+def parse_options(args, options=OPTIONS, command="ask"):
     """``{option: value}`` for the options in `args`, and ``True`` for a flag: each at most once, each option with a
-    value, nothing else."""
+    value, nothing else. Only the `options` of `command` (and the flags) are known."""
     found = {}
     position = 0
     while position < len(args):
         name = args[position]
-        if name not in OPTIONS and name not in FLAGS:
-            raise Refused("%s is not an option of ask" % display.ascii_text(name)[:60])
+        if name not in options and name not in FLAGS:
+            raise Refused("%s is not an option of %s" % (display.ascii_text(name)[:60], command))
         if name in found:
             raise Refused("%s is given twice" % name)
         if name in FLAGS:
@@ -592,9 +608,21 @@ def exchange(record, path, payload, timeout, limit):
 # ----------------------------------------------------------------------------------------- the object
 
 
-def failure(error, detail=None, message=None, retryable=False):
-    return {"contract": CONTRACT, "ok": False, "vendor": VENDOR, "error": error, "detail": detail,
+def failure(error, detail=None, message=None, retryable=False, contract=CONTRACT):
+    return {"contract": contract, "ok": False, "vendor": VENDOR, "error": error, "detail": detail,
             "retryable": retryable, "message": message}
+
+
+def transport_failure(exc, contract=CONTRACT):
+    """The failure object for what `exchange` raised: the same for ``ask`` and ``embed``, in the contract of the command."""
+    if isinstance(exc, Unreachable):
+        message = MESSAGES["certificate"] if exc.certificate else MESSAGES["unreachable"]
+        return failure("vendor_unreachable", None, message, retryable=not exc.certificate, contract=contract)
+    if isinstance(exc, TimedOut):
+        return failure("timeout", None, MESSAGES["timeout"], retryable=True, contract=contract)
+    if isinstance(exc, TooLarge):
+        return failure("vendor_error", "reply_too_large", MESSAGES["reply_too_large"], contract=contract)
+    return failure("vendor_error", "unusable_reply", MESSAGES["unusable_reply"], contract=contract)
 
 
 def error_for(status, body):
@@ -660,7 +688,8 @@ def chat_outcome(status, body, model, schema, context=None):
 def emit(out, document):
     text = json.dumps(document) + "\n"
     if len(text) > MAX_OBJECT:
-        text = json.dumps(failure("vendor_error", "reply_too_large", MESSAGES["reply_too_large"])) + "\n"
+        text = json.dumps(failure("vendor_error", "reply_too_large", MESSAGES["reply_too_large"],
+                                  contract=document["contract"])) + "\n"
         out.write(text)
         return 1
     out.write(text)
@@ -688,16 +717,92 @@ def ask(args, stdin, cwd, out):
         raise Refused("the request is too large")
     try:
         status, body = exchange(record, CHAT_PATH, payload, timeout, MAX_BODY)
-    except Unreachable as exc:
-        message = MESSAGES["certificate"] if exc.certificate else MESSAGES["unreachable"]
-        return emit(out, failure("vendor_unreachable", None, message, retryable=not exc.certificate))
-    except TimedOut:
-        return emit(out, failure("timeout", None, MESSAGES["timeout"], retryable=True))
-    except TooLarge:
-        return emit(out, failure("vendor_error", "reply_too_large", MESSAGES["reply_too_large"]))
-    except Incomplete:
-        return emit(out, failure("vendor_error", "unusable_reply", MESSAGES["unusable_reply"]))
+    except (Unreachable, TimedOut, TooLarge, Incomplete) as exc:
+        return emit(out, transport_failure(exc))
     return emit(out, chat_outcome(status, body, model, schema, record.get("context")))
+
+
+# ------------------------------------------------------------------------------------------------ embed
+
+
+def read_texts(stream):
+    """The list of texts on standard input: one strict JSON object with the one key ``texts``, a list of 1 to `MAX_TEXTS`
+    strings of 1 to `MAX_TEXT` bytes, each with a character that is not white space. Nothing the input holds is quoted in
+    a refusal."""
+    data = stream.read(MAX_INPUT + 1)
+    if not data or not data.strip():
+        raise Refused("the input on standard input is empty")
+    if len(data) > MAX_INPUT:
+        raise Refused("the input is larger than %d bytes" % MAX_INPUT)
+    try:
+        document = parse_json(data)
+    except ValueError:
+        raise Refused("the input is not one strict JSON object")
+    if not isinstance(document, dict) or set(document) != {"texts"}:
+        raise Refused('the input is one object with exactly one key, "texts"')
+    texts = document["texts"]
+    if not isinstance(texts, list) or not 1 <= len(texts) <= MAX_TEXTS:
+        raise Refused("texts is a list of 1 to %d strings" % MAX_TEXTS)
+    for text in texts:
+        if not isinstance(text, str) or not text.strip() or len(text.encode("utf-8")) > MAX_TEXT:
+            raise Refused("each text is a string of 1 to %d bytes with a character that is not white space" % MAX_TEXT)
+    return texts
+
+
+def embed_error_for(status, body):
+    """The failure object for an embedding response whose status is outside 200 to 299. As for ``ask``, the server's error
+    text only chooses the row and is never copied; the thinking and format rows do not apply."""
+    document = json_object(body)
+    text = document.get("error") if document is not None else None
+    text = text.lower() if isinstance(text, str) else ""
+    if status == 404 and "not found" in text:
+        return failure("model_unavailable", message=MESSAGES["model_unavailable"], contract=EMBED_CONTRACT)
+    if status == 400 and ("input length" in text or "context length" in text or "too long" in text):
+        return failure("vendor_error", "context_overflow", MESSAGES["input_overflow"], contract=EMBED_CONTRACT)
+    return failure("vendor_error", "bad_exit", MESSAGES["bad_exit"], contract=EMBED_CONTRACT)
+
+
+def valid_vector(vector):
+    """True for a non-empty list of numbers: whole or fractional, finite, and not a boolean."""
+    return (isinstance(vector, list) and bool(vector)
+            and all(type(item) is int or (type(item) is float and math.isfinite(item)) for item in vector))
+
+
+def embed_outcome(status, body, model, texts):
+    """The object to print for a finished embedding request for `texts` (a count). The conditions of a success status are
+    judged in the order of the spec: the body, then the vectors; the size of the object is judged by ``emit``."""
+    if not 200 <= status <= 299:
+        return embed_error_for(status, body)
+    document = json_object(body)
+    vectors = document.get("embeddings") if document is not None else None
+    if (not isinstance(vectors, list) or len(vectors) != texts or not all(valid_vector(vector) for vector in vectors)
+            or any(len(vector) != len(vectors[0]) for vector in vectors) or len(vectors[0]) > MAX_DIMENSION):
+        return failure("vendor_error", "unusable_reply", MESSAGES["unusable_reply"], contract=EMBED_CONTRACT)
+    reported = document.get("model")
+    return {"contract": EMBED_CONTRACT, "ok": True, "vendor": VENDOR, "model": reported if valid_model(reported) else model,
+            "dimension": len(vectors[0]), "vectors": vectors, "usage": {"input_tokens": count(document.get("prompt_eval_count"))}}
+
+
+def embed(args, stdin, out):
+    options = parse_options(args, EMBED_OPTIONS, "embed")
+    texts = read_texts(stdin)
+    timeout = int(options.get("--timeout", DEFAULT_TIMEOUT))
+    records, default = read_endpoints()
+    record = select_record(records, default, options.get("--server"))
+    model = options.get("--model", record.get("embedding_model"))
+    if model is None:
+        raise Refused("no embedding model is named; pass --model or set embedding_model in the record")
+    request = {"model": model, "input": texts, "truncate": False}
+    if "context" in record:
+        request["options"] = {"num_ctx": record["context"]}
+    payload = json.dumps(request).encode("ascii")
+    if len(payload) > MAX_REQUEST:
+        raise Refused("the request is too large")
+    try:
+        status, body = exchange(record, EMBED_PATH, payload, timeout, MAX_EMBED_BODY)
+    except (Unreachable, TimedOut, TooLarge, Incomplete) as exc:
+        return emit(out, transport_failure(exc, EMBED_CONTRACT))
+    return emit(out, embed_outcome(status, body, model, len(texts)))
 
 
 def check(args, out):
@@ -726,12 +831,15 @@ def main(argv, stdin, out, err, cwd=None):
     try:
         if cwd is None:
             cwd = os.getcwd()  # inside the try: a working directory that is gone is a refusal and not a traceback
-        if not argv or argv[0] not in ("ask", "check"):
+        if not argv or argv[0] not in ("ask", "check", "embed"):
             raise Refused("usage: ask-ollama ask [--model <name>] [--effort <level>] [--timeout <seconds>] "
                           "[--root <path>] [--schema <path>] [--server <name>] [--confine], with the prompt on standard "
-                          "input; or ask-ollama check")
+                          "input; ask-ollama check; or ask-ollama embed [--model <name>] [--timeout <seconds>] "
+                          "[--server <name>] [--confine], with the texts on standard input")
         if argv[0] == "check":
             return check(argv[1:], out)
+        if argv[0] == "embed":
+            return embed(argv[1:], stdin, out)
         return ask(argv[1:], stdin, cwd, out)
     except Refused as exc:
         err.write("refused: %s\n" % exc)

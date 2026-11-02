@@ -76,9 +76,9 @@ class Options(support_ollama.Bridge):
     def test_an_option_given_in_any_order_works(self):
         self.assertTrue(self.document("--timeout", "30", "--model", "gpt-5", "--effort", "low", "--confine")["ok"])
 
-    def test_the_first_argument_must_be_ask_or_check(self):
+    def test_the_first_argument_must_be_ask_check_or_embed(self):
         out, err = io.StringIO(), io.StringIO()
-        for argv in ([], ["review"], ["--model", "x"], ["ASK"], ["embed"], ["Check"]):
+        for argv in ([], ["review"], ["--model", "x"], ["ASK"], ["embedding"], ["Check"]):
             self.assertEqual(1, self.helper.main(argv, io.BytesIO(b"x"), out, err, self.root))
         self.assertEqual("", out.getvalue())
         self.assertEqual(6, err.getvalue().count("refused: usage: ask-ollama ask"))

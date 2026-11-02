@@ -2,7 +2,8 @@
 
 Status: Draft. Written by plan `2026-11-01-ask-ollama-bridge` (increment B), before the module existed, so that the module and its
 tests are built against this text. Increment C built the module for `ask` and `check` (against a fake server in its tests);
-increment D built the rules for the context window, a cut reply and thinking; the `embed` argument (increment E) is not built yet.
+increment D built the rules for the context window, a cut reply and thinking; increment E built the `embed` argument. No real server
+has been tried.
 Every statement about the Ollama server's own interface is listed under "Unconfirmed statements" and is confirmed or corrected by
 the owner's run against a real server (increment F of the plan). The spec stays `Draft` until the owner approves it.
 
@@ -16,8 +17,7 @@ The first-party module `ask-ollama`: a model bridge to an Ollama server. It has 
 
 - `ask` answers one prompt with one contract version 2 object, as `ask-codex` does.
 - `check` is a read-only diagnostic of the endpoint file.
-- `embed` takes a batch of texts and returns vectors, under the capability `text-embedding`. It is added by increment E of the plan;
-  until then the command has `ask` and `check` only.
+- `embed` takes a batch of texts and returns vectors, under the capability `text-embedding` (built by increment E of the plan).
 
 The verifier refuses two commands that name one helper, so the embedding is an argument of the one command and not a second command.
 (An earlier draft of this spec had a second command, `embed-ollama`.)
@@ -57,12 +57,14 @@ conformance checklist.
 | provides | `model-bridge` and `text-embedding` |
 | requires, fills, writes | nothing |
 | ships | one helper, `helper/ask-ollama` |
-| commands | `ask-ollama` (`helper` `helper/ask-ollama`, `runtime` `python`, `kit` 1, `arguments` `["ask", "check"]`, and `"embed"` once increment E adds it) |
+| commands | `ask-ollama` (`helper` `helper/ask-ollama`, `runtime` `python`, `kit` 1, `arguments` `["ask", "check", "embed"]`) |
 | `ask_reads` | `~/.config/project-workbench/endpoints.json`, so that a harness which provides `permissions` asks before the agent reads it |
 
 The capability name `text-embedding` is this spec's proposal. Like `model-bridge`, it is the owner's to confirm. It has no prefix, so
-only the first-party package may provide it. The module provides both `model-bridge` and `text-embedding` (the second from increment
-E), and a caller asks for an embedding as `wb run --provides text-embedding ask-ollama embed`.
+only the first-party package may provide it: the verifier accepts the module's declaration from the first-party package and refuses
+the name from any other (shown by the module's tests). The module provides both `model-bridge` and `text-embedding`, and a caller
+asks for an embedding as `wb run --provides text-embedding ask-ollama embed`. That launcher path is not run by the module's tests;
+the owner's run (increment F) is the first to use it.
 
 ### The endpoint file
 
@@ -155,7 +157,8 @@ route, a name that does not resolve, and a connection that is not made within it
 
 **Matching the server's error text.** An error status comes with a body. The bridge takes it as strict JSON of one object with a
 string `error` and matches that string in lower case by substring, only to choose a row: "not found" in a 404; "think" in a 400;
-"format" or "schema" in a 400. A body that is not of that shape is not matched and the status falls to the `bad_exit` row. The text
+"format" or "schema" in a 400. For `embed` the words are "not found" in a 404 and "input length", "context length" or "too long" in
+a 400 (section "`embed`"). A body that is not of that shape is not matched and the status falls to the `bad_exit` row. The text
 is never copied into the object. [unconfirmed 13]
 
 **When several conditions hold**, one rule decides. A body over its bound is `reply_too_large`, whatever the status. For a status
@@ -180,6 +183,7 @@ cut-off reply is `unusable_reply`: both are `vendor_error`, so a caller sees the
 | the reply is not one object, is empty, is not `done`, or was cut short by a reset or an early close after the answer began | `vendor_error` | `unusable_reply` | false | "the server returned no usable reply" |
 | the reply or the response body is over its bound | `vendor_error` | `reply_too_large` | false | "the server returned more than the bridge accepts" |
 | the prompt filled the window | `vendor_error` | `context_overflow` | false | "the prompt does not fit the context window" |
+| (`embed`) a 400 that says the input is too long for the model | `vendor_error` | `context_overflow` | false | "the input does not fit the context window" |
 | the reply was cut at the server's limit | `vendor_error` | `reply_cut` | false | "the server stopped the reply at its length limit" |
 
 `not_signed_in` is never produced: no endpoint is authenticated. `context_overflow` and `reply_cut` are codes this bridge adds, as
@@ -240,7 +244,8 @@ address. The warning lines are what the contract decision calls the diagnostic.
 - **Input.** Strict JSON, at most 262,144 bytes (this binds well before 100 texts of 32,768 bytes), exactly one key, `texts`: a list
   of 1 to 100 strings, each of 1 to 32,768 bytes of UTF-8 that holds at least one character other than white space, and that is
   valid text (a string with an unpaired surrogate is refused). Anything else is refused before a connection is made.
-- **Options.** `--model` is the embedding model, validated by the rule for the record's model fields; when absent, the record's
+- **Options.** `--model` is the embedding model, validated by the contract's rule and also by the rule for the record's model
+  fields, as for `ask` (so a namespaced name with a `/` can be given by the record only); when absent, the record's
   `embedding_model`; when neither, a refusal. `--server`, `--timeout` and `--confine` are as for `ask` (`--confine` has no effect).
   `--effort`, `--root`, `--schema` and anything else are refused as unknown options.
 - **Request.** One `POST` to the fixed path `/api/embed`. The body is one JSON object with `model`, `input` (the list of texts) and
@@ -255,14 +260,17 @@ address. The warning lines are what the contract decision calls the diagnostic.
   vectors, as the bridge contract says. `model` is the server's `model` when it fits the rule for the record's model fields and
   otherwise the name the call used, as for `ask`. `dimension` is 1 to 8,192 and is the length of every vector. `vectors` has one
   vector per text, in the order of the texts. A number is a finite JSON number as the server returned it, not a boolean, and it
-  is printed in the form Python prints it, so the size of the object follows the size of the server's body. `input_tokens` is the
+  is printed in the form Python prints it (so a whole number prints as a whole number, `-0` as `0`, and `1E+3` as `1000.0`), so the
+  size of the object follows the size of the server's body. `input_tokens` is the
   server's `prompt_eval_count` when that is a whole number (not a boolean) from 0 to 10^12, and `null` when it is absent or is
   anything else; a malformed count never makes a reply unusable and is never copied.
 - **Failure** is the contract's failure object with `"contract": 1`, the same classes (`not_signed_in` and `effort_unsupported` are not
-  produced), and the same rows of the table of errors, with these differences. A status 400 whose error says the input is too long
-  for the model is `vendor_error` with `context_overflow`; any other 400 is `bad_exit`; a 404 is `model_unavailable`. A model that
-  is not an embedding model, or a count of vectors different from the count of texts, is `vendor_error` with `unusable_reply`.
-  [unconfirmed 9, 10, 14]
+  produced), and the same rows of the table of errors, with these differences. A status 400 whose error, in lower case, holds
+  "input length", "context length" or "too long" is `vendor_error` with `context_overflow`, not retryable, with the message "the
+  input does not fit the context window"; any other 400 is `bad_exit` (the thinking and format rows do not apply to an embedding);
+  a 404 whose error holds "not found" is `model_unavailable`, as for `ask`, and any other 404 is `bad_exit`. A model that is not an
+  embedding model, or a count of vectors different from the count of texts, is `vendor_error` with `unusable_reply`. The server's
+  words are matched only to choose a row and are never copied. [unconfirmed 9, 10, 14]
 - **Checks on the reply, and their order.** The chat-only checks of `ask` (`done`, the window, the cut reply and the content) do
   not apply to an embedding reply, which has none of those fields. A body over its bound is `reply_too_large`, whatever the status.
   For a status outside 200 to 299 the status rows apply, with the matching rule and the differences above. For a status from 200
@@ -270,6 +278,12 @@ address. The warning lines are what the contract decision calls the diagnostic.
   is not a non-empty list of finite numbers, vectors of different lengths, a dimension over the bound, or a count that differs
   from the number of texts (each `unusable_reply`); and an object that would pass 2,000,000 bytes (`reply_too_large`, not a cut
   and not a smaller batch).
+- **What is refused on input, and how.** Every refusal of the input is one `refused:` line that names the rule and quotes nothing
+  of the input (not a text, not a key): the input is empty, is over 262,144 bytes, is not strict JSON (a repeated key, `NaN`, a
+  number with more than 4,300 digits, a lone surrogate, nesting deeper than 32 levels and a byte-order mark are each "not one strict
+  JSON object"), is not one object with exactly the key `texts`, or holds a list or a text outside the bounds. The request is at
+  most three times the input in the worst case (a four-byte character on input is twelve bytes of escapes), so it is under the
+  request bound of "Transport" for any valid input.
 - **The caller batches.** The bridge never splits or merges a batch. The caller chooses a batch it knows will fit. As an estimate
   that increment F measures: a server that prints each number of a 1,024-number vector in about 12 characters gives about 12 KB
   per vector, so a batch of 100 prints to about 1.2 MB, inside the bound; longer numbers or larger vectors can pass it, and the
@@ -338,13 +352,15 @@ These come from memory of the Ollama documentation and are not shown by any test
     ("not found", "think", "format", "schema") appear in the error for a missing model, an unsupported thinking setting and a bad
     format.
 14. `/api/embed` honours `options.num_ctx`, returns the `model` it used, answers 404 for an embedding model that is not present, and
-    answers 400 with an error about the input length when `truncate` is false and a text is too long.
+    answers 400 with an error about the input length when `truncate` is false and a text is too long. The bridge recognizes that
+    error by "input length", "context length" or "too long" in it (the first two from memory of the server's wording, "the input
+    length exceeds the context length"); a different wording is `bad_exit` until the run corrects the words.
 15. The size of a batch of embeddings, as printed, is close to the estimate in section "embed".
 
 ## Known limits
 
 Left as they are, each with its reason. Most were found by the security review of increment C (2026-11-01); the first two come from
-increment D and its review:
+increment D and its review, and the one on embedding replies from increment E:
 
 - **Without `context` in the record a prompt cut by the server's own window is not detected.** The bridge does not know the window
   then, and the server's default is small [unconfirmed 6]. With `context`, the check is "at least the window", so a prompt that
@@ -362,6 +378,14 @@ increment D and its review:
   `vendor_unreachable`.
 - **No server name is sent for an IP literal** in a TLS handshake, because the library does not send one; the certificate is still
   checked against the address, so the fixture certificate for the loopback address works, and a name is sent as the server name.
+- **An embedding reply of up to 16 MiB is parsed whole in memory.** Measured on 2026-11-01 (Python 3.15.0, macOS), a 16 MiB body of
+  one vector of eight million whole numbers, of four million short fractions or of 840 thousand long ones cost at most about 195 MiB
+  above the process's own size and under two seconds before it was refused as longer than the dimension bound. A caller that
+  cannot spare that sends fewer texts; the bridge does not split a batch.
+- **The `model` the server reports is printed if it fits the rule for model names, whatever it looks like.** A hostile server can
+  report a name made of digits, dots and a colon, which reads like an address. `ask` and `embed` behave the same, the server
+  already knows the address it was reached at, and `model` is not a record of which model answered. Only what the bridge itself
+  puts in an object is promised to hold no host or port.
 - **A run of more than 4,300 digits anywhere in a reply or a schema is refused**, including inside a string, so a legitimate reply
   that contains such a run is `unusable_reply`.
 - **`HOME` finds the store**, as it does for the rest of the workbench (`2026-10-20-fixed-store-location`: `HOME` is honoured, as

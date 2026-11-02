@@ -36,9 +36,27 @@ class Window(support_ollama.Bridge):
 
     def test_the_window_is_the_one_of_the_record_chosen_with_server(self):
         self.endpoints(default="small", small=self.record(context=100), large=self.record(context=100000))
-        self.fake.reply(chat("answer", prompt_eval_count=5000))
-        self.overflow(chat("answer"))
+        body = chat("answer", prompt_eval_count=5000)
+        self.fake.reply(body)
+        self.overflow(body)
         self.assertTrue(self.document("--server", "large")["ok"])
+
+    def test_a_count_of_a_trillion_is_compared_and_one_more_is_not_a_count(self):
+        self.endpoints(ned=self.record(context=4096))
+        body = chat("an answer", prompt_eval_count=10 ** 12)
+        self.fake.reply(body)
+        self.overflow(body)
+        self.fake.reply(chat("an answer", prompt_eval_count=10 ** 12 + 1))
+        document = self.document()
+        self.assertEqual(("an answer", None), (document["reply"], document["usage"]["input_tokens"]))
+
+    def test_a_window_of_one_makes_every_prompt_with_a_count_an_overflow(self):
+        self.endpoints(ned=self.record(context=1))
+        body = chat("an answer", prompt_eval_count=1)
+        self.fake.reply(body)
+        self.overflow(body)
+        self.fake.reply(chat("an answer", prompt_eval_count=0))
+        self.assertTrue(self.document()["ok"])
 
     def test_with_no_window_in_the_record_there_is_no_overflow_check(self):
         self.fake.reply(chat("the answer", prompt_eval_count=10 ** 9))
@@ -121,7 +139,7 @@ class Cut(support_ollama.Bridge):
         self.fake.reply(chat("t", done_reason="length"))
         self.assertFalse(self.cut()["retryable"])
         self.fake.reply(chat("t", prompt_eval_count=100))
-        self.assertFalse(self.document()["retryable"])
+        self.assertFalse(self.failed(error="vendor_error", detail="context_overflow")["retryable"])
 
 
 class Thinking(support_ollama.Bridge):

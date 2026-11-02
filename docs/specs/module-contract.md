@@ -119,7 +119,8 @@ namespace.
   capabilities are `instructions`, `skills`, `agents`, `commands`, `hooks` and
   `permissions`. Other core names are defined by the specifications that need them
   (for example `plans`, `specs`, `roadmaps`, `decisions`, `references`,
-  `peer-review`, `security-review`, `discovery`). This specification names only the six harness
+  `peer-review`, `security-review`, `discovery`, `model-bridge`, `text-embedding`; the owner has not yet confirmed the names
+  `model-bridge` and `text-embedding`). This specification names only the six harness
   capabilities; the full list of core names is the union of the capabilities that
   each specification defines.
 - **Harness capabilities** may be provided only by a module of type `harness`.

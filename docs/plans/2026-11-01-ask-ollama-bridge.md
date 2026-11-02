@@ -609,3 +609,52 @@ spec assumes (unconfirmed 6 and 8, increment F).
 
 **Open for the owner:** the push rule that held between C and D ends with this commit: the module no longer returns a cut reply as a
 success. Pushing the five unpushed commits and this one is still your word to give.
+
+### Increment E
+
+**Done:** the argument `embed` of the one command `ask-ollama`, in `packages/workbench/ask-ollama/helper/ask-ollama`: one JSON
+object `{"texts": [...]}` on standard input (at most 262,144 bytes, 1 to 100 strings of 1 to 32,768 bytes with a visible
+character, strict JSON) is posted to `/api/embed` with `truncate` false and `options.num_ctx` only when the record has `context`; the
+object printed is `contract` 1 with `model`, `dimension` (1 to 8,192), `vectors` and `usage.input_tokens`; vectors that are missing,
+not finite numbers, of different lengths or not as many as the texts are `unusable_reply`; an object over 2,000,000 bytes is
+`reply_too_large`; a 400 about the input length is `context_overflow` with its own message, a 404 about the model is
+`model_unavailable`, and any other error status is `bad_exit`; the response body is read to 16 MiB. `module.json` provides
+`text-embedding` as well as `model-bridge` and lists `embed`. The failure code is shared with `ask` (`transport_failure`), and
+`_check_depth` pushes only lists and objects, so that a list of millions of numbers costs no memory beyond itself; the old code raised
+for a scalar never, so this changes memory and not behaviour. Tests: `test_askollama_embed.py` (50), a `Capability` class in
+`test_askollama_module.py`, and the three tightenings deferred from D in `test_askollama_window.py`. Docs: `ask-ollama.md` (the
+`embed` section made exact, "Known limits"), `model-bridge.md`, a new `text embedding` term in `terms.md`, and the name in the list of
+core names in `module-contract.md`, each saying the owner has not confirmed `text-embedding`.
+
+**Deviation from the plan:** the plan says a second command `embed-ollama`. The verifier refuses two commands that name one helper,
+so `embed` is an argument of the one command; a caller asks as `wb run --provides text-embedding ask-ollama embed`. The plan is not
+edited, because that needs a new approval. That launcher path is not run by any test (it needs an install); increment F is the first
+to use it.
+
+**Verification as run** (Python 3.15.0, macOS): before the change, 45 of the module's 221 tests failed against the old helper (44
+failures and 1 error); after it all 221 pass, among them the capability tests that read from `packages/`: the verifier accepts the
+declaration from the first-party package and refuses `text-embedding` from any other, naming it. The whole suite, `python3 -B -W
+error tests/run_all.py`: 6,546 tests in 14 roots, OK. `wb verify packages/workbench` accepts the modules; `wb check` and `wb run
+code-work check` report no problems. A measurement on 2026-11-01: parsing a 16 MiB body of numbers cost at most about 195 MiB and two
+seconds (in "Known limits"). No call was made to a real server. The refusal tests (a bad input is refused) pass against the old
+helper too, because the old helper refuses every `embed`; each is paired with a test of what is accepted, and those fail.
+
+**Review:** one read by the read-only `reviewer`: no blocking finding. Applied: the spec now says `--model` is checked by the
+contract's rule and the record's rule for `embed` as for `ask`; "Known limits" says that the `model` a server reports is printed if
+it fits the name rule, even if it looks like an address; the printing of numbers is described exactly (`-0`, `1E+3`). Deferred to
+the next package pass (probably increment F's, which corrects the module against the real server): the 4,301-digit case of
+`test_a_deep_or_hostile_document_is_refused` is refused by the one-key rule and so never reaches the digit check, and its 200-deep
+case is refused by the type rule and only guards against a crash (the depth rule cannot be seen alone through `embed`); the check
+that the port is absent from the output can fail by chance on a vector of `n/7.0` digits (about one run in ten thousand); the test
+of `terms.md` and `module-contract.md` looks only for strings. A security review was not asked for: `embed` reads standard input
+and a reply with the same parser and transport as `ask`, which had one.
+
+**Releases:** two of `wb release-approvals` by the owner in this increment; the first was run before the pass and so released
+nothing.
+
+**Not done:** increments F to H; no real server (unconfirmed 9, 10, 14, 15 are open); the shipped approvals of the changed package
+are untracked and stay out of the commit until increment G; the stale approval records still await the owner's list.
+
+**Open for the owner:** the name `text-embedding`; the bounds chosen for `embed` (100 texts of 32 KB, an input of 262,144 bytes, a
+dimension of 8,192, 16 MiB of response, an object of 2,000,000 bytes); and whether to test from your terminal that the Ollama server
+is reachable before F.

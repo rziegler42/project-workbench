@@ -8,7 +8,7 @@ options, the confinement option, one error class for a vendor that cannot be rea
 guarantee for both kinds of bridge. Version 1 differed in those places only, and the engines still accept it. Plan
 `2026-11-01-ask-ollama-bridge` (increment B) amended the text so that it describes a bridge to a program and a bridge to a server
 consistently; the first bridge to a server, `ask-ollama`, is specified in `ask-ollama.md` and is built for `ask` and `check`, with the context,
-truncation and thinking rules (increments C and D of that plan; the embedding argument is increment E, and no real server has been tried). The capability name `model-bridge`
+truncation and thinking rules, and for the embedding argument (increments C, D and E of that plan; no real server has been tried). The capability name `model-bridge`
 is provided by the built `ask-codex` module and required by `review-engine` and `action-review`, and the owner has not confirmed it
 as the final name (see "Open questions").
 

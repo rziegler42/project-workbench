@@ -258,6 +258,12 @@ path or field.
   and options, asks the vendor's program one read-only question and prints one JSON object. It holds no state and
   no policy; it is run only through the launcher (`model-bridge.md`).
 
+**text embedding**
+: A capability, named `text-embedding`, for a module that takes a batch of texts and returns one vector of numbers for each,
+  from a model on a server. The first-party provider is `ask-ollama` (`ask-ollama.md`, "`embed`"), whose command takes the texts as
+  one JSON object on standard input. The name is that specification's proposal and the owner has not confirmed it, as for
+  `model-bridge`; like it, it has no prefix, so only the first-party package may provide it.
+
 **launcher**
 : The small workbench component, run as `wb`, that the installer places in the guarded
   store. It checks a shipped helper's hash against a pin and only then runs it. It is not
