@@ -84,7 +84,9 @@ item 7) as a name that mentions no vendor, so that a module may require it and a
 only the first-party package may provide it: the verifier accepts the module's declaration from the first-party package and refuses
 the name from any other (shown by the module's tests). The module provides both `model-bridge` and `text-embedding`, and a caller
 asks for an embedding as `wb run --provides text-embedding ask-ollama embed`. That launcher path is not run by the module's tests,
-and the run of increment F called the command as `wb run ask-ollama embed`, so the `--provides` route is still not exercised.
+and the runs of increments F and G did not use it. It was run once on 2026-11-02, after the upgrade of increment J, through the
+installed helper and the owner's real file: `ask` as `wb run --provides model-bridge ask-ollama ask` and `embed` as
+`wb run --provides text-embedding ask-ollama embed` each answered from the real server (see "After the upgrade").
 
 ### The endpoint file
 
@@ -573,8 +575,8 @@ were not used), against the same server (version 0.35.1, plain `http`; no model 
 models: the chat models `phi4:latest` (context 16384), `gemma4:12b` (context 262144, window 16384, `thinking` true, `output_limit`
 6000, 3 bytes per token) and `gpt-oss:20b` (context 131072, window 16384, `effort` low, `output_limit` 10000, 3 bytes per token), and
 the embedding models `nomic-embed-text:latest` (2048) and `bge-m3:latest` (8192); a second record, with `phi4:latest` at 8 bytes per
-token, was used for one case (below). The helper ran in-process and not through `wb run`, so the launcher path (`--provides`) is
-still not exercised. Each case is one sample (the same call gave 229 and 254 output tokens) and one server version was used. The
+token, was used for one case (below). The helper ran in-process and not through `wb run`, so the launcher path (`--provides`) was
+not exercised by this run (see "After the upgrade"). Each case is one sample (the same call gave 229 and 254 output tokens) and one server version was used. The
 readings marked "raw request" were made by direct requests to the server and not through the bridge. The prompts were short test
 prompts. About 60 calls were made; nothing was changed on the server. No output held the address.
 
@@ -637,6 +639,21 @@ sample each, one server version.
 
 Not run in the second run: a server switched off; the older file format and a model of the other kind with a real model (the
 fake-server tests are the proof); and `--schema` (shown in the first run).
+
+### After the upgrade: through the launcher
+
+Provenance: run on 2026-11-02 by the agent on the owner's word ("yes for all three"), through `wb run` with the helper that
+`wb upgrade` had installed (byte for byte the package's, as increment J checked) and the owner's real file of format 2, against the
+same server (version 0.35.1).
+
+| Case | Result |
+|---|---|
+| `wb run ask-ollama check` | valid: the record and the five models with their defaults, and the cleartext warning |
+| `wb run ask-ollama models` | `present` the five configured models, `unconfigured` the four others, `skipped` 0 |
+| `echo ... \| wb run --provides model-bridge ask-ollama ask` (a one-word prompt, `phi4:latest`) | success; the reply "Pong", 18 input and 4 output tokens |
+| `echo ... \| wb run --provides text-embedding ask-ollama embed` (one text, `nomic-embed-text:latest`) | success; 1 vector of 768 values, 4 input tokens |
+
+This is the first run of the launcher routes `--provides model-bridge` and `--provides text-embedding`. One sample each.
 
 ## Unconfirmed statements
 

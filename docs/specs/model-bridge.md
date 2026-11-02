@@ -470,7 +470,8 @@ the plain prompt, `--schema`, a missing model, an effort and two embedding model
 for an embedding gets a 501, and a prompt over the window is cut without an error). The second, of the model sections, the defaults
 and the size rule, ran the helper from a scratch home with a file of format 2; it found that the server refuses an oversize chat
 prompt when `truncate` is false and does not cut a prompt below the window, and after that `ask` sends the field and reports the
-refusal as `context_overflow`. Neither run reached a server that is off or the `--provides` route. The limits of that bridge are in
+refusal as `context_overflow`. Neither run reached a server that is off; the `--provides` route was first run through the launcher after the upgrade of the
+plan's last increment (`ask-ollama.md`, "After the upgrade"). The limits of that bridge are in
 `ask-ollama.md`, "Known limits", and are not repeated here.
 
 How it meets the contract:

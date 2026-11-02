@@ -1,6 +1,6 @@
 # Model configurations in the endpoint file, a context ceiling, per-model defaults, and a rename of the file
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-02
 Candidate: workbench-v1#bridge-model-configurations
 Specs: ask-ollama, model-bridge, terms, module-contract
@@ -1133,3 +1133,38 @@ certificates generated at run time (all in "Deferred work"); the roadmap candida
 name the defaults; and the push of the local commits, on the owner's word only.
 
 **Open for the owner:** the upgrade at J and the file to write there.
+
+### Increment J
+
+**Done:** the owner ran `wb acknowledge` and `wb upgrade` in a terminal. The upgrade installed the new helper and declaration of
+`ask-ollama` under `.workbench/workbench/ask-ollama/` and changed `.workbench/manifest.json`; no other installed file changed.
+The owner then moved the old file aside (`endpoints.json` is now `endpoints.json.format1` in the guarded store, unread) and wrote the
+new `bridge-endpoints.json` in format 2 (the five models of the second run, without its test-only second record), from the text that
+the agent gave. The agent did not write the store.
+
+**Verification as run** (macOS), targeted: a comparison of every installed file under `.workbench/workbench/` that the package ships
+with its source in `packages/workbench/`, by SHA-256: 60 compared, 60 identical (the helper of `ask-ollama` begins `5fbaec98…` and
+its `module.json` `cbee16f5…`), and the two manifest rows for them match the files; `wb check` reports no problems;
+`wb run ask-ollama check` (which reads the file and contacts no server) prints the record `ned` as the default and the five models
+with their defaults and the cleartext warning, and exits 0. **The live check, on the owner's word ("yes for all three"), through the
+launcher on the installed helper and the owner's real file** (the check that increment H could not make): `wb run ask-ollama models`
+(five present, four unconfigured, none set aside); `wb run --provides model-bridge ask-ollama ask` with a one-word prompt to
+`phi4:latest` (success, "Pong", 18 input and 4 output tokens); `wb run --provides text-embedding ask-ollama embed` with one text on
+`nomic-embed-text:latest` (success, 1 vector of 768 values). This is the first run of the two `--provides` routes. No test was run
+(documents and installed copies only, and the module's tests were last run in increment H).
+
+**Corrected in the documents** (they said the `--provides` route had not been run): `ask-ollama.md` (the declaration paragraph, the
+provenance of the second run, and a new subsection "After the upgrade: through the launcher" with the four calls),
+`model-bridge.md` ("As built") and `docs/development.md` ("A hand run").
+
+**Review:** none asked for: no code or decision changed; the comparison and the live calls are the evidence. A security review was
+not asked for.
+
+**Releases:** none in this increment (the shipped approvals were current after increment H and the upgrade changes no shipped file).
+
+**The plan, complete.** Increments A to J, with F-A to F-C and G-A and G-B, are committed. The deferred work and the open items are
+listed in the Result of increment I and in "Deferred work". The local commits are not pushed; a push is the owner's word only.
+
+**Open for the owner:** the push of the local commits ("push origin main", after `wb run code-work shared` and
+`wb run safe-git push-check`); the old file `~/.config/project-workbench/endpoints.json.format1` may be deleted whenever the owner
+likes (nothing reads it). The plan's status line is set to `Completed` with this increment (a status edit, which needs no new approval).

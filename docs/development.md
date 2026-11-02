@@ -160,7 +160,8 @@ text), and its `models` argument compares the models of the file with the server
 - **A hand run** starts with `wb run ask-ollama check` and `models`, then a short prompt, before anything larger. The bridge was run
   twice against a real server on 2026-11-02 through an agent session's shell tool on the owner's word (the second from a scratch
   home, with a file of format 2); `ask-ollama.md`, "The run against a real server", says what each run showed and what it did not
-  reach, including that the `--provides` route was not used.
+  reach; a later check, after the upgrade, ran `ask` through `--provides model-bridge` and `embed` through `--provides
+  text-embedding` against the real server.
 - **Calling it from a module.** A module that runs inside the workbench declares `requires` `model-bridge` (and `text-embedding` for
   vectors, a name that the owner confirmed as vendor-neutral) and calls the bridge through `wbkit.call.run_command` with
   `provides`, as the review engine does. It names no host: the file picks the server and `--server` picks the record.
