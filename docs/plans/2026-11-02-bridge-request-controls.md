@@ -392,4 +392,29 @@ contract's sentence "false for the other codes defined here" untrue for a bridge
 alternative, a new detail such as `server_busy`, is in the record. A change to it changes this plan's criterion 5 and increments C and
 E and needs the owner's new approval of the plan.
 
-**Open for the owner:** acceptance of the record; the commit of increment B.
+**Accepted** by the owner with `wb run groundwork accept` (digest of the preview) as the plan recommended (`bad_exit` with
+`retryable` true), and **committed** as `640d62f`.
+
+### Increment C
+
+**Done:** the specifications state what the two accepted decisions set, as the helper will be built (the helper is not changed).
+`docs/specs/ask-ollama.md`: the header paragraph; the section fields `temperature` and `keep_alive` with their exact ASCII grammars,
+accepted and refused forms, and the worked example; the rows `--temperature` (for `ask`) and `--keep-alive` (for `ask` and `embed`)
+in the options table; `options.temperature` and the top-level `keep_alive` in the request of `ask` and of `embed` (only
+`keep_alive`), with `0` and `-1` as numbers and a duration as a string; the errors table, with a row for a 500, 502 or 503 as the
+retryable `bad_exit` and the precedence of `reply_too_large` and `unusable_reply`; a "Retrying" paragraph with the caller guidance,
+marked as reported; the `check` line; the `models` and `embed` failure rules; checklist items 4 and 9 edited and items 20 (the
+section fields), 21 (the call options) and 22 (the retryable statuses) added; unconfirmed statements 19 to 21 tagged "not shown"
+for increment F; two Known limits; the governing decisions and plans. `docs/specs/model-bridge.md`: the exception in the `retryable`
+sentence with one sentence of guidance for a caller, item 19 of the checklist, and the "As built" paragraph.
+
+**Verification as run:** `wb check` and `wb run code-work check` report no problems; a search of the tests found none that reads
+either specification, so no test was run (a document only); `wb plan-status` reads `approved`.
+
+**Review:** the `reviewer` agent read both specifications against the two decisions and the helper: no blocking finding and three
+non-blocking ones. (1) applied: the plan's step 3 asks for one sentence of guidance in `model-bridge.md` as well, now added next to
+`retryable`; (2) applied: the clause "`ask-codex` and its tests are unchanged" is not a fake-server test, so it was removed from
+checklist item 22 (the plan's verification shows it by `git diff`); (3) not a defect of C: `docs/development.md` still lists the old
+fields and options, which increment G updates. One round of one.
+
+**Open for the owner:** the commit of increment C.

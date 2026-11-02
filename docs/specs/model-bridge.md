@@ -159,7 +159,11 @@ Failure, exit 1 (the object is still printed):
 - `retryable` is a boolean: whether the same call might succeed later. It is `true` for `timeout` and
   `usage_limit`, `true` for a server that did not answer, and `false` for the other classes and codes defined here, a server whose
   certificate was not accepted and a missing
-  program included. The bridge reports it and never retries.
+  program included, with one exception for a bridge to a server: `bad_exit` for a status 500, 502 or 503 is `true` (decision
+  `2026-11-02-retryable-server-errors-in-bridges-to-a-server`; `ask-ollama.md`, "Errors"), and a bridge to a program has no status and
+  no such case. The bridge reports it and never retries. A caller that retries bounds its retries, because such a failure can be
+  permanent (a model that cannot load): a few tries with a wait of tens of seconds, then stop (a figure from one report, marked as
+  such in `ask-ollama.md`, "Retrying").
 - `message` is at most 500 characters and holds no more of the vendor's output than is needed to say what
   happened. It is for the owner to read, not for an engine to parse.
 
@@ -446,7 +450,9 @@ and the store. The checklist of a bridge to a server is completed by its own spe
     is refused as `vendor_unreachable`, and a trusted matching one is accepted; the timeout ends a server that does not answer; and,
     where the record configures models, a model that the record does not configure or configures for the other kind is refused with
     nothing sent, a window above the model's declared largest is refused with nothing sent, and a prompt larger than the size rule
-    allows is not sent (decision `2026-11-02-model-configurations-in-endpoint-records`).
+    allows is not sent (decision `2026-11-02-model-configurations-in-endpoint-records`); and a status 500, 502 or 503 is
+    `vendor_error` with `bad_exit` and `retryable` true while no other status is retryable (decision
+    `2026-11-02-retryable-server-errors-in-bridges-to-a-server`).
     (`ask-ollama` shows them against a fake server in its tests, apart from an authenticated record over `http` away from loopback,
     which it refuses outright because it supports no credential; `ask-ollama.md` lists them for its module.)
 
@@ -471,7 +477,9 @@ for an embedding gets a 501, and a prompt over the window is cut without an erro
 and the size rule, ran the helper from a scratch home with a file of format 2; it found that the server refuses an oversize chat
 prompt when `truncate` is false and does not cut a prompt below the window, and after that `ask` sends the field and reports the
 refusal as `context_overflow`. Neither run reached a server that is off; the `--provides` route was first run through the launcher after the upgrade of the
-plan's last increment (`ask-ollama.md`, "After the upgrade"). The limits of that bridge are in
+plan's last increment (`ask-ollama.md`, "After the upgrade"). Plan `2026-11-02-bridge-request-controls` specifies in
+`ask-ollama.md` a temperature and a keep_alive for a model section and the retryable statuses 500, 502 and 503, to be built by its
+increments D and E; this paragraph is updated when they are. The limits of that bridge are in
 `ask-ollama.md`, "Known limits", and are not repeated here.
 
 How it meets the contract:

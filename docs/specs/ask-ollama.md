@@ -20,9 +20,17 @@ the file is named `bridge-endpoints.json` (increment H renamed it from `endpoint
 increment F-C of the plan. The field `truncate` `false` of `ask` and the refusal that goes with it are specified here (increment
 G-A of that plan) and were built by increment G-B.
 
+Plan `2026-11-02-bridge-request-controls` (increment C) amends this text before the helper changes: the section fields `temperature`
+and `keep_alive`, the options `--temperature` and `--keep-alive`, and the retryable statuses 500, 502 and 503 are specified here under
+the accepted decisions `2026-11-02-temperature-and-keep-alive-in-model-sections` and
+`2026-11-02-retryable-server-errors-in-bridges-to-a-server`, and are built by increments D and E of that plan; until then the helper
+does none of them.
+
 Terms are in `terms.md`. The contract it satisfies is `model-bridge.md` (version 2), whose sections on a bridge to a server this
 spec fills in. The endpoint file is set by the accepted decision `2026-11-01-endpoint-records-in-the-store` as amended by
-`2026-11-02-model-configurations-in-endpoint-records` and by `2026-11-02-model-section-defaults-and-the-embedding-name`; the contract by `2026-11-01-bridge-contract-version-2`.
+`2026-11-02-model-configurations-in-endpoint-records` and by `2026-11-02-model-section-defaults-and-the-embedding-name` and `2026-11-02-temperature-and-keep-alive-in-model-sections`; the
+contract by `2026-11-01-bridge-contract-version-2`, with the rule for retryable statuses of
+`2026-11-02-retryable-server-errors-in-bridges-to-a-server`.
 
 ## Scope
 
@@ -113,9 +121,19 @@ not restate the host grammar; the first decision is its source. What the file ho
   (optional, a whole number from 1 to `context`); and `bytes_per_token` (optional, a whole number from 1 to 8, default 2). A section of `kind` `chat` may also hold the defaults of a call: `effort`
   (`low`, `medium` or `high`) or `thinking` (a JSON boolean, for a model that only switches thinking on and off), at most one of the
   two, and `output_limit` (a whole number from 1 to 10,000,000, in tokens: the default output cap and the ceiling of `--max-output`);
-  a section of `kind` `embedding` holds none of the three. A float, a
+  a section of `kind` `embedding` holds none of the three. A section of `kind` `chat` may also hold `temperature`, and a section of
+  either kind `keep_alive`, each a JSON string of an exact grammar (below). A float, a
   boolean or a string where a whole number belongs, a field not listed, a missing `kind` or `context`, an `effort` outside the three words, both `effort` and `thinking`, a `thinking` that
-  is not a boolean, and any of the three defaults in a section of `kind` `embedding` are each refused.
+  is not a boolean, and any of the three defaults in a section of `kind` `embedding` are each refused, as are a `temperature` or a `keep_alive` that is
+  not a string or is outside its grammar, and a `temperature` in a section of `kind` `embedding`.
+- **`temperature` and `keep_alive`** (decision `2026-11-02-temperature-and-keep-alive-in-model-sections`). Each is a JSON string, in
+  ASCII digits only and matched as the whole value (no space, no trailing newline). The file's reader refuses a number with a
+  fraction, so a temperature is held as text. A `temperature` is one digit `0`, `1` or `2`, optionally followed by a point and one or
+  two digits, and is at most 2: `0`, `0.2`, `0.50`, `1`, `2` and `2.00` are accepted; `-0.2`, `+1`, `00.2`, `01`, `.5`, `1.`,
+  `0.123`, `2.01`, an exponent, a space, an empty string and a value that is not a string are refused. A `keep_alive` is `0` (unload
+  at once), `-1` (keep loaded) or one to four digits, the first from 1 to 9, followed by `s`, `m` or `h`: `0`, `-1`, `1s`, `30m` and
+  `9999h` are accepted; `-2`, `+5m`, `01s`, `30`, `5d`, `1.5h`, five digits, a space, an empty string and a value that is not a
+  string are refused. A refusal names the rule and never quotes the value.
 - **Two names that a server may read as one** are refused: in one record, two model names that are equal after lower-casing and
   dropping a trailing `:latest`. The same name in two records is not an alias.
 - **`default_model` and `embedding_model`**, when present, name a key of `models`: the first one of `kind` `chat`, the second one of
@@ -137,9 +155,9 @@ A worked example, with a placeholder host from the documentation range (a real f
       "default_model": "chat-a:latest",
       "embedding_model": "embed-a:latest",
       "models": {
-        "chat-a:latest": {"kind": "chat", "context": 16384, "default_context": 8192, "effort": "low", "output_limit": 6000},
+        "chat-a:latest": {"kind": "chat", "context": 16384, "default_context": 8192, "effort": "low", "output_limit": 6000, "temperature": "0.2", "keep_alive": "0"},
         "chat-b:7b": {"kind": "chat", "context": 32768, "bytes_per_token": 1, "thinking": false, "output_limit": 3000},
-        "embed-a:latest": {"kind": "embedding", "context": 8192}
+        "embed-a:latest": {"kind": "embedding", "context": 8192, "keep_alive": "30m"}
       }
     }
   }
@@ -177,6 +195,8 @@ value as the next argument except `--confine`, and a refusal of anything else be
 | `--effort <level>` | `low`, `medium` or `high`, validated as in the contract. Sent as the request's `think` with the same word, and it replaces the section's `effort` or `thinking`. Without `--effort` and without `--thinking`, the section's `effort` (the word) or `thinking` (the boolean) is sent as `think`; when the section holds neither, `think` is left out and the server decides. A server that rejects it for this model gives `effort_unsupported`. [unconfirmed 4, 17] |
 | `--thinking <on\|off>` | An option of this bridge only, not part of the contract's common core. Sent as the request's `think` with the boolean (`on` true, `off` false), and it replaces the section's `effort` or `thinking`. `--effort` and `--thinking` in one call are refused. A model that has levels and not a switch may answer a boolean as the server does. [unconfirmed 17] |
 | `--max-output <tokens>` | An option of this bridge only. A whole number: 1 to 8 ASCII digits, no sign, no leading zero, no space and no other character, from 1 to the section's `output_limit` when it holds one, and up to 10,000,000 when it holds none; a larger value, a value of another form and the option without a configured model are refused before anything is sent. Sent as the request's `options.num_predict`, and it replaces the section's `output_limit`. [unconfirmed 17] |
+| `--temperature <value>` | An option of this bridge only, not part of the contract's common core, and only for `ask`. The grammar of a section's `temperature` (above), in ASCII and matched as the whole value: `0`, `0.2` and `2.00` are accepted; `-0.2`, `00.2`, `.5`, `2.01`, `0.123`, a space and an empty value, a repeated option, one without a value and the option with a model that is not configured are refused before anything is sent. Sent as the request's `options.temperature`, a JSON number, and it replaces the section's `temperature`. A model whose section holds none takes the option and the value is sent. The owner declares no ceiling for it. [unconfirmed 19] |
+| `--keep-alive <value>` | An option of this bridge only, for `ask` and for `embed`. The grammar of a section's `keep_alive` (above), in ASCII and matched as the whole value: `0`, `-1` and `30m` are accepted (a `-1` after the option is its value, not an option); `-2`, `01s`, `30`, `5d`, `1.5h`, a space and an empty value, a repeated option and one without a value are refused before anything is sent. Sent as the request's top-level `keep_alive`: `0` and `-1` as JSON numbers and a duration as a string, and never the string `"-1"`. It replaces the section's `keep_alive`. [unconfirmed 20] |
 | `--timeout <seconds>` | The whole call, from the start of the connection to the last byte of the reply. The connection itself is given at most 10 seconds (this spec's choice) or the whole timeout if that is shorter. |
 | `--root <path>` | Validated by the contract's path rules (inside the project, no link, exists, a directory, not in `.git` or `.workbench`) and then ignored: a server has no working directory. |
 | `--schema <path>` | Located as `ask-codex` locates it: inside the project, no link, a regular file, at most 65,536 bytes, one JSON object. Parsed more strictly than `ask-codex` parses it, because the schema is read and written out again: a repeated key, `NaN`, a number too large for a finite float (`1e999`), a run of more than 4,300 digits, a lone surrogate or nesting deeper than 32 levels is refused here, and a schema that has one of these and that `ask-codex` passes on is refused by this bridge, which is the one refusal the two bridges do not share. Sent as the request's `format`, with the same keys and values. [unconfirmed 3] |
@@ -185,11 +205,12 @@ value as the next argument except `--confine`, and a refusal of anything else be
 
 ### `ask`: the request
 
-One `POST` to the fixed path `/api/chat` with `Content-Type: application/json` [unconfirmed 1, 2, 17, 18]. The body is one JSON object with exactly: `model`;
+One `POST` to the fixed path `/api/chat` with `Content-Type: application/json` [unconfirmed 1, 2, 17, 18, 19, 20]. The body is one JSON object with exactly: `model`;
 `messages`, one message with `role` `user` and `content` the prompt (a string; the prompt is UTF-8 text); `stream` `false`; `truncate` `false`; `options`
-with `num_ctx` (the window of the call) and, only when it applies, `num_predict` (the output limit, from `--max-output` or the
-section's `output_limit`); and, only when they apply, the top-level fields `format` (the schema) and `think` (the effort, a word, or
-the thinking, a boolean). No other field is
+with `num_ctx` (the window of the call) and, only when they apply, `num_predict` (the output limit, from `--max-output` or the
+section's `output_limit`) and `temperature` (a JSON number, from `--temperature` or the section's `temperature`); and, only when they
+apply, the top-level fields `format` (the schema), `think` (the effort, a word, or the thinking, a boolean) and `keep_alive` (from
+`--keep-alive` or the section's `keep_alive`: `0` and `-1` as numbers, a duration as a string). No other field is
 sent, and the prompt appears nowhere else. `truncate` is a top-level field, as `embed` sends it: a prompt over the window is then
 refused by the server and not cut ("Context window"); the same field inside `options` is ignored by the server and is not used. The
 headers are `Host` (the record's host, with brackets for an IPv6 literal, and the
@@ -277,7 +298,9 @@ the window), which is judged before the thinking and the format words. For `embe
 is never copied into the object. [unconfirmed 13]
 
 **When several conditions hold**, one rule decides. Before any request, the size rule of "Context window" may end an `ask` call as
-`context_overflow` with nothing sent. A body over its bound is `reply_too_large`, whatever the status. For a status 400 the words are
+`context_overflow` with nothing sent. A body over its bound is `reply_too_large`, whatever the status, and a connection cut after the status line was read is
+`unusable_reply`, whatever the status; both are judged before any status and are not retryable. A status 500, 502 or 503 is the
+retryable `bad_exit` row, chosen by the status alone, for a response that was read whole within its bound. For a status 400 the words are
 judged in this order: the overflow words, then "think", then "format" or "schema"; a text of the overflow words with a status other than
 400 is the `bad_exit` row. For a status
 outside 200 to 299 the status rows of the table apply, and the body is used only as the matching rule above says, so an error
@@ -298,7 +321,8 @@ cut-off reply is `unusable_reply`: both are `vendor_error`, so a caller sees the
 | a status 400 whose error says the model does not support thinking | `effort_unsupported` | null | false | "the model does not support this effort or thinking setting" |
 | a status 400 whose error says that the request exceeds the available context size | `vendor_error` | `context_overflow` | false | "the prompt does not fit the context window" |
 | a status 400 whose error is about the format or schema | `vendor_error` | `bad_schema` | false | "the server rejected the schema" |
-| any other status outside 200 to 299, including a redirect (which is never followed) | `vendor_error` | `bad_exit` | false | "the server answered with an error" |
+| a status 500, 502 or 503, with the whole body read within its bound (the status alone chooses the row; no word of the body is matched) | `vendor_error` | `bad_exit` | true | "the server answered with an error" |
+| any other status outside 200 to 299 (a 501 that no row names, a 429, a 504, any other 4xx or 5xx), including a redirect (which is never followed) | `vendor_error` | `bad_exit` | false | "the server answered with an error" |
 | the reply is not one object, is empty, is not `done`, or was cut short by a reset or an early close after the answer began (for `models`, a reply that is not the shape of its section) | `vendor_error` | `unusable_reply` | false | "the server returned no usable reply" |
 | the reply or the response body is over its bound | `vendor_error` | `reply_too_large` | false | "the server returned more than the bridge accepts" |
 | the prompt filled the window | `vendor_error` | `context_overflow` | false | "the prompt does not fit the context window" |
@@ -308,6 +332,14 @@ cut-off reply is `unusable_reply`: both are `vendor_error`, so a caller sees the
 
 `not_signed_in` is never produced: no endpoint is authenticated. `context_overflow` and `reply_cut` are codes this bridge adds, as
 the contract allows; an engine treats an unknown code as `vendor_error`.
+
+**Retrying.** The bridge never retries: it makes one request, keeps no count and waits for nothing. `retryable` says only that the
+same call might succeed later, and a 500, 502 or 503 can also be permanent (a model that cannot load), so a caller bounds its
+retries: a few tries with a wait of tens of seconds, then stop. The figure is the knowledge-base module's report on one server (six
+tries 20 seconds apart recovered every time after a chat call) and is not a result of this spec [unconfirmed 21]. `embed` and
+`models` take the same rule (decision `2026-11-02-retryable-server-errors-in-bridges-to-a-server`). It is an exception, for a bridge
+to a server and these three statuses, to the contract's sentence that `bad_exit` is not retryable (`model-bridge.md`, "The failure
+object"); `ask-codex` is a bridge to a program, has no status and is unchanged.
 
 ### Transport
 
@@ -350,11 +382,13 @@ to standard output, in the file's order, for each record one line of this form (
 
 and after it, for each model of that record in the file's order, one line of this form:
 
-`model <name>/<model> kind=<chat|embedding> context=<n> window=<n> bytes_per_token=<n>[ effort=<word>|thinking=<on|off>][ output_limit=<n>]`
+`model <name>/<model> kind=<chat|embedding> context=<n> window=<n> bytes_per_token=<n>[ effort=<word>|thinking=<on|off>][ output_limit=<n>][ temperature=<text>][ keep_alive=<text>]`
 
 where `window` is the section's `default_context`, or its `context` when there is none, and `bytes_per_token` is the section's
 figure or 2; the section's `effort` (as ` effort=<word>`) or `thinking` (as ` thinking=on` or ` thinking=off`), and then its
-`output_limit` (as ` output_limit=<n>`), follow it, each only when the section holds it. After all the records come, for each unauthenticated `http` record whose host is not a loopback address (decision, item
+`output_limit` (as ` output_limit=<n>`), its `temperature` (as ` temperature=<text>`) and its `keep_alive` (as ` keep_alive=<text>`), in
+that order, follow it, each only when the section holds it, with the file's text for the last two (an embedding section has no
+`temperature` and no `output_limit`, so its line ends with ` keep_alive=<text>` when it holds one). After all the records come, for each unauthenticated `http` record whose host is not a loopback address (decision, item
 4), one line of this form:
 
 `warning: <name>: unauthenticated http away from loopback; content sent to it travels in the clear`
@@ -386,12 +420,12 @@ the other arguments.
   printed. Because names are compared as exact text, a model that the owner configured as `m` and that the server lists as
   `m:latest` is `missing` and `unconfigured` at once; the owner configures the names as the server prints them.
 - **Failure** is the contract's failure object with `"contract": 1` and the rows of the table of errors; any status outside 200 to 299
-  is the `bad_exit` row. It changes nothing, writes nothing and reads only the endpoint file. It is a call to the server, so a
+  is a `bad_exit` row, retryable for a 500, 502 or 503 and not otherwise (the table of errors). It changes nothing, writes nothing and reads only the endpoint file. It is a call to the server, so a
   real one is made on the owner's word; the tests use a fake server.
 
 ### `embed`
 
-`ask-ollama embed [--model <name>] [--context <tokens>] [--server <name>] [--timeout <seconds>] [--confine]`, with one JSON object on
+`ask-ollama embed [--model <name>] [--context <tokens>] [--keep-alive <value>] [--server <name>] [--timeout <seconds>] [--confine]`, with one JSON object on
 standard input.
 
 - **Input.** Strict JSON, at most 262,144 bytes (this binds well before 100 texts of 32,768 bytes), exactly one key, `texts`: a list
@@ -401,12 +435,14 @@ standard input.
   above, as for `ask`, so a namespaced name with a `/` can be given when it is configured); when absent, the record's
   `embedding_model`; when neither, a refusal. `--context` is as for `ask`, with the section's `context` as its ceiling. `--server`,
   `--timeout` and `--confine` are as for `ask` (`--confine` has no effect).
-  `--effort`, `--thinking`, `--max-output`, `--root`, `--schema` and anything else are refused as unknown options.
+  `--keep-alive` is as for `ask` and replaces the section's `keep_alive`. `--effort`, `--thinking`, `--max-output`, `--temperature`,
+  `--root`, `--schema` and anything else are refused as unknown options.
 - **Request.** One `POST` to the fixed path `/api/embed`. The body is one JSON object with `model`, `input` (the list of texts) and
   `truncate` `false`, so that a text longer than the model's window is an error and not a silent cut, and `options` holding `num_ctx`
-  with the window of the call (the value of `--context`, else `default_context`, else `context`); no other field. The headers are exactly those of `ask` (above: `Host`,
+  with the window of the call (the value of `--context`, else `default_context`, else `context`), and, only when it applies, the top-level field `keep_alive` (from `--keep-alive` or the section's `keep_alive`,
+  sent as for `ask`); no other field. The headers are exactly those of `ask` (above: `Host`,
   `Content-Type: application/json`, `Content-Length`, `Accept: application/json`, `Connection: close` and `User-Agent:
-  ask-ollama/1`), and the transport, the bounds and the timeouts of "Transport" apply to it. [unconfirmed 9, 14]
+  ask-ollama/1`), and the transport, the bounds and the timeouts of "Transport" apply to it. [unconfirmed 9, 14, 20]
 - **Output**, one object on standard output, at most 2,000,000 bytes:
   `{"contract": 1, "ok": true, "vendor": "ollama", "model": "<name>", "dimension": <n>, "vectors": [[<numbers>], ...], "usage":
   {"input_tokens": <n or null>}}`. `contract` is the version of the embedding contract, which starts at 1 and is separate from the
@@ -424,7 +460,8 @@ standard input.
   input does not fit the context window"; any other 400 is `bad_exit` (the thinking and format rows do not apply to an embedding);
   a 404 whose error holds "not found" is `model_unavailable`, as for `ask`, and any other 404 is `bad_exit`. A status 501 whose
   error, in lower case, holds "does not support embeddings" (a chat model sent to `/api/embed`) is `model_unavailable` with the
-  message "the model cannot produce embeddings"; any other 501 is `bad_exit`. A chat model is refused by the allowlist before any request is made; the 501 row is kept for a model that is configured as an
+  message "the model cannot produce embeddings"; any other 501 is `bad_exit`, not retryable. A status 500, 502 or 503 is the retryable `bad_exit` row of the table of errors,
+  chosen by the status alone for a response read whole within its bound. A chat model is refused by the allowlist before any request is made; the 501 row is kept for a model that is configured as an
   embedding model and that the server does not support for embeddings. A model whose reply holds no usable vectors, or a
   count of vectors different from the count of texts, is `vendor_error` with `unusable_reply`. The server's
   words are matched only to choose a row and are never copied. [confirmed 9, 14 in part; corrected 10]
@@ -466,7 +503,7 @@ the request line, headers and body, shows each item. No item needs a real Ollama
    form the decision refuses;
    an `authenticated` record; a `default` that names no record; an unknown `--server` name; and no model.
 4. The request is exactly as above: the path, the method, the body fields and the headers; the prompt only in `content`; nothing of
-   the record but the destination and the `Host` header; the schema only as `format`; `num_ctx` always, as the window of the call; `num_predict` and `think` only when they apply; `truncate` `false` always, at the top level and not in `options`.
+   the record but the destination and the `Host` header; the schema only as `format`; `num_ctx` always, as the window of the call; `num_predict`, `temperature`, `think` and `keep_alive` only when they apply (and none of them when no call and no section gives one); `truncate` `false` always, at the top level and not in `options`.
 5. A redirect is not followed and is `bad_exit`; a connection that is refused, reset or not made within its limit is
    `vendor_unreachable`, and a server that accepts and then never replies, or sends a byte at a time, ends at the timeout as
    `timeout`.
@@ -477,7 +514,7 @@ the request line, headers and body, shows each item. No item needs a real Ollama
    and a prompt that fills the window as the section above says.
 8. No host, port or credential is in any object, message, `refused:` line, `check` output or the arguments of the process.
 9. `check` prints one line per record without host or port, followed by one line per model of that record (name, kind, `context`,
-   the window and the figure, with the defaults), warns for an unauthenticated `http` record that is not loopback and for none
+   the window and the figure, with the defaults, the temperature and the keep_alive), warns for an unauthenticated `http` record that is not loopback and for none
    other (after every record and model line), makes no connection, writes nothing, and refuses a bad file.
 10. `embed`: the input rules, the request, the output shape, the checks on the reply and the size bound as above.
 11. The project and the store are byte for byte the same after every call.
@@ -537,6 +574,30 @@ the request line, headers and body, shows each item. No item needs a real Ollama
     overflow word together with "think" or with "format" is the overflow row; an overflow text with a status other than 400 (a 500)
     is `bad_exit`; the size rule and the check of the count are unchanged; and `embed` is unchanged (it still sends `truncate` `false`
     at the top level and none in `options`, and its 400 words are those of "`embed`").
+20. The temperature and the keep_alive of a section: a chat section that holds `temperature` (`"0"`, `"0.2"`, `"2.00"`) and a
+    section of either kind that holds `keep_alive` (`"0"`, `"-1"`, `"30m"`) is read; a `temperature` of `"-0.2"`, `"00.2"`, `".5"`,
+    `"2.01"`, `"0.123"`, `""`, with a space or with a trailing newline, with a non-ASCII digit, a JSON number (`0.2` is refused as
+    not strict JSON, `1` as not a string), a boolean or `null`, and a `keep_alive` of `"-2"`, `"01s"`, `"30"`, `"5d"`, `"1.5h"`,
+    five digits, `""`, with a space or with a trailing newline, a JSON number or `null`, and a `temperature` in a section of `kind`
+    `embedding` are each refused with nothing sent and with no value quoted; a call with no `--temperature` sends
+    `options.temperature` as the number of the section's text (`"2.00"` as 2.0), and none when the section holds none; a call with no
+    `--keep-alive` sends the top-level `keep_alive` as the number 0 or -1 for those two values and as a string for a duration, and
+    none when no call and no section gives one; `embed` sends `keep_alive` the same way and never a `temperature`; a section with
+    neither field sends what it sent before; and `check` prints the two fields as the file's text after `output_limit`, in a fixed
+    order whatever the order of the keys, with the line of an embedding section ending in its `keep_alive`.
+21. The call options: `--temperature` replaces the section's value, is sent as a number and is accepted for a model whose section
+    holds none; `--keep-alive` replaces the section's value and is sent in the wire form of item 20, for `ask` and for `embed`
+    (`--keep-alive -1` takes `-1` as its value); each is refused with nothing sent when it is repeated, has no value, has a value
+    outside its grammar (each form of item 20) or names a model that is not configured; `--temperature` is refused by `embed` and by
+    `models` as an unknown option and `--keep-alive` by `models`; and `--temperature` with `--effort`, `--thinking` or
+    `--max-output` in one call is accepted and each is sent as given.
+22. The retryable statuses: a status 500, 502 or 503 is `vendor_error` with `bad_exit`, `retryable` true and the message "the server
+    answered with an error" in `ask`, in `embed` and in `models`, whatever the body that was read whole (a JSON object, one that
+    holds the overflow, `think`, `format` or `schema` words, one that is not JSON, an empty body), and no word of the body is in the
+    object; a 501 (with and without the words of the `embed` row), a 429, a 504, a 505, a 400, a 404 and a 3xx are as before and not
+    retryable; a 500 whose body is over its bound is `reply_too_large` and one whose connection is cut after the status line is
+    `unusable_reply`, each not retryable; the other retryable rows (a refused connection and a timeout) are as before; the helper
+    makes exactly one request for each call.
 
 ## The run against a real server
 
@@ -704,6 +765,19 @@ reach it; the tests use a fake server and the statement stays unconfirmed).
     the second run (prompts of 2,167, 2,317 and 3,017 tokens against a window of 2,048); shown through the bridge after increment G-B: a prompt of
     about 2,700 tokens against a window of 2,048 was refused as `context_overflow` by the server's own 400; unconfirmed for any other
     version or server]**
+19. `options.temperature` is read by the server as a number from 0 to 2 on `/api/chat`, and a temperature of exactly 2 is accepted.
+    A call at 0 may still give different replies on a server (a GPU, a reasoning model). A temperature above what the server accepts
+    is never sent and is not tested. **[not shown: increment F of the plan `2026-11-02-bridge-request-controls` records a small
+    repeated sample at 0 and at 1.0 and a temperature of exactly 2]**
+20. A top-level `keep_alive` on `/api/chat` and on `/api/embed` accepts the number `0` (unload at once), the number `-1` (keep
+    loaded) and a duration string such as `"30m"`, and the loaded models that the server lists (`/api/ps`) show the effect. A report
+    from memory says that a server may refuse the string `"-1"` and `-1m`; the bridge sends neither. **[not shown: increment F sends
+    `0` and `-1` as numbers and a duration as a string and records each answer; if the server refuses `-1` as a number, the plan
+    stops and the decision is revisited with the owner]**
+21. A transient server error (a 500, 502 or 503 from memory pressure on a one-card server, such as an embedding call right after a
+    chat call) is retryable, and a few tries with a wait of tens of seconds recover it. **[not shown: it is the knowledge-base
+    module's report (six tries 20 seconds apart recovered every time on the owner's server); increment F records a 5xx only if the
+    server gives one, and otherwise "no 5xx seen"; the fake-server tests are the proof of the rule]**
 
 ## Known limits
 
@@ -773,6 +847,14 @@ increment D and its review, and the one on embedding replies from increment E:
   own arguments; `check` prints them. An `effort` or a `thinking` that a model rejects is `effort_unsupported` (its message speaks of an effort or a thinking setting) on every call to it until the file is
   corrected. `output_limit` is both the default and the ceiling, so a caller that passes nothing gets the largest value, and the
   owner sets the largest that any caller needs. The mapping to the server's `think` and `num_predict` was checked on one server version for the cases tried (unconfirmed 17).
+- **The temperature and the keep_alive of a section are applied when the caller passes nothing.** A caller cannot see them from its
+  own arguments; `check` prints them. A temperature of 0 does not make two replies equal on a server, so a caller whose cache or
+  idempotence key is built from the prompt includes the model and the temperature, and an exact repeat needs a seed, which this
+  bridge does not send. A `keep_alive` of `-1` keeps a model loaded and can starve the other models on a one-card server. The file
+  holds both as text, and a value outside the grammar is refused when the file is read, so one wrong field refuses the whole file.
+- **The server chooses the retryable label.** A server, or anything that answers in its place, can answer 500, 502 or 503 and so
+  mark a call retryable. The label is advisory and the bridge acts on nothing: it never retries. A 500 can be permanent (a model
+  that cannot load), so a caller bounds its retries; a retried embedding call repeats its cost and a retried chat call may differ.
 - **The size rule refuses some prompts that fit and passes some that do not.** It is the estimate of a byte count; see "Context
   window". It is not applied to `embed`.
 - **The allowlist is not a boundary.** The agent can read the file and a shell can call the server directly; the allowlist limits what
@@ -805,6 +887,8 @@ increment D and its review, and the one on embedding replies from increment E:
 ## Governing decisions and references
 
 - Decisions:
+  [2026-11-02-retryable-server-errors-in-bridges-to-a-server](../decisions/2026-11-02-retryable-server-errors-in-bridges-to-a-server.md),
+  [2026-11-02-temperature-and-keep-alive-in-model-sections](../decisions/2026-11-02-temperature-and-keep-alive-in-model-sections.md),
   [2026-11-02-model-section-defaults-and-the-embedding-name](../decisions/2026-11-02-model-section-defaults-and-the-embedding-name.md),
   [2026-11-02-model-configurations-in-endpoint-records](../decisions/2026-11-02-model-configurations-in-endpoint-records.md),
   [2026-11-01-endpoint-records-in-the-store](../decisions/2026-11-01-endpoint-records-in-the-store.md) (superseded in part by the one
@@ -813,6 +897,7 @@ increment D and its review, and the one on embedding replies from increment E:
   [2026-10-22-model-calls-go-through-vendor-bridges](../decisions/2026-10-22-model-calls-go-through-vendor-bridges.md),
   [2026-10-20-fixed-store-location](../decisions/2026-10-20-fixed-store-location.md).
 - Specs: `model-bridge.md` (the contract), `module-contract.md`, `module-boundary.md`, `terms.md`.
-- Plans: `docs/plans/2026-11-01-ask-ollama-bridge.md` and `docs/plans/2026-11-02-bridge-model-configurations.md`.
+- Plans: `docs/plans/2026-11-01-ask-ollama-bridge.md`, `docs/plans/2026-11-02-bridge-model-configurations.md` and
+  `docs/plans/2026-11-02-bridge-request-controls.md`.
 - References: none. The Ollama interface was described from memory and checked on one server on 2026-11-02; the statements the
   run did not reach are tagged "not shown" above.
