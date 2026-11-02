@@ -91,7 +91,7 @@ class Refusal(Truncate):
     def test_the_words_with_a_status_other_than_400_are_not_the_overflow_row(self):
         for status in (300, 401, 403, 413, 429, 500, 503):
             self.fake.reply({"error": REAL}, status=status)
-            self.failed(error="vendor_error", detail="bad_exit")
+            self.failed(error="vendor_error", detail="bad_exit", retryable=status in (500, 503))
 
     def test_a_404_that_says_not_found_is_still_model_unavailable(self):
         self.fake.reply({"error": "model not found: " + REAL}, status=404)

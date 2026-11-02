@@ -220,7 +220,7 @@ class Replies(Models):
     def test_a_status_outside_200_to_299_is_bad_exit_and_nothing_of_the_body_is_copied(self):
         for status in (300, 302, 400, 401, 404, 500, 503):
             self.fake.reply({"error": "SECRET-ERROR"}, status=status)
-            document = self.bad(error="vendor_error", detail="bad_exit")
+            document = self.bad(error="vendor_error", detail="bad_exit", retryable=status in (500, 503))
             self.assertEqual("the server answered with an error", document["message"])
             self.assertNotIn("SECRET", json.dumps(document))
 

@@ -447,5 +447,64 @@ helper. **Applied:** none in this increment, because a test change is a package 
 and 3 are added to the tests in increment E's pass, which is a package change in any case. **Recorded and not changed:** finding 2,
 which is not new. Finding 4 is covered by the positive tests, which fail against the old helper.
 
-**Open for the owner:** whether a security review of this increment is run (two new options, two new request fields); the commit of
-increment D.
+**Committed** as `716ab40`. The review findings 1 and 3 were applied in increment E's passes. The security review the plan asks for
+was run on increments D and E together, on the final helper (see the Result of E): no finding in D's code.
+
+### Increment E
+
+**Done:** a status 500, 502 or 503 is `vendor_error` / `bad_exit` with `retryable` true in `ask`, `embed` and `models`, by the one
+function `bad_exit(status, contract)` and the constant `RETRYABLE_STATUSES`; every other status, 501 included, and every other row
+are as before. The status alone decides: no body is read for it. Two further changes were made in this increment's passes, both
+found by reviews: (1) a reply that closes before its declared length is an incomplete reply, `unusable_reply`, not retryable, for
+every status (the test is `if response.length:` at the end of `exchange`, http.client's own count of the bytes still owed, so a
+chunked reply, a 304 and a length such as `+500` are treated as http.client treats them), which makes item 3 of the decision hold as
+written; (2) the existing guard against a run of more than 4,300 digits is now linear (`(?<![0-9])[0-9]{4301,}`), not quadratic.
+New tests: `tests/test_askollama_retryable.py` (20 tests) and `tests/test_askollama_digits.py` (7 tests), six cases added to
+`tests/test_askollama_controls.py` for the review of D, and five existing tests whose expectation changed because a 500, 502 or 503
+is now retryable (`test_askollama_embed.py`, `_models.py`, `_request.py`, `_truncate.py`, `_window.py`). The module now has 437 tests.
+
+**Verification as run** (macOS, Python 3.15.0): after each of the three scripted passes (the owner's word "run the pass" each time,
+and `wb release-approvals` with the digest of its preview each time) the module's tests passed with warnings as errors (421, 427
+and 437), and before each helper change the new tests failed against the previous helper (9, 3 and 7 failures); the tests of the
+engines that read the flag pass unchanged (`review-engine` `test_review_findings.py` 31 and `test_review_round.py` 56,
+`action-review` `test_actionreview_bridge.py` 95); `wb verify packages/workbench` exits 0; `wb check` reports no problems; the
+release preview reads `recorded` for `ask-ollama` and every other package and module, and the `ask-codex` tree hash is unchanged
+(`8b24a11c…`). The old digit guard took 4.56 s a megabyte on a body of 4,300-digit runs and the new one 0.0125 s, and the two
+patterns agree on 100,000 random strings and at 4,299 to 4,302 digits (measured on this machine). A variant of the short-body
+check without the guard on a 5,000-digit Content-Length fails its test with a `ValueError`.
+
+**Reviews:** the `reviewer` agent read the increment three times, once for each pass; none found a blocking problem.
+- First pass (5 non-blocking findings): the short-body gap against decision item 3 (applied, in pass 2, with the owner's word); the
+  file-based hostile test that never reached the field rule (applied); a surrogate assertion that could not fail (applied); the
+  timeout and refused-connection rows shown only for `ask` (applied); stale spec header text (increment G).
+- Second pass (6 findings): a chunked reply with a Content-Length, a 304 and the forms `+500`/`5_00` (applied, in pass 3, by
+  `response.length`); the 5,000-digit test depending on the interpreter's limit (applied: it skips itself); the spec sentences made
+  incomplete (increment G, below).
+- Third pass: no blocking finding. Recorded: `HTTPResponse.length` is long-standing but undocumented, and the tests that would show
+  a change in its meaning are `test_a_body_shorter_than_it_declares…`, the chunked, the 304, the `+500`/`5_00` and the exact-length
+  tests; the endpoint-file timing test measures time only, and the refusal of a 4,301-digit run through the file reader is covered
+  by `test_askollama_sections.py`.
+
+**Security review** (the owner chose "yes, after the fix pass"; the `security-reviewer` agent, on copies in its scratch directory,
+against loopback servers it wrote, on the helper after the second pass): one Medium, one Low and one informational finding, no
+traceback in any probe, no injected field, no copied text, no address in any output, no file read or written outside the spec.
+- **Medium: the digit guard was quadratic** (`parse_json` and `read_endpoints`), so a hostile reply of runs just under the limit
+  held a call about 4.6 s a megabyte past `--timeout`, also on a 5xx body. It is older than this plan. It was reproduced here and,
+  **with the owner's word** ("fix it in this pass"), fixed in pass 3, outside the three features that the plan names; the plan was
+  not otherwise widened.
+- Low: a false `Incomplete` for a chunked reply that also declares a Content-Length (fixed by `response.length`). Informational: the
+  header check was evaded by `+5` and `5_0` (fixed the same way).
+- Not covered by the review: TLS, IPv6, a real process with real standard input and output, and a diff against older code. No
+  finding in the code of increment D.
+
+**Not done, for increment G (documents).** The reviews found these sentences of `docs/specs/ask-ollama.md` incomplete and none
+false: the "When several conditions hold" paragraph, the 500/502/503 row of the errors table, the `unusable_reply` row and checklist
+item 22 speak of "a connection cut after the status line" or "a response read whole", and do not say that a clean close short of
+the declared Content-Length is `unusable_reply` under any status, that a chunked reply and a 304 are not judged by the header, or
+(Known limits) that the digit guard is linear; the header paragraph still says that D and E are to be built; `HTTPResponse.length`
+could be named as the attribute that the short-body test uses. An accepted record is not edited.
+
+**Deviations from the plan:** increment E took three scripted passes and three releases, not one, because each review found a real
+problem; the digit guard is a fourth change at the owner's word.
+
+**Open for the owner:** the commit of increment E.

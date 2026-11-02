@@ -316,7 +316,7 @@ class Errors(support_ollama.Bridge):
                              (403, {}), (429, {"error": "busy"}), (500, {"error": "boom"}), (503, {"error": "busy"}),
                              (302, {"error": "think"}), (300, {"error": "x"})):
             self.fake.reply(body, status=status)
-            self.failed(error="vendor_error", detail="bad_exit")
+            self.failed(error="vendor_error", detail="bad_exit", retryable=status in (500, 503))
 
     def test_an_error_status_whose_body_is_not_the_expected_shape_is_bad_exit_and_never_unusable(self):
         for body in (b"", b"not json", b"[]", b'{"error": 5}', b'{"error": null}', b'{"error": ["think"]}', b"\xff"):
@@ -340,8 +340,10 @@ class Errors(support_ollama.Bridge):
             self.assertNotEqual("not_signed_in", document["error"])
             self.assertNotEqual("usage_limit", document["detail"])
 
-    def test_retryable_is_true_only_for_an_unreachable_server_and_a_timeout(self):
-        for reply, expected in (({"body": chat(), "status": 500}, False), ({"drop": True}, True),
+    def test_retryable_is_true_only_for_an_unreachable_server_a_timeout_and_a_500_502_or_503(self):
+        for reply, expected in (({"body": chat(), "status": 500}, True), ({"body": chat(), "status": 502}, True),
+                                ({"body": chat(), "status": 503}, True), ({"body": chat(), "status": 504}, False),
+                                ({"drop": True}, True),
                                 ({"body": chat(), "status": 404}, False), ({"body": b"not json"}, False),
                                 ({"body": chat(), "delay": 5}, True)):
             self.fake.reply(**reply)

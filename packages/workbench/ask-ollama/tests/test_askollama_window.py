@@ -86,7 +86,7 @@ class Window(support_ollama.Bridge):
     def test_an_error_status_is_judged_by_its_status_and_not_by_the_window(self):
         self.endpoints(ned=self.record(context=100))
         self.fake.reply(chat("x", prompt_eval_count=5000), status=500)
-        self.failed(error="vendor_error", detail="bad_exit")
+        self.failed(error="vendor_error", detail="bad_exit", retryable=True)
 
 
 class Cut(support_ollama.Bridge):

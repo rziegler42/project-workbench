@@ -375,7 +375,7 @@ class Errors(Embed):
                              (401, {"error": "x"}), (403, {}), (429, {"error": "busy"}), (500, {"error": "boom"}),
                              (503, {"error": "busy"}), (302, {"error": "too long"}), (300, {"error": "not found"})):
             self.fake.reply(body, status=status)
-            self.bad(error="vendor_error", detail="bad_exit")
+            self.bad(error="vendor_error", detail="bad_exit", retryable=status in (500, 503))
 
     def test_an_error_status_whose_body_is_not_the_expected_shape_is_bad_exit_and_never_unusable(self):
         for body in (b"", b"not json", b"[]", b'{"error": 5}', b'{"error": null}', b'{"error": ["too long"]}', b"\xff"):

@@ -77,6 +77,7 @@ EMBED_PATH = "/api/embed"
 TAGS_PATH = "/api/tags"
 MODELS_CONTRACT = 1  # the version of the contract of the object that ``models`` prints
 MAX_LISTED = 512
+RETRYABLE_STATUSES = (500, 502, 503)  # a server status that may clear: the one row of the table of errors that is retryable
 ENDPOINT_FILE = "bridge-endpoints.json"
 _SECONDS = r"[0-9]{1,4}"
 _CONTEXT = r"[1-9][0-9]{0,7}"
@@ -93,7 +94,9 @@ SECTION_KEYS = ("kind", "context", "default_context", "bytes_per_token", "effort
                 "keep_alive")
 MAX_WINDOW = 10000000
 MAX_OUTPUT = 10000000
-_DIGIT_RUN = rb"[0-9]{4301,}"  # Python's own limit is 4300 digits, but a caller can lift it with an environment variable
+# Python's own limit is 4300 digits, but a caller can lift it with an environment variable. A run can only start where the
+# digits before it end, so the search is linear: without the lookbehind it costs the size of the body times the length of a run.
+_DIGIT_RUN = rb"(?<![0-9])[0-9]{4301,}"
 
 MESSAGES = {
     "unreachable": "the server did not answer",
@@ -756,6 +759,8 @@ def exchange(record, path, payload, timeout, limit):
                 body.extend(chunk)
                 if len(body) > limit:
                     raise TooLarge()
+            if response.length:  # http.client's count of the bytes still owed (None for a chunked reply or no length, 0 for a 304)
+                raise Incomplete()  # the connection closed before the declared length: a reply cut short, whatever the status
             return response.status, bytes(body)
     except _CallTimeout:
         raise TimedOut() if connected else Unreachable()
@@ -799,6 +804,12 @@ def transport_failure(exc, contract=CONTRACT):
     return failure("vendor_error", "unusable_reply", MESSAGES["unusable_reply"], contract=contract)
 
 
+def bad_exit(status, contract=CONTRACT):
+    """The ``bad_exit`` failure for a status that no other row names. The status alone decides ``retryable``: true for the
+    statuses of `RETRYABLE_STATUSES`, false for every other, and nothing of the body is looked at."""
+    return failure("vendor_error", "bad_exit", MESSAGES["bad_exit"], retryable=status in RETRYABLE_STATUSES, contract=contract)
+
+
 def error_for(status, body):
     """The failure object for a response whose status is outside 200 to 299. The server's error text, when the body is one
     JSON object with a string ``error``, only chooses the row; it is never copied."""
@@ -813,7 +824,7 @@ def error_for(status, body):
         return failure("effort_unsupported", message=MESSAGES["effort_unsupported"])
     if status == 400 and ("format" in text or "schema" in text):
         return failure("vendor_error", "bad_schema", MESSAGES["bad_schema"])
-    return failure("vendor_error", "bad_exit", MESSAGES["bad_exit"])
+    return bad_exit(status)
 
 
 def chat_body(model, prompt, window, think, output, schema, temperature=None, keep_alive=None):
@@ -946,7 +957,7 @@ def embed_error_for(status, body):
         return failure("model_unavailable", message=MESSAGES["not_an_embedder"], contract=EMBED_CONTRACT)
     if status == 400 and ("input length" in text or "context length" in text or "too long" in text):
         return failure("vendor_error", "context_overflow", MESSAGES["input_overflow"], contract=EMBED_CONTRACT)
-    return failure("vendor_error", "bad_exit", MESSAGES["bad_exit"], contract=EMBED_CONTRACT)
+    return bad_exit(status, EMBED_CONTRACT)
 
 
 def valid_vector(vector):
@@ -1032,7 +1043,7 @@ def models_outcome(status, body, configured):
     """The object to print for the server's list of models, compared with the `configured` names (a list, in the file's
     order). Names are compared as exact text and a name outside the rule for model names is counted and never printed."""
     if not 200 <= status <= 299:
-        return failure("vendor_error", "bad_exit", MESSAGES["bad_exit"], contract=MODELS_CONTRACT)
+        return bad_exit(status, MODELS_CONTRACT)
     document = json_object(body)
     entries = document.get("models") if document is not None else None
     if (not isinstance(entries, list)

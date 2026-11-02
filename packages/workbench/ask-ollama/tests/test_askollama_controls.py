@@ -241,6 +241,80 @@ class Overrides(Base):
         self.assertEqual(-1, self.sent("--keep-alive", "-1", "--temperature", "0.5")["keep_alive"])
 
 
+class Hostile(Base):
+    """Cases found missing by the review of increment D: a lone surrogate, a very long value, an option value that looks like
+    another option, and the number that every accepted temperature becomes."""
+
+    def test_every_accepted_temperature_is_sent_as_the_float_of_its_text_from_the_section_and_from_the_option(self):
+        for text in GOOD_TEMPERATURES:
+            self.section(temperature=text)
+            body = self.sent()
+            self.assertEqual(float(text), body["options"]["temperature"], text)
+            self.assertIs(float, type(body["options"]["temperature"]), text)
+            self.section()
+            body = self.sent("--temperature", text)
+            self.assertEqual(float(text), body["options"]["temperature"], text)
+            self.assertIs(float, type(body["options"]["temperature"]), text)
+
+    def test_a_lone_surrogate_and_a_very_long_value_are_refused_in_the_option_without_a_quotation(self):
+        self.section()
+        for value in ("\ud800", "0.\udfff", "1" * 100000, "0." + "0" * 100000, "9" * 5000 + "s", "-" + "1" * 100000):
+            for option in ("--temperature", "--keep-alive"):
+                err = self.refused(option, value, contains=option)
+                shown = err.replace(option, "")
+                # the character itself, and the escape that the helper would print for it
+                for probe in (value[:12], value.encode("unicode_escape").decode()[:12]):
+                    self.assertNotIn(probe, shown, value[:12])
+        self.assertEqual([], self.fake.requests)
+
+    def test_a_lone_surrogate_and_a_run_of_digits_are_refused_by_the_reader_of_the_file_without_a_quotation(self):
+        for value in ("\\ud800", "0.\\udfff", "1" * 100000, "9" * 5000 + "s"):  # the escape text of a JSON string, not the character
+            for field in ("temperature", "keep_alive"):
+                self.bad_file_text(field, value, "strict JSON")
+        self.assertEqual([], self.fake.requests)
+
+    def test_a_long_value_that_the_reader_accepts_is_refused_by_the_rule_of_the_field_without_a_quotation(self):
+        # 4,000 digits is below the reader's refusal of a run of 4,301, so the value reaches the validator of the section
+        for field, values in (("temperature", ("0." + "1" * 4000, "1" * 4000, "2." + "0" * 4000)),
+                              ("keep_alive", ("1" * 4000 + "s", "9" * 4000, "-" + "1" * 4000))):
+            for value in values:
+                self.bad_file_text(field, value, field)
+        self.assertEqual([], self.fake.requests)
+
+    def bad_file_text(self, field, value, contains):
+        """A file whose one model section holds `field` with `value` as a JSON string, escapes included."""
+        text = json.dumps({"format": 2, "endpoints": {"ned": self.record(models={"m": dict(CHAT)}, default_model="m")}})
+        text = text.replace('"kind": "chat"', '"kind": "chat", "%s": "%s"' % (field, value), 1)
+        self.write_endpoint_file(text.encode("ascii"))
+        for command in ("check", "ask"):
+            code, out, err = self.ask(command=command)
+            self.assertEqual((1, ""), (code, out), field)
+            self.assertTrue(err.startswith("refused: ") and err.count("\n") == 1, err)
+            self.assertIn(contains, err, (command, field))
+            self.assertNotIn(value[:12], err.replace(field, ""))
+
+    def test_an_option_value_that_looks_like_another_option_is_the_value_and_is_refused_by_its_rule(self):
+        self.section()
+        self.refused("--temperature", "--keep-alive", contains="--temperature")
+        self.refused("--keep-alive", "--temperature", contains="--keep-alive")
+        self.refused("--temperature", "--model", contains="--temperature")
+        self.refused("--keep-alive", "--confine", contains="--keep-alive")
+        self.assertEqual([], self.fake.requests)
+
+    def test_an_argument_after_a_swallowed_option_name_is_an_unknown_option(self):
+        self.section()
+        self.refused("--temperature", "--keep-alive", "5m", contains="not an option")
+        self.refused("--keep-alive", "--temperature", "0.5", contains="not an option")
+        self.assertEqual([], self.fake.requests)
+
+    def test_a_short_hostile_value_is_not_quoted_either(self):
+        self.section()
+        for value in ("٠.٢", "１ｍ", "٣٠m", "0.2\n", "1s\n"):
+            for option in ("--temperature", "--keep-alive"):
+                err = self.refused(option, value, contains=option)
+                self.assertNotIn(value.strip(), err)
+
+
 class Embed(Base):
     def setUp(self):
         super().setUp()
