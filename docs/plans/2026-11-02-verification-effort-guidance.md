@@ -1,6 +1,6 @@
 # Guide how much verification an agent runs
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-02
 Candidate: none (the owner asked for this on 2026-11-02 after the agents ran the full suite at almost every increment; the owner may add a roadmap candidate)
 Specs: verification-effort, code-work
