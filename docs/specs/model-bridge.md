@@ -462,14 +462,16 @@ bridge only through `wbkit.call.run_command` with `provides` `model-bridge`, nam
 setting and tries no other. It was tested against this bridge and a fake vendor program, and then run once by hand
 against a real Codex (2026-10-23, `codex-cli 0.163.0`; see the limits below).
 
-The second bridge is `ask-ollama` (`packages/workbench/ask-ollama/`, plan `2026-11-01-ask-ollama-bridge`), a bridge to a server
-specified in `ask-ollama.md`. It passes the checklist against a fake Ollama server, with `ask`, `check` and `embed` as the three
-arguments of its one command. It was run on 2026-11-02 against one Ollama server (version 0.35.1, plain `http` on the owner's
-network) by the agent, on the owner's word: the plain prompt, `--schema`, a missing model, an effort, two embedding models and
-the error rows for an embedding were shown; the run corrected two statements (a prompt that does not fit is cut and the count
-the server reports is about half the window, so the window check does not fire on that server; a chat model sent for an
-embedding gets a 501) and did not reach a server that is off, a reply cut at the limit, or the `--provides` route. The limits
-of that bridge are in `ask-ollama.md`, "Known limits", and are not repeated here.
+The second bridge is `ask-ollama` (`packages/workbench/ask-ollama/`, plans `2026-11-01-ask-ollama-bridge` and
+`2026-11-02-bridge-model-configurations`), a bridge to a server specified in `ask-ollama.md`. It passes the checklist against a fake
+Ollama server, with `ask`, `check`, `embed` and `models` as the four arguments of its one command. It was run twice on 2026-11-02
+against one Ollama server (version 0.35.1, plain `http` on the owner's network) by the agent, on the owner's word. The first run showed
+the plain prompt, `--schema`, a missing model, an effort and two embedding models, and corrected two statements (a chat model sent
+for an embedding gets a 501, and a prompt over the window is cut without an error). The second, of the model sections, the defaults
+and the size rule, ran the helper from a scratch home with a file of format 2; it found that the server refuses an oversize chat
+prompt when `truncate` is false and does not cut a prompt below the window, and after that `ask` sends the field and reports the
+refusal as `context_overflow`. Neither run reached a server that is off or the `--provides` route. The limits of that bridge are in
+`ask-ollama.md`, "Known limits", and are not repeated here.
 
 How it meets the contract:
 

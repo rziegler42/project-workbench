@@ -16,9 +16,9 @@
       "tree_hash": "8b24a11ce754159e956a7e30b75599533ae9816def1e4cffd5e73c0a5aa8ac5c"
     },
     {
-      "declaration_hash": "80d2f37fa93ec0d9b5f6c711da5365f09454a6b6c6af3df06b466d2de5f4b9f6",
+      "declaration_hash": "c148d6d0412b603a062cd675a70cbab1bea897622ebbbc9950d8b9bc52f3c185",
       "name": "ask-ollama",
-      "tree_hash": "96e4b59416ca032f2cacaf31af19493a825bb27b1d76548e2fa6c597d2d6891c"
+      "tree_hash": "54908ec370286e49d411af93ae1516defc3fc5d530936a9ebe3636719f204b78"
     },
     {
       "declaration_hash": "bbee74d628101045800cfe5e8d75672920a7d21a935171c914cdc932f0c2eb06",
@@ -73,6 +73,6 @@
   ],
   "subject": "workbench",
   "time": "1970-01-01T00:00:00Z",
-  "tree_hash": "d570ecc99d283fdd44d9b17433aebfb4a3b3936772d497d96b7ba6dac32c7c6e",
+  "tree_hash": "01c825ba72de28f4204dcdb241a56dc94c444fe488a3f711144d13393530b2bf",
   "workbench_version": "0.1.0"
 }

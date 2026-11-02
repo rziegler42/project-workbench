@@ -1,10 +1,10 @@
 {
   "approver": "workbench-release",
-  "declaration_hash": "80d2f37fa93ec0d9b5f6c711da5365f09454a6b6c6af3df06b466d2de5f4b9f6",
+  "declaration_hash": "c148d6d0412b603a062cd675a70cbab1bea897622ebbbc9950d8b9bc52f3c185",
   "format": 1,
   "kind": "module",
   "subject": "workbench/ask-ollama",
   "time": "1970-01-01T00:00:00Z",
-  "tree_hash": "96e4b59416ca032f2cacaf31af19493a825bb27b1d76548e2fa6c597d2d6891c",
+  "tree_hash": "54908ec370286e49d411af93ae1516defc3fc5d530936a9ebe3636719f204b78",
   "workbench_version": "0.1.0"
 }

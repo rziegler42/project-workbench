@@ -1097,3 +1097,39 @@ is one, with the two passes.
 the commit until increment I.
 
 **Open for the owner:** do not rename `~/.config/project-workbench/endpoints.json` before increment J.
+
+### Increment I
+
+**Done:** `docs/development.md` and `docs/specs/model-bridge.md` are brought up to date. In the development guide: the command row lists the
+four arguments of `ask-ollama` (`ask` with `--context`, `--effort` or `--thinking`, `--max-output`; `check` with its lines for each
+model; `models`; `embed` with `--context`) and the section "The ask-ollama bridge" is rewritten for format 2 (the file
+`bridge-endpoints.json`, the model sections and their defaults, which model is used, the window, the size rule and `truncate` false,
+the options of the defaults, `models`, what a real call needs, a hand run, and how a module calls the bridge through `requires`
+`model-bridge` or `text-embedding` and `wbkit.call.run_command` with `provides`). In `model-bridge.md`, "As built" describes both runs
+of 2026-11-02 and the finding about `truncate`. The stale shipped approvals: `wb preview release-approvals` listed 16 stale records (2
+tracked, 14 never committed, as intermediate approvals of each package change of this plan); the owner approved that exact list and
+`wb run safe-git remove --recursive --confirm` removed the 16 directories; the preview then lists 14 records, all `recorded`, and 0
+stale. The commit adds the 2 new records of the current package and module and deletes the 2 tracked stale ones.
+
+**Verification as run** (macOS), targeted as the owner asked on 2026-11-02 (documents only, so no test was run): `wb check` and
+`wb run code-work check` report no problems; `wb preview release-approvals` reads 14 `record recorded` and `stale records: 0`.
+
+**The plan as a whole, at the end of increment I.** Increments A to I are committed and J is left. What exists: the endpoint file of
+format 2 (`bridge-endpoints.json`) with a section for each model (kind, largest window, a lower default window, a figure of bytes per
+token, and for a chat model an effort or a thinking switch and an output limit); the allowlist and kinds; the window rules and
+`--context`; the size rule; `truncate` false and the refusal of a prompt over the window; `--thinking` and `--max-output`; the argument
+`models`; and the confirmed capability name `text-embedding` (`model-bridge` is still the owner's to confirm). Two runs against the
+owner's real server (0.35.1) are recorded in `ask-ollama.md`. Tests: the module's tests were last counted at 363 and pass with
+warnings as errors; the last whole-suite run (6,679 tests in 14 roots, increment G-B) passed; the owner asked on 2026-11-02 for
+targeted tests from then on, and from H the module's tests, `wb verify` and the tests of the field that changed were run. Security
+reviews were run for C, F-C and G-B (no Critical, High or Medium finding in any) and not asked for the others.
+
+**Not done in I:** the upgrade and its record (increment J). **Left for the owner at J:** run `wb upgrade` (and `wb acknowledge` if it
+asks), write the real file `~/.config/project-workbench/bridge-endpoints.json` in format 2 (the file of the second run, with the real
+address; the agent gives the exact text) and remove the old `endpoints.json`, and do not rename the old file before the upgrade.
+**Left open and deferred:** the temperature as a section default, the loaded models from `/api/ps`, `keep_alive`, a retryable 5xx, a
+default for any other request field, a credential, a field naming the bridge of a record, an exact token count, and the test
+certificates generated at run time (all in "Deferred work"); the roadmap candidate `workbench-v1#bridge-model-configurations` does not
+name the defaults; and the push of the local commits, on the owner's word only.
+
+**Open for the owner:** the upgrade at J and the file to write there.

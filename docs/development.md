@@ -53,7 +53,7 @@ ambiguous blank.
 | Preview and remove exact project paths | `python3 -m workbench run safe-git remove [--recursive] -- <path> ...`, then the same with `--confirm` after the owner approves |
 | Report what a commit, a removal or a push would act on (read-only) | `python3 -m workbench run safe-git describe commit\|remove <the arguments of the real command>` or `describe push <the arguments that follow git push>` (a push is described locally and never contacts the remote): prints one JSON object (`contract`, `action`, `ok`, `truncated`, `errors`, `facts`), changes nothing, and exits 0 for a refusal of the real command (`ok: false` with an error code); see `docs/specs/safe-git.md`, "Describe" |
 | Ask a model one read-only question | `python3 -m workbench run --provides model-bridge ask-codex ask [--model <name>] [--effort low\|medium\|high] [--timeout <seconds>] [--root <path>] [--schema <path>] [--confine]` with the prompt on standard input (the `ask-codex` module's command; needs a `codex` program and a sign-in; `--server <name>` is recognized and refused, because this bridge starts a program; see "The ask-codex bridge") |
-| Ask a model on a server one question, check the endpoint file, or embed texts | `python3 -m workbench run --provides model-bridge ask-ollama ask [--model <name>] [--effort low\|medium\|high] [--timeout <seconds>] [--root <path>] [--schema <path>] [--server <name>] [--confine]` with the prompt on standard input; `python3 -m workbench run ask-ollama check` (reads the endpoint file, contacts no server, prints one line per record and a warning for an unauthenticated `http` record away from loopback); `python3 -m workbench run --provides text-embedding ask-ollama embed [--model <name>] [--timeout <seconds>] [--server <name>]` with `{"texts": [...]}` on standard input (the `ask-ollama` module's command; needs an Ollama server named in `~/.config/project-workbench/bridge-endpoints.json`; see "The ask-ollama bridge") |
+| Ask a model on a server one question, check the endpoint file, compare its models, or embed texts | `python3 -m workbench run --provides model-bridge ask-ollama ask [--model <name>] [--context <tokens>] [--effort <level> or --thinking on\|off] [--max-output <tokens>] [--timeout <seconds>] [--root <path>] [--schema <path>] [--server <name>] [--confine]` with the prompt on standard input; `python3 -m workbench run ask-ollama check` (reads the endpoint file, contacts no server, prints one line per record and one per model, and a warning for an unauthenticated `http` record away from loopback); `python3 -m workbench run ask-ollama models [--server <name>] [--timeout <seconds>]` (compares the models of the file with the server's list, names only); `python3 -m workbench run --provides text-embedding ask-ollama embed [--model <name>] [--context <tokens>] [--timeout <seconds>] [--server <name>]` with `{"texts": [...]}` on standard input (the `ask-ollama` module's command; needs an Ollama server named in `~/.config/project-workbench/bridge-endpoints.json`; see "The ask-ollama bridge") |
 | Review one command the harness is about to run (read-only) | `python3 -m workbench run action-review review [--log-row] '<the command text>'` (the `action-review` module's command; needs the command's module and a `model-bridge` installed and pinned, and `.workbench/review.json`; prints one verdict object and exits 0, or exits 1 or 2 (allow only on exit 0 with a whole, valid object); see "The action-review engine") |
 | Search the owner's memory (agent-safe) | `python3 -m workbench run mempalace status`, and `python3 -m workbench run mempalace search [--wing <name>] [--room <name>] [--results <1-20>] [--since <date>] [--before <date>] -- <query>` (the `mempalace` module's command; needs a `mempalace` program and its cached embedding model; see "The mempalace module") |
 | Owner-run: build the memory (terminal only) | `python3 -m workbench run mempalace init <dir> [--yes] [--allow-project-root]`, and `python3 -m workbench run mempalace mine <dir> [--confirm] [--wing <name>] [--mode projects\|convos] [--allow-project-root]` (refuse unless standard input and output are terminals; `mine` is a dry run without `--confirm`) |
@@ -122,26 +122,48 @@ counts, or one of six error classes). It keeps no state and writes nothing in th
 ## The ask-ollama bridge
 
 `ask-ollama` is a model bridge to a server (`docs/specs/ask-ollama.md`, `docs/specs/model-bridge.md`): it sends the prompt to an
-Ollama server named in the owner's endpoint file and prints one JSON object of contract version 2, as `ask-codex` does. Its
-`embed` argument sends a batch of texts to the server's embedding route and prints one object of embedding contract 1 (a vector
-for each text). It is one command with three arguments: `ask`, `check` and `embed`. It keeps no state and writes nothing.
+Ollama server named in the owner's endpoint file and prints one JSON object of contract version 2, as `ask-codex` does. Its `embed`
+argument sends a batch of texts to the server's embedding route and prints one object of embedding contract 1 (a vector for each
+text), and its `models` argument compares the models of the file with the server's list. It is one command with four arguments:
+`ask`, `check`, `embed` and `models`. It keeps no state and writes nothing.
 
-- **The endpoint file.** The owner writes `~/.config/project-workbench/bridge-endpoints.json` (the accepted decision
-  `2026-11-01-endpoint-records-in-the-store`): `format` 1, an optional `default` and an `endpoints` object of named records with
-  `scheme`, `host`, `port`, `location` (`this-machine`, `owner-network` or `vendor-cloud`), `authenticated` (false only) and the
-  optional `default_model`, `embedding_model` and `context`. The agent never writes it. `wb run ask-ollama check` reads it and
-  prints one line per record; it contacts no server.
-- **What a real call needs.** The module installed (`wb add`, run by the owner), the endpoint file, and a server that answers. A
-  record that is not loopback and uses `http` sends the prompt in the clear; `check` warns of it. Installing the module and writing
-  the record are the owner's consent to send project content to that server.
+- **The endpoint file.** The owner writes `~/.config/project-workbench/bridge-endpoints.json` (the accepted decisions
+  `2026-11-01-endpoint-records-in-the-store`, `2026-11-02-model-configurations-in-endpoint-records` and
+  `2026-11-02-model-section-defaults-and-the-embedding-name`): `format` 2, an optional `default`, and an `endpoints` object of named
+  records with `scheme`, `host`, `port`, `location` (`this-machine`, `owner-network` or `vendor-cloud`), `authenticated` (false only),
+  the optional `default_model` and `embedding_model`, and a required `models` object with a section for each model that a call may
+  use. A section holds `kind` (`chat` or `embedding`), `context` (the largest window the owner declares for the model),
+  an optional `default_context` and `bytes_per_token` (2 when absent), and, for a chat model, `effort` or `thinking` (not both) and
+  an `output_limit`. A file of format 1, or one under the old name `endpoints.json`, is not read. The agent never writes the file.
+  `wb run ask-ollama check` reads it and prints one line per record and per model; it contacts no server. `ask-ollama.md`, "The
+  endpoint file", has a worked example.
+- **Which model.** Only a configured model of the kind the command needs is used: `--model`, else the record's `default_model` (or
+  `embedding_model`). A model that is not configured, or is configured for the other kind, is refused before anything is sent. A
+  name with a `/` can be given when it is configured.
+- **The window and the size of a prompt.** The window of a call is `--context`, else the section's `default_context`, else its
+  `context`; a larger `--context` is refused. A prompt whose size in bytes is more than the window times the section's
+  `bytes_per_token` is not sent (`context_overflow`, "probably larger"); this is an estimate and a backstop, and a caller sizes its own
+  input to the window. Every `ask` also sends `truncate` `false`, so a server that honours it refuses a prompt that the window
+  cannot hold (`context_overflow` again, from the server's own count); a server that ignores the field may still cut a prompt without
+  an error (`ask-ollama.md`, "Known limits").
+- **Defaults and their options.** A chat section's `effort` or `thinking` and `output_limit` are used when a call passes nothing, so a
+  module that calls the bridge passes only the model name. `--effort`, `--thinking on|off` and `--max-output <tokens>` replace
+  them (the last is refused above the section's `output_limit`). The two new options belong to this bridge and not to the contract's
+  common core, and `embed` and `models` refuse all three.
+- **`models`.** One read of the server's list: `present` (configured and on the server), `missing`, `unconfigured` and a count of names
+  set aside; names are compared as exact text, so configure the names as `ollama list` prints them.
+- **What a real call needs.** The module installed (`wb add`, run by the owner), the endpoint file under its name, and a server that
+  answers. A record that is not loopback and uses `http` sends the prompt in the clear; `check` warns of it. Installing the module
+  and writing the record are the owner's consent to send project content to that server.
 - **What the tests need.** Neither. They use a fake server on the loopback address, send nothing outside the machine and read no
   real endpoint file.
-- **The window.** `context` in the record is sent as `num_ctx` and drives the check for a prompt that does not fit, but the
-  server of the first run (Ollama 0.35.1) cut such a prompt without an error and reported about half the window, so the check
-  cannot see that case (`ask-ollama.md`, "Known limits"). Keep a prompt well under the window.
-- **A hand run** starts with `wb run ask-ollama check`, then a short prompt, before anything larger. The first run was made on
-  2026-11-02 through an agent session's shell tool on the owner's word; `ask-ollama.md`, "The run against a real server", says
-  what it showed and what it did not reach.
+- **A hand run** starts with `wb run ask-ollama check` and `models`, then a short prompt, before anything larger. The bridge was run
+  twice against a real server on 2026-11-02 through an agent session's shell tool on the owner's word (the second from a scratch
+  home, with a file of format 2); `ask-ollama.md`, "The run against a real server", says what each run showed and what it did not
+  reach, including that the `--provides` route was not used.
+- **Calling it from a module.** A module that runs inside the workbench declares `requires` `model-bridge` (and `text-embedding` for
+  vectors, a name that the owner confirmed as vendor-neutral) and calls the bridge through `wbkit.call.run_command` with
+  `provides`, as the review engine does. It names no host: the file picks the server and `--server` picks the record.
 
 ## The action-review engine
 
