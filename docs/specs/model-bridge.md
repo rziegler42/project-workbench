@@ -7,8 +7,8 @@ moved the contract to version 2, as the accepted decision `2026-11-01-bridge-con
 options, the confinement option, one error class for a vendor that cannot be reached, two added token counts and a network
 guarantee for both kinds of bridge. Version 1 differed in those places only, and the engines still accept it. Plan
 `2026-11-01-ask-ollama-bridge` (increment B) amended the text so that it describes a bridge to a program and a bridge to a server
-consistently; the first bridge to a server, `ask-ollama`, is specified in `ask-ollama.md` and is built for `ask` and `check` (increment C of that
-plan; the context, truncation and thinking rules and the embedding argument are increments D and E, and no real server has been tried). The capability name `model-bridge`
+consistently; the first bridge to a server, `ask-ollama`, is specified in `ask-ollama.md` and is built for `ask` and `check`, with the context,
+truncation and thinking rules (increments C and D of that plan; the embedding argument is increment E, and no real server has been tried). The capability name `model-bridge`
 is provided by the built `ask-codex` module and required by `review-engine` and `action-review`, and the owner has not confirmed it
 as the final name (see "Open questions").
 

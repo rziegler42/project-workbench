@@ -1,8 +1,8 @@
 # ask-ollama
 
 Status: Draft. Written by plan `2026-11-01-ask-ollama-bridge` (increment B), before the module existed, so that the module and its
-tests are built against this text. Increment C built the module for `ask` and `check` (against a fake server in its tests); the
-rules for the context window, a cut reply and thinking (increment D) and the `embed` argument (increment E) are not built yet.
+tests are built against this text. Increment C built the module for `ask` and `check` (against a fake server in its tests);
+increment D built the rules for the context window, a cut reply and thinking; the `embed` argument (increment E) is not built yet.
 Every statement about the Ollama server's own interface is listed under "Unconfirmed statements" and is confirmed or corrected by
 the owner's run against a real server (increment F of the plan). The spec stays `Draft` until the owner approves it.
 
@@ -137,8 +137,10 @@ never returned, never put in a message and never counted as the reply [unconfirm
   implying it. [unconfirmed 6]
 - **A reply that was cut.** When `done_reason` is `length`, the server stopped at a limit. The call is `vendor_error` with
   `reply_cut`, not retryable, even if some text came back.
-- **A thinking model.** A model that reasons may spend its limit in its reasoning and return an empty `message.content`. That is
-  `unusable_reply`. The thinking text is never returned as the reply.
+- **A thinking model.** A model that reasons may spend its limit in its reasoning and return an empty `message.content`. When the
+  server reports `done_reason` `length`, that is `reply_cut`, which names the cause; the cut is judged before the text. When it
+  reports anything else, or nothing, an empty or blank `message.content` is `unusable_reply`. The thinking text is never returned
+  as the reply.
 - **A server that closes the connection or resets it after it began to answer, or sends a reply that is `done` false,** is
   `unusable_reply`. Before it began to answer, a close or a reset is `vendor_unreachable` (below).
 
@@ -341,18 +343,23 @@ These come from memory of the Ollama documentation and are not shown by any test
 
 ## Known limits
 
-Found by the security review of increment C (2026-11-01) and left as they are, each with its reason:
+Left as they are, each with its reason. Most were found by the security review of increment C (2026-11-01); the first two come from
+increment D and its review:
 
-- **Until increment D, a cut reply and a silently cut prompt come back as a success.** The checks for `reply_cut` and
-  `context_overflow` are increment D. The module is in the package's list and in the install-order tests, so only the owner's act
-  of installing it stands between it and use; nothing installs it or points an engine at it, and the plan's order has D directly
-  after C. Do not push between C and D. Without `context` in a record the bridge cannot detect a cut prompt even after D.
+- **Without `context` in the record a prompt cut by the server's own window is not detected.** The bridge does not know the window
+  then, and the server's default is small [unconfirmed 6]. With `context`, the check is "at least the window", so a prompt that
+  fills the window exactly is reported as an overflow whether or not anything was cut. (Increment C had neither this check nor
+  `reply_cut` and returned both cases as a success; increment D built them.)
+- **A server that caches the prompt or counts it differently may report a `prompt_eval_count` below the window for a prompt that
+  was cut,** and that prompt passes unreported. Whether a real server does is unconfirmed 6 and is settled only by the owner's run
+  (increment F). A record whose `context` is 1 makes every reply with a count of one or more an overflow, by the same rule.
 - **A name lookup that is stuck in the system's resolver may not end at the timeout, or at all** ("Transport"): the alarm is handled
   between Python instructions and cannot run inside the resolver's call. An IP literal does no lookup.
 - **A connection that fails while the request is being sent** (a broken pipe or a reset) is `vendor_unreachable` even if the server
   had begun to answer with an error status, and a garbage status line or any other protocol error is `unusable_reply` even before
-  the server began to answer. A generic operating system error after the connection is made is `unusable_reply` as well. These are
-  rare and are the same class either way for a caller that only retries `vendor_unreachable`.
+  the server began to answer. A generic operating system error is judged like a reset: `vendor_unreachable` before the server began
+  to answer and `unusable_reply` after. These are rare and are the same class either way for a caller that only retries
+  `vendor_unreachable`.
 - **No server name is sent for an IP literal** in a TLS handshake, because the library does not send one; the certificate is still
   checked against the address, so the fixture certificate for the loopback address works, and a name is sent as the server name.
 - **A run of more than 4,300 digits anywhere in a reply or a schema is refused**, including inside a string, so a legitimate reply

@@ -72,6 +72,8 @@ MESSAGES = {
     "bad_exit": "the server answered with an error",
     "unusable_reply": "the server returned no usable reply",
     "reply_too_large": "the server returned more than the bridge accepts",
+    "context_overflow": "the prompt does not fit the context window",
+    "reply_cut": "the server stopped the reply at its length limit",
 }
 
 
@@ -581,7 +583,7 @@ def exchange(record, path, payload, timeout, limit):
     except http.client.HTTPException:
         raise Incomplete()
     except OSError:
-        raise Incomplete() if connected else Unreachable()
+        raise Incomplete() if responded else Unreachable()
     finally:
         if connection is not None:
             connection.close()
@@ -624,8 +626,10 @@ def chat_body(model, prompt, record, options, schema):
     return body
 
 
-def chat_outcome(status, body, model, schema):
-    """The object to print for a finished request."""
+def chat_outcome(status, body, model, schema, context=None):
+    """The object to print for a finished request. `context` is the record's window, if it has one. For a success status the
+    conditions are judged in the order of the spec: the body, ``done``, a prompt that filled the window, a reply cut at the
+    server's limit, and only then the text (so a reasoning model that spent its limit is a cut and not an empty reply)."""
     if not 200 <= status <= 299:
         return error_for(status, body)
     document = json_object(body)
@@ -633,6 +637,11 @@ def chat_outcome(status, body, model, schema):
         return failure("vendor_error", "unusable_reply", MESSAGES["unusable_reply"])
     if document.get("done") is not True:
         return failure("vendor_error", "unusable_reply", MESSAGES["unusable_reply"])
+    counted = count(document.get("prompt_eval_count"))
+    if context is not None and counted is not None and counted >= context:
+        return failure("vendor_error", "context_overflow", MESSAGES["context_overflow"])
+    if document.get("done_reason") == "length":
+        return failure("vendor_error", "reply_cut", MESSAGES["reply_cut"])
     message = document.get("message")
     content = message.get("content") if isinstance(message, dict) else None
     reply = plain(content, "\n\t") if isinstance(content, str) else ""
@@ -688,7 +697,7 @@ def ask(args, stdin, cwd, out):
         return emit(out, failure("vendor_error", "reply_too_large", MESSAGES["reply_too_large"]))
     except Incomplete:
         return emit(out, failure("vendor_error", "unusable_reply", MESSAGES["unusable_reply"]))
-    return emit(out, chat_outcome(status, body, model, schema))
+    return emit(out, chat_outcome(status, body, model, schema, record.get("context")))
 
 
 def check(args, out):

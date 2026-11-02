@@ -248,7 +248,7 @@ class Unusable(support_ollama.Bridge):
         body = json.dumps(chat()).encode()
         self.unusable(body[:20], declare_length=len(body))
 
-    def test_a_run_of_more_than_4300_digits_is_refused_before_it_is_parsed_whatever_the_environment(self):
+    def test_a_run_of_more_than_4300_digits_is_refused_before_it_is_parsed(self):
         head = b'{"done": true, "message": {"content": "x"}, "eval_count": '
         self.unusable(head + b"9" * 4301 + b"}")
         self.fake.reply(head + b"9" * 4300 + b"}")

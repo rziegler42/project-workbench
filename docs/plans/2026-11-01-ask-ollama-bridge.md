@@ -574,3 +574,38 @@ until increment G; the six stale approval records still await the owner's list.
 **Open for the owner:** do not push between C and D (the module returns a cut reply as a success until D); the private-key fixtures
 in `tests/certs/` may be flagged by `safe-git push-check` (they guard nothing, and the spec says so); whether to test from your
 terminal that your Ollama server is reachable before F.
+
+### Increment D
+
+**Done:** in `packages/workbench/ask-ollama/helper/ask-ollama`, a prompt that fills the record's `context` (the server's
+`prompt_eval_count` at least the window) is `vendor_error` with `context_overflow`, and a reply with `done_reason` `length` is
+`reply_cut`; neither is retryable and neither returns text. The conditions of a success status are judged in the spec's order: the
+body, `done`, the window, the cut, then the text, so a reasoning model that spent its limit is a cut and an empty reply with another
+reason is `unusable_reply`. A generic operating system error is now `vendor_unreachable` before the server began to answer and
+`unusable_reply` after (a point deferred from C's second review). Already built in C and now pinned by tests: `num_ctx` from the
+record, `--effort` sent as `think` and left out when absent, `effort_unsupported`, the thinking text in no object. New tests are in
+`tests/test_askollama_window.py` (22), plus one renamed test in `test_askollama_request.py`. `docs/specs/ask-ollama.md` and
+`docs/specs/model-bridge.md` say that D is built; "Known limits" drops the entry that D resolves and adds that a server which
+caches the prompt may report a count below the window.
+
+**Verification as run** (Python 3.15.0, macOS): before the change, 8 of the new tests failed against the old helper (3 failures and
+5 errors, each because it returned a success where the spec requires a failure); after it the module's 166 tests pass. The whole
+suite, `python3 -B -W error tests/run_all.py`: 6,491 tests in 14 roots, OK. `wb verify packages/workbench` accepts the modules;
+`wb check` and `wb run code-work check` report no problems. No call was made to a real server. The test of the nesting limit
+(exactly 32 and 33 levels) passed against the old helper too, as the boundary was already right: it is a pin and not a proof of a
+change, as is the test of an operating system error after the answer began.
+
+**Review:** one read by the read-only `reviewer`: no blocking finding. Applied: the spec's "A thinking model" bullet contradicted its
+order of conditions (an empty reply is `reply_cut` when the server reports `length`, else `unusable_reply`); the heading of "Known
+limits" and a new entry on a server that reports a smaller count for a cut prompt (unconfirmed 6, settled only by increment F).
+Deferred to increment E's pass, which edits the same tests: a test of a count of exactly 10^12 and of a record `context` of 1; the
+retry test should assert the code `context_overflow`; the `--server` window test should serve the body it checks. A security review
+was not asked for; D adds no input path, only judgement of a parsed reply.
+
+**Releases:** one of `wb release-approvals` by the owner in this increment.
+
+**Not done:** increments E to H; no real server; whether a real Ollama server reports `prompt_eval_count` and `done_reason` as the
+spec assumes (unconfirmed 6 and 8, increment F).
+
+**Open for the owner:** the push rule that held between C and D ends with this commit: the module no longer returns a cut reply as a
+success. Pushing the five unpushed commits and this one is still your word to give.
