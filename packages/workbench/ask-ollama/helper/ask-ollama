@@ -5,18 +5,21 @@ It is one file that imports the standard library and the workbench kit (``wbkit`
 private copy of it through the kit runner with nothing beside it.
 
     ask-ollama ask [--model <name>] [--context <tokens>] [--effort <level> | --thinking on|off] [--max-output <tokens>]
-                   [--timeout <seconds>] [--root <path>] [--schema <path>] [--server <name>] [--confine]
-                                                                       the prompt is on standard input
+                   [--temperature <value>] [--keep-alive <value>] [--timeout <seconds>] [--root <path>] [--schema <path>]
+                   [--server <name>] [--confine]                       the prompt is on standard input
     ask-ollama check                                                   read-only: the endpoint file, no connection
     ask-ollama models [--server <name>] [--timeout <seconds>]          read-only: the configured models the server has
-    ask-ollama embed [--model <name>] [--context <tokens>] [--server <name>] [--timeout <seconds>] [--confine]
+    ask-ollama embed [--model <name>] [--context <tokens>] [--keep-alive <value>] [--server <name>] [--timeout <seconds>]
+                     [--confine]
                                               one JSON object ``{"texts": [...]}`` on standard input; vectors out
 
 The contract is ``docs/specs/model-bridge.md`` (version 2) and the behaviour is ``docs/specs/ask-ollama.md``. The
 server is a named record of ``bridge-endpoints.json`` in the guarded store (decisions ``2026-11-01-endpoint-records-in-the-store`` and
-``2026-11-02-model-configurations-in-endpoint-records``), never an address in an argument, an environment variable or a tracked
+``2026-11-02-model-configurations-in-endpoint-records``, and for the temperature and the keep_alive
+``2026-11-02-temperature-and-keep-alive-in-model-sections``), never an address in an argument, an environment variable or a tracked
 file. A record holds a section for each model a call may use: only a configured model is used, and its section gives the window and, when it holds them, the defaults of a call (an effort or a
-switch for thinking, and an output limit), which a call argument replaces. A prompt that is probably larger than the window (its
+switch for thinking, an output limit, a temperature and how long the server keeps the model loaded), which a call argument
+replaces. A prompt that is probably larger than the window (its
 size in bytes above the window times the section's bytes per token) is not sent. The helper makes one request, to the host and
 port of that record and to no other, follows no redirect, verifies an ``https`` server, keeps no state, writes nothing and
 logs nothing. What the server returns is data: it is classified and copied, never run and never believed.
@@ -63,8 +66,9 @@ MAX_TEXT = 32768
 MAX_DIMENSION = 8192
 MAX_EMBED_BODY = 16777216
 EFFORTS = ("low", "medium", "high")
-OPTIONS = ("--model", "--context", "--effort", "--thinking", "--max-output", "--timeout", "--root", "--schema", "--server")
-EMBED_OPTIONS = ("--model", "--context", "--timeout", "--server")
+OPTIONS = ("--model", "--context", "--effort", "--thinking", "--max-output", "--temperature", "--keep-alive", "--timeout",
+           "--root", "--schema", "--server")
+EMBED_OPTIONS = ("--model", "--context", "--keep-alive", "--timeout", "--server")
 MODELS_OPTIONS = ("--timeout", "--server")
 FLAGS = ("--confine",)  # an option with no value
 USER_AGENT = "ask-ollama/1"
@@ -76,6 +80,8 @@ MAX_LISTED = 512
 ENDPOINT_FILE = "bridge-endpoints.json"
 _SECONDS = r"[0-9]{1,4}"
 _CONTEXT = r"[1-9][0-9]{0,7}"
+_TEMPERATURE = r"(?:[01](?:\.[0-9]{1,2})?|2(?:\.0{1,2})?)"  # 0 to 2, at most two decimals; matched whole, in ASCII digits
+_KEEP_ALIVE = r"0|-1|[1-9][0-9]{0,3}[smh]"  # unload at once, keep loaded, or a duration; matched whole
 _NAME = r"[a-z0-9][a-z0-9_-]{0,31}"
 _SEGMENT = r"[A-Za-z0-9][A-Za-z0-9._:-]*"
 _LABEL = r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
@@ -83,7 +89,8 @@ LOCATIONS = ("this-machine", "owner-network", "vendor-cloud")
 RECORD_KEYS = ("scheme", "host", "port", "location", "authenticated", "models")
 OPTIONAL_KEYS = ("default_model", "embedding_model")
 KINDS = ("chat", "embedding")
-SECTION_KEYS = ("kind", "context", "default_context", "bytes_per_token", "effort", "thinking", "output_limit")
+SECTION_KEYS = ("kind", "context", "default_context", "bytes_per_token", "effort", "thinking", "output_limit", "temperature",
+                "keep_alive")
 MAX_WINDOW = 10000000
 MAX_OUTPUT = 10000000
 _DIGIT_RUN = rb"[0-9]{4301,}"  # Python's own limit is 4300 digits, but a caller can lift it with an environment variable
@@ -384,7 +391,7 @@ def validate_section(name, section):
         raise _field(name, "a model section's default_context is not a whole number from 1 to its context")
     if "bytes_per_token" in section and not whole(section["bytes_per_token"], 1, 8):
         raise _field(name, "a model section's bytes_per_token is not a whole number from 1 to 8")
-    if section["kind"] != "chat" and any(key in section for key in ("effort", "thinking", "output_limit")):
+    if section["kind"] != "chat" and any(key in section for key in ("effort", "thinking", "output_limit", "temperature")):
         raise _field(name, "a model section of kind embedding holds a default that only a chat model may hold")
     if "effort" in section and (not isinstance(section["effort"], str) or section["effort"] not in EFFORTS):
         raise _field(name, "a model section's effort is not low, medium or high")
@@ -394,6 +401,12 @@ def validate_section(name, section):
         raise _field(name, "a model section holds both effort and thinking")
     if "output_limit" in section and not whole(section["output_limit"], 1, MAX_OUTPUT):
         raise _field(name, "a model section's output_limit is not a whole number from 1 to %d" % MAX_OUTPUT)
+    if "temperature" in section and not (isinstance(section["temperature"], str)
+                                         and re.fullmatch(_TEMPERATURE, section["temperature"])):
+        raise _field(name, "a model section's temperature is not a string from 0 to 2 with at most two decimals")
+    if "keep_alive" in section and not (isinstance(section["keep_alive"], str)
+                                        and re.fullmatch(_KEEP_ALIVE, section["keep_alive"])):
+        raise _field(name, "a model section's keep_alive is not a string that is 0, -1 or a whole number of s, m or h")
 
 
 def validate_document(document):
@@ -527,6 +540,22 @@ def call_output(options, section):
     return section.get("output_limit")
 
 
+def call_temperature(options, section):
+    """The temperature of a call as a number: ``--temperature``, else the section's ``temperature``, else ``None``. Both are
+    text of the grammar, validated before this is reached."""
+    text = options.get("--temperature", section.get("temperature"))
+    return None if text is None else float(text)
+
+
+def call_keep_alive(options, section):
+    """The ``keep_alive`` of a call: ``--keep-alive``, else the section's ``keep_alive``, else ``None``. ``0`` and ``-1`` are
+    numbers on the wire and a duration is a string; the string ``"-1"`` is never sent."""
+    text = options.get("--keep-alive", section.get("keep_alive"))
+    if text is None:
+        return None
+    return int(text) if text in ("0", "-1") else text
+
+
 # --------------------------------------------------------------------------------------- options and paths
 
 
@@ -560,6 +589,10 @@ def parse_options(args, options=OPTIONS, command="ask"):
         raise Refused("--thinking is on or off")
     if "--max-output" in found and not re.fullmatch(_CONTEXT, found["--max-output"]):
         raise Refused("--max-output is a whole number of 1 to 8 digits, with no sign and no leading zero")
+    if "--temperature" in found and not re.fullmatch(_TEMPERATURE, found["--temperature"]):
+        raise Refused("--temperature is from 0 to 2 with at most two decimals, in ASCII digits, with no sign and no leading zero")
+    if "--keep-alive" in found and not re.fullmatch(_KEEP_ALIVE, found["--keep-alive"]):
+        raise Refused("--keep-alive is 0, -1 or a whole number of 1 to 9999 followed by s, m or h")
     if "--effort" in found and "--thinking" in found:
         raise Refused("--effort and --thinking are not given together")
     if "--timeout" in found:
@@ -783,16 +816,20 @@ def error_for(status, body):
     return failure("vendor_error", "bad_exit", MESSAGES["bad_exit"])
 
 
-def chat_body(model, prompt, window, think, output, schema):
+def chat_body(model, prompt, window, think, output, schema, temperature=None, keep_alive=None):
     parameters = {"num_ctx": window}
     if output is not None:
         parameters["num_predict"] = output
+    if temperature is not None:
+        parameters["temperature"] = temperature
     body = {"model": model, "messages": [{"role": "user", "content": prompt}], "stream": False, "truncate": False,
             "options": parameters}
     if schema is not None:
         body["format"] = schema
     if think is not _ABSENT:
         body["think"] = think
+    if keep_alive is not None:
+        body["keep_alive"] = keep_alive
     return body
 
 
@@ -855,10 +892,12 @@ def ask(args, stdin, cwd, out):
     window = call_window(options, section)
     think = call_think(options, section)
     output = call_output(options, section)
+    temperature = call_temperature(options, section)
+    keep_alive = call_keep_alive(options, section)
     figure = section.get("bytes_per_token", DEFAULT_BYTES_PER_TOKEN)
     if len(prompt.encode("utf-8")) > window * figure:  # the size rule: an estimate, and nothing is sent
         return emit(out, failure("vendor_error", "context_overflow", MESSAGES["prompt_too_large"]))
-    payload = json.dumps(chat_body(model, prompt, window, think, output, schema)).encode("ascii")
+    payload = json.dumps(chat_body(model, prompt, window, think, output, schema, temperature, keep_alive)).encode("ascii")
     if len(payload) > MAX_REQUEST:
         raise Refused("the request is too large")
     try:
@@ -939,6 +978,9 @@ def embed(args, stdin, out):
     record = select_record(records, default, options.get("--server"))
     model, section = select_model(record, options.get("--model"), "embedding")
     request = {"model": model, "input": texts, "truncate": False, "options": {"num_ctx": call_window(options, section)}}
+    keep_alive = call_keep_alive(options, section)
+    if keep_alive is not None:
+        request["keep_alive"] = keep_alive
     payload = json.dumps(request).encode("ascii")
     if len(payload) > MAX_REQUEST:
         raise Refused("the request is too large")
@@ -973,6 +1015,10 @@ def check(args, out):
                 line += " thinking=%s" % ("on" if section["thinking"] else "off")
             if "output_limit" in section:
                 line += " output_limit=%d" % section["output_limit"]
+            if "temperature" in section:
+                line += " temperature=%s" % section["temperature"]
+            if "keep_alive" in section:
+                line += " keep_alive=%s" % section["keep_alive"]
             out.write(line + "\n")
         if record["scheme"] == "http" and not record["authenticated"] and not is_loopback(record["host"]):
             warnings.append("warning: %s: unauthenticated http away from loopback; content sent to it travels in the clear"
@@ -1031,11 +1077,12 @@ def main(argv, stdin, out, err, cwd=None):
             cwd = os.getcwd()  # inside the try: a working directory that is gone is a refusal and not a traceback
         if not argv or argv[0] not in ("ask", "check", "embed", "models"):
             raise Refused("usage: ask-ollama ask [--model <name>] [--context <tokens>] [--effort <level> | --thinking on|off] "
-                          "[--max-output <tokens>] "
+                          "[--max-output <tokens>] [--temperature <value>] [--keep-alive <value>] "
                           "[--timeout <seconds>] [--root <path>] [--schema <path>] [--server <name>] [--confine], with the "
                           "prompt on standard input; ask-ollama check; ask-ollama models [--server <name>] "
                           "[--timeout <seconds>]; or ask-ollama embed [--model <name>] [--context <tokens>] "
-                          "[--timeout <seconds>] [--server <name>] [--confine], with the texts on standard input")
+                          "[--keep-alive <value>] [--timeout <seconds>] [--server <name>] [--confine], with the texts on "
+                          "standard input")
         if argv[0] == "check":
             return check(argv[1:], out)
         if argv[0] == "models":

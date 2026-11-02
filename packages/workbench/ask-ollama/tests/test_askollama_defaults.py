@@ -83,7 +83,8 @@ class Validator(Base):
         self.assertEqual(0, self.ask(command="check")[0])
 
     def test_an_unknown_field_is_still_refused(self):
-        self.bad_file({"m": dict(CHAT, temperature=2)}, "not allowed")
+        self.bad_file({"m": dict(CHAT, top_p=1)}, "not allowed")
+        self.bad_file({"m": dict(CHAT, seed=1)}, "not allowed")
         self.bad_file({"m": dict(CHAT, think="low")}, "not allowed")
         self.bad_file({"m": dict(CHAT, num_predict=5)}, "not allowed")
 

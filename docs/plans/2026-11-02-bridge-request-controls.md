@@ -417,4 +417,35 @@ non-blocking ones. (1) applied: the plan's step 3 asks for one sentence of guida
 checklist item 22 (the plan's verification shows it by `git diff`); (3) not a defect of C: `docs/development.md` still lists the old
 fields and options, which increment G updates. One round of one.
 
-**Open for the owner:** the commit of increment C.
+**Committed** as `94a8b44`.
+
+### Increment D
+
+**Done:** the helper `ask-ollama` reads the section fields `temperature` (a chat section) and `keep_alive` (either kind) as exact
+ASCII grammars matched whole, and takes the options `--temperature` (`ask`) and `--keep-alive` (`ask` and `embed`), which replace
+the section's value. The temperature is held as text and sent as a number in `options.temperature`; `0` and `-1` of a keep_alive
+are sent as numbers and a duration as a string, at the top level, for `ask` and `embed`; neither is sent when no call and no
+section gives one; `check` prints both after `output_limit`. `models` refuses both options and `embed` refuses `--temperature`.
+The retryable statuses are not in the helper (increment E). New tests: `tests/test_askollama_controls.py` (40 tests). One existing
+test, `tests/test_askollama_defaults.py::test_an_unknown_field_is_still_refused`, used `temperature=2` as its example of a field
+that is not allowed; it now uses `top_p` and `seed`.
+
+**Verification as run** (macOS), targeted to the module and the package: the new and edited tests were run first against the
+unchanged helper (31 of 403 failed: every positive case; some refusal cases pass either way because the old helper refuses an
+unknown option); the scripted pass (the owner's word "run the pass") then copied the helper and the module's 403 tests (363 existing
+and 40 new, warnings as errors) passed; the owner ran `wb release-approvals` with the digest of its preview; `wb verify
+packages/workbench` exits 0; `wb check` reports no problems; the release preview reads `recorded` for `ask-ollama` and every other package and module, and lists two stale records, which
+increment G removes. The tests of the engines and of
+`ask-codex` were not run: this increment changes no file that they read, shown by `git status`.
+
+**Review:** the `reviewer` agent found no blocking finding and four non-blocking ones, none a defect of the helper: (1) missing
+hostile-input cases in the tests (a lone surrogate, a very long string, an option value that looks like another option);
+(3) the `float()` conversion shown for 7 of the 10 accepted temperatures only; (2) a stray argument after a swallowed option name,
+such as `5m` in `--temperature --keep-alive 5m`, is refused as an unknown option and quoted (up to 60 characters of it, through
+`display.ascii_text`), as every unknown argument was before this increment; (4) some refusal assertions also pass against the old
+helper. **Applied:** none in this increment, because a test change is a package change and costs a pass and a release; findings 1
+and 3 are added to the tests in increment E's pass, which is a package change in any case. **Recorded and not changed:** finding 2,
+which is not new. Finding 4 is covered by the positive tests, which fail against the old helper.
+
+**Open for the owner:** whether a security review of this increment is run (two new options, two new request fields); the commit of
+increment D.
