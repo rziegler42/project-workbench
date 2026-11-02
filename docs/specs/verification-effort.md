@@ -1,10 +1,12 @@
 # Verification effort
 
-Status: Draft
+Status: Current
 
-The owner approved this design on 2026-11-02, after two rounds of review. Nothing in it is built, so it stays a `Draft`
-until the plan that builds it is complete. Where it says what an agent does, that is
-the behavior proposed for the `code-work` module; the current behavior is in `code-work.md`.
+The owner approved this design on 2026-11-02, after two rounds of review. It is built by plan
+`2026-11-02-verification-effort-guidance` (increments A to C build it; D closes the plan out): the guidance is in the
+`code-work` skills, the `reviewer` agent and the policy line, and `code-work.md` ("The increment loop", "Policy placed in
+`AGENTS.md`", the acceptance criteria and "As built") agrees with it. It is advice: nothing blocks a run, and it adds no
+checkpoint, level or setting.
 
 ## Scope
 
@@ -42,11 +44,11 @@ The change fails even if it works as written when:
 - Projects differ widely in suite size. Some full suites take hours. The owner weighs the risk against the length of the
   run, so the agent recommends and the owner decides.
 - A project documents its own test commands, and `AGENTS.md` already says to prefer them.
-- The module already asks the owner about a security review when a change materially touches a listed area
-  (`packages/workbench/code-work/files/blocks/policy.md`; `code-work.md`, "Policy placed in `AGENTS.md`"). What
-  stays: it names the capability `security-review` and no module, and a review runs only when the owner asks. What
-  changes: the trigger. "Materially touches a listed area" is replaced by a named, concrete exposure (see Behavior);
-  the listed areas become places to look and are no longer triggers.
+- Before this was built, the module asked the owner about a security review when a change materially touched a listed
+  area (`packages/workbench/code-work/files/blocks/policy.md`; `code-work.md`, "Policy placed in `AGENTS.md`"). What
+  stayed: it names the capability `security-review` and no module, and a review runs only when the owner asks. What
+  changed: the trigger. "Materially touches a listed area" was replaced by a named, concrete exposure (see Behavior);
+  the listed areas are places to look and are no longer triggers.
 - An approved plan cannot be edited beyond its status, review record and result without a new approval (`AGENTS.md`).
   The new guidance therefore governs what an agent does from the day the updated module is installed, for every plan
   whatever its status, and it does not rewrite any plan. A verification line already in a plan is the owner's statement
@@ -118,10 +120,10 @@ The change fails even if it works as written when:
 
 ### Where the text goes
 
-Left to the builder, within these limits: the practice skills (`test-first`, `verify-before-claiming`), `run-increment`,
-`draft-plan`, `request-review`, `evaluate-findings` and the reviewer agent, one reworded policy bullet that keeps the security-review rule and
-adds the wider-testing rule, the matching sections of `code-work.md` (including the last paragraph of "The increment
-loop" and the plan template's "Verification for the plan as a whole"), and the tests that assert on that text.
+The text lives in these places, and a change to the guidance changes all of them together: the practice skills (`test-first`,
+`verify-before-claiming`), `run-increment`, `draft-plan` with its template, `request-review`, `evaluate-findings` and the
+reviewer agent; the policy block, with a wider-testing bullet and the reworded security-review bullet; the matching sections
+of `code-work.md` (including the last paragraph of "The increment loop"); and the tests that assert on that text.
 
 ## Acceptance criteria
 
@@ -148,7 +150,7 @@ loop" and the plan template's "Verification for the plan as a whole"), and the t
 
 These were my choices, not the owner's, and the owner may change them:
 
-- The name and shape of this document, and its status as a Draft spec of its own and not a section of `code-work.md`.
+- The name and shape of this document, and its being a spec of its own and not a section of `code-work.md`.
 - Honoring a plan's existing verification lines as written, and applying the guidance to every plan from installation.
 - "Once per increment" as the point to run the area's tests.
 - Using a project's documented selector first, where one exists.

@@ -230,6 +230,23 @@ test, compare the installed copies or read the whole diff; the author did (see t
 - **Left for the owner:** whether to add the clauses of findings 1 and 2 to the policy block in a later change; each such change needs a
   pass, a release and a second upgrade.
 
+### Increment D and the whole plan
+
+Reviewer: the `reviewer` agent (read-only). Rounds: 1 of 3. Outcome: no blocking findings; seven non-blocking findings. It could not run
+any test or `wb` command, read the commits or compare the copies; the author did (see the Result of D).
+
+- **Applied:** (1) the Result of D said the review of the whole plan was recorded before it was: this entry is added and the Result reworded;
+  (2) the Results of A, B and C said "not committed" after they were committed: they now name the commits; (4) four stale points in
+  `verification-effort.md`: the opening note listed too few of the `code-work.md` sections it agrees with and said "increments A to D" where
+  `code-work.md` says A to C (it now says A to C build it and D closes the plan out); "a Draft spec of its own"; the present-tense
+  description of the old security-review rule (now past tense); and "Left to the builder" (now says where the text lives).
+- **Recorded, no change:** (5) the plan's steps for D do not name `wb rerender`: the Result of D discloses it, and a change to the plan now
+  would need a new approval; (6) no exposure the reviewer could name, and the agent did not read what the re-render changed in the local
+  settings (disclosed, and the owner read the preview); (7) "run the plan's line as written" and "do not rerun a check that passed on
+  unchanged inputs" are both in the text and do not conflict, and the skills, not the policy block, carry the report of what was not run.
+- **Left for the owner:** (3) the plan's `Status:` line still reads `Proposed`: the loop sets it at the end, and the owner's word says to
+  what; the plan is approved by the owner's record, which the status line never replaces.
+
 ## Deferred work
 
 - An enforced checkpoint for a wider run, with levels, if the conversational stop proves too weak.
@@ -240,7 +257,7 @@ test, compare the installed copies or read the whole diff; the author did (see t
 
 ### Increment A
 
-**Done, not committed:** the five texts (`test-first`, `verify-before-claiming`, `run-increment`, `draft-plan`, and the plan template) and the
+**Done, committed as `9f9d151`:** the five texts (`test-first`, `verify-before-claiming`, `run-increment`, `draft-plan`, and the plan template) and the
 three test files of `packages/workbench/code-work/`, in two scripted passes (the owner's word "run the pass" each time, and the owner's
 `wb release-approvals` after each). A first pass wrote the guidance; the second applied review findings 1, 2 and 5. The spec
 `docs/specs/verification-effort.md` has one correction (finding 4).
@@ -265,7 +282,7 @@ renumbered, and no other file cites those numbers. (4) Two old phrases of `test-
 
 ### Increment B
 
-**Done, not committed:** `agents/reviewer.md`, `skills/request-review/SKILL.md`, `skills/evaluate-findings/SKILL.md` and the tests
+**Done, committed as `7eec238`:** `agents/reviewer.md`, `skills/request-review/SKILL.md`, `skills/evaluate-findings/SKILL.md` and the tests
 `test_codework_reviewer.py` and `test_codework_skills.py` of `packages/workbench/code-work/`, in one scripted pass (the owner's word "run the
 pass", then the owner's `wb release-approvals`). The spec `docs/specs/verification-effort.md` has two edits: a correction (the reviewer is
 not passed the recommendations by `request-review`, but it reads the plan, whose `## Result` may record them, so it flags a risk whether or
@@ -289,7 +306,7 @@ it reads the plan. (4) The review's finding 1 was not applied; see the review re
 
 ### Increment C
 
-**Done, not committed:** `packages/workbench/code-work/files/blocks/policy.md` and `tests/test_codework_module.py` in one scripted pass (the
+**Done, committed as `85c30b8`:** `packages/workbench/code-work/files/blocks/policy.md` and `tests/test_codework_module.py` in one scripted pass (the
 owner's word "run the pass", then the owner's `wb release-approvals`); then the owner's `wb upgrade --package <the local package
 directory>`, which wrote `AGENTS.md` (the `workbench/code-work` policy block only), `.workbench/manifest.json` and nine installed copies
 under `.workbench/workbench/code-work/` (the policy block, the `reviewer` agent, and the skills `draft-plan` with its template,
@@ -320,3 +337,43 @@ line cap went from 28 to 32 lines, because the block was already at 28; the test
 reason that the trigger is replaced by a named exposure. (3) The commit will hold the tracked files the upgrade wrote, which the plan
 named only generally. (4) The pass's third stage ran `test_self_hosting` and reported a skip as OK; the measure that mattered was the
 copy with the approvals released. (5) Review findings 1 to 4 were not applied; see the review record.
+
+### Increment D
+
+**Done, not committed:** (1) The stale shipped approval records were listed and removed: the release preview named 8 (two tracked by git,
+`670a75728168` and `67192317fbbb`; six untracked, `36ea258227fe`, `6bd2050d1ce3`, `a59ad676bf8b`, `b4178549dd21`, `f8064c0ba0b0` and
+`fad93aa870e0`), a dry run of `wb run safe-git remove --recursive` listed those 8 directories, one entry each, and the owner approved that
+exact list before the same command ran with `--confirm`. The preview now reads 0 stale records, with the package and all 13 modules
+`recorded`. The two current records that git does not yet track (the package, `e84bb3782485`, and `code-work`, `0974fafd6a7b`) are
+committed with this increment. (2) `docs/specs/verification-effort.md` is `Current`, on the owner's word ("Set to current or whatever is
+appropriate"); its opening note says the spec is built and is advice. (3) The owner ran `wb rerender`, after reading its preview, so that
+the rendered copies under `.claude/` match the package.
+
+**Verification as run** (macOS, Python 3.15.0, `-I -B -W error`), the plan as a whole: the module's tests once, after the last relevant change:
+346 ran, OK, 2 skipped; `tests/test_self_hosting.py`: 3 ran, OK; `wb check` and `wb run code-work check` (80 plans) report no problems;
+`wb verify packages/workbench` lists 13 modules and no refusal; `wb preview release-approvals`: package and 13 modules `recorded`, stale
+records 0; the hash comparison: the nine installed copies under `.workbench/workbench/code-work/` are byte-identical to the package (`cmp`,
+after increment C), and, after the re-render, all 11 compared files under `.claude/` have the body of their neutral source (the skills
+`test-first`, `verify-before-claiming`, `run-increment`, `draft-plan` and its template, `request-review`, `evaluate-findings`,
+`diagnose-failure`, `push-changes`, `delegate-approval`, and the `reviewer` agent), and a second `wb preview rerender` says "nothing to change".
+
+**What earlier checks stood and what was rerun:** the module's tests of increments A and B were invalidated by C (it changed the module's
+test file and the policy block), so they were rerun here as one run; `wb verify` and `wb check` were rerun for the same reason. The
+reviews of A, B and C were not repeated: nothing later changed the files they read.
+
+**Not run, and why:** the whole suite and the tests of other modules. A wider run was made once, with its reason named in increment C
+(`tests/test_self_hosting.py`); no other way for this plan to break something outside the module's area could be named.
+
+**Deviations and choices, for the owner:** (1) The plan's check of the installed skill and agent copies also needed `wb rerender`, an
+owner-run step the plan did not name: the upgrade of increment C wrote the tracked copies under `.workbench/` but not the rendered copies
+under `.claude/`, which git excludes and which the harness reads. Until the re-render, this session followed the old skill text in its
+`.claude/` copies for increments A to C; the work followed the plan and the spec, which are the sources of truth, and the new text was
+checked against the package, not against what the agent was reading. The re-render preview also changed `.claude/settings.local.json`,
+`.workbench/local/harness.json` and a rendering record, because the harness module differs from the one recorded at attach (earlier
+plans changed it); the agent did not read what changed there, and the owner read the preview. (2) The release preview named 8 stale
+records, not the 2 the first release warned about: each scripted pass of this plan left one. (3) The removal helper refused to list
+directories without `--recursive`; the listing was run with it, and no `--confirm`, on the owner's word. (4) The plan was amended after
+approval, in increment C, to fold the `AGENTS.md` refresh into C and to drop the old increment E (see its Result).
+
+**Plan as a whole:** A is `9f9d151`, B is `7eec238` and C is `85c30b8`; D is not yet committed. Increments A to C were each reviewed once by
+the `reviewer` agent with no blocking finding; the review of increment D and of the whole plan is recorded in the review record.
