@@ -11,7 +11,7 @@ from support_ollama import chat
 
 
 class Window(support_ollama.Bridge):
-    """A prompt that fills the window of the record is reported and nothing is returned."""
+    """A prompt that fills the window of the call is reported and nothing is returned."""
 
     def overflow(self, body, *args):
         document = self.failed(*args, error="vendor_error", detail="context_overflow")
@@ -34,7 +34,7 @@ class Window(support_ollama.Bridge):
             document = self.document()
             self.assertEqual(("the answer", counted), (document["reply"], document["usage"]["input_tokens"]))
 
-    def test_the_window_is_the_one_of_the_record_chosen_with_server(self):
+    def test_the_window_is_the_one_of_the_model_section_of_the_record_chosen_with_server(self):
         self.endpoints(default="small", small=self.record(context=100), large=self.record(context=100000))
         body = chat("answer", prompt_eval_count=5000)
         self.fake.reply(body)

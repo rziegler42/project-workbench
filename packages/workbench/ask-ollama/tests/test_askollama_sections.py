@@ -132,6 +132,64 @@ class Format(support_ollama.Bridge):
         self.good_file(self.document_of())
 
 
+class Hardening(support_ollama.Bridge):
+    """The format is read first, two names a server may read as one model are refused, and a run of more than 4,300 digits is
+    refused before the file is parsed (plan `2026-11-02-bridge-model-configurations`, increment D)."""
+
+    def bad(self, document, contains):
+        data = document if isinstance(document, bytes) else json.dumps(document).encode()
+        self.write_endpoint_file(data)
+        err = self.refused(command="check", contains=contains)
+        self.refused(contains=contains)
+        self.assertEqual([], self.fake.requests)
+        return err
+
+    def good(self, models):
+        self.endpoints(ned=self.record(models=models, default_model=None))
+        self.assertEqual(0, self.ask(command="check")[0])
+
+    def test_the_format_is_judged_before_the_other_top_level_fields(self):
+        self.bad({"format": 1, "endpoints": {}, "extra": 1}, "older format")
+        self.bad({"format": 3, "endpoints": {}, "extra": 1}, "format is not 2")
+        self.bad({"endpoints": {}, "extra": 1}, "format is not 2")
+        self.bad({"format": 2, "endpoints": {}, "extra": 1}, "not allowed")
+
+    def test_two_model_names_of_one_record_that_a_server_may_read_as_one_are_refused(self):
+        for names in (("m", "m:latest"), ("M", "m"), ("a/B:latest", "a/b"), ("m:LATEST", "m"), ("Org/Model", "org/model:latest")):
+            models = {name: {"kind": "chat", "context": 10} for name in names}
+            err = self.bad({"format": 2, "endpoints": {"ned": self.record(models=models, default_model=None)}}, "same model")
+            for name in names:
+                if len(name) > 3:
+                    self.assertNotIn(name, err)
+        models = {"m": {"kind": "chat", "context": 10}, "m:latest": {"kind": "embedding", "context": 10}}
+        self.bad({"format": 2, "endpoints": {"ned": self.record(models=models, default_model=None)}}, "same model")
+
+    def test_names_that_differ_beyond_case_and_a_trailing_latest_are_read(self):
+        self.good({"m": dict(CHAT), "n:latest": dict(CHAT), "m:7b": dict(CHAT), "m:latest:x": dict(CHAT), "latest": dict(CHAT)})
+        self.good({"a/m": dict(CHAT), "b/m": dict(CHAT), "m:latest2": dict(CHAT)})
+
+    def test_the_same_name_in_two_records_is_not_an_alias(self):
+        self.endpoints(default=None, a=self.record(), b=self.record())
+        self.assertEqual(0, self.ask(command="check")[0])
+
+    def test_a_run_of_more_than_4300_digits_anywhere_in_the_file_is_refused_as_not_strict_json(self):
+        good = json.dumps({"format": 2, "endpoints": {"ned": self.record()}})
+        for where in ('"scheme": "http"', '"port": %d' % self.fake.port):
+            self.bad(good.replace(where, where + ', "x": ' + "9" * 4301, 1).encode(), "strict JSON")
+        self.bad(good.replace('"scheme": "http"', '"scheme": "' + "9" * 4301 + '"', 1).encode(), "strict JSON")
+        self.write_endpoint_file(good.replace('"scheme": "http"', '"scheme": "' + "9" * 4300 + '"', 1).encode())
+        self.refused(command="check", contains="scheme")
+
+    def test_the_guard_holds_when_the_interpreter_limit_on_digits_is_lifted(self):
+        import sys
+        good = json.dumps({"format": 2, "endpoints": {"ned": self.record()}})
+        data = good.replace('"authenticated"', '"x": ' + "9" * 5000 + ', "authenticated"', 1).encode()
+        before = sys.get_int_max_str_digits()
+        sys.set_int_max_str_digits(0)
+        self.addCleanup(sys.set_int_max_str_digits, before)
+        self.bad(data, "strict JSON")
+
+
 class Allowlist(support_ollama.Bridge):
     """A call uses only a model the selected record configures, and only one of the kind the command needs."""
 

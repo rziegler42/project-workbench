@@ -47,6 +47,7 @@ MAX_BODY = 4194304
 MAX_ENDPOINT_FILE = 262144
 MAX_RECORDS = 64
 MAX_MODELS = 64
+DEFAULT_BYTES_PER_TOKEN = 2
 MAX_COUNT = 10 ** 12
 MAX_DEPTH = 32
 CONNECT_LIMIT = 10
@@ -344,10 +345,16 @@ def validate_models(name, models):
     never a model name or a value."""
     if not isinstance(models, dict) or not 1 <= len(models) <= MAX_MODELS:
         raise _field(name, "models is an object of 1 to %d models" % MAX_MODELS)
+    same = set()
     for model, section in models.items():
         if not valid_model(model):
             raise _field(name, "a model name in models is not allowed")
         validate_section(name, section)
+        alias = model.lower()
+        alias = alias[:-len(":latest")] if alias.endswith(":latest") else alias
+        if alias in same:
+            raise _field(name, "two model names are the same model after lower-casing and dropping a trailing :latest")
+        same.add(alias)
 
 
 def validate_section(name, section):
@@ -370,13 +377,13 @@ def validate_section(name, section):
 
 def validate_document(document):
     """``(records, default)`` of a parsed endpoint file, or a refusal that names the rule and never the value."""
-    unknown = set(document) - {"format", "endpoints", "default"}
-    if unknown:
-        raise Refused("the endpoint file holds a field that is not allowed")
     if type(document.get("format")) is int and document["format"] == 1:
         raise Refused("the endpoint file is in an older format and must be rewritten")
     if type(document.get("format")) is not int or document["format"] != 2:
         raise Refused("the endpoint file: format is not 2")
+    unknown = set(document) - {"format", "endpoints", "default"}
+    if unknown:
+        raise Refused("the endpoint file holds a field that is not allowed")
     endpoints = document.get("endpoints")
     if not isinstance(endpoints, dict):
         raise Refused("the endpoint file: endpoints is missing or is not an object")
@@ -422,6 +429,8 @@ def read_endpoints():
             data = root.read_file(ENDPOINT_FILE, MAX_ENDPOINT_FILE)
     except (safefs.SafeFsError, OSError) as exc:
         raise Refused("the endpoint file %s" % file_problem(exc))
+    if re.search(rb"[0-9]{4301,}", data):  # Python's own limit is 4300 digits, but a caller can lift it with an environment variable
+        raise Refused("the endpoint file is not strict JSON")
     try:
         document = jsonstrict.parse_object(data, MAX_ENDPOINT_FILE)
     except ValueError:
@@ -874,7 +883,8 @@ def embed(args, stdin, out):
 
 
 def check(args, out):
-    """Print the endpoint file without its hosts and ports, and warn about a plain ``http`` record away from loopback."""
+    """Print the endpoint file without its hosts and ports, with the models of each record, and warn about a plain ``http``
+    record away from loopback."""
     if args:
         raise Refused("check takes no option")
     records, default = read_endpoints()
@@ -886,6 +896,10 @@ def check(args, out):
         out.write("%s scheme=%s location=%s authenticated=%s default=%s\n" % (
             name, record["scheme"], record["location"], "true" if record["authenticated"] else "false",
             "yes" if name == default else "no"))
+        for model, section in record["models"].items():
+            out.write("model %s/%s kind=%s context=%d window=%d bytes_per_token=%d\n" % (
+                name, model, section["kind"], section["context"], section.get("default_context", section["context"]),
+                section.get("bytes_per_token", DEFAULT_BYTES_PER_TOKEN)))
         if record["scheme"] == "http" and not record["authenticated"] and not is_loopback(record["host"]):
             warnings.append("warning: %s: unauthenticated http away from loopback; content sent to it travels in the clear"
                             % name)

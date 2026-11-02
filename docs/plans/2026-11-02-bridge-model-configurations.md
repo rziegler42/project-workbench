@@ -465,4 +465,43 @@ and the owner then ran it in a terminal).
 records and the new untracked ones stay out of the commit until increment I.
 
 **Open for the owner:** whether increment D's pass also refuses two model names of one record that are equal after lower-casing and
-dropping a trailing `:latest` (Low 1 of the security review; documented as a known limit otherwise).
+dropping a trailing `:latest` (Low 1 of the security review; documented as a known limit otherwise). (Done in D; see below.)
+
+### Increment D
+
+**Done:** `ask-ollama check` prints, after each record line, one line for each model of the record
+(`model <record>/<model> kind=… context=… window=… bytes_per_token=…`, the window being `default_context` else `context`, the figure
+2 when absent, the constant `DEFAULT_BYTES_PER_TOKEN`); the warnings still come after every record and model line and host and port
+are never printed. The items deferred from C went into the same pass: `validate_document` reads `format` before the other top-level
+fields (a format 1 file with another field is still "older format"); the reader refuses a run of more than 4,300 digits anywhere in the
+file as "not strict JSON" before parsing (a test lifts the interpreter's limit and shows the guard still holds); the window test's
+wording is fixed; and, as the owner left it to the recommendation, two model names of one record that are equal after lower-casing and
+dropping a trailing `:latest` are refused (the same name in two records is read). The alias rule is recorded in the spec (the file
+section, checklist item 12 and "Known limits") and not by a new decision: it tightens the validator and leaves the exact-text
+allowlist of decision item 4 as it is; a decision amendment would be a superseding record, which the reviewer and I judged
+disproportionate, and the owner may still ask for one.
+
+**Deviation from the plan:** step 1 of D asked for new `embed` tests (a model not configured, a chat model, `embedding_model` used
+when `--model` is absent, `--context` in range). They were written in C, in the classes `Allowlist` and `Windows` of
+`test_askollama_sections.py`, when `embed` moved to the new records; D adds none for `embed`. The 501 row for a model that is
+configured as an embedding model and that the server cannot embed with is unchanged and is covered by the existing error test.
+
+**Verification as run** (Python 3.15.0, macOS): the module's tests in a scripted pass that copied the tests first: against the
+committed helper 265 tests ran and 6 failed (the new tests); against the new helper all 265 pass. The whole suite,
+`python3 -B -W error tests/run_all.py`: 6,590 tests in 14 roots, OK. `wb verify packages/workbench` prints no refusal; `wb check` and
+`wb run code-work check` report no problems. `wb preview release-approvals` after the owner's release: 14 records `recorded`; four stale
+shipped records are warned about (`2cff7146…`, `ec712287…`, `f50d8904…` and `f877b2db…`).
+
+**Review:** one read by the read-only `reviewer`: no blocking finding. Applied (spec only): the header names the digit guard and the
+reading of `format` first. Deferred to the pass of increment E, which changes the helper anyway: the docstring of
+`test_askollama_sections.py` still says "increment C" and "items 12 to 14", and the digit-run regex literal appears twice in the
+helper (the reply parser and the file reader), which a shared constant would keep in step. Noted: two of the digit cases (a number
+`"x": 99…9` of 4,301 digits) are refused as "not strict JSON" even without the guard, because the interpreter's own limit raises;
+the in-string case and the case with the limit lifted are the ones that discriminate. A security review was not asked for: no new
+boundary, and the alias and digit rules only refuse more.
+
+**Releases:** one more of `wb release-approvals` by the owner in this increment (in a terminal).
+
+**Not done in D:** the size rule, the `models` argument (E and F); the stale shipped records stay out of the commit until I.
+
+**Open for the owner:** whether to record the alias rule in a decision as well.

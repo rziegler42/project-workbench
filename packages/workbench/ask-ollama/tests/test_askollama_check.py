@@ -1,5 +1,6 @@
 """`ask-ollama check`: the read-only diagnostic of the endpoint file (the `check` section of `docs/specs/ask-ollama.md`;
-checklist item 9 there). Plan `2026-11-01-ask-ollama-bridge`, increment C."""
+checklist item 9 there). Plan `2026-11-01-ask-ollama-bridge`, increment C; the model lines are plan
+`2026-11-02-bridge-model-configurations`, increment D."""
 
 import os
 import unittest
@@ -12,22 +13,53 @@ class Check(support_ollama.Bridge):
         code, out, err = self.ask(command="check")
         return code, out.splitlines(), err
 
+    def records(self):
+        """The record lines and the warnings of `check`, without the model lines."""
+        code, lines, err = self.check()
+        return code, [line for line in lines if not line.startswith("model ")], err
+
     def test_one_line_per_record_in_the_files_order_without_host_or_port(self):
         self.endpoints(default="gpu", zed=self.record(host="zed.example", location="owner-network"),
                        gpu=self.record(host="10.0.0.5", location="vendor-cloud", scheme="https"))
-        code, lines, err = self.check()
+        code, lines, err = self.records()
         self.assertEqual((0, ""), (code, err))
         self.assertEqual(["zed scheme=http location=owner-network authenticated=false default=no",
                           "gpu scheme=https location=vendor-cloud authenticated=false default=yes",
                           "warning: zed: unauthenticated http away from loopback; content sent to it travels in the clear"],
                          lines)
 
-    def test_it_never_prints_a_host_a_port_a_model_or_a_context(self):
+    def test_it_never_prints_a_host_or_a_port_but_prints_the_models_and_their_numbers(self):
         self.endpoints(ned=self.record(host="marker-host.example", port=11434, default_model="marker-model",
                                        embedding_model="marker-embed", context=8192))
         out = self.ask(command="check")[1]
-        for word in ("marker-host", "11434", "marker-model", "marker-embed", "8192", "example"):
+        for word in ("marker-host", "11434", "example"):
             self.assertNotIn(word, out)
+        for word in ("ned/marker-model kind=chat context=8192", "ned/marker-embed kind=embedding context=8192"):
+            self.assertIn(word, out)
+
+    def test_each_record_is_followed_by_its_models_in_the_files_order_with_the_window_and_the_figure(self):
+        zed = self.record(models={"c1": {"kind": "chat", "context": 16384, "default_context": 8192, "bytes_per_token": 1},
+                                  "e1": {"kind": "embedding", "context": 2048},
+                                  "org/model:tag": {"kind": "chat", "context": 5}}, default_model="c1")
+        gpu = self.record(models={"only": {"kind": "chat", "context": 100}}, default_model=None,
+                          scheme="https", host="10.0.0.5")
+        self.endpoints(default="gpu", zed=zed, gpu=gpu)
+        code, lines, err = self.check()
+        self.assertEqual((0, ""), (code, err))
+        self.assertEqual([
+            "zed scheme=http location=this-machine authenticated=false default=no",
+            "model zed/c1 kind=chat context=16384 window=8192 bytes_per_token=1",
+            "model zed/e1 kind=embedding context=2048 window=2048 bytes_per_token=2",
+            "model zed/org/model:tag kind=chat context=5 window=5 bytes_per_token=2",
+            "gpu scheme=https location=this-machine authenticated=false default=yes",
+            "model gpu/only kind=chat context=100 window=100 bytes_per_token=2"], lines)
+
+    def test_the_warnings_come_after_every_record_and_model_line(self):
+        self.endpoints(default=None, a=self.record(host="10.0.0.5"), b=self.record(host="127.0.0.1"))
+        lines = self.check()[1]
+        first = [number for number, line in enumerate(lines) if line.startswith("warning: ")]
+        self.assertEqual([len(lines) - 1], first)
+        self.assertTrue(all(line.startswith(("a ", "b ", "model ")) for line in lines[:-1]))
 
     def test_an_unauthenticated_http_record_away_from_loopback_is_warned_about_and_no_other_is(self):
         self.endpoints(default=None,
@@ -47,7 +79,7 @@ class Check(support_ollama.Bridge):
 
     def test_only_the_default_is_marked(self):
         self.endpoints(default="b", a=self.record(), b=self.record(), c=self.record())
-        lines = self.check()[1]
+        lines = self.records()[1]
         self.assertEqual(["no", "yes", "no"], [line.rsplit("default=", 1)[1] for line in lines])
 
     def test_it_makes_no_connection_and_writes_nothing(self):

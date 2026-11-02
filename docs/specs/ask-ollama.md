@@ -10,8 +10,9 @@ showed. The spec stays `Draft` until the owner approves it.
 Plan `2026-11-02-bridge-model-configurations` (increment B) amended this text before the module changes, as the first plan did: the
 endpoint file of format 2 (a section for each model), the allowlist, the window rules, `--context`, the size rule and the argument
 `models` are specified here under the accepted decision `2026-11-02-model-configurations-in-endpoint-records`, and are built by
-increments C to F of that plan. Increment C built the reader of format 2, the allowlist, the window rules and `--context` (for `ask` and `embed`); until the rest is
-built (the size rule, `models` and the model lines of `check`) the module does what the text before this amendment says for them;
+increments C to F of that plan. Increment C built the reader of format 2, the allowlist, the window rules and `--context` (for `ask` and `embed`), and increment D
+the model lines of `check`, the refusal of aliasing names, the guard on digits in the file and the reading of `format` first; until the rest is built (the size rule and `models`) the module does
+what the text before this amendment says for them;
 the file is named `endpoints.json` until increment H renames it `bridge-endpoints.json`.
 
 Terms are in `terms.md`. The contract it satisfies is `model-bridge.md` (version 2), whose sections on a bridge to a server this
@@ -86,10 +87,12 @@ The module reads the owner's file in the guarded store as two accepted decisions
 `~/.config/project-workbench/endpoints.json`, and `bridge-endpoints.json` from increment H of the plan of 2026-11-02. This spec does
 not restate the host grammar; the first decision is its source. What the file holds, in format 2:
 
-- **The file.** Strict JSON, one object, at most 262,144 bytes, with exactly `format` (the integer 2), `endpoints` (an object of at
+- **The file.** Strict JSON (a run of more than 4,300 digits anywhere in the file is refused as not strict JSON before the file is
+  parsed, whatever limit the interpreter has), one object, at most 262,144 bytes, with exactly `format` (the integer 2), `endpoints` (an object of at
   most 64 records named as before) and optionally `default` (the name of a record). A file with `format` 1 is
   refused with a line that says the file is in an older format and must be rewritten; a file with any other `format` is refused with
-  a line that says the format is not 2. Nothing is read from either and there is no fallback.
+  a line that says the format is not 2. The format is judged before any other top-level field, so a file of format 1 that also has another field is
+  still called older. Nothing is read from either and there is no fallback.
 - **A record** holds `scheme`, `host`, `port`, `location` and `authenticated` (false only) as before, optionally `default_model` and
   `embedding_model`, and the required `models`. It holds no `context`: the field moved into the model sections, and a record that
   still has it is refused as a field that is not allowed.
@@ -99,6 +102,8 @@ not restate the host grammar; the first decision is its source. What the file ho
   a whole number from 1 to 10,000,000: the largest window, in tokens, that the owner declares the model accepts); `default_context`
   (optional, a whole number from 1 to `context`); and `bytes_per_token` (optional, a whole number from 1 to 8, default 2). A float, a
   boolean or a string where a whole number belongs, a field not listed and a missing `kind` or `context` are each refused.
+- **Two names that a server may read as one** are refused: in one record, two model names that are equal after lower-casing and
+  dropping a trailing `:latest`. The same name in two records is not an alias.
 - **`default_model` and `embedding_model`**, when present, name a key of `models`: the first one of `kind` `chat`, the second one of
   `kind` `embedding`. A name that is not a key, or is a key of the other kind, makes the file invalid.
 
@@ -426,8 +431,9 @@ the request line, headers and body, shows each item. No item needs a real Ollama
 7. The mapping of the reply: the five counts, `total_tokens` `null`, the thinking text never returned, an empty reply, a cut reply
    and a prompt that fills the window as the section above says.
 8. No host, port or credential is in any object, message, `refused:` line, `check` output or the arguments of the process.
-9. `check` prints one line per record without host or port, warns for an unauthenticated `http` record that is not loopback and for
-   none other, makes no connection, writes nothing, and refuses a bad file.
+9. `check` prints one line per record without host or port, followed by one line per model of that record (name, kind, `context`,
+   the window and the figure, with the defaults), warns for an unauthenticated `http` record that is not loopback and for none
+   other (after every record and model line), makes no connection, writes nothing, and refuses a bad file.
 10. `embed`: the input rules, the request, the output shape, the checks on the reply and the size bound as above.
 11. The project and the store are byte for byte the same after every call.
 12. The file of format 2: a file of format 1 is refused with nothing sent and with a line that says the file is older, and a file of
@@ -436,7 +442,10 @@ the request line, headers and body, shows each item. No item needs a real Ollama
     `embedding`, a `context` or `default_context` that is not a whole number in range, a `default_context` above `context`, a
     `bytes_per_token` outside 1 to 8 and a field not listed are each refused; a `default_model` that is not a key or is not of kind
     `chat`, and an `embedding_model` that is not a key or is not of kind `embedding`, are refused; a section that is not an object, a `kind` that is not a string, and a `models` that is not an object are refused; 64 sections
-    are accepted and 65 are refused; and a file of 262,144 bytes is accepted and one byte more is refused.
+    are accepted and 65 are refused; two model names of a record that are equal after lower-casing and dropping a trailing
+    `:latest` are refused (the same name in two records is read); a run of more than 4,300 digits in the file is refused as not
+    strict JSON, also when the interpreter's own limit on digits is lifted; the format is judged before the other top-level
+    fields; and a file of 262,144 bytes is accepted and one byte more is refused.
 13. The allowlist: a `--model` that is not a configured key (including one that fits the rule and one with a `/`) is refused with
     nothing sent and the name is not quoted; a configured name with a `/` is accepted; a model of kind `embedding` given to `ask`
     and a model of kind `chat` given to `embed` are refused; without `--model` the call uses `default_model` or `embedding_model`
@@ -565,11 +574,10 @@ increment D and its review, and the one on embedding replies from increment E:
 - **The owner's `context` can be wrong.** It is the owner's declaration of the model's limit and is not read from the server. A value
   above what the server gives is sent as `num_ctx` and the server may clamp it or refuse it; a value that is too high costs the
   server memory (not measured). `default_context` is the way to send less than the declared limit.
-- **Names are matched as exact text, and the server may not.** The allowlist compares a model name with the file's keys exactly. A
-  server may treat `m`, `m:latest` and possibly a name of another case as one model (not verified). A file that configures such
-  names with different kinds is the owner's mistake, and the bridge does not catch it; the call goes to the server under the name
-  that was configured. A parse-time refusal of two names in one record that are equal after lower-casing and dropping a trailing
-  `:latest` is possible and is not built (found by the security review of increment C of the plan of 2026-11-02).
+- **Names are matched as exact text, and the server may not read two names as two models.** The allowlist compares a model name
+  with the file's keys exactly. The reader refuses a record in which two model names are equal after lower-casing and dropping a
+  trailing `:latest` (`m` and `m:latest`, `M` and `m`), because a server may treat them as one model. It does not know the server's
+  other rules for names, so a pair that a server reads as one in another way is not caught.
 - **The size rule refuses some prompts that fit and passes some that do not.** It is the estimate of a byte count; see "Context
   window". It is not applied to `embed`.
 - **The allowlist is not a boundary.** The agent can read the file and a shell can call the server directly; the allowlist limits what
