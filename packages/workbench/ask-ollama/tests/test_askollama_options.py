@@ -108,6 +108,7 @@ class Prompt(support_ollama.Bridge):
         self.refused(prompt=b"x" * (self.helper.MAX_PROMPT + 1), contains="larger than")
 
     def test_a_prompt_at_the_bound_is_accepted_and_sent_whole(self):
+        self.endpoints(ned=self.record(context=200000))  # a window that the size rule lets the largest prompt through
         self.assertTrue(self.document(prompt=b"x" * self.helper.MAX_PROMPT)["ok"])
         body = json.loads(self.fake.requests[-1]["body"])
         self.assertEqual(self.helper.MAX_PROMPT, len(body["messages"][0]["content"]))
@@ -117,6 +118,7 @@ class Prompt(support_ollama.Bridge):
         with open(os.path.join(self.root, "docs", "big.json"), "w", encoding="utf-8") as handle:
             json.dump(schema, handle, ensure_ascii=False)
         prompt = ("\x01" * self.helper.MAX_PROMPT).encode()
+        self.endpoints(ned=self.record(context=200000))  # a window that the size rule lets the largest prompt through
         self.assertTrue(self.helper.MAX_REQUEST >= 6 * self.helper.MAX_PROMPT + 6 * self.helper.MAX_SCHEMA + 70000)
         self.fake.reply(support_ollama.chat('{"a": 1}'))
         self.assertTrue(self.document("--schema", "docs/big.json", prompt=prompt)["ok"])

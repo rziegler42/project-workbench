@@ -13,8 +13,8 @@ from support_ollama import chat
 class Window(support_ollama.Bridge):
     """A prompt that fills the window of the call is reported and nothing is returned."""
 
-    def overflow(self, body, *args):
-        document = self.failed(*args, error="vendor_error", detail="context_overflow")
+    def overflow(self, body, *args, **kwargs):
+        document = self.failed(*args, error="vendor_error", detail="context_overflow", **kwargs)
         self.assertEqual("the prompt does not fit the context window", document["message"])
         self.assertNotIn("reply", document)
         self.assertNotIn(body["message"]["content"], json.dumps(document))
@@ -51,12 +51,12 @@ class Window(support_ollama.Bridge):
         self.assertEqual(("an answer", None), (document["reply"], document["usage"]["input_tokens"]))
 
     def test_a_window_of_one_makes_every_prompt_with_a_count_an_overflow(self):
-        self.endpoints(ned=self.record(context=1))
+        self.endpoints(ned=self.record(context=1, bytes_per_token=8))  # a short prompt, so that the size rule lets it through
         body = chat("an answer", prompt_eval_count=1)
         self.fake.reply(body)
-        self.overflow(body)
+        self.overflow(body, prompt=b"hi\n")
         self.fake.reply(chat("an answer", prompt_eval_count=0))
-        self.assertTrue(self.document()["ok"])
+        self.assertTrue(self.document(prompt=b"hi\n")["ok"])
 
     def test_every_call_has_a_window_that_is_sent_and_checked_against(self):
         self.assertTrue(self.document()["ok"])

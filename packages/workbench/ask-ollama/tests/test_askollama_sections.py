@@ -268,7 +268,7 @@ class Windows(support_ollama.Bridge):
         self.assertTrue(self.document("--context", "16384")["ok"])
         self.assertEqual(16384, self.window())
         self.fake.reply(chat("an answer", prompt_eval_count=0))
-        self.assertTrue(self.document("--context", "1")["ok"])
+        self.assertTrue(self.document("--context", "1", prompt=b"a\n")["ok"])  # two bytes: the size rule allows window times 2
         self.assertEqual(1, self.window())
 
     def test_an_option_above_the_context_is_refused_before_anything_is_sent(self):

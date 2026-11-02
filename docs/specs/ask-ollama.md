@@ -11,8 +11,8 @@ Plan `2026-11-02-bridge-model-configurations` (increment B) amended this text be
 endpoint file of format 2 (a section for each model), the allowlist, the window rules, `--context`, the size rule and the argument
 `models` are specified here under the accepted decision `2026-11-02-model-configurations-in-endpoint-records`, and are built by
 increments C to F of that plan. Increment C built the reader of format 2, the allowlist, the window rules and `--context` (for `ask` and `embed`), and increment D
-the model lines of `check`, the refusal of aliasing names, the guard on digits in the file and the reading of `format` first; until the rest is built (the size rule and `models`) the module does
-what the text before this amendment says for them;
+the model lines of `check`, the refusal of aliasing names, the guard on digits in the file and the reading of `format` first, and
+increment E the size rule; until the rest is built (`models`) the module does what the text before this amendment says for it;
 the file is named `endpoints.json` until increment H renames it `bridge-endpoints.json`.
 
 Terms are in `terms.md`. The contract it satisfies is `model-bridge.md` (version 2), whose sections on a bridge to a server this
@@ -208,9 +208,11 @@ never returned, never put in a message and never counted as the reply [unconfirm
   `context_overflow`, not retryable, with the message "the prompt is probably larger than the window", and no part of the prompt is
   in it. The rule runs after the options and the model are validated and after the schema is read, and it does not apply to `embed`,
   where the server already answers a text that is too long with an error. It is an estimate: a token covers at least one byte of
-  text, so a figure of 1 never passes a prompt that the window would cut, and a higher figure passes more prompts that fit and some
+  text, so a figure of 1 never passes a prompt whose text alone would fill the window (the chat template adds tokens and the reply shares
+  the window, so even a prompt of exactly the window in bytes can be cut), and a higher figure passes more prompts that fit and some
   that the window cuts. The owner sets 1 for a model whose work must not lose the start of a prompt (a review, for example). The
-  rule does not replace the next one, and the server's own count can still show a cut that this one let through.
+  rule does not replace the next one, and the server's own count can still show a cut that this one let through. It is a backstop for an
+  unusual prompt, not a substitute for a caller that sizes its own input to the window.
 - **A prompt that fills the window.** When `prompt_eval_count` is at least the window of the call, the prompt filled the window
   and may have been cut. The call is `vendor_error` with `context_overflow`, not retryable, and no reply is returned. If the reply
   carries no `prompt_eval_count`, the check cannot run and does not; the spec states that rather than implying it.
@@ -578,6 +580,12 @@ increment D and its review, and the one on embedding replies from increment E:
   with the file's keys exactly. The reader refuses a record in which two model names are equal after lower-casing and dropping a
   trailing `:latest` (`m` and `m:latest`, `M` and `m`), because a server may treat them as one model. It does not know the server's
   other rules for names, so a pair that a server reads as one in another way is not caught.
+- **The default figure of 2 bytes per token is conservative for English text.** A caller (the knowledge-base module) reported on
+  2026-11-02 a measurement of 25 prompts of English paper text with instructions against the token counts that the server
+  reported: a minimum of 2.9, a median of 4.0 and a maximum of 4.6 bytes per token, with the tokenizers of `phi4` and `gpt-oss:20b`
+  (not `gemma4:12b`). It is a report from another session, a small sample that was not repeated here. At a window of 16,384 tokens
+  the default refuses a prompt over 32,768 bytes, which can be about 10,000 tokens. The owner sets a higher figure in the section of
+  a model whose prompts are known, and a prompt at a figure above the true bytes per token can still be cut.
 - **The size rule refuses some prompts that fit and passes some that do not.** It is the estimate of a byte count; see "Context
   window". It is not applied to `embed`.
 - **The allowlist is not a boundary.** The agent can read the file and a shell can call the server directly; the allowlist limits what

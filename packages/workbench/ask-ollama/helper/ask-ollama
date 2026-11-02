@@ -91,6 +91,7 @@ MESSAGES = {
     "context_overflow": "the prompt does not fit the context window",
     "reply_cut": "the server stopped the reply at its length limit",
     "input_overflow": "the input does not fit the context window",
+    "prompt_too_large": "the prompt is probably larger than the window",
     "not_an_embedder": "the model cannot produce embeddings",
 }
 
@@ -791,6 +792,9 @@ def ask(args, stdin, cwd, out):
     record = select_record(records, default, options.get("--server"))
     model, section = select_model(record, options.get("--model"), "chat")
     window = call_window(options, section)
+    figure = section.get("bytes_per_token", DEFAULT_BYTES_PER_TOKEN)
+    if len(prompt.encode("utf-8")) > window * figure:  # the size rule: an estimate, and nothing is sent
+        return emit(out, failure("vendor_error", "context_overflow", MESSAGES["prompt_too_large"]))
     payload = json.dumps(chat_body(model, prompt, window, options, schema)).encode("ascii")
     if len(payload) > MAX_REQUEST:
         raise Refused("the request is too large")

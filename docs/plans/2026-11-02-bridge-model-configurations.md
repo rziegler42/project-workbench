@@ -638,3 +638,40 @@ boundary, and the alias and digit rules only refuse more.
 **Not done in D:** the size rule, the `models` argument (E and F); the stale shipped records stay out of the commit until I.
 
 **Open for the owner:** whether to record the alias rule in a decision as well.
+
+### Increment E
+
+**Done:** `ask` refuses a prompt before sending it when its size in bytes of UTF-8 is greater than the window of the call times the
+section's `bytes_per_token` (2 when absent). The result is the contract's failure object `vendor_error` / `context_overflow`, not
+retryable, with the message "the prompt is probably larger than the window", exit 1, no part of the prompt in it and nothing sent.
+The rule runs after the options, the model and the schema are validated, and `embed` is not subject to it. The new file
+`test_askollama_size.py` tests the bound (exactly window times the figure sent, one byte more refused, for the figures 1, 2 and 8),
+the window of the call (`--context`, `default_context`, `context`), a figure and a window for each model, bytes against characters,
+the object and the absence of the prompt in it, the order after validation and after the schema, the largest prompt, the blank
+prompt, the `embed` exemption and the check of the server's count for a prompt the rule lets through. Four older tests were adjusted
+because the rule now refuses what they sent (a larger window for the two tests of the largest prompt, a shorter prompt and a larger
+figure for the window-of-one test, a shorter prompt for the `--context 1` case); they test what they said before. The spec's header
+says the size rule is built, says that the rule is a backstop and not a substitute for a caller that sizes its own input, and
+records a caller's measurement of bytes per token in "Known limits" as reported by the knowledge-base module's session, a small
+sample not repeated here (2.9 to 4.6, median 4.0, with the tokenizers of `phi4` and `gpt-oss:20b`).
+
+**Verification as run** (Python 3.15.0, macOS): the module's tests in a scripted pass that copied the tests first: against the
+committed helper 278 tests ran and 7 failed (the new size tests that need the rule); against the new helper all 278 pass. The whole
+suite, `python3 -B -W error tests/run_all.py`: 6,603 tests in 14 roots, OK. `wb verify packages/workbench` prints no refusal; `wb check`
+and `wb run code-work check` report no problems. `wb preview release-approvals` after the owner's release: 14 records `recorded`
+and six stale shipped records (`24a7ae0d…`, `2cff7146…`, `aa4dc1b6…`, `ec712287…`, `f50d8904…`, `f877b2db…`).
+
+**Review:** one read by the read-only `reviewer`: no blocking finding; it checked the helper against the decision and the spec, found
+no vacuous test, read each adjusted older test, and found that the bound computed from the decoded text equals the bytes read (strict
+UTF-8, no normalisation, a byte order mark stays three bytes). Applied (spec only): the sentence that a figure of 1 "never passes a
+prompt that the window would cut" was too strong (the chat template adds tokens and the reply shares the window), and now says so.
+Deferred to the pass of increment F-C: a clause on the size rule in the helper's module docstring. A security review was not asked
+for: the rule only refuses more and adds no input, no file and no request field.
+
+**Releases:** one more of `wb release-approvals` by the owner in this increment (in a terminal); the owner re-approved the plan
+twice before it, for the extension of the plan and for the deferred items from the knowledge-base module's review.
+
+**Not done in E:** the `models` argument (F), the defaults and the confirmation of `text-embedding` (F-A to F-C); the stale shipped
+records stay out of the commit until increment I.
+
+**Open for the owner:** nothing new.
