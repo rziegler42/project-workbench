@@ -187,7 +187,7 @@ class Thinking(support_ollama.Bridge):
     def test_a_model_that_rejects_the_effort_is_effort_unsupported_with_its_fixed_message(self):
         self.fake.reply({"error": "\"llama3:8b\" does not support thinking"}, status=400)
         document = self.failed("--effort", "low", error="effort_unsupported")
-        self.assertEqual("the model does not support this effort", document["message"])
+        self.assertEqual("the model does not support this effort or thinking setting", document["message"])
         self.assertNotIn("llama3", json.dumps(document))
 
 

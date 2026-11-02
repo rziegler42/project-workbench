@@ -28,7 +28,7 @@ class Request(support_ollama.Bridge):
         self.assertEqual("close", headers["Connection"])
         self.assertEqual("ask-ollama/1", headers["User-Agent"])
         self.assertEqual({"model": "gpt-5", "messages": [{"role": "user", "content": "Review docs/plan.md\n"}],
-                          "stream": False, "options": {"num_ctx": 8192}}, json.loads(request["body"]))
+                          "stream": False, "truncate": False, "options": {"num_ctx": 8192}}, json.loads(request["body"]))
 
     def test_the_context_of_the_model_is_the_window_that_is_sent(self):
         self.assertTrue(self.document()["ok"])
@@ -44,7 +44,7 @@ class Request(support_ollama.Bridge):
         text = request["body"].decode() + "".join(name + value for name, value in request["headers"] if name != "Host")
         for word in ("owner-network", "nomic-embed-text", "ned", "this-machine", "authenticated", "location"):
             self.assertNotIn(word, text, word)
-        self.assertEqual({"model", "messages", "stream", "options"}, set(json.loads(request["body"])))
+        self.assertEqual({"model", "messages", "stream", "truncate", "options"}, set(json.loads(request["body"])))
 
     def test_a_redirect_is_never_followed(self):
         other = support_ollama.Fake()

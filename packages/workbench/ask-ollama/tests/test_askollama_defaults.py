@@ -34,6 +34,13 @@ class Validator(Base):
         self.assertEqual([], self.fake.requests)
         return err
 
+    def not_quoted(self, value, err):
+        """No part of a hostile value is in the refusal (a value of four characters or fewer is skipped: a word of the rule
+        may hold it)."""
+        shown = value if isinstance(value, str) else json.dumps(value)
+        if len(shown) > 4:
+            self.assertNotIn(shown, err)
+
     def good_file(self, section):
         self.endpoints(ned=self.record(models={"m": dict(CHAT, **section)}, default_model=None))
         self.assertEqual(0, self.ask(command="check")[0], section)
@@ -47,15 +54,15 @@ class Validator(Base):
     def test_an_effort_outside_the_three_words_is_refused_without_the_value(self):
         for value in ("LOW", "max", "", "low ", "minimal", 5, None, True, ["low"], {"a": 1}):
             err = self.bad_file({"m": dict(CHAT, effort=value)}, "effort")
-            self.assertNotIn("minimal", err)
+            self.not_quoted(value, err)
 
     def test_a_thinking_that_is_not_a_boolean_is_refused(self):
-        for value in ("true", "on", "false", 1, 0, None, [True], {"a": 1}, "low"):
-            self.bad_file({"m": dict(CHAT, thinking=value)}, "thinking")
+        for value in ("true", "on", "false", "SECRET-VALUE", 1, 0, None, [True], {"a": "SECRET-VALUE"}, "low"):
+            self.not_quoted(value, self.bad_file({"m": dict(CHAT, thinking=value)}, "thinking"))
 
     def test_an_output_limit_that_is_not_a_whole_number_in_range_is_refused(self):
-        for value in (0, -1, 10000001, "5", True, False, None, [5], {"a": 1}, 10 ** 30):
-            self.bad_file({"m": dict(CHAT, output_limit=value)}, "output_limit")
+        for value in (0, -1, 10000001, "5", "SECRET-VALUE", True, False, None, [5], {"a": 1}, 10 ** 30):
+            self.not_quoted(value, self.bad_file({"m": dict(CHAT, output_limit=value)}, "output_limit"))
 
     def test_a_float_for_an_output_limit_is_not_strict_json(self):
         document = json.dumps({"format": 2, "endpoints": {"ned": self.record(models={"m": dict(CHAT, output_limit=5)},
@@ -85,7 +92,7 @@ class Request(Base):
     def test_a_section_with_no_default_sends_what_it_sent_before(self):
         self.section()
         self.assertEqual({"model": "m", "messages": [{"role": "user", "content": "Review docs/plan.md\n"}], "stream": False,
-                          "options": {"num_ctx": 8192}}, self.sent())
+                          "truncate": False, "options": {"num_ctx": 8192}}, self.sent())
 
     def test_the_default_effort_is_sent_as_think_with_the_word(self):
         for word in ("low", "medium", "high"):
@@ -115,7 +122,7 @@ class Request(Base):
             handle.write('{"type": "object"}')
         self.fake.reply(chat('{"a": 1}'))
         body = self.sent("--schema", "docs/schema.json")
-        self.assertEqual({"model", "messages", "stream", "options", "format", "think"}, set(body))
+        self.assertEqual({"model", "messages", "stream", "truncate", "options", "format", "think"}, set(body))
         self.assertEqual({"num_ctx": 8192, "num_predict": 10000}, body["options"])
 
     def test_a_reply_stopped_at_the_cap_is_reply_cut(self):
@@ -176,6 +183,13 @@ class Overrides(Base):
         self.refused("--max-output", "10000000", contains="--max-output")
         self.assertEqual(before, len(self.fake.requests))
 
+    def test_a_section_whose_limit_is_ten_million_takes_ten_million_and_refuses_one_more(self):
+        self.section(output_limit=10000000)
+        self.assertEqual(10000000, self.sent("--max-output", "10000000")["options"]["num_predict"])
+        self.assertEqual(9999999, self.sent("--max-output", "9999999")["options"]["num_predict"])
+        self.refused("--max-output", "10000001", contains="larger than the largest output limit")
+        self.refused("--max-output", "99999999", contains="larger than the largest output limit")
+
     def test_a_section_with_no_limit_takes_a_value_up_to_ten_million(self):
         self.section()
         self.assertEqual(10000000, self.sent("--max-output", "10000000")["options"]["num_predict"])
@@ -184,7 +198,8 @@ class Overrides(Base):
     def test_max_output_has_the_forms_of_context(self):
         self.section(output_limit=6000)
         for bad in ("", "0", "007", "+5", "-1", "1e3", " 5", "5 ", "5.0", "١٢", "0x10", "123456789", "5_0", "five"):
-            self.refused("--max-output", bad, contains="--max-output")
+            # the form message, and not the message of the ceiling, which a nine-digit value would also earn
+            self.refused("--max-output", bad, contains="a whole number of 1 to 8 digits")
         self.refused("--max-output", contains="needs a value")
         self.refused("--max-output", "5", "--max-output", "6", contains="given twice")
 

@@ -93,7 +93,7 @@ MESSAGES = {
     "certificate": "the server's certificate was not accepted",
     "timeout": "the server did not finish in time",
     "model_unavailable": "the server does not have the model",
-    "effort_unsupported": "the model does not support this effort",
+    "effort_unsupported": "the model does not support this effort or thinking setting",
     "bad_schema": "the server rejected the schema",
     "bad_exit": "the server answered with an error",
     "unusable_reply": "the server returned no usable reply",
@@ -774,6 +774,8 @@ def error_for(status, body):
     text = text.lower() if isinstance(text, str) else ""
     if status == 404 and "not found" in text:
         return failure("model_unavailable", message=MESSAGES["model_unavailable"])
+    if status == 400 and ("exceeds the available context size" in text or "exceed_context_size_error" in text):
+        return failure("vendor_error", "context_overflow", MESSAGES["context_overflow"])  # the server refused a prompt over the window
     if status == 400 and "think" in text:
         return failure("effort_unsupported", message=MESSAGES["effort_unsupported"])
     if status == 400 and ("format" in text or "schema" in text):
@@ -785,7 +787,8 @@ def chat_body(model, prompt, window, think, output, schema):
     parameters = {"num_ctx": window}
     if output is not None:
         parameters["num_predict"] = output
-    body = {"model": model, "messages": [{"role": "user", "content": prompt}], "stream": False, "options": parameters}
+    body = {"model": model, "messages": [{"role": "user", "content": prompt}], "stream": False, "truncate": False,
+            "options": parameters}
     if schema is not None:
         body["format"] = schema
     if think is not _ABSENT:

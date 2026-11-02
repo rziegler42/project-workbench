@@ -18,7 +18,7 @@ the file is named `endpoints.json` until increment H renames it `bridge-endpoint
 `thinking`, and `output_limit`) and the options `--thinking` and `--max-output` are specified here under the accepted decision
 `2026-11-02-model-section-defaults-and-the-embedding-name` and were built by
 increment F-C of the plan. The field `truncate` `false` of `ask` and the refusal that goes with it are specified here (increment
-G-A of that plan) and are built by increment G-B.
+G-A of that plan) and were built by increment G-B.
 
 Terms are in `terms.md`. The contract it satisfies is `model-bridge.md` (version 2), whose sections on a bridge to a server this
 spec fills in. The endpoint file is set by the accepted decision `2026-11-01-endpoint-records-in-the-store` as amended by
@@ -618,6 +618,22 @@ Readings of the second run:
   with a schema. The routes `/api/tokenize` and `/api/count` answered 404. The bridge does not send `truncate` in `ask` in the
   version that was run; increments G-A and G-B of the plan of 2026-11-02 specify and build it.
 
+### After increment G-B: the same prompt through the bridge
+
+Provenance: run on 2026-11-02 by the agent on the owner's word ("go for both"), with the helper as built by increment G-B (the
+request carries `truncate` `false`), in the same scratch environment and against the same server as the second run (version 0.35.1).
+
+| Case | Result |
+|---|---|
+| A 6,000-byte prompt (1,350 tokens) with `--context 2048`, on the record at 8 bytes per token | sent and answered, reported at its own 1,350 input tokens |
+| A 12,000-byte prompt (about 2,700 tokens) with `--context 2048`, on the same record (it passes the size rule) | not answered: `context_overflow`, "the prompt does not fit the context window", from the server's own 400, in under a tenth of a second; before G-B the same call was cut to 1,026 tokens and answered with a success |
+| The same 12,000 bytes on the record at 2 bytes per token | not sent; `context_overflow`, "the prompt is probably larger than the window" (the size rule, as before) |
+| `gpt-oss:20b` with the section's low effort, a small prompt | success: 20 output tokens (`truncate` `false` does not disturb a thinking default) |
+| `gemma4:12b` with the section's thinking on and its output limit, a small prompt | success |
+
+The two messages tell the two refusals apart: the size rule says "probably larger", the server's own count says "does not fit". One
+sample each, one server version.
+
 Not run in the second run: a server switched off; the older file format and a model of the other kind with a real model (the
 fake-server tests are the proof); and `--schema` (shown in the first run).
 
@@ -649,7 +665,7 @@ reach it; the tests use a fake server and the statement stays unconfirmed).
     bridge's own test, and measured once on 2026-11-01 for `get_default_verify_paths`).
 13. An error status carries a body that is one JSON object with a string `error`, and the words matched in section "Errors"
     ("not found", "think", "format", "schema") appear in the error for a missing model, an unsupported thinking setting and a bad
-    format. **[confirmed for the missing model, the thinking error (seen as the bridge's class `effort_unsupported`; the server's text was not printed in the second run), the embedding 400 and the 501; not shown for the format and schema errors; the overflow words are unconfirmed 18]**
+    format. **[confirmed for the missing model, the thinking error (seen as the bridge's class `effort_unsupported`; the server's text was not printed in the second run), the embedding 400 and the 501; not shown for the format and schema errors; the overflow words are confirmed on 0.35.1, see 18]**
 14. `/api/embed` honours `options.num_ctx`, returns the `model` it used, answers 404 for an embedding model that is not present, and
     answers 400 with an error about the input length when `truncate` is false and a text is too long. The bridge recognizes that
     error by "input length", "context length" or "too long" in it (the first two from memory of the server's wording, "the input
@@ -667,8 +683,9 @@ reach it; the tests use a fake server and the statement stays unconfirmed).
 18. A chat request with `truncate` `false` at the top level, and a prompt of more tokens than the window, is answered with status
     400 and an error that holds "exceeds the available context size" with the type `exceed_context_size_error`; a prompt within the
     window is answered as without the field; the same field in `options` is ignored. **[confirmed on Ollama 0.35.1 by raw requests of
-    the second run (prompts of 2,167, 2,317 and 3,017 tokens against a window of 2,048); not shown through the bridge, which does not
-    yet send the field; unconfirmed for any other version or server]**
+    the second run (prompts of 2,167, 2,317 and 3,017 tokens against a window of 2,048); shown through the bridge after increment G-B: a prompt of
+    about 2,700 tokens against a window of 2,048 was refused as `context_overflow` by the server's own 400; unconfirmed for any other
+    version or server]**
 
 ## Known limits
 
@@ -677,7 +694,8 @@ increment D and its review, and the one on embedding replies from increment E:
 
 - **A prompt cut by the server can still pass, on a server that does not refuse it.** The bridge sends `truncate` `false`, and
   Ollama 0.35.1 then refuses a prompt over the window with its own 400 (the second run, by raw requests: the bridge did not yet send
-  the field), so the silent cut is closed for a server that honours the field. A server that ignores it, or an older one (none was
+  the field; after increment G-B the bridge sends it and the same prompt through the bridge was refused as `context_overflow`), so the
+  silent cut is closed for a server that honours the field. A server that ignores it, or an older one (none was
   tested), may cut the prompt without an error and report about half the window as the count, as 0.35.1 does without the field, and
   the bridge cannot see that: the size rule is an estimate and can pass such a prompt (the second run: on a
   record at 8 bytes per token, a prompt of 12,000 bytes over a window of 2,048 tokens passed the rule, was cut to 1,026 tokens and was
@@ -727,6 +745,12 @@ increment D and its review, and the one on embedding replies from increment E:
   (not `gemma4:12b`). It is a report from another session, a small sample that was not repeated here. At a window of 16,384 tokens
   the default refuses a prompt over 32,768 bytes, which can be about 10,000 tokens. The owner sets a higher figure in the section of
   a model whose prompts are known, and a prompt at a figure above the true bytes per token can still pass the rule and be cut by a server that does not refuse it.
+- **The server chooses the row of a 400.** The words of its error only choose the row, and the overflow row is judged before the
+  thinking and the format rows. A server can therefore answer a 400 with the overflow words and make the call `context_overflow`
+  (never a success, never retryable, with no word of its own in the object), which hides an `effort_unsupported` or a `bad_schema`
+  that the caller needed; a server could as well answer with any other row. The label is advisory and the server is trusted only for
+  its own answers. A prompt echoed in a 400, or a schema that holds the overflow words, can mislabel a real thinking or format error in
+  the same way (found by the security review of increment G-B).
 - **The defaults of a section are applied when the caller passes nothing.** A caller cannot see an effort or an output cap from its
   own arguments; `check` prints them. An `effort` or a `thinking` that a model rejects is `effort_unsupported` (its message speaks of an effort or a thinking setting) on every call to it until the file is
   corrected. `output_limit` is both the default and the ceiling, so a caller that passes nothing gets the largest value, and the

@@ -995,3 +995,59 @@ fire); increment I rewrites it. A security review was not asked for: a specifica
 **Not done in G-A:** the module is not changed; the helper does not yet send `truncate` (G-B).
 
 **Open for the owner:** nothing new.
+
+### Increment G-B
+
+**Done:** in `packages/workbench/ask-ollama/helper/ask-ollama`, every `ask` request carries `"truncate": false` at the top level
+(a constant, never inside `options`), and a response whose status is 400 and whose error, in lower case, holds "exceeds the available
+context size" or "exceed_context_size_error" is `vendor_error` / `context_overflow`, not retryable, with the message "the prompt does
+not fit the context window" and none of the server's words copied; the row is judged after the 404 row and before the "think" and the
+"format" or "schema" rows, other wordings, other statuses and bodies that are not an object with a string `error` stay `bad_exit`, and
+`embed` and the size rule and the check of the count are unchanged. The message of `effort_unsupported` is "the model does not
+support this effort or thinking setting". The four leftovers of F-C went in: the digit cap of `--max-output` is shown against the
+form message and not the ceiling, an equality test at 10,000,000 against a section whose limit is 10,000,000, and the "no value
+quoted" assertion for every hostile value of the three default tests. New tests: `test_askollama_truncate.py` (14). Three exact
+request bodies of older tests carry `truncate` and one message changed.
+
+**The real call**, on the owner's word ("go for both"), through the new helper from the scratch home, against the same server
+(0.35.1): a 12,000-byte prompt over a window of 2,048 tokens on the record at 8 bytes per token (it passes the size rule) was
+refused by the server's own 400 as `context_overflow` in under a tenth of a second (before G-B the same call was cut to 1,026 tokens
+and answered with a success); a 6,000-byte prompt under the window was answered at its own 1,350 tokens; the same 12,000 bytes on the
+record at 2 bytes per token was refused by the size rule ("probably larger"); and `gpt-oss:20b` and `gemma4:12b` with their section
+defaults answered a small prompt. Recorded in the specification ("After increment G-B") and in unconfirmed 18 and 13.
+
+**Verification as run** (Python 3.15.0, macOS): the module's tests in a scripted pass that copied the tests first: against the
+committed helper 354 tests ran and 12 failed (the new or changed tests); against the new helper all 354 pass. One whole-suite run
+(`python3 -B -W error tests/run_all.py`: 6,679 tests in 14 roots, OK) was made after the release and before the text of the real call
+and of the new "Known limits" bullet was added to the specification; no code changed after it, so after those text-only edits only
+`wb check` and `wb run code-work check` were run (the owner asked on 2026-11-02 for targeted tests and the whole suite only for a
+risky change, and a second whole-suite run was stopped). `wb verify packages/workbench` prints no refusal; `wb check` and
+`wb run code-work check` report no problems. After the owner's release `wb preview release-approvals` reads 14 records `recorded`
+and twelve stale shipped records.
+
+**Review:** one read by the read-only `reviewer`: no blocking finding; the helper matches the specification, the tests discriminate,
+the older tests still test what they say, and no stale text was found. Deferred to the next package pass (increment H's), as they
+are tests: a 400 that holds an overflow word and "not found" is `context_overflow` (the 404 row is status-specific), and a body whose
+string `error` has no overflow word while another field has one is `bad_exit`. A limit of the `not_quoted` helper (values of four
+characters or fewer are skipped) is accepted and stated in its docstring.
+
+**Security review** (asked by the owner; the `security-reviewer`, on a copy with a loopback fake server and a temporary home): no
+Critical, High or Medium finding. The diff against the committed helper is exactly the message, the new row and the constant field;
+the imports and the risky tokens are unchanged. Ten call shapes (plain, a schema, `--thinking`, `--effort`, `--max-output`,
+`--context`, a model with defaults, combined overrides, `--confine --root`, `embed`) each sent `truncate` false exactly once at the
+top level and none in `options`, with the same path, method and header names; a prompt or a schema that holds the text "truncate"
+cannot change the field; an endpoint file with `truncate` in a record or a section is refused. About 120 hostile 400 replies (every
+permutation of the overflow words with "think", "format", "schema" and "not found", in three cases, with statuses 400 and 404;
+Unicode lookalikes, which do not match; an `error` that is not a string; a body that is not an object, with a duplicate key, NaN, a
+run of 4,301 digits, nesting of 33 and of 100,000, bad UTF-8, a lone surrogate or a BOM; statuses 300 to 503 with the words; a
+redirect) always gave the fixed failure object or `bad_exit`, never a success, never `retryable`, and no word, count or number of
+the reply reached the object. A 4 MiB body is matched in about 0.04 s. Low: the server chooses the row of a 400 (it could as well
+choose any other), so a real thinking or format error can be labelled as overflow by a hostile or echoing server; recorded in "Known
+limits". Limits of the evidence: no TLS, no real server (the real text was taken from the tests), and the repository's own suite
+was not run by the reviewer.
+
+**Releases:** one more of `wb release-approvals` by the owner in this increment (in a terminal).
+
+**Not done in G-B:** nothing of the plan's G-B is left; the stale shipped records stay out of the commit until increment I.
+
+**Open for the owner:** nothing new.
