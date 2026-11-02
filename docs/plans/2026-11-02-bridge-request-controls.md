@@ -366,4 +366,30 @@ temperature marked as reported; the owner's quoted words replaced by a reference
 could not be shown to be the owner's; and the grammars made explicit as ASCII, whole-value matches, with the order of the `check`
 line stated for an embedding section. One round of one.
 
-**Open for the owner:** acceptance of the record; the commit of increment A.
+**Accepted** by the owner with `wb run groundwork accept` (digest of the preview) and **committed** as `b5e3887`.
+
+### Increment B
+
+**Done:** `docs/decisions/2026-11-02-retryable-server-errors-in-bridges-to-a-server.md`, status `Proposed`, awaiting the owner's
+acceptance. The rule: in a bridge to a server, a status 500, 502 or 503 is `vendor_error` / `bad_exit` with `retryable` true, the
+message and detail as before, for `ask`, `embed` and `models`; 501 (the `embed` row and any other), 429, 504, every 4xx, every other
+5xx and a redirect stay not retryable; the bridge never retries. The versions stay (bridge 2, embedding 1, `models` 1); `ask-codex`
+and the two engines are unchanged. Readers of `retryable` found: `review-engine` and `action-review`, which report the flag and do
+not retry; the kit's `call` module and every other helper do not read it.
+
+**Verification as run:** `wb check` and `wb run code-work check` report no problems; `wb plan-status` reads `approved`;
+`wb run groundwork preview` printed the digest. No test was run (a document only).
+
+**Review:** the `reviewer` agent found no blocking finding and four non-blocking ones: (1) applied: a body over its bound
+(`reply_too_large`) and a connection cut after the status line (`unusable_reply`) are judged before any status and keep their rows
+under a 5xx, so the rule applies to a response read whole; (2) applied: the engines accept the versions they know, not "exactly";
+(3) applied: the record says it leaves item 6 of the version-2 decision untouched; (4) not a defect: the owner's approval is read
+by `wb plan-status`, which the reviewer did not run. **Note for increments C and E:** increment E's test line "whatever the body"
+means whatever a body read whole within its bound; E also tests that an oversize and a cut-short 5xx response keep their rows.
+
+**Choice for the owner at acceptance:** the record follows the approved plan (`bad_exit` with `retryable` true), which makes the
+contract's sentence "false for the other codes defined here" untrue for a bridge to a server, and increment C amends it. The nearest
+alternative, a new detail such as `server_busy`, is in the record. A change to it changes this plan's criterion 5 and increments C and
+E and needs the owner's new approval of the plan.
+
+**Open for the owner:** acceptance of the record; the commit of increment B.
