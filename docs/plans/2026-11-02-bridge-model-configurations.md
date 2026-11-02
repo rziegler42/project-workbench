@@ -345,4 +345,33 @@ The reviewer found nothing else in the plan's content; it called it detailed and
 
 ## Result
 
-Empty until work starts.
+### Increment A
+
+**Done:** the decision record `docs/decisions/2026-11-02-model-configurations-in-endpoint-records.md`, written as `Proposed`. Its nine
+numbered decisions set: format 2 (format 1 refused, no fallback); the record without `context` and with `models` (1 to 64 sections of
+`kind`, `context`, optional `default_context` and optional `bytes_per_token`), and a file bound raised from 65,536 to 262,144 bytes;
+the allowlist and the kinds, and the record's model rule in place of the contract's character set for a bridge to a server; the
+window of a call (`--context`, else `default_context`, else `context`) with `--context` an option of `ask-ollama` only; the size rule
+with a default of 2 bytes per token; the `models` argument; the rename to `bridge-endpoints.json` in increment H, with no fallback;
+and what stands from the earlier record. The earlier record is not edited; the new record lists the items it supersedes.
+
+**Verification as run:** `wb check` and `wb run code-work check` report no problems. `wb run groundwork preview` on the record prints
+sha256 `c557be5e…` and a digest, and the status line `Proposed`.
+
+**Review:** one read by the read-only `reviewer`: no blocking finding. Applied: item 1 no longer contradicts item 8 (format 1 is
+refused from the new reader and the old name after the rename); the supersession is listed item by item; the file bound's reason is
+stated by arithmetic and flagged as an addition the plan does not name; the evidence says which readings of the server are not yet in
+the spec (increment B adds them); claims not measured are marked as estimates or unconfirmed; the effect on the contract's `--model`
+rule is stated; the two handlings of the file and the half-window question are consequences. One finding is left for increment G
+or a plan change: whether a prompt between half the window and the whole window is cut is not tested by any case of G, and a plan
+edit after approval needs the owner's new approval. A security review was not asked for: this is a decision record.
+
+**Acceptance:** the owner asked for it and `wb run groundwork accept` ran with the previewed digest (`b68fef57…`, level `ask`); the
+record now carries the owner's acceptance in its status line and its recorded sha256 is `c557be5e…`.
+
+**Not done:** increments B to J are not started. The decisions README has no index list to update.
+
+**Open for the owner:** whether the earlier record, which this one
+supersedes in part, stays `Accepted` (recommended, because it still governs the items that stand) or gets a `Superseded by` line;
+the default of 2 bytes per token; the file bound; and whether to add a case for the range between half the window and the whole
+window to increment G.
