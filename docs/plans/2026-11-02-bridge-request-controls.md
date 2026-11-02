@@ -348,4 +348,22 @@ increment's risk calls for it.
 
 ## Result
 
-Empty until work starts.
+### Increment A
+
+**Done:** `docs/decisions/2026-11-02-temperature-and-keep-alive-in-model-sections.md`, status `Proposed`, awaiting the owner's
+acceptance (the level of `accept-decision` is `ask`). It amends the section fields of the two earlier records and nothing else: a
+chat section may hold `temperature` and a section of either kind `keep_alive`, as exact grammars in ASCII; the temperature is held
+as a string and sent as a number; `0` and `-1` of a keep_alive are sent as numbers and a duration as a string; `--temperature` (for
+`ask`) and `--keep-alive` (for `ask` and `embed`) replace the section's value; `check` shows both. The wire mapping is marked as from
+memory and a report, for increment F. The decisions directory has no index, so there was no row to add.
+
+**Verification as run:** `wb check` and `wb run code-work check` report no problems; `wb run groundwork preview` printed the digest
+for the owner's acceptance. No test was run (a document only).
+
+**Review:** the `reviewer` agent read the record against the plan, the two earlier records, the spec, the kit and the helper: no
+blocking finding and four non-blocking ones, all applied: the missing consequence that the file grows; the server's default
+temperature marked as reported; the owner's quoted words replaced by a reference to the notes the owner pasted, because the quote
+could not be shown to be the owner's; and the grammars made explicit as ASCII, whole-value matches, with the order of the `check`
+line stated for an embedding section. One round of one.
+
+**Open for the owner:** acceptance of the record; the commit of increment A.
