@@ -1,9 +1,9 @@
-# Model configurations in the endpoint file, a context ceiling, and a rename of the file
+# Model configurations in the endpoint file, a context ceiling, per-model defaults, and a rename of the file
 
 Status: Proposed
 Created: 2026-11-02
 Candidate: workbench-v1#bridge-model-configurations
-Specs: ask-ollama, model-bridge
+Specs: ask-ollama, model-bridge, terms, module-contract
 
 ## Goal
 
@@ -20,6 +20,12 @@ endpoint, and a prompt longer than the window is cut by the server without an er
 - A prompt that is probably larger than the call's window is refused before it is sent, by a size rule the owner can tune for each
   model, so that the common case of a silent cut is stopped; the rule is an estimate and the plan says so.
 - `ask-ollama models` shows which configured models the server has and which of its models are not configured.
+- A model section can also hold the defaults of a call that a module should not have to know: the effort of thinking (or, for a
+  model that only switches thinking on and off, whether it thinks) and a limit on the output. A caller that passes nothing gets
+  them, and a call argument overrides them, so a module that calls the bridge by capability passes only the model name
+  (`gpt-oss:20b` cannot turn thinking off, and its reasoning counts against the output limit).
+- The capability name `text-embedding` is confirmed by the owner as vendor-neutral, in the decision and in the documents, so that a
+  module may require it and a cloud embedding bridge may provide it later.
 - The file is named for what it holds, `bridge-endpoints.json`, in a separate increment after the run.
 - The result is shown against a real server, with the owner's word, and recorded without its address.
 
@@ -32,6 +38,9 @@ endpoint, and a prompt longer than the window is cut by the server without an er
 - The helper `ask-ollama` and its tests: the new reader and validator, the allowlist, the kinds, the context rules and `--context`
   for `ask` (increment C), then `embed` and `check` on the same records (increment D).
 - The size rule for a prompt (increment E) and the command `models` (increment F), each with its tests and its place in the spec.
+- The defaults of a model section and the confirmation of the name `text-embedding`: a second decision record (increment F-A), the
+  spec (F-B), and the helper, its tests and the documents that carry the name (F-C). Added on 2026-11-02 at the owner's request,
+  after increments A to D were committed; the plan needs the owner's new approval for them.
 - The owner's run against a real server, recorded in the spec (increment G).
 - The rename of the file, the helper's constant, the module's `ask_reads` and every document that names it (increment H).
 - The close-out, and the record of the upgrade (increments I and J).
@@ -46,6 +55,9 @@ endpoint, and a prompt longer than the window is cut by the server without an er
   assumptions).
 - Reading the real window from the server, and any call to a server other than the owner's run in increment G.
 - Replacing the test certificates.
+- A default for the sampling options, the system prompt or any other request field than the three below (the temperature is
+  deferred, not dropped: see "Deferred work"), and defaults for `embed`.
+- Mapping `--effort` for a model that has levels and also an on-off switch, beyond what the real run shows.
 
 ## Assumptions and constraints
 
@@ -53,7 +65,7 @@ endpoint, and a prompt longer than the window is cut by the server without an er
 - The agent cannot write the guarded store. The owner writes the new file, and the plan gives the exact content. The helper does not
   read the older format: it refuses it with a message that names the rule and not a value. There is no fallback to the older file
   name or format, because a decision that no longer covers a file must not be read from it.
-- Each package change (increments C, D, E, F and H) is one scripted pass and needs the owner's explicit word "run the pass", then one
+- Each package change (increments C, D, E, F, F-C and H) is one scripted pass and needs the owner's explicit word "run the pass", then one
   `wb release-approvals` by the owner. The new tests are written first and are seen to fail against the old helper.
 - The record fields of the older format that stay are `scheme`, `host`, `port`, `location`, `authenticated`, `default_model` and
   `embedding_model`. The field `context` of the record is removed and becomes a field of each model section. A new field `models`
@@ -71,6 +83,16 @@ endpoint, and a prompt longer than the window is cut by the server without an er
 - `--model` is checked against the record's configured names. A name with a `/` therefore becomes usable through the file; the
   decision states the rule the bridge uses in place of the contract's character set for a bridge to a server, because the
   contract's set refuses the `/`.
+- The defaults of a chat section (decision of increment F-A; embedding sections hold none of them): `effort` (`low`, `medium` or
+  `high`) or `thinking` (a boolean, for a model that only switches thinking on and off), at most one of the two; and `output_limit`
+  (a whole number from 1 to 10,000,000, in tokens). With no `--effort` and no `--thinking` the call sends `think` with the section's
+  `effort` (a word) or `thinking` (a boolean); `--effort <level>` (already an option of the contract) and the new `--thinking on|off`
+  replace it, and the two together are refused. `output_limit` is sent as the server's output cap (`options.num_predict`) and is
+  both the default and the ceiling of the new option `--max-output <tokens>` (1 to 8 digits, as `--context` is; larger than the
+  section's `output_limit` is refused with nothing sent; a section with no `output_limit` has no ceiling below 10,000,000). The new
+  options belong to `ask-ollama` and not to the contract's common core, as `--context` does. A reply stopped at the output cap is
+  `reply_cut`, as before. The mapping to the server's `think` and `num_predict` is from memory of the server's documentation, and
+  the run of increment G confirms or corrects it; the on-off case may not be testable on the owner's server.
 - The size rule: before a call the bridge compares the size of the prompt in bytes with the window of the call times a number of
   bytes per token. A model section may hold `bytes_per_token` (a whole number from 1 to 8); the decision of increment A sets the
   default, recommended as 2 (a token is at least one byte, so 1 never passes a cut prompt but refuses up to three times too much;
@@ -82,6 +104,11 @@ endpoint, and a prompt longer than the window is cut by the server without an er
 - The command `models` makes one read of the server's list of models (from memory of the server's documentation, `GET /api/tags`
   with a `models` list whose entries have a `name`; increment G confirms it). It is a call to the server, so a real one needs the
   owner's word; the tests use the fake server.
+- The owner confirmed the name `text-embedding` on 2026-11-02 in the words "keep it, and keep it vendor-neutral": the knowledge-base
+  module needs vectors from a pinned model and records which model made each vector, so the name must not mention Ollama; a cloud
+  embedding bridge should satisfy the same requirement later; a hard requirement is right for its first version. The name `model-bridge`
+  stays unconfirmed. Recording the confirmation changes `terms.md`, `module-contract.md`, `ask-ollama.md` and the module test that
+  checks their wording, which is a package change, so it goes in increment F-C with the helper.
 - The window the server reports for a prompt it cut is about half the window it was given (2026-11-02, Ollama 0.35.1). This plan
   does not change that, and its documents say so.
 - No host address, port or home path is written to a tracked file. Examples use a placeholder host.
@@ -100,11 +127,17 @@ endpoint, and a prompt longer than the window is cut by the server without an er
    the bound is sent.
 6. `ask-ollama models` prints `present`, `missing` and `unconfigured`, names only, against the fake server.
 7. The owner's run against a real server shows an allowed model working, a model that is not allowed refused, `--context` above
-   the maximum refused, the size rule refusing an oversize prompt, and `models` agreeing with `ollama list`; the spec records the
-   server version and the date with no address.
-8. The file is `bridge-endpoints.json` everywhere (the helper, `ask_reads`, tests, documents), and a helper looking for the old name
+   the maximum refused, the size rule refusing an oversize prompt, `models` agreeing with `ollama list`, and the defaults at work
+   on `gpt-oss:20b` (the section's effort used with no argument, an argument overriding it, an output limit applied); the spec
+   records the server version and the date with no address.
+8. A model section may hold `effort` or `thinking` and an `output_limit`, validated by the rules above; a call that passes no
+   `--effort` and no `--thinking` sends the section's `think`, the arguments override it, and `--max-output` is sent as the output
+   cap and is refused above the section's `output_limit`; each rule has a test against a fake server, and `embed` and an embedding
+   section refuse them.
+9. The documents call `text-embedding` confirmed by the owner, and the module test checks that wording.
+10. The file is `bridge-endpoints.json` everywhere (the helper, `ask_reads`, tests, documents), and a helper looking for the old name
    was removed, not kept as a fallback.
-9. The whole suite, `wb check`, `wb run code-work check` and `wb verify` report no failure, and the release preview reads `recorded`.
+11. The whole suite, `wb check`, `wb run code-work check` and `wb verify` report no failure, and the release preview reads `recorded`.
 
 ## Increments
 
@@ -231,10 +264,79 @@ module's declaration test.
 **Verification:** as in C; the verifier accepts the declaration with the new argument.
 **Evidence:** the one local commit, with the trailer `Plan: 2026-11-02-bridge-model-configurations#F`.
 
+### Increment F-A — Decide the defaults of a model section and confirm the name `text-embedding`
+
+**Outcome:** a `Proposed` decision record that amends item 3 of `2026-11-02-model-configurations-in-endpoint-records` (a model section
+holds exactly four fields) with the optional defaults and their overrides, and records the owner's confirmation of the capability
+name `text-embedding`; the owner's acceptance is asked for.
+**Dependencies:** F.
+**Affected areas:** `docs/decisions/` (a new record).
+**Steps:**
+1. Read `docs/decisions/README.md` and the record to amend, and use the `draft-decision` skill. The new record names the one it
+   changes and leaves every other item of it standing; the older record is not edited.
+2. State the fields (`effort`, `thinking`, `output_limit`), their forms and bounds, that a chat section may hold them and an
+   embedding section may not, that a section holds at most one of `effort` and `thinking`, and how each is sent (`think` with a word,
+   `think` with a boolean, `options.num_predict`).
+3. State the call arguments: `--effort` (already of the contract) and the new `--thinking on|off` replace the section's setting and
+   are refused together; the new `--max-output <tokens>` replaces the section's `output_limit` and is refused above it. State that the
+   new options belong to `ask-ollama` and not to the common core, as `--context` does, and that `embed` refuses them.
+4. State that the mapping to the server's `think` and `num_predict` is from memory of its documentation and is confirmed or
+   corrected by the run of increment G, and that a model that only switches thinking may not be testable.
+5. Record the confirmation of `text-embedding` in the owner's words (vendor-neutral, a hard requirement for a first version, a cloud
+   bridge may provide it) and that `model-bridge` stays unconfirmed.
+6. Write the alternatives (a default in the caller, a default for the whole record, one `think` field that takes a word or a boolean,
+   an output limit with no ceiling) and the consequences, the bad ones included: a default hides what a call sends, the file grows,
+   and an owner can set an effort that a model rejects, which then shows as `effort_unsupported` on every call to it.
+7. Stop at `Proposed` and ask the owner, unless `wb settings` prints `level accept-decision: none`.
+**Verification:** `wb check` and `wb run code-work check` report no problem; the record has every section of the template.
+**Evidence:** the one local commit, with the trailer `Plan: 2026-11-02-bridge-model-configurations#F-A`.
+
+### Increment F-B — Specify the defaults
+
+**Outcome:** `ask-ollama.md` (and `model-bridge.md` where it speaks of `--effort`) state what the accepted decision of F-A sets, as it
+will be built.
+**Dependencies:** F-A accepted.
+**Affected areas:** `docs/specs/ask-ollama.md`, `docs/specs/model-bridge.md`.
+**Steps:**
+1. Add the three fields to the section rules of "The endpoint file" with their bounds and refusals, and the worked example.
+2. Add `--thinking` and `--max-output` to the options of `ask`, say which are refused for `embed`, and say how `--effort` now
+   reads (a default from the section).
+3. Add the request mapping (`think`, `options.num_predict`) to "`ask`: the request", the rule for a reply stopped at the cap to the
+   section on a cut reply, and the three fields to the model line of `check`.
+4. Add checklist items for the validator, the defaults, the overrides, the refusals and the request, each testable against a fake
+   server. Tag the server's mapping as unconfirmed for increment G, and change the lines that call `text-embedding` the spec's
+   proposal.
+**Verification:** `wb check` and `wb run code-work check` report no problem; a reviewer reads every checklist item and finds it
+testable.
+**Evidence:** the one local commit, with the trailer `Plan: 2026-11-02-bridge-model-configurations#F-B`.
+
+### Increment F-C — The defaults in the helper, and the confirmed name in the documents
+
+**Outcome:** a section's `effort`, `thinking` and `output_limit` are read, validated and used as the specification says, and the
+documents and the module test say that the owner confirmed `text-embedding`.
+**Dependencies:** F-B.
+**Affected areas:** `packages/workbench/ask-ollama/helper/ask-ollama` and its tests; `docs/specs/terms.md` and
+`docs/specs/module-contract.md` (the wording about the name) and the module test that checks it.
+**Steps:**
+1. Write the tests first in the scratchpad copy: the validator for each field and every refusal (bool or float where a whole number
+   belongs, a word outside the three, both `effort` and `thinking`, a field on an embedding section), the request for each default
+   (`think` with a word, `think` with a boolean, `options.num_predict`), each override, `--effort` and `--thinking` together refused,
+   `--max-output` above the ceiling, out of its form and with no configured model refused with nothing sent, `embed` refusing the new
+   options, and the model line of `check` with the new fields. Change the module test so that it checks that the documents say
+   the owner has confirmed `text-embedding` and still say that `model-bridge` is unconfirmed.
+2. Make the helper pass them and reword the two documents, in one scripted pass with the owner's word, then a release. The new tests
+   must fail against the old helper.
+3. Carry in the same pass the two small items deferred from D (the docstring of `test_askollama_sections.py`, and one constant for
+   the digit-run pattern that the reply parser and the file reader share).
+4. Ask the `reviewer` to read the increment; ask the owner whether a security review runs (new options that set request fields).
+**Verification:** the module's tests pass; the whole suite passes; `wb verify` reports no problem; a test shows that a refused call
+made no request.
+**Evidence:** the one local commit, with the trailer `Plan: 2026-11-02-bridge-model-configurations#F-C`.
+
 ### Increment G — The run against a real server
 
 **Outcome:** the allowlist and the context rules are shown against a real server and recorded.
-**Dependencies:** F, and the owner's word for the calls.
+**Dependencies:** F-C, and the owner's word for the calls.
 **Affected areas:** `docs/specs/ask-ollama.md` ("The run against a real server" and the statements it tags), the helper if the run
 shows a difference.
 **Steps:**
@@ -245,7 +347,14 @@ shows a difference.
    sent); `--context` below, at and above the maximum; a prompt under the size rule's bound but over the window (a record with a high
    `bytes_per_token` for the test, to see again what the server does with it); an embedding
    with a configured embedding model; an embedding with a configured chat model (refused); the older file format (refused); a
-   prompt larger than the size rule (refused, nothing sent); and `models`, compared with `ollama list`.
+   prompt larger than the size rule (refused, nothing sent); `models`, compared with `ollama list`; and the defaults on
+   `gpt-oss:20b`: a section with `effort` low and no argument (the call sends the level), `--effort high` overriding it, an
+   `output_limit` applied and `--max-output` below and above it (refused above), `thinking` on and off on `gemma4:12b` (the owner's
+   server reports it as taking on or off; if the model is gone, recorded as not shown), and the two combinations that the
+   knowledge-base module did not try: `thinking` false sent to `gpt-oss:20b` and a level sent to `gemma4:12b`, each recorded as the
+   server answers it. The example file of step 1 sets, for the two chat models, the context at the model's limit, a
+   `default_context` of 16384, an `output_limit` of 10000 for `gpt-oss:20b` and 6000 for `gemma4:12b`, and a `bytes_per_token` that
+   the owner chooses for the prompts it sends (the figure of 2 is the default).
 3. Look for a way to make the server refuse an oversize chat prompt instead of cutting it (a setting that does for chat what
    `truncate` false does for an embedding), and for a way to have it count the tokens of a prompt. Record what the server version
    offers or that it offers nothing. If it offers one, stop and ask the owner: using it is a new increment, since it changes the
@@ -278,7 +387,8 @@ check` prints the records of the renamed file; the whole suite passes.
 **Dependencies:** A to H.
 **Affected areas:** this plan's Result, `docs/development.md`, the stale shipped approvals.
 **Steps:**
-1. Update `docs/development.md` for the new file, `--context` and the allowlist, and `model-bridge.md`'s "As built".
+1. Update `docs/development.md` for the new file, `--context`, the allowlist and the defaults (`--thinking`, `--max-output`), and
+   `model-bridge.md`'s "As built".
 2. Run the whole suite, `wb check`, the plan check and `wb verify` on the package, and read each result.
 3. List the stale shipped records with `wb preview release-approvals`, show the owner the exact list, and remove them through the
    commit helper only after the owner approves it.
@@ -318,7 +428,12 @@ and the old file name; and the owner's run of increment G.
   the refusals are tested, and a security review is the owner's choice in C.
 - **A real call.** Increment G sends content to the owner's server in the clear if the record is `http`; only the owner's word starts
   it, and the prompts are test prompts.
-- **Releases and passes.** C, D, E, F and H are package changes that make the shipped approval stale until the owner releases; each needs
+- **Defaults that hide what a call sends.** A section's effort or output limit is applied when the caller passes nothing, so a caller
+  cannot see it from its own arguments; `check` prints the defaults, and an effort that the model rejects shows as
+  `effort_unsupported` on every call to it.
+- **A mapping from memory.** The server's `think` (a word or a boolean) and `num_predict` are from memory of its documentation; the
+  run of increment G checks them, and the on-off case may not be testable on the owner's server.
+- **Releases and passes.** C, D, E, F, F-C and H are package changes that make the shipped approval stale until the owner releases; each needs
   the owner's word "run the pass" and one release, so the hooks refuse all work meanwhile.
 - **A rename that leaves a stale name.** A search of the tracked files and the removal of any fallback are the checks.
 - **Deleting stale approval records** (increment I) needs the owner's approval of the exact list.
@@ -335,13 +450,31 @@ and the old file name; and the owner's run of increment G.
 
 The reviewer found nothing else in the plan's content; it called it detailed and aligned with the two specs named.
 
+**2026-11-02, after increment D:** the plan was extended at the owner's request with increments F-A, F-B and F-C (the defaults of a
+model section, and the confirmation of `text-embedding`) and the matching goal, scope, assumptions, criteria, risks and run cases. The
+owner re-approves it. The extension was not reviewed by the engine; the owner may ask for a round.
+
+**2026-11-02, after the knowledge-base module's review of the bridge:** four items were added to "Deferred work" (the temperature as
+a section default, the loaded models from `/api/ps`, `keep_alive`, and a retryable 5xx), the temperature line of the non-goals was
+reworded to say it is deferred, and increment G was given the example values and the two combinations of thinking that the review
+asked for. The owner re-approves the plan.
+
 ## Deferred work
 
 - An exact count of tokens, and a command that reads each model's real window from the server, so that the owner need not declare it.
 - A field on a record that names the bridge it is for, if a second bridge to a server reads the file.
 - A credential for an authenticated endpoint, which needs a decision of its own.
 - Generating the test certificates at run time instead of keeping them in the repository.
-- A roadmap candidate for this work, if the owner wants one.
+- The temperature as a section default with a call override. It matters for the knowledge-base module, which validated its prompts
+  at 0.2 (0.5 on a retry) while the server's own default is higher, and whose idempotence key assumes outputs that are reasonably
+  stable.
+- A default for any other request field, and defaults for `embed`.
+- The models that are loaded on the server (`/api/ps`), as part of `models` or as a new argument, for a diagnostic.
+- `keep_alive`, a request field: on a server with one 12 GB card an embedding call right after a chat call failed once with a 500.
+- Whether a transient 5xx status (memory pressure on the server) should be retryable. Today every 5xx is `bad_exit`, not retryable;
+  a change is a question for the contract of `model-bridge.md`.
+- The roadmap candidate `workbench-v1#bridge-model-configurations` names the allowlist, the windows, the size rule and `models` but
+  not the defaults of a section; its text may be extended if the owner wants direction recorded there.
 
 ## Result
 
