@@ -702,3 +702,33 @@ makes it so). A security review was not asked for: the change adds one status ro
 **Open for the owner:** whether the silent cut is worth a later plan (counting the tokens of a prompt ahead of the call, or a
 conservative size rule), because the bridge cannot see it; whether `.workbench/manifest.json`, which `wb add` changed, goes in this
 commit; and whether the throwaway file under `.workbench/local/` may be removed.
+
+### Increment G
+
+**Done:** `docs/development.md` has a command row for `ask-ollama` (`ask`, `check` and `embed`) and a section "The ask-ollama bridge"
+(the endpoint file, what a real call needs, what the tests need, the window limit, a hand run). `docs/specs/model-bridge.md`, "As
+built", has a paragraph on the second bridge, and the status under guarantee 7 and the acceptance criteria say that the bridge was run
+once against a real server and that it is built for `embed` as well. The reviewer found those two places still stale; they were
+corrected. The shipped approvals: the
+preview of `wb release-approvals` read `recorded` for the package and all 13 modules, so no release was needed in this increment.
+It listed 16 stale records; the owner approved that exact list ("Approve") and
+`wb run safe-git remove --recursive --confirm` removed the 16 directories (4 tracked, 12 never committed). After that the preview
+lists 14 records, all `recorded`, and 0 stale. The commit adds the 5 new untracked records of the current package and modules and
+deletes the 4 tracked stale ones.
+
+**Verification as run** (Python 3.15.0, macOS): the whole suite, `python3 -B -W error tests/run_all.py`: 6,548 tests in 14 roots,
+OK. `wb check` and `wb run code-work check` report no problems, and `wb verify packages/workbench` prints no refusal.
+`wb preview release-approvals` after the removal: 14 `record recorded`, `stale records: 0`.
+
+**Not done:** increment H (the upgrade of the installed copies; `.workbench/manifest.json` and the installed copy of the new
+module's helper, which the owner's `wb add` made, stay out of this commit); nothing is pushed.
+
+**Review:** one read by the read-only `reviewer`: one blocking finding, applied (the two places in `model-bridge.md` that still said
+no real server had been tried and named only `ask` and `check`, and a third that said no bridge to a server meets its items). Also
+applied: the Result no longer names an untracked path. Not applied: `--confine` is not listed for `embed` in `development.md`
+(accepted by the helper with no effect, per `ask-ollama.md`). A security review was not asked for: documents and approval records
+only.
+
+**Releases:** none in this increment.
+
+**Open for the owner:** the same four items as at the end of F, and the push of the local commits.

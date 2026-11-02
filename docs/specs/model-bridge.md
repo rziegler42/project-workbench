@@ -8,7 +8,8 @@ options, the confinement option, one error class for a vendor that cannot be rea
 guarantee for both kinds of bridge. Version 1 differed in those places only, and the engines still accept it. Plan
 `2026-11-01-ask-ollama-bridge` (increment B) amended the text so that it describes a bridge to a program and a bridge to a server
 consistently; the first bridge to a server, `ask-ollama`, is specified in `ask-ollama.md` and is built for `ask` and `check`, with the context,
-truncation and thinking rules, and for the embedding argument (increments C, D and E of that plan; no real server has been tried). The capability name `model-bridge`
+truncation and thinking rules, and for the embedding argument (increments C, D and E of that plan), and was run once against a real server (increment F,
+2026-11-02). The capability name `model-bridge`
 is provided by the built `ask-codex` module and required by `review-engine` and `action-review`, and the owner has not confirmed it
 as the final name (see "Open questions").
 
@@ -364,8 +365,9 @@ network rules and the treatment of the reply as data. Its own rules for the conn
      the record names and to no other: an address that a redirect, a reply or the prompt supplies is never followed or used, and
      the name the caller passes selects a record and is never itself an address. The location class is the owner's declaration and
      is not verified: a record that names a remote host sends the text there.
-   - **Status.** The first bridge to a server, `ask-ollama`, is specified in `ask-ollama.md` and built for `ask` and `check`,
-     tested against a fake server; no real server has been tried. These rules bind
+   - **Status.** The first bridge to a server, `ask-ollama`, is specified in `ask-ollama.md` and built for `ask`, `check` and
+     `embed`, tested against a fake server and run once against a real one (2026-11-02; `ask-ollama.md`, "The run against a real
+     server"). These rules bind
      it, and they are what its checklist items (below) test.
 8. **Output is data.** What the vendor returns is never run, never used as a path or a command, and never
    believed. The bridge only classifies it and copies the reply.
@@ -451,6 +453,15 @@ bridge only through `wbkit.call.run_command` with `provides` `model-bridge`, nam
 setting and tries no other. It was tested against this bridge and a fake vendor program, and then run once by hand
 against a real Codex (2026-10-23, `codex-cli 0.163.0`; see the limits below).
 
+The second bridge is `ask-ollama` (`packages/workbench/ask-ollama/`, plan `2026-11-01-ask-ollama-bridge`), a bridge to a server
+specified in `ask-ollama.md`. It passes the checklist against a fake Ollama server, with `ask`, `check` and `embed` as the three
+arguments of its one command. It was run on 2026-11-02 against one Ollama server (version 0.35.1, plain `http` on the owner's
+network) by the agent, on the owner's word: the plain prompt, `--schema`, a missing model, an effort, two embedding models and
+the error rows for an embedding were shown; the run corrected two statements (a prompt that does not fit is cut and the count
+the server reports is about half the window, so the window check does not fire on that server; a chat model sent for an
+embedding gets a 501) and did not reach a server that is off, a reply cut at the limit, or the `--provides` route. The limits
+of that bridge are in `ask-ollama.md`, "Known limits", and are not repeated here.
+
 How it meets the contract:
 
 - **The command line.** `codex exec --sandbox read-only --ephemeral --ignore-user-config --ignore-rules --color
@@ -524,12 +535,12 @@ Limits:
 
 ## Acceptance criteria
 
-- The spec states contract version 2 and every item above (the items for a bridge to a server aside, which no bridge meets yet)
+- The spec states contract version 2 and every item above (the items for a bridge to a server are tested against the fake server of `ask-ollama`)
   can be tested against a fake vendor program.
 - A first bridge passes the checklist (`ask-codex`, plan `2026-10-22-ask-codex-bridge`, increment C).
 - A bridge to a server passes the items that apply to it, including item 19 and the checklist of its own spec (`ask-ollama.md`,
-  plan `2026-11-01-ask-ollama-bridge`); `ask-ollama` is built for `ask` and `check` and passes the items that apply to it against
-  a fake server, and has not been run against a real one.
+  plan `2026-11-01-ask-ollama-bridge`); `ask-ollama` is built for `ask`, `check` and `embed`, passes the items that apply to it against
+  a fake server, and was run once against a real one on 2026-11-02 (what that run did and did not reach is in `ask-ollama.md`).
 - A synthetic engine calls a bridge only through `wb run`, accepts it only when it is an installed, pinned module
   that provides `model-bridge`, and treats its output as data.
 - Nothing here depends on a file outside the repository.

@@ -1,7 +1,7 @@
 {
   "approver": "workbench-release",
   "commit": null,
-  "declaration_hash": "995952d31ce87fcb33e5002d91dcb77c255ee9948dc63f220fa9bc4d29755a7d",
+  "declaration_hash": "aac83a5051b587cb6064ee5dfc4d24ea7bce576fe6f90a1b48e38e592e3488b5",
   "format": 1,
   "kind": "package",
   "modules": [
@@ -16,14 +16,19 @@
       "tree_hash": "8b24a11ce754159e956a7e30b75599533ae9816def1e4cffd5e73c0a5aa8ac5c"
     },
     {
+      "declaration_hash": "80d2f37fa93ec0d9b5f6c711da5365f09454a6b6c6af3df06b466d2de5f4b9f6",
+      "name": "ask-ollama",
+      "tree_hash": "96e4b59416ca032f2cacaf31af19493a825bb27b1d76548e2fa6c597d2d6891c"
+    },
+    {
       "declaration_hash": "bbee74d628101045800cfe5e8d75672920a7d21a935171c914cdc932f0c2eb06",
       "name": "claude",
-      "tree_hash": "4669e0e09543de14fdf50adf5b7dc57dbb54eb5e6e743c2559838e4399f2c294"
+      "tree_hash": "7da4396999e5aecb3358730192969bd7b30a8292f1f3cf8e5a2fd604a2597e55"
     },
     {
       "declaration_hash": "50cfad42b0e477acb499f437f1272f5e189772c689091801639ea3dfc3ad232c",
       "name": "code-work",
-      "tree_hash": "4428ddf6495719369c5a6c0362c34207afc3a74e6bbdc8f2df5b13cd044e4e61"
+      "tree_hash": "383d4895b5f244a96ecba93975e3c542baacd1a3b2436aff43ec8288890e9129"
     },
     {
       "declaration_hash": "3d21c4e5f53370afa1a9fe9785683bcbf37a5a3d261dc8bffe8fc36538768625",
@@ -33,7 +38,7 @@
     {
       "declaration_hash": "9b33ab9498d038ba445ceb79d86c51a0825c4071cd1b8f73f240ab3e6525a855",
       "name": "groundwork",
-      "tree_hash": "cf1158c9f814fdaecd2e5c4435f594f1f2b63e73cd5b0cd9c97a45e67c23c3c9"
+      "tree_hash": "5ed8f2928382f0bff08fb9d665d3bf7df0337b6ed20d3b7ba411fe348903238f"
     },
     {
       "declaration_hash": "184b1eaf0af1a0482a00da156e33ef42e6da16f6a14a2f71c30d77a9418368f9",
@@ -68,6 +73,6 @@
   ],
   "subject": "workbench",
   "time": "1970-01-01T00:00:00Z",
-  "tree_hash": "8394811f42139ab257a6861374c4fdb018161dc1313674c5e464bf7743811076",
+  "tree_hash": "d570ecc99d283fdd44d9b17433aebfb4a3b3936772d497d96b7ba6dac32c7c6e",
   "workbench_version": "0.1.0"
 }
