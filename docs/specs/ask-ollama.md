@@ -3,7 +3,8 @@
 Status: Draft. Written by plan `2026-11-01-ask-ollama-bridge` (increment B), before the module existed, so that the module and its
 tests are built against this text. Increment C built the module for `ask` and `check` (against a fake server in its tests);
 increment D built the rules for the context window, a cut reply and thinking; increment E built the `embed` argument. Increment F
-ran the bridge once against a real server (2026-11-02; section "The run against a real server").
+ran the bridge once against a real server (2026-11-02; section "The run against a real server"), and increment G of the plan of
+2026-11-02 ran the new helper against it a second time (section "The second run").
 Every statement about the Ollama server's own interface is listed under "Unconfirmed statements" and tagged with what that run
 showed. The spec stays `Draft` until the owner approves it.
 
@@ -532,26 +533,82 @@ window of 8192 while the record said 8192 and of 4096 while it said 4096; and th
 "This server does not support embeddings. Start it with `--embeddings`" (the bridge matches the lower-case words "does not support
 embeddings").
 
-Not run: a server switched off (the run cannot switch the owner's server off), and a reply cut at the limit (it cannot be caused
-reliably). The fake-server tests are the proof for both.
+Not run in the first run: a server switched off (the run cannot switch the owner's server off). The fake-server tests are the proof.
+
+### The second run: the model sections, the defaults and the size rule
+
+Provenance: run on 2026-11-02 by the agent on the owner's word ("go"), with the helper as committed at `6a930b7`, loaded in-process
+from a scratch script with a temporary home that held a file of format 2 (so the owner's store and the installed copy of the bridge
+were not used), against the same server (version 0.35.1, plain `http`; no model was loaded at the start). The file configured five
+models: the chat models `phi4:latest` (context 16384), `gemma4:12b` (context 262144, window 16384, `thinking` true, `output_limit`
+6000, 3 bytes per token) and `gpt-oss:20b` (context 131072, window 16384, `effort` low, `output_limit` 10000, 3 bytes per token), and
+the embedding models `nomic-embed-text:latest` (2048) and `bge-m3:latest` (8192); a second record, with `phi4:latest` at 8 bytes per
+token, was used for one case (below). The helper ran in-process and not through `wb run`, so the launcher path (`--provides`) is
+still not exercised. Each case is one sample (the same call gave 229 and 254 output tokens) and one server version was used. The
+readings marked "raw request" were made by direct requests to the server and not through the bridge. The prompts were short test
+prompts. About 60 calls were made; nothing was changed on the server. No output held the address.
+
+| Case | Result |
+|---|---|
+| `check` | one line per record and per model, the defaults on the model lines (` thinking=on output_limit=6000`, ` effort=low output_limit=10000`), the cleartext warning |
+| `models` | `present` the five configured models; `unconfigured` the four others on the server; `skipped` 0 |
+| A model on the server that is not configured, and one that the server lacks | refused before anything was sent, the name not quoted |
+| `--context` 2048 and 16384 on `phi4:latest` | success; 16385 and `007` refused with nothing sent |
+| A prompt of 32,700 bytes (7,283 tokens), window 16384, 2 bytes per token | sent and answered |
+| A prompt of 33,000 bytes | not sent; `context_overflow`, "the prompt is probably larger than the window" |
+| A 6,000-byte prompt with `--context 2048`, on the record at 8 bytes per token | sent and reported at its own 1,350 input tokens |
+| A 12,000-byte prompt (about 2,700 tokens) with `--context 2048`, on the record at 8 bytes per token (bound 16,384 bytes) | passed the size rule; the server cut it and reported 1,026 input tokens; the bridge answered with a success. This is the silent cut that the size rule can miss and that the check of the count cannot see (1,026 is below 2,048) |
+| The same 12,000 bytes on the record at 2 bytes per token (bound 4,096 bytes) | not sent; `context_overflow` |
+| `gpt-oss:20b`, no argument | the section's low effort: 20 output tokens for a sum; on a puzzle, `--effort high` gave 187 output tokens and no argument (the section's low) 23 |
+| `gpt-oss:20b`, `--max-output` 10000 and 10001 | accepted; 10001 refused with nothing sent |
+| `gpt-oss:20b`, `--effort low` with `--thinking on` | refused as not given together |
+| A boolean sent to `gpt-oss:20b` (`--thinking off` and `on`) | accepted without error; 45 output tokens each, with 76 and 81 input tokens: no effect on the output count was seen (one sample each; that thinking cannot be turned off is not proven) |
+| `gemma4:12b`, no argument (the section's thinking on), `--thinking on`, `--thinking off` | success; 229 and 254 output tokens with thinking, 8 with `--thinking off` |
+| A level sent to `gemma4:12b` (`--effort low` and `high`) | accepted without error; 297 output tokens each, more than the 229 and 254 of the runs with thinking on: what the word does is not shown |
+| `gemma4:12b`, `--max-output` 6000 and 6001 | accepted; 6001 refused with nothing sent |
+| `phi4:latest`, `--effort low` and `--thinking on` | `effort_unsupported` (the message says effort for both) |
+| `phi4:latest`, `--thinking off` | success: a model without thinking accepts a false |
+| `--max-output` 20 on `phi4:latest`; 30 on `gpt-oss:20b` at high effort; 30 on `gemma4:12b` with thinking | `reply_cut` each: the cap is applied (for the two reasoning runs, that the cap went to reasoning is inferred); `--max-output` 30 on `gpt-oss:20b` at its low effort succeeded with 28 tokens |
+| `embed`, `nomic-embed-text:latest`, 2 and 100 texts; `bge-m3:latest`, 1 text | success; the reply names `model` and `dimension` (768 and 1024); 100 vectors printed 1,027,394 bytes |
+| `embed` with `gpt-oss:20b`; `--context 2049` on `nomic-embed-text:latest` | refused before anything was sent |
+| `embed`, a text of 30,000 bytes on either embedding model | `context_overflow` |
+| `embed`, a text of 300 tokens with `--context 64` | `context_overflow`: `num_ctx` is honoured by `/api/embed` |
+
+Readings of the second run:
+
+- (A read-only `ollama show`, not the bridge.) `ollama show` printed these context lengths: `phi4:latest` 16384, `gemma4:12b` 262144, `gpt-oss:20b` 131072,
+  `nomic-embed-text:latest` 2048 and `bge-m3:latest` 8192 (the model's own limits; `nomic-embed-text` also carries a parameter
+  `num_ctx` of 8192).
+- (A raw request.) A prompt below the window is not cut, even above half of it: with `num_ctx` 2048 on `phi4:latest`, prompts of 617, 1017, 1517 and 1917
+  tokens were evaluated whole and reported at their own counts. A prompt of 2167 tokens (and one of 2317) was cut and reported at 1026.
+- (Raw requests.) A chat request with `truncate` false at the top level and a prompt over the window (3017, 2167 and 2317 tokens against 2048) was
+  answered with status 400 and an error whose text read "request (2167 tokens) exceeds the available context size (2048 tokens), try
+  increasing it", with a type `exceed_context_size_error` and the counts in numbers. The same field inside `options` was ignored (the
+  prompt was cut and answered). `shift` false at the top level also refused, with the text "the prompt is longer than the context length
+  currently available to the model". `truncate` false did not change a prompt within the window, a request with `think` low, or a request
+  with a schema. The routes `/api/tokenize` and `/api/count` answered 404. The bridge does not send `truncate` in `ask` in the
+  version that was run; increments G-A and G-B of the plan of 2026-11-02 specify and build it.
+
+Not run in the second run: a server switched off; the older file format and a model of the other kind with a real model (the
+fake-server tests are the proof); and `--schema` (shown in the first run).
 
 ## Unconfirmed statements
 
-These came from memory of the Ollama documentation. Each is tagged with what the run of 2026-11-02 (section above) showed:
+These came from memory of the Ollama documentation. Each is tagged with what the runs of 2026-11-02 (the two sections above) showed:
 **confirmed**, **corrected** (the statement was wrong and the text above is the corrected one) or **not shown** (the run did not
 reach it; the tests use a fake server and the statement stays unconfirmed).
 
 1. `POST /api/chat` with `stream` false returns one JSON object with `message.content`, `model`, `done`, `done_reason`,
-   `prompt_eval_count` and `eval_count`. **[confirmed for all but `done_reason`, which the printed objects do not show (see 7)]**
+   `prompt_eval_count` and `eval_count`. **[confirmed; `done_reason` `length` is seen through `reply_cut` (see 7)]**
 2. The request fields `model`, `messages`, `stream`, `options.num_ctx`, `format` and `think` have the meanings used above. **[confirmed]**
 3. `format` accepts a JSON Schema object, and the reply then is one JSON object. **[confirmed]**
 4. `think` accepts `low`, `medium` and `high` for a model that has levels, and a model without them rejects it with a status 400 whose
-   error says the model does not support thinking. A model with only on and off takes a boolean instead: that case is the `thinking` field and `--thinking` (unconfirmed 17). **[confirmed for `gpt-oss:20b` with `low`; the refusal text of a model without levels was shown only as `effort_unsupported`; the boolean case is not shown]**
+   error says the model does not support thinking. A model with only on and off takes a boolean instead: that case is the `thinking` field and `--thinking` (unconfirmed 17). **[confirmed: `low` and `high` on `gpt-oss:20b`; `phi4`, a model without thinking, rejects a word (the bridge's class `effort_unsupported`; the server's text was not printed); `gemma4:12b`, which has a switch, accepted a word; the boolean case is unconfirmed 17]**
 5. A model that is not on the server gives a status 404 whose error says the model is not found. **[confirmed]**
 6. The server's default context window is small, a prompt longer than the window is cut without an error, and when `num_ctx` is set
-   and the prompt is longer than it, `prompt_eval_count` reaches `num_ctx`. The reply also always carries `prompt_eval_count`. **[corrected: the server cut a prompt that did not fit without an error, but with `num_ctx` set it reported about half the window plus 2 as `prompt_eval_count`, not the window; the unset default was not read]**
-7. `done_reason` is `length` when the reply was stopped at a limit. **[not shown]**
-8. A reasoning model can return an empty `message.content` with its thinking in `message.thinking`. **[not shown; `gpt-oss:20b` returned its reply in `message.content` for the prompts tried]**
+   and the prompt is longer than it, `prompt_eval_count` reaches `num_ctx`. The reply also always carries `prompt_eval_count`. **[corrected: the server cut a prompt that did not fit without an error, but with `num_ctx` set it reported about half the window plus 2 as `prompt_eval_count`, not the window; the unset default was not read. The second run added: a prompt below the window is not cut, even above half of it, and one over it is cut to about half the window]**
+7. `done_reason` is `length` when the reply was stopped at a limit. **[shown through the bridge: a reply stopped by `--max-output` was `reply_cut`, which the helper reads from `done_reason` `length`; the raw `done_reason` of such a reply was not printed (raw requests printed `stop`)]**
+8. A reasoning model can return an empty `message.content` with its thinking in `message.thinking`. **[shown as far as the bridge reports it: a reasoning model that spends its cap is `reply_cut`, judged before the text; whether `message.content` was empty is not visible in the printed object]**
 9. `POST /api/embed` with `model`, `input` (a list) and `truncate` returns `embeddings`, a list of vectors in the order of the input,
    and `prompt_eval_count`; with `truncate` false a text longer than the window is an error. **[confirmed for the order, the count and the dimension; `truncate` false confirmed by the 400 below]**
 10. A chat model sent to `/api/embed` gives an error or a result the checks refuse. **[corrected: the server answers 501 with an error, which is now `model_unavailable`]**
@@ -562,21 +619,21 @@ reach it; the tests use a fake server and the statement stays unconfirmed).
     bridge's own test, and measured once on 2026-11-01 for `get_default_verify_paths`).
 13. An error status carries a body that is one JSON object with a string `error`, and the words matched in section "Errors"
     ("not found", "think", "format", "schema") appear in the error for a missing model, an unsupported thinking setting and a bad
-    format. **[confirmed for the missing model, the thinking error (a 400 with "think" in it gave `effort_unsupported`), the embedding 400 and the 501; not shown for the format and schema errors]**
+    format. **[confirmed for the missing model, the thinking error (seen as the bridge's class `effort_unsupported`; the server's text was not printed in the second run), the embedding 400 and the 501; not shown for the format and schema errors]**
 14. `/api/embed` honours `options.num_ctx`, returns the `model` it used, answers 404 for an embedding model that is not present, and
     answers 400 with an error about the input length when `truncate` is false and a text is too long. The bridge recognizes that
     error by "input length", "context length" or "too long" in it (the first two from memory of the server's wording, "the input
-    length exceeds the context length"); a different wording is `bad_exit` until the run corrects the words. **[the 400 about the input length confirmed ("the input length exceeds the context length"); `num_ctx` for an embedding, and the 404 for a missing embedding model, not shown]**
-15. The size of a batch of embeddings, as printed, is close to the estimate in section "embed". **[not shown; no size was measured]**
+    length exceeds the context length"); a different wording is `bad_exit` until the run corrects the words. **[confirmed: the 400 about the input length (the first run's raw request read "the input length exceeds the context length"; the second run saw the bridge's class `context_overflow`) and `num_ctx` for an embedding (a text with `--context 64` was refused); the 404 for a missing embedding model is not shown]**
+15. The size of a batch of embeddings, as printed, is close to the estimate in section "embed". **[confirmed for one case: 100 vectors of 768 numbers printed 1,027,394 bytes, about 13 characters a number]**
 16. `GET /api/tags` returns one JSON object with a list `models` whose entries have a string `name`, and the names are those of the
-    models the server holds, as `ollama list` prints them. **[not shown; increment G of the plan of 2026-11-02 shows it]**
+    models the server holds, as `ollama list` prints them. **[confirmed by the second run: `models` read the list and compared the names with the file's (the five configured names were present; no `ollama list` output was compared)]**
 17. `think` takes a word (`low`, `medium` or `high`) for a model that has levels and a boolean for a model that only switches thinking
     on and off; `options.num_predict` caps the output, and a reply stopped at it has `done_reason` `length`. What the server answers
-    to a boolean sent to a model with levels, and to a word sent to a model that only switches, is not known (nobody has tried it).
+    to a boolean sent to a model with levels, and to a word sent to a model that only switches, was not known before the second run.
     The knowledge-base module's session reported that `gemma4:12b` accepted `think: false` and that `gpt-oss:20b` accepted
     `think: "low"` (a report from another session on a small sample, not repeated here), and the on-off case may not be testable on a
     given server.
-    **[not shown; increment G shows what the owner's server allows, and a case that it does not allow stays unconfirmed]**
+    **[second run on 0.35.1, one sample each: a word to `gpt-oss:20b` changes the output (23 against 187 tokens on one puzzle); a boolean to it is accepted and no effect on the output count was seen (45 and 45; input counts 76 and 81); a boolean to `gemma4:12b` changes the output (8 against 229); a word to it is accepted (297 tokens each, more than the runs with thinking on; its effect is not shown); `phi4` rejects a word and `true` and accepts `false`; `num_predict` caps the output; that a reply stopped at it has `done_reason` `length` was not printed (see 7)]**
 
 ## Known limits
 
@@ -633,7 +690,7 @@ increment D and its review, and the one on embedding replies from increment E:
 - **The defaults of a section are applied when the caller passes nothing.** A caller cannot see an effort or an output cap from its
   own arguments; `check` prints them. An `effort` or a `thinking` that a model rejects is `effort_unsupported` (its message speaks of effort) on every call to it until the file is
   corrected. `output_limit` is both the default and the ceiling, so a caller that passes nothing gets the largest value, and the
-  owner sets the largest that any caller needs. The mapping to the server's `think` and `num_predict` is from memory (unconfirmed 17).
+  owner sets the largest that any caller needs. The mapping to the server's `think` and `num_predict` was checked on one server version for the cases tried (unconfirmed 17).
 - **The size rule refuses some prompts that fit and passes some that do not.** It is the estimate of a byte count; see "Context
   window". It is not applied to `embed`.
 - **The allowlist is not a boundary.** The agent can read the file and a shell can call the server directly; the allowlist limits what

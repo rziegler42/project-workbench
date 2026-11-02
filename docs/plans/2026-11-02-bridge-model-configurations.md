@@ -19,6 +19,9 @@ endpoint, and a prompt longer than the window is cut by the server without an er
   asks for a smaller one with `--context`. A caller who asks for more than the model's maximum gets an error and nothing is sent.
 - A prompt that is probably larger than the call's window is refused before it is sent, by a size rule the owner can tune for each
   model, so that the common case of a silent cut is stopped; the rule is an estimate and the plan says so.
+- A prompt that the window cannot hold is refused by the server, not cut by it: `ask` sends `truncate` false, as `embed` does, and
+  the server's refusal is `context_overflow` with the exact count in the server's own words (found by the run of increment G on
+  2026-11-02; the size rule stays as a backstop, and a server that ignores the field still cuts silently).
 - `ask-ollama models` shows which configured models the server has and which of its models are not configured.
 - A model section can also hold the defaults of a call that a module should not have to know: the effort of thinking (or, for a
   model that only switches thinking on and off, whether it thinks) and a limit on the output. A caller that passes nothing gets
@@ -42,6 +45,9 @@ endpoint, and a prompt longer than the window is cut by the server without an er
   spec (F-B), and the helper, its tests and the documents that carry the name (F-C). Added on 2026-11-02 at the owner's request,
   after increments A to D were committed; the plan needs the owner's new approval for them.
 - The owner's run against a real server, recorded in the spec (increment G).
+- `truncate` false for `ask` and the mapping of the server's refusal: the spec (increment G-A) and the helper with its tests
+  (increment G-B). Added on 2026-11-02, after the run of increment G found that the server offers it; the plan needs the owner's new
+  approval for them.
 - The rename of the file, the helper's constant, the module's `ask_reads` and every document that names it (increment H).
 - The close-out, and the record of the upgrade (increments I and J).
 
@@ -65,7 +71,7 @@ endpoint, and a prompt longer than the window is cut by the server without an er
 - The agent cannot write the guarded store. The owner writes the new file, and the plan gives the exact content. The helper does not
   read the older format: it refuses it with a message that names the rule and not a value. There is no fallback to the older file
   name or format, because a decision that no longer covers a file must not be read from it.
-- Each package change (increments C, D, E, F, F-C and H) is one scripted pass and needs the owner's explicit word "run the pass", then one
+- Each package change (increments C, D, E, F, F-C, G-B and H) is one scripted pass and needs the owner's explicit word "run the pass", then one
   `wb release-approvals` by the owner. The new tests are written first and are seen to fail against the old helper.
 - The record fields of the older format that stay are `scheme`, `host`, `port`, `location`, `authenticated`, `default_model` and
   `embedding_model`. The field `context` of the record is removed and becomes a field of each model section. A new field `models`
@@ -109,8 +115,17 @@ endpoint, and a prompt longer than the window is cut by the server without an er
   embedding bridge should satisfy the same requirement later; a hard requirement is right for its first version. The name `model-bridge`
   stays unconfirmed. Recording the confirmation changes `terms.md`, `module-contract.md`, `ask-ollama.md` and the module test that
   checks their wording, which is a package change, so it goes in increment F-C with the helper.
-- The window the server reports for a prompt it cut is about half the window it was given (2026-11-02, Ollama 0.35.1). This plan
-  does not change that, and its documents say so.
+- The refusal by the server (found on 2026-11-02 against Ollama 0.35.1 by increment G): a chat request with `truncate` false at the
+  top level, and a prompt of more tokens than the window, is answered with status 400 and an error whose text names the counts
+  ("request (2167 tokens) exceeds the available context size (2048 tokens)") and whose type is `exceed_context_size_error`; the same
+  field inside `options` is ignored; a prompt within the window, with thinking or with a schema, is answered as without the field;
+  there is no route that counts tokens. The bridge would send `truncate` false for every `ask`, and a status 400 whose error, in
+  lower case, holds "exceeds the available context size" or "exceed_context_size_error" is `vendor_error` with `context_overflow`,
+  not retryable, with the message of the check of the server's count ("the prompt does not fit the context window"); the words
+  only choose the row and are never copied. Another version of the server, or another server, may ignore the field (the prompt is
+  then cut silently, as before) or may word the refusal differently (then it is `bad_exit`); the size rule and the check of the
+  count stay for those cases. The run also showed that a prompt below the window is never cut, even above half of it. The window
+  that the server reports for a prompt it cut is about half the window it was given (2026-11-02, Ollama 0.35.1).
 - No host address, port or home path is written to a tracked file. Examples use a placeholder host.
 
 ## Completion criteria
@@ -135,9 +150,12 @@ endpoint, and a prompt longer than the window is cut by the server without an er
    cap and is refused above the section's `output_limit`; each rule has a test against a fake server, and `embed` and an embedding
    section refuse them.
 9. The documents call `text-embedding` confirmed by the owner, and the module test checks that wording.
-10. The file is `bridge-endpoints.json` everywhere (the helper, `ask_reads`, tests, documents), and a helper looking for the old name
+10. `ask` sends `truncate` false at the top level and a 400 that says the prompt exceeds the window is `context_overflow` (not
+    retryable, no word of the server's copied), each with a test against a fake server, and a call that the server refuses that way
+    is shown against the real server; the three other 400 rows (thinking, format, other) are unchanged.
+11. The file is `bridge-endpoints.json` everywhere (the helper, `ask_reads`, tests, documents), and a helper looking for the old name
    was removed, not kept as a fallback.
-11. The whole suite, `wb check`, `wb run code-work check` and `wb verify` report no failure, and the release preview reads `recorded`.
+12. The whole suite, `wb check`, `wb run code-work check` and `wb verify` report no failure, and the release preview reads `recorded`.
 
 ## Increments
 
@@ -365,10 +383,57 @@ shows a difference.
 any correction.
 **Evidence:** the one local commit, with the trailer `Plan: 2026-11-02-bridge-model-configurations#G`.
 
+### Increment G-A — Specify `truncate` false for `ask`
+
+**Outcome:** `ask-ollama.md` states that `ask` sends `truncate` false and how the server's refusal is reported, as G-B will build it.
+**Dependencies:** G.
+**Affected areas:** `docs/specs/ask-ollama.md`, and `docs/specs/model-bridge.md` only if it speaks of the cut prompt.
+**Steps:**
+1. Add `truncate` (false, top level) to "`ask`: the request", and say that `options.truncate` is not used.
+2. Add the row for a status 400 whose error holds "exceeds the available context size" or "exceed_context_size_error" to the table of
+   errors and to "Matching the server's error text" (`context_overflow`, not retryable, the message "the prompt does not fit the context
+   window", the words never copied), and say in "Context window" that a prompt over the window is now refused in two ways: before
+   the request by the size rule, and by the server's own 400 (with the exact count in the server's words), and that the check of the
+   server's count stays for a server that ignores the field.
+3. Rewrite the Known limits about the silent cut: it is closed on a server that honours `truncate` and stays on one that does not;
+   record the run (version 0.35.1, 2026-11-02): below the window nothing is cut, over it the prompt is cut to about half the window
+   and reported at that count, `truncate` false in `options` is ignored, there is no route that counts tokens.
+4. Add a checklist item for the request field, the 400 row and the other 400 rows unchanged; tag the statement about the server as
+   confirmed on 0.35.1 by the run and unconfirmed for any other version; and change the message of `effort_unsupported` where the
+   specification states it, to "the model does not support this effort or thinking setting" (the run showed it is also the answer to
+   `--thinking`).
+**Verification:** `wb check` and `wb run code-work check` report no problem; a reviewer reads every checklist item and finds it
+testable.
+**Evidence:** the one local commit, with the trailer `Plan: 2026-11-02-bridge-model-configurations#G-A`.
+
+### Increment G-B — Send `truncate` false and map the server's refusal
+
+**Outcome:** `ask` sends `truncate` false and reports the server's refusal of an oversize prompt as `context_overflow`.
+**Dependencies:** G-A.
+**Affected areas:** `packages/workbench/ask-ollama/helper/ask-ollama` and its tests.
+**Steps:**
+1. Write the tests first in the scratchpad copy: the request body has `truncate` false at the top level and not in `options`, with
+   and without a schema, a thinking default and an output limit (the exact key set); a 400 with the real server's text (the
+   `exceed_context_size_error` body and the plain message) is `vendor_error` / `context_overflow`, not retryable, with the message
+   of the check of the count and none of the server's words; the words are matched in lower case by substring; the other 400 rows
+   (thinking, format and schema, any other) are unchanged, a 400 with a body that is not an object is `bad_exit`; the exact request
+   key sets that earlier tests assert are updated; the size rule and the check of the count are unchanged.
+2. Carry in the same pass the four leftovers of F-C: the digit-cap case of the `--max-output` test shown alone, an equality test of
+   `--max-output` at 10,000,000 against a section whose limit is 10,000,000, the "no value quoted" assertion for every hostile value of
+   the three default tests, and the message of `effort_unsupported` ("the model does not support this effort or thinking setting").
+3. Make the helper pass them in one scripted pass, with the owner's word and a release.
+4. Ask the `reviewer` to read the increment; ask the owner whether a security review runs (one more request field and one more
+   matched error text).
+5. Show the result once against the real server, with the owner's word: an oversize prompt sent through the bridge is refused by the
+   server as `context_overflow`, and a prompt within the window is answered as before.
+**Verification:** the module's tests pass; the whole suite passes; `wb verify` reports no problem; a test shows the field in the
+request and the row of the error.
+**Evidence:** the one local commit, with the trailer `Plan: 2026-11-02-bridge-model-configurations#G-B`.
+
 ### Increment H — Rename the file to `bridge-endpoints.json`
 
 **Outcome:** the file is `bridge-endpoints.json` everywhere and the helper reads no other name.
-**Dependencies:** G.
+**Dependencies:** G-B.
 **Affected areas:** the helper's `ENDPOINT_FILE`, `packages/workbench/ask-ollama/module.json` (`ask_reads`), the tests that read the
 path, `ask-ollama.md`, `model-bridge.md`, `docs/development.md`, the older decision's status line (already superseded by A), and the
 owner's file on disk.
@@ -433,7 +498,10 @@ and the old file name; and the owner's run of increment G.
   `effort_unsupported` on every call to it.
 - **A mapping from memory.** The server's `think` (a word or a boolean) and `num_predict` are from memory of its documentation; the
   run of increment G checks them, and the on-off case may not be testable on the owner's server.
-- **Releases and passes.** C, D, E, F, F-C and H are package changes that make the shipped approval stale until the owner releases; each needs
+- **A server that ignores or words `truncate` differently.** The bridge sends the field to every server. A server that ignores it
+  cuts silently, as before; a server that words its refusal differently gives `bad_exit`, not `context_overflow`. The size rule and
+  the check of the count stay for both, and the specification says so.
+- **Releases and passes.** C, D, E, F, F-C, G-B and H are package changes that make the shipped approval stale until the owner releases; each needs
   the owner's word "run the pass" and one release, so the hooks refuse all work meanwhile.
 - **A rename that leaves a stale name.** A search of the tracked files and the removal of any fallback are the checks.
 - **Deleting stale approval records** (increment I) needs the owner's approval of the exact list.
@@ -458,6 +526,10 @@ owner re-approves it. The extension was not reviewed by the engine; the owner ma
 a section default, the loaded models from `/api/ps`, `keep_alive`, and a retryable 5xx), the temperature line of the non-goals was
 reworded to say it is deferred, and increment G was given the example values and the two combinations of thinking that the review
 asked for. The owner re-approves the plan.
+
+**2026-11-02, during increment G:** the run against the real server found that the server refuses an oversize chat prompt when
+`truncate` is false (and cuts it silently otherwise). The plan was extended at the owner's word ("go with your recommendation") with
+increments G-A and G-B, the matching goal, scope, assumptions, criteria and risks. The owner re-approves the plan.
 
 ## Deferred work
 
@@ -835,3 +907,54 @@ own tests were not available to it, and it did not read `test_askollama_defaults
 out of the commit until increment I.
 
 **Open for the owner:** nothing new.
+
+### Increment G
+
+**Done:** the second run against the owner's real server, on the owner's word ("go"), recorded in `docs/specs/ask-ollama.md`
+("The second run: the model sections, the defaults and the size rule") with its readings and the tags of unconfirmed 1, 4, 6, 7, 8,
+13, 14, 15, 16 and 17. The helper (as committed at `6a930b7`) ran in-process from a scratch script with a temporary home that held a
+file of format 2 for five models, so the owner's store and the installed copy were not used; about 60 calls were made, all with short
+test prompts, and nothing was changed on the server (Ollama 0.35.1, plain `http`). Shown: `check` with the defaults on the model
+lines; `models` (five present, four unconfigured); the allowlist, `--context` at, below and above the maximum, and the size rule at
+32,700 and 33,000 bytes; the defaults on `gpt-oss:20b` (the section's low effort, `--effort high` overriding it, the ceiling of
+`--max-output`) and on `gemma4:12b` (thinking on, `--thinking off`); the two combinations that nobody had tried (a boolean to a model
+with levels is accepted with no effect seen on the output; a word to a model that only switches is accepted); `phi4` rejecting a
+word and `true` and accepting `false`; `reply_cut` at a cap of 20 and 30 tokens; embeddings on both models (768 and 1024 values,
+100 vectors in 1,027,394 bytes), the other kind refused, a text over the window refused, and `num_ctx` honoured by `/api/embed`; and,
+on a record with 8 bytes per token, the gap in the size rule (a prompt of 12,000 bytes over a window of 2,048 passed the rule, was cut
+by the server to 1,026 tokens and was answered with a success). **The finding that stopped the run:** step 3 asked for a setting
+that makes the server refuse an oversize chat prompt, and the server has one: `truncate` false at the top level answers a prompt over
+the window with a 400 that names the counts ("request (2167 tokens) exceeds the available context size (2048 tokens)", type
+`exceed_context_size_error`); in `options` the field is ignored; `shift` false also refuses; `/api/tokenize` and `/api/count` do not
+exist; and a prompt below the window is never cut, even above half of it. The run stopped there and asked the owner, who chose to use
+it; the plan was extended with increments G-A and G-B and re-approved.
+
+**Deviation from the plan:** the owner did not write the file and run the commands; the agent ran the helper in-process with a
+scratch home, because the installed copy is still the old helper and the owner's file is still format 1 (the owner writes the
+real file at increment J). The `--provides` route of the launcher is therefore still not exercised. No correction to the helper
+followed from the run except what G-A and G-B carry (the field `truncate`, the row for the refusal and the message of
+`effort_unsupported`).
+
+**Verification as run** (macOS): the whole suite, `python3 -B -W error tests/run_all.py`: 6,664 tests in 14 roots,
+OK (no code changed in this increment); `wb check` and `wb run code-work check` report no problems. A scan of the specification
+finds only the documentation-range address of the example, no host of the server and no home path.
+
+**Review:** one read by the read-only `reviewer` against the raw output of the run (kept in the scratchpad and not cited by the
+specification): no blocking finding, and every other figure of the table matched. Applied: a comparison of two different prompts in a
+tag (23 against 187 tokens on the same puzzle); "cannot turn thinking off" and "treated as on" claimed more than one sample shows
+(now "no effect seen" and "accepted, its effect is not shown", with the input counts); tag 4 said that a model without levels
+rejects a word, which `gemma4:12b` contradicts (only `phi4`, which has no thinking, did); the quoted wording of the embedding 400 was
+from the first run (now said); the claim that a second record let a prompt through the size rule had not been run, so it was run
+(three calls through the bridge) and is now a row of the table; the readings made by raw requests are marked; the limits are
+stated (in-process and not `wb run`, one sample for each case, one server version); the tag of unconfirmed 7 says that the raw
+`done_reason` `length` was not printed; the stale lines about the mapping being from memory and about "the run" are fixed. A
+security review was not asked for: the calls were reads and short test prompts, and no code changed.
+
+**Releases:** none in this increment.
+
+**Not done in G:** a server that is switched off, and `--schema` (shown in the first run); the older file format and a model of the
+other kind are shown by the fake-server tests and not by a real model; the corrections that the run points to are increments G-A and
+G-B.
+
+**Open for the owner:** the file to write at increment J (the same file as the run used, with the real address, in the format of
+`ask-ollama.md`).
