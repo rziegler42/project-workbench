@@ -1,7 +1,7 @@
 # Roadmap: workbench-v1
 
 Status: Active
-Updated: 2026-11-01
+Updated: 2026-11-02
 
 This roadmap is direction only. It does not authorize implementation and does not
 change any plan. A candidate is referred to as `workbench-v1#<id>`. Candidates are
@@ -622,6 +622,24 @@ cut silently, so the bridge sets the context size from the store's record for th
 and a model that reasons can use up its token limit in its reasoning and return an empty reply, so the plan maps `--effort` to the
 server's thinking setting and reports an empty or cut-off reply as an unusable reply, never as a success.
 **Promotion trigger:** `bridge-confine-and-usage` complete and the owner chooses to begin it.
+
+### bridge-model-configurations — Model configurations for each endpoint, and a context ceiling
+
+**Outcome:** the owner's endpoint file describes each model that may be used on a server, so that a bridge to a server uses only a
+model the owner configured, and the window of a call is the model's own. Each endpoint record holds a configuration section for every
+allowed model: its kind (chat or embedding), the largest context it accepts, an optional lower default window, and an optional
+estimate of bytes per token. A model that is not configured, or is configured for the other kind, is refused before anything is sent.
+A caller may ask for a smaller window and gets an error, with nothing sent, when it asks for more than the model's maximum. A prompt
+that is probably larger than the window is refused before it is sent, because the server of the first run (2026-11-02) cut such a
+prompt without an error and reported about half the window. A read-only command shows which configured models the server has. The
+file is named for what it holds, in a step after the first real run of the new format.
+**Dependencies:** `ask-ollama-bridge` complete. The accepted decision `2026-11-01-endpoint-records-in-the-store` is superseded on the
+format of a record, by a new decision the owner accepts.
+**Boundary:** the endpoint file's format and the one helper that reads it, its spec and its documents. The option for a smaller window
+belongs to the Ollama bridge and not to the contract's common core, so `ask-codex` and the contract are unchanged. The older format is
+refused and is not read as a fallback. It reads no token count from the server and holds no credential, and a second bridge to a
+server, an exact count of tokens and a command that reads each model's window from the server are not part of it.
+**Promotion trigger:** `ask-ollama-bridge` complete and the owner chooses to begin it.
 
 ### port-superpowers — Port the superpowers skills the owner uses into neutral skills
 
