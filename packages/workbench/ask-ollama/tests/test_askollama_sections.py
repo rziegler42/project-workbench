@@ -1,6 +1,7 @@
 """The endpoint file of format 2: the model sections, the allowlist, the window of a call and `--context` (decision
-`2026-11-02-model-configurations-in-endpoint-records`; checklist items 12 to 14 of `docs/specs/ask-ollama.md`). Plan
-`2026-11-02-bridge-model-configurations`, increment C. Every refusal is made before a request, and no refusal quotes a
+`2026-11-02-model-configurations-in-endpoint-records`; checklist items 12 to 14 of `docs/specs/ask-ollama.md`), and the
+hardening of the file reader (increment D: the format first, aliasing names, a run of digits). Plan
+`2026-11-02-bridge-model-configurations`, increments C and D. Every refusal is made before a request, and no refusal quotes a
 model name or a value. `check` is used where only the file is under test, because it reads the file by the same rules."""
 
 import json

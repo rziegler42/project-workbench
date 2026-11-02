@@ -152,6 +152,12 @@ class Output(Models):
         document = self.result()
         self.assertEqual((["alpha:1b"], ["gamma"]), (document["present"], document["unconfigured"]))
 
+    def test_a_name_listed_twice_keeps_its_first_place(self):
+        self.fake.reply(tags("gamma", "x", "gamma"))
+        self.assertEqual(["gamma", "x"], self.result()["unconfigured"])
+        self.fake.reply(tags("x", "gamma", "x", "y", "gamma"))
+        self.assertEqual(["x", "gamma", "y"], self.result()["unconfigured"])
+
     def test_a_name_outside_the_model_rule_is_counted_and_never_printed(self):
         bad = ["", "a b", "a..b", "/a", "a/", "é", "-x", "x" * 129, "a\nb", "a\x00b", "SECRET name"]
         self.fake.reply(tags(*bad, "gamma"))
@@ -217,6 +223,14 @@ class Replies(Models):
             document = self.bad(error="vendor_error", detail="bad_exit")
             self.assertEqual("the server answered with an error", document["message"])
             self.assertNotIn("SECRET", json.dumps(document))
+
+    def test_a_redirect_is_not_followed_and_makes_no_second_request(self):
+        target = "http://127.0.0.1:%d/api/tags" % self.fake.port
+        for status in (301, 302, 307, 308):
+            before = len(self.fake.requests)
+            self.fake.reply(tags("alpha:1b"), status=status, headers={"Location": target})
+            self.bad(error="vendor_error", detail="bad_exit")
+            self.assertEqual(before + 1, len(self.fake.requests), status)
 
     def test_a_body_over_its_bound_is_reply_too_large(self):
         self.fake.reply(b"x" * (self.helper.MAX_BODY + 1))

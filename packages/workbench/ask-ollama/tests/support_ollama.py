@@ -91,8 +91,10 @@ class Fake:
                 fake.answer(self)
 
             def do_GET(self):
+                length = int(self.headers.get("Content-Length", "0"))
+                body = self.rfile.read(length) if length else b""
                 fake.requests.append({"method": self.command, "path": self.path,
-                                      "headers": [(k, v) for k, v in self.headers.items()], "body": b""})
+                                      "headers": [(k, v) for k, v in self.headers.items()], "body": body})
                 fake.answer(self)
 
         self.server = (Server6 if ipv6 else http.server.ThreadingHTTPServer)(("::1" if ipv6 else "127.0.0.1", 0), Handler)

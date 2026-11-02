@@ -4,8 +4,9 @@
 It is one file that imports the standard library and the workbench kit (``wbkit``); the launcher runs a
 private copy of it through the kit runner with nothing beside it.
 
-    ask-ollama ask [--model <name>] [--context <tokens>] [--effort <level>] [--timeout <seconds>] [--root <path>]
-                   [--schema <path>] [--server <name>] [--confine]      the prompt is on standard input
+    ask-ollama ask [--model <name>] [--context <tokens>] [--effort <level> | --thinking on|off] [--max-output <tokens>]
+                   [--timeout <seconds>] [--root <path>] [--schema <path>] [--server <name>] [--confine]
+                                                                       the prompt is on standard input
     ask-ollama check                                                   read-only: the endpoint file, no connection
     ask-ollama models [--server <name>] [--timeout <seconds>]          read-only: the configured models the server has
     ask-ollama embed [--model <name>] [--context <tokens>] [--server <name>] [--timeout <seconds>] [--confine]
@@ -14,7 +15,9 @@ private copy of it through the kit runner with nothing beside it.
 The contract is ``docs/specs/model-bridge.md`` (version 2) and the behaviour is ``docs/specs/ask-ollama.md``. The
 server is a named record of ``endpoints.json`` in the guarded store (decisions ``2026-11-01-endpoint-records-in-the-store`` and
 ``2026-11-02-model-configurations-in-endpoint-records``), never an address in an argument, an environment variable or a tracked
-file. A record holds a section for each model a call may use: only a configured model is used, and its section gives the window. The helper makes one request, to the host and
+file. A record holds a section for each model a call may use: only a configured model is used, and its section gives the window and, when it holds them, the defaults of a call (an effort or a
+switch for thinking, and an output limit), which a call argument replaces. A prompt that is probably larger than the window (its
+size in bytes above the window times the section's bytes per token) is not sent. The helper makes one request, to the host and
 port of that record and to no other, follows no redirect, verifies an ``https`` server, keeps no state, writes nothing and
 logs nothing. What the server returns is data: it is classified and copied, never run and never believed.
 """
@@ -60,7 +63,7 @@ MAX_TEXT = 32768
 MAX_DIMENSION = 8192
 MAX_EMBED_BODY = 16777216
 EFFORTS = ("low", "medium", "high")
-OPTIONS = ("--model", "--context", "--effort", "--timeout", "--root", "--schema", "--server")
+OPTIONS = ("--model", "--context", "--effort", "--thinking", "--max-output", "--timeout", "--root", "--schema", "--server")
 EMBED_OPTIONS = ("--model", "--context", "--timeout", "--server")
 MODELS_OPTIONS = ("--timeout", "--server")
 FLAGS = ("--confine",)  # an option with no value
@@ -80,8 +83,10 @@ LOCATIONS = ("this-machine", "owner-network", "vendor-cloud")
 RECORD_KEYS = ("scheme", "host", "port", "location", "authenticated", "models")
 OPTIONAL_KEYS = ("default_model", "embedding_model")
 KINDS = ("chat", "embedding")
-SECTION_KEYS = ("kind", "context", "default_context", "bytes_per_token")
+SECTION_KEYS = ("kind", "context", "default_context", "bytes_per_token", "effort", "thinking", "output_limit")
 MAX_WINDOW = 10000000
+MAX_OUTPUT = 10000000
+_DIGIT_RUN = rb"[0-9]{4301,}"  # Python's own limit is 4300 digits, but a caller can lift it with an environment variable
 
 MESSAGES = {
     "unreachable": "the server did not answer",
@@ -196,7 +201,7 @@ def parse_json(data):
     """The JSON value in `data` (bytes): valid UTF-8, no repeated key, no ``NaN`` or infinity, no lone surrogate, nested
     at most `MAX_DEPTH` deep. Fractions are allowed if finite (a schema and a server reply have them). This is stricter than
     the plain parser that the other bridge uses for a schema (docs/specs/ask-ollama.md names the difference). Raises ValueError."""
-    if re.search(rb"[0-9]{4301,}", data):  # Python's own limit is 4300 digits, but a caller can lift it with an environment variable
+    if re.search(_DIGIT_RUN, data):
         raise ValueError("a number has too many digits")
     try:
         text = data.decode("utf-8")
@@ -379,6 +384,16 @@ def validate_section(name, section):
         raise _field(name, "a model section's default_context is not a whole number from 1 to its context")
     if "bytes_per_token" in section and not whole(section["bytes_per_token"], 1, 8):
         raise _field(name, "a model section's bytes_per_token is not a whole number from 1 to 8")
+    if section["kind"] != "chat" and any(key in section for key in ("effort", "thinking", "output_limit")):
+        raise _field(name, "a model section of kind embedding holds a default that only a chat model may hold")
+    if "effort" in section and (not isinstance(section["effort"], str) or section["effort"] not in EFFORTS):
+        raise _field(name, "a model section's effort is not low, medium or high")
+    if "thinking" in section and type(section["thinking"]) is not bool:
+        raise _field(name, "a model section's thinking is not a boolean")
+    if "effort" in section and "thinking" in section:
+        raise _field(name, "a model section holds both effort and thinking")
+    if "output_limit" in section and not whole(section["output_limit"], 1, MAX_OUTPUT):
+        raise _field(name, "a model section's output_limit is not a whole number from 1 to %d" % MAX_OUTPUT)
 
 
 def validate_document(document):
@@ -435,7 +450,7 @@ def read_endpoints():
             data = root.read_file(ENDPOINT_FILE, MAX_ENDPOINT_FILE)
     except (safefs.SafeFsError, OSError) as exc:
         raise Refused("the endpoint file %s" % file_problem(exc))
-    if re.search(rb"[0-9]{4301,}", data):  # Python's own limit is 4300 digits, but a caller can lift it with an environment variable
+    if re.search(_DIGIT_RUN, data):
         raise Refused("the endpoint file is not strict JSON")
     try:
         document = jsonstrict.parse_object(data, MAX_ENDPOINT_FILE)
@@ -484,6 +499,34 @@ def call_window(options, section):
     return section.get("default_context", section["context"])
 
 
+_ABSENT = object()  # a call that sends no ``think``
+
+
+def call_think(options, section):
+    """The ``think`` of a call: ``--thinking`` (a boolean), else ``--effort`` (a word), else the section's ``effort`` (a word)
+    or ``thinking`` (a boolean), else ``_ABSENT``."""
+    if "--thinking" in options:
+        return options["--thinking"] == "on"
+    if "--effort" in options:
+        return options["--effort"]
+    if "effort" in section:
+        return section["effort"]
+    if "thinking" in section:
+        return section["thinking"]
+    return _ABSENT
+
+
+def call_output(options, section):
+    """The output cap of a call: ``--max-output`` (refused above the section's ``output_limit``, and above 10,000,000 when
+    it has none), else the section's ``output_limit``, else ``None``."""
+    if "--max-output" in options:
+        value = int(options["--max-output"])
+        if value > section.get("output_limit", MAX_OUTPUT):
+            raise Refused("--max-output is larger than the largest output limit configured for the model")
+        return value
+    return section.get("output_limit")
+
+
 # --------------------------------------------------------------------------------------- options and paths
 
 
@@ -513,6 +556,12 @@ def parse_options(args, options=OPTIONS, command="ask"):
         raise Refused("--context is a whole number of 1 to 8 digits, with no sign and no leading zero")
     if "--effort" in found and found["--effort"] not in EFFORTS:
         raise Refused("--effort is one of %s" % ", ".join(EFFORTS))
+    if "--thinking" in found and found["--thinking"] not in ("on", "off"):
+        raise Refused("--thinking is on or off")
+    if "--max-output" in found and not re.fullmatch(_CONTEXT, found["--max-output"]):
+        raise Refused("--max-output is a whole number of 1 to 8 digits, with no sign and no leading zero")
+    if "--effort" in found and "--thinking" in found:
+        raise Refused("--effort and --thinking are not given together")
     if "--timeout" in found:
         if not re.fullmatch(_SECONDS, found["--timeout"]) or not 1 <= int(found["--timeout"]) <= 3600:
             raise Refused("--timeout is a whole number of seconds from 1 to 3600")
@@ -732,13 +781,15 @@ def error_for(status, body):
     return failure("vendor_error", "bad_exit", MESSAGES["bad_exit"])
 
 
-def chat_body(model, prompt, window, options, schema):
-    body = {"model": model, "messages": [{"role": "user", "content": prompt}], "stream": False,
-            "options": {"num_ctx": window}}
+def chat_body(model, prompt, window, think, output, schema):
+    parameters = {"num_ctx": window}
+    if output is not None:
+        parameters["num_predict"] = output
+    body = {"model": model, "messages": [{"role": "user", "content": prompt}], "stream": False, "options": parameters}
     if schema is not None:
         body["format"] = schema
-    if "--effort" in options:
-        body["think"] = options["--effort"]
+    if think is not _ABSENT:
+        body["think"] = think
     return body
 
 
@@ -799,10 +850,12 @@ def ask(args, stdin, cwd, out):
     record = select_record(records, default, options.get("--server"))
     model, section = select_model(record, options.get("--model"), "chat")
     window = call_window(options, section)
+    think = call_think(options, section)
+    output = call_output(options, section)
     figure = section.get("bytes_per_token", DEFAULT_BYTES_PER_TOKEN)
     if len(prompt.encode("utf-8")) > window * figure:  # the size rule: an estimate, and nothing is sent
         return emit(out, failure("vendor_error", "context_overflow", MESSAGES["prompt_too_large"]))
-    payload = json.dumps(chat_body(model, prompt, window, options, schema)).encode("ascii")
+    payload = json.dumps(chat_body(model, prompt, window, think, output, schema)).encode("ascii")
     if len(payload) > MAX_REQUEST:
         raise Refused("the request is too large")
     try:
@@ -908,9 +961,16 @@ def check(args, out):
             name, record["scheme"], record["location"], "true" if record["authenticated"] else "false",
             "yes" if name == default else "no"))
         for model, section in record["models"].items():
-            out.write("model %s/%s kind=%s context=%d window=%d bytes_per_token=%d\n" % (
+            line = "model %s/%s kind=%s context=%d window=%d bytes_per_token=%d" % (
                 name, model, section["kind"], section["context"], section.get("default_context", section["context"]),
-                section.get("bytes_per_token", DEFAULT_BYTES_PER_TOKEN)))
+                section.get("bytes_per_token", DEFAULT_BYTES_PER_TOKEN))
+            if "effort" in section:
+                line += " effort=%s" % section["effort"]
+            elif "thinking" in section:
+                line += " thinking=%s" % ("on" if section["thinking"] else "off")
+            if "output_limit" in section:
+                line += " output_limit=%d" % section["output_limit"]
+            out.write(line + "\n")
         if record["scheme"] == "http" and not record["authenticated"] and not is_loopback(record["host"]):
             warnings.append("warning: %s: unauthenticated http away from loopback; content sent to it travels in the clear"
                             % name)
@@ -967,7 +1027,8 @@ def main(argv, stdin, out, err, cwd=None):
         if cwd is None:
             cwd = os.getcwd()  # inside the try: a working directory that is gone is a refusal and not a traceback
         if not argv or argv[0] not in ("ask", "check", "embed", "models"):
-            raise Refused("usage: ask-ollama ask [--model <name>] [--context <tokens>] [--effort <level>] "
+            raise Refused("usage: ask-ollama ask [--model <name>] [--context <tokens>] [--effort <level> | --thinking on|off] "
+                          "[--max-output <tokens>] "
                           "[--timeout <seconds>] [--root <path>] [--schema <path>] [--server <name>] [--confine], with the "
                           "prompt on standard input; ask-ollama check; ask-ollama models [--server <name>] "
                           "[--timeout <seconds>]; or ask-ollama embed [--model <name>] [--context <tokens>] "

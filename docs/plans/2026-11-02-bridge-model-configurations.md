@@ -781,3 +781,57 @@ other document that contradicts the confirmation.
 **Not done in F-B:** the module is not changed; increment F-C is not started.
 
 **Open for the owner:** nothing new.
+
+### Increment F-C
+
+**Done:** the defaults of a model section and the confirmed name. In `packages/workbench/ask-ollama/helper/ask-ollama`: a chat
+section may hold `effort` (`low`, `medium` or `high`) or `thinking` (a JSON boolean), at most one of the two, and `output_limit` (1
+to 10,000,000), and an embedding section holds none (each refusal names the rule and never the value); `ask` has the new options
+`--thinking on|off` and `--max-output <tokens>` (the form of `--context`; refused above the section's `output_limit`, and above
+10,000,000 when it has none), `--effort` and `--thinking` together are refused, and `embed` and `models` refuse all three as unknown;
+the request's `think` is the argument, else the section's default (a word or a boolean; a `false` is sent), else absent, and
+`options.num_predict` is the argument, else the section's `output_limit`, else absent (`format` and `think` stay top level); the
+refusals come before the size rule and before anything is sent; `check` appends ` effort=<word>` or ` thinking=on|off`, then
+` output_limit=<n>`, to a model line. The leftovers from D, E and F went in: the helper's docstring mentions the size rule, one
+constant `_DIGIT_RUN` serves the reply parser and the file reader, the docstring of `test_askollama_sections.py` is fixed, `models`
+has a test that a name listed twice keeps its first place and a test that a redirect makes no second request, and the fake
+server's `do_GET` reads a body so that the check for "no body" is not constant. `docs/specs/terms.md` and
+`docs/specs/module-contract.md` now say that the owner confirmed `text-embedding` and has not yet confirmed `model-bridge`, and the
+module test checks that wording (and that the old wording is gone). The new tests are in `test_askollama_defaults.py` (28).
+
+**Verification as run** (Python 3.15.0, macOS): the module's tests in a scripted pass that copied the tests first: against the
+committed helper 339 tests ran and 24 failed (the new tests; three of the 28 new ones pass without the change because they state
+what was already true); against the new helper all 339 pass. The whole suite, `python3 -B -W error tests/run_all.py`: 6,664
+tests in 14 roots, OK. `wb verify packages/workbench` prints no refusal; `wb check` and `wb run code-work check` report no problems.
+After the owner's release `wb preview release-approvals` reads 14 records `recorded` and ten stale shipped records.
+
+**Review:** one read by the read-only `reviewer`: no blocking finding. It checked each field, bound and override against the decision
+and the spec, found `think` false sent, `num_predict` inside `options`, no other field, the refusals before the size rule, and the
+two documents and the module test accurate with nothing else in `docs/` contradicting the confirmation. Deferred to the next
+package pass, increment H's (they are tests and one message, so they would cost a release now): the `--max-output` test cases
+`123456789` and `5_0` are also refused by the ceiling and do not show the digit cap alone (test the form message or `parse_options`);
+no test sends `--max-output 10000000` to a section whose `output_limit` is 10,000,000; the "no value quoted" assertion checks only one
+of the hostile values; and the message of `effort_unsupported` ("the model does not support this effort") is also the answer to
+`--thinking` or a section's `thinking`, so it should say "this effort or thinking setting" (the spec's "Known limits" says it now).
+`docs/development.md` still lists the `ask` options without the new ones (increment I).
+
+**Security review** (asked by the owner; the `security-reviewer`, on a copy with a loopback fake server and a temporary home, the tree
+untouched): no Critical, High or Medium finding. Each of the three new fields was tried with 22 odd JSON values (booleans, floats,
+exponents, a 30-digit integer, a 5,000-digit run, strings that look like numbers or booleans, null, lists, dicts, a newline, a
+zero-width character, option-like and `__proto__` names), each refused with a fixed message that quotes no value; a default on an
+embedding section is refused wherever it is (including the section that is the record's `embedding_model`); a request matrix of 7
+section shapes by 13 argument sets showed that `think` and `options.num_predict` are the only new request fields, that `think`
+false is sent and that every override and ceiling behaves as the decision sets; about 40 hostile option values (leading zeros,
+signs, whitespace, newlines, NUL, non-ASCII digits, 9 digits, a 5,000-digit run, a valueless, repeated or option-like value) were each
+refused with nothing sent; `embed`, `models` and `check` refuse the options; the `check` line prints only validated values; imports
+and calls are the same as at `d1ca0a1` (a regex scan); both digit-run guards hold, also with the interpreter's limit lifted; the
+largest valid file (254,367 bytes) is read in 0.07 s. Low findings: the `effort_unsupported` message wording (above); `num_predict` is
+independent of the window, by design. Limits of the evidence: the helper ran in-process from a copy, `git diff` and the project's
+own tests were not available to it, and it did not read `test_askollama_defaults.py` in full.
+
+**Releases:** one more of `wb release-approvals` by the owner in this increment (in a terminal).
+
+**Not done in F-C:** the server's mapping of `think` and `num_predict` is unconfirmed (increment G); the stale shipped records stay
+out of the commit until increment I.
+
+**Open for the owner:** nothing new.

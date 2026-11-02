@@ -134,7 +134,7 @@ class Capability(unittest.TestCase):
         self.assertIn("reserved for the first-party package", text)
         self.assertTrue(accepted_as_first_party.accepted, [str(p) for p in accepted_as_first_party.problems])
 
-    def test_the_name_is_defined_in_the_terms_and_the_module_contract_as_the_owners_to_confirm(self):
+    def test_the_name_is_defined_in_the_terms_and_the_module_contract_as_confirmed_by_the_owner(self):
         for name in ("terms.md", "module-contract.md"):
             with open(os.path.join(ROOT, "docs", "specs", name), encoding="utf-8") as handle:
                 text = handle.read()
@@ -143,10 +143,14 @@ class Capability(unittest.TestCase):
             terms = handle.read()
         entry = terms[terms.index("text-embedding"):]
         self.assertIn("ask-ollama.md", entry)
-        self.assertIn("the owner has not confirmed it", " ".join(entry.split("\n\n")[0].split()))
+        paragraph = " ".join(entry.split("\n\n")[0].split())
+        self.assertIn("is confirmed by the owner", paragraph)
+        self.assertIn("`model-bridge` is still unconfirmed", paragraph)
+        self.assertNotIn("has not confirmed it", paragraph)
         with open(os.path.join(ROOT, "docs", "specs", "module-contract.md"), encoding="utf-8") as handle:
             contract = " ".join(handle.read().split())
-        self.assertIn("the owner has not yet confirmed the names `model-bridge` and `text-embedding`", contract)
+        self.assertIn("the owner has confirmed `text-embedding` and has not yet confirmed `model-bridge`", contract)
+        self.assertNotIn("not yet confirmed the names `model-bridge` and `text-embedding`", contract)
 
 
 if __name__ == "__main__":

@@ -261,8 +261,10 @@ path or field.
 **text embedding**
 : A capability, named `text-embedding`, for a module that takes a batch of texts and returns one vector of numbers for each,
   from a model on a server. The first-party provider is `ask-ollama` (`ask-ollama.md`, "`embed`"), whose command takes the texts as
-  one JSON object on standard input. The name is that specification's proposal and the owner has not confirmed it, as for
-  `model-bridge`; like it, it has no prefix, so only the first-party package may provide it.
+  one JSON object on standard input. The name is confirmed by the owner (2026-11-02, decision
+  `2026-11-02-model-section-defaults-and-the-embedding-name`, item 7) as a name that mentions no vendor, so that a module may require
+  it and a cloud embedding bridge may provide it later; `model-bridge` is still unconfirmed. Like it, the name has no prefix, so only
+  the first-party package may provide it.
 
 **launcher**
 : The small workbench component, run as `wb`, that the installer places in the guarded

@@ -15,7 +15,7 @@ the model lines of `check`, the refusal of aliasing names, the guard on digits i
 increment E the size rule and increment F the argument `models`;
 the file is named `endpoints.json` until increment H renames it `bridge-endpoints.json`. The defaults of a chat section (`effort` or
 `thinking`, and `output_limit`) and the options `--thinking` and `--max-output` are specified here under the accepted decision
-`2026-11-02-model-section-defaults-and-the-embedding-name` and are built by
+`2026-11-02-model-section-defaults-and-the-embedding-name` and were built by
 increment F-C of the plan.
 
 Terms are in `terms.md`. The contract it satisfies is `model-bridge.md` (version 2), whose sections on a bridge to a server this
@@ -631,7 +631,7 @@ increment D and its review, and the one on embedding replies from increment E:
   the default refuses a prompt over 32,768 bytes, which can be about 10,000 tokens. The owner sets a higher figure in the section of
   a model whose prompts are known, and a prompt at a figure above the true bytes per token can still be cut.
 - **The defaults of a section are applied when the caller passes nothing.** A caller cannot see an effort or an output cap from its
-  own arguments; `check` prints them. An `effort` that a model rejects is `effort_unsupported` on every call to it until the file is
+  own arguments; `check` prints them. An `effort` or a `thinking` that a model rejects is `effort_unsupported` (its message speaks of effort) on every call to it until the file is
   corrected. `output_limit` is both the default and the ceiling, so a caller that passes nothing gets the largest value, and the
   owner sets the largest that any caller needs. The mapping to the server's `think` and `num_predict` is from memory (unconfirmed 17).
 - **The size rule refuses some prompts that fit and passes some that do not.** It is the estimate of a byte count; see "Context
