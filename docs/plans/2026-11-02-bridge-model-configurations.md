@@ -958,3 +958,40 @@ G-B.
 
 **Open for the owner:** the file to write at increment J (the same file as the run used, with the real address, in the format of
 `ask-ollama.md`).
+
+### Increment G-A
+
+**Done:** `docs/specs/ask-ollama.md` states, as increment G-B will build it, that every `ask` sends `truncate` `false` at the top level
+(and never inside `options`, where the server ignores it), and that a status 400 whose error, in lower case, holds "exceeds the
+available context size" or "exceed_context_size_error" is `vendor_error` / `context_overflow`, not retryable, with the message "the
+prompt does not fit the context window" and none of the server's words copied. In the specification: the request and the header
+(built by G-B); a "Context window" bullet (a prompt over the window is refused in two ways, by the size rule before the request and
+by the server's own count; a server that ignores the field may cut it as before; a server that words its refusal differently gets
+`bad_exit`); the clause in "Matching the server's error text" and in "When several conditions hold" (for a 400 the overflow words are
+judged before "think" and "format", and an overflow text with another status is `bad_exit`); the row in the table of errors; the
+`effort_unsupported` message reworded to "the model does not support this effort or thinking setting"; checklist item 19 (and item 4
+extended; the references to the items of `model-bridge.md` disambiguated); unconfirmed 18 (confirmed on Ollama 0.35.1 by raw
+requests of the second run, not shown through the bridge, unconfirmed for any other version); the tags of 6 and 13; and the "Known
+limits" about the silent cut rewritten into two bullets (the cut is closed for a server that honours the field and stays for one that
+does not, with the second run's example of the size rule's gap; what the server does with a prompt, as measured, with its limits). The
+stale remainders that the review found are corrected (the check of the count is named as the check for a prompt that fills the window
+exactly and as unable to see 0.35.1's way of cutting; the size-rule text no longer speaks as if every cut were silent).
+
+**Verification as run** (macOS): `wb check` and `wb run code-work check` report no problems; the whole suite,
+`python3 -B -W error tests/run_all.py`: 6,664 tests in 14 roots, OK (no code changed; it ran before the last text-only corrections,
+after which `wb check` and the plan check were run). A scan of the specification finds only the documentation-range address of the
+example, no home path and no untracked path.
+
+**Review:** one read by the read-only `reviewer` against the raw files of the run: no blocking finding, and every claim about the
+server matched them. Applied: the refusal was said to be from raw requests and not through the bridge, "an older one" now says that
+none was tested, "nothing was cut below the window" now says one model, one window and prompts up to 1,917 tokens, "the chat template
+still adds tokens" is marked as expected and not measured, the "plain message" and "structured body" of item 19 became what was
+seen (one `error` string that holds JSON text), item 19 gained the status other than 400, the combined overflow and "think" body and
+what `embed` unchanged means, the contradiction about the check of the count was removed, the order of the 400 words is stated, two
+remaining "its message speaks of effort" lines were updated, and the references to `model-bridge.md`'s own items were disambiguated.
+Not changed here: `model-bridge.md`'s "As built" paragraph still describes the first run (a prompt cut, a window check that does not
+fire); increment I rewrites it. A security review was not asked for: a specification.
+
+**Not done in G-A:** the module is not changed; the helper does not yet send `truncate` (G-B).
+
+**Open for the owner:** nothing new.

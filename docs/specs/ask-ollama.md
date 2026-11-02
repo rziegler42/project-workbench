@@ -17,7 +17,8 @@ increment E the size rule and increment F the argument `models`;
 the file is named `endpoints.json` until increment H renames it `bridge-endpoints.json`. The defaults of a chat section (`effort` or
 `thinking`, and `output_limit`) and the options `--thinking` and `--max-output` are specified here under the accepted decision
 `2026-11-02-model-section-defaults-and-the-embedding-name` and were built by
-increment F-C of the plan.
+increment F-C of the plan. The field `truncate` `false` of `ask` and the refusal that goes with it are specified here (increment
+G-A of that plan) and are built by increment G-B.
 
 Terms are in `terms.md`. The contract it satisfies is `model-bridge.md` (version 2), whose sections on a bridge to a server this
 spec fills in. The endpoint file is set by the accepted decision `2026-11-01-endpoint-records-in-the-store` as amended by
@@ -181,12 +182,14 @@ value as the next argument except `--confine`, and a refusal of anything else be
 
 ### `ask`: the request
 
-One `POST` to the fixed path `/api/chat` with `Content-Type: application/json` [unconfirmed 1, 2, 17]. The body is one JSON object with exactly: `model`;
-`messages`, one message with `role` `user` and `content` the prompt (a string; the prompt is UTF-8 text); `stream` `false`; `options`
+One `POST` to the fixed path `/api/chat` with `Content-Type: application/json` [unconfirmed 1, 2, 17, 18]. The body is one JSON object with exactly: `model`;
+`messages`, one message with `role` `user` and `content` the prompt (a string; the prompt is UTF-8 text); `stream` `false`; `truncate` `false`; `options`
 with `num_ctx` (the window of the call) and, only when it applies, `num_predict` (the output limit, from `--max-output` or the
 section's `output_limit`); and, only when they apply, the top-level fields `format` (the schema) and `think` (the effort, a word, or
 the thinking, a boolean). No other field is
-sent, and the prompt appears nowhere else. The headers are `Host` (the record's host, with brackets for an IPv6 literal, and the
+sent, and the prompt appears nowhere else. `truncate` is a top-level field, as `embed` sends it: a prompt over the window is then
+refused by the server and not cut ("Context window"); the same field inside `options` is ignored by the server and is not used. The
+headers are `Host` (the record's host, with brackets for an IPv6 literal, and the
 port when it is not the scheme's default), `Content-Type: application/json`, `Content-Length`, `Accept: application/json`,
 `Connection: close` and `User-Agent: ask-ollama/1` (a fixed string that does not change with the version of the module); no other
 header is sent. The request is built from the validated options and the selected record only.
@@ -223,13 +226,24 @@ never returned, never put in a message and never counted as the reply [unconfirm
   in it. The rule runs after the options and the model are validated and after the schema is read, and it does not apply to `embed`,
   where the server already answers a text that is too long with an error. It is an estimate: a token covers at least one byte of
   text, so a figure of 1 never passes a prompt whose text alone would fill the window (the chat template adds tokens and the reply shares
-  the window, so even a prompt of exactly the window in bytes can be cut), and a higher figure passes more prompts that fit and some
-  that the window cuts. The owner sets 1 for a model whose work must not lose the start of a prompt (a review, for example). The
-  rule does not replace the next one, and the server's own count can still show a cut that this one let through. It is a backstop for an
+  the window, so even a prompt of exactly the window in bytes can be cut by a server that does not refuse it), and a higher figure passes more prompts that fit and some
+  that the window cannot hold (a server that honours `truncate` `false` refuses those). The owner sets 1 for a model whose work must not lose the start of a prompt (a review, for example). The
+  rule does not replace the two checks below (the server's own refusal and the check of its count): with `truncate` `false`, a prompt
+  that this rule let through and that the window cannot hold is refused by the server. It is a backstop for an
   unusual prompt, not a substitute for a caller that sizes its own input to the window.
+- **A prompt that the window cannot hold, refused by the server.** Every `ask` sends `truncate` `false`. A server that honours it
+  answers a prompt of more tokens than the window with a status 400 and an error that names the counts (Ollama 0.35.1: "request
+  (2167 tokens) exceeds the available context size (2048 tokens)", with the type `exceed_context_size_error`). The bridge reports it
+  as `vendor_error` with `context_overflow`, not retryable, with the message "the prompt does not fit the context window", and no word
+  of the server's is copied. A prompt over the window is therefore refused in two ways: before the request by the size rule (an
+  estimate, with nothing sent) and by the server's own count. A server that ignores the field may cut the prompt without an error,
+  as before, and for it only the size rule and the check below stand (and the check below cannot see the way that Ollama 0.35.1 cuts:
+  see "Known limits"). A server that words its refusal differently is not matched, and its 400 is the `bad_exit` row. [unconfirmed 18]
 - **A prompt that fills the window.** When `prompt_eval_count` is at least the window of the call, the prompt filled the window
   and may have been cut. The call is `vendor_error` with `context_overflow`, not retryable, and no reply is returned. If the reply
-  carries no `prompt_eval_count`, the check cannot run and does not; the spec states that rather than implying it.
+  carries no `prompt_eval_count`, the check cannot run and does not; the spec states that rather than implying it. It is the check for a prompt that fills the
+  window exactly, and it would see a cut only on a server that reports the window as the count; Ollama 0.35.1 reports a cut prompt at
+  about half the window, which this check cannot see.
 - **The output limit.** A section's `output_limit`, or `--max-output`, is sent as `num_predict` and is not compared with the window of
   the call: the bridge does not know how the two share the window, and the server decides. A reply larger than the bridge accepts
   (262,144 bytes) is `reply_too_large`, as before.
@@ -254,12 +268,15 @@ route, a name that does not resolve, and a connection that is not made within it
 
 **Matching the server's error text.** An error status comes with a body. The bridge takes it as strict JSON of one object with a
 string `error` and matches that string in lower case by substring, only to choose a row: "not found" in a 404; "think" in a 400;
-"format" or "schema" in a 400. For `embed` the words are "not found" in a 404, "does not support embeddings" in a 501 and "input length", "context length" or
+"format" or "schema" in a 400; and, in a 400, "exceeds the available context size" or "exceed_context_size_error" (the prompt is over
+the window), which is judged before the thinking and the format words. For `embed` the words are "not found" in a 404, "does not support embeddings" in a 501 and "input length", "context length" or
 "too long" in a 400 (section "`embed`"). A body that is not of that shape is not matched and the status falls to the `bad_exit` row. The text
 is never copied into the object. [unconfirmed 13]
 
 **When several conditions hold**, one rule decides. Before any request, the size rule of "Context window" may end an `ask` call as
-`context_overflow` with nothing sent. A body over its bound is `reply_too_large`, whatever the status. For a status
+`context_overflow` with nothing sent. A body over its bound is `reply_too_large`, whatever the status. For a status 400 the words are
+judged in this order: the overflow words, then "think", then "format" or "schema"; a text of the overflow words with a status other than
+400 is the `bad_exit` row. For a status
 outside 200 to 299 the status rows of the table apply, and the body is used only as the matching rule above says, so an error
 status whose body is not one JSON object with a string `error` is the `bad_exit` row and never `unusable_reply`. For a status from 200
 to 299 the first of these applies: a body that is not one JSON object (`unusable_reply`); a reply whose `done` is not `true`
@@ -275,7 +292,8 @@ cut-off reply is `unusable_reply`: both are `vendor_error`, so a caller sees the
 | `https` and the certificate is not trusted, has expired or is for another host | `vendor_unreachable` | null | false | "the server's certificate was not accepted" |
 | the connection was made and the whole call passes `--timeout` | `timeout` | null | true | "the server did not finish in time" |
 | status 404 with an error saying the model is not found | `model_unavailable` | null | false | "the server does not have the model" |
-| a status 400 whose error says the model does not support thinking | `effort_unsupported` | null | false | "the model does not support this effort" |
+| a status 400 whose error says the model does not support thinking | `effort_unsupported` | null | false | "the model does not support this effort or thinking setting" |
+| a status 400 whose error says that the request exceeds the available context size | `vendor_error` | `context_overflow` | false | "the prompt does not fit the context window" |
 | a status 400 whose error is about the format or schema | `vendor_error` | `bad_schema` | false | "the server rejected the schema" |
 | any other status outside 200 to 299, including a redirect (which is never followed) | `vendor_error` | `bad_exit` | false | "the server answered with an error" |
 | the reply is not one object, is empty, is not `done`, or was cut short by a reset or an early close after the answer began (for `models`, a reply that is not the shape of its section) | `vendor_error` | `unusable_reply` | false | "the server returned no usable reply" |
@@ -436,8 +454,8 @@ the request line, headers and body, shows each item. No item needs a real Ollama
    ignored); 8 (the success object, with the usage of this spec); 9 and 10 (the classes and codes this bridge can produce, which
    exclude `not_signed_in`, `effort_unsupported` for an embedding, and `usage_limit`); 12 (the bounds, with the response bounds of
    this spec); 13 (the schema and the object reply); 14 (hostile reply text); 15 (nothing written in the project or the store, and
-   no temporary directory is made); 16 (one object, or one `refused:` line); and 19 (the server items, restated below). Items 4, 5,
-   6, 11, 17 and 18 concern a bridge to a program and do not apply.
+   no temporary directory is made); 16 (one object, or one `refused:` line); and 19 of `model-bridge.md` (the server items, restated below). Items 4, 5,
+   6, 11, 17 and 18 of `model-bridge.md` concern a bridge to a program and do not apply.
 3. Every refusal of the endpoint file and of a record is made before a connection and shows no host: a missing, unreadable,
    linked, non-regular or oversize file; a file that is not strict JSON (a duplicate key, `NaN`, a float or a boolean where an
    integer belongs); a wrong `format`; an unknown or missing field; more than 64 records; a bad record name; a bad `scheme`,
@@ -445,7 +463,7 @@ the request line, headers and body, shows each item. No item needs a real Ollama
    form the decision refuses;
    an `authenticated` record; a `default` that names no record; an unknown `--server` name; and no model.
 4. The request is exactly as above: the path, the method, the body fields and the headers; the prompt only in `content`; nothing of
-   the record but the destination and the `Host` header; the schema only as `format`; `num_ctx` always, as the window of the call; `num_predict` and `think` only when they apply.
+   the record but the destination and the `Host` header; the schema only as `format`; `num_ctx` always, as the window of the call; `num_predict` and `think` only when they apply; `truncate` `false` always, at the top level and not in `options`.
 5. A redirect is not followed and is `bad_exit`; a connection that is refused, reset or not made within its limit is
    `vendor_unreachable`, and a server that accepts and then never replies, or sends a byte at a time, ends at the timeout as
    `timeout`.
@@ -505,6 +523,17 @@ the request line, headers and body, shows each item. No item needs a real Ollama
     `output_limit` takes a value up to 10,000,000 and refuses 10,000,001; a `--max-output` with a model that is not configured is refused for the model; `--effort` and `--thinking` given to a section that
     holds no default are sent as given; each refusal is made with nothing sent; `--effort`, `--thinking` and `--max-output` are refused by `embed` and by `models` as unknown options; and a
     reply stopped at the cap (`done_reason` `length`) is `reply_cut`.
+19. `truncate` and the refusal: every `ask` request carries `truncate` `false` at the top level and none in `options`, with and
+    without a schema, a thinking default, an output limit and `--thinking`; a status 400 whose error holds "exceeds the available
+    context size" (the message) or "exceed_context_size_error" (the type), in any case and in one error string as the server of the
+    second run sent them (an `error` string that itself holds JSON text), is `vendor_error`
+    with `context_overflow`, not retryable, with the message "the prompt does not fit the context window" and no word of the server's
+    in the object, and it is judged before the thinking and the format rows; the other 400 rows are unchanged ("think" is
+    `effort_unsupported` with the message "the model does not support this effort or thinking setting", "format" or "schema" is
+    `bad_schema`, any other 400, and a 400 whose body is not one object with a string `error`, is `bad_exit`); a fake body that holds an
+    overflow word together with "think" or with "format" is the overflow row; an overflow text with a status other than 400 (a 500)
+    is `bad_exit`; the size rule and the check of the count are unchanged; and `embed` is unchanged (it still sends `truncate` `false`
+    at the top level and none in `options`, and its 400 words are those of "`embed`").
 
 ## The run against a real server
 
@@ -566,7 +595,7 @@ prompts. About 60 calls were made; nothing was changed on the server. No output 
 | `gemma4:12b`, no argument (the section's thinking on), `--thinking on`, `--thinking off` | success; 229 and 254 output tokens with thinking, 8 with `--thinking off` |
 | A level sent to `gemma4:12b` (`--effort low` and `high`) | accepted without error; 297 output tokens each, more than the 229 and 254 of the runs with thinking on: what the word does is not shown |
 | `gemma4:12b`, `--max-output` 6000 and 6001 | accepted; 6001 refused with nothing sent |
-| `phi4:latest`, `--effort low` and `--thinking on` | `effort_unsupported` (the message says effort for both) |
+| `phi4:latest`, `--effort low` and `--thinking on` | `effort_unsupported` (the message then said effort for both) |
 | `phi4:latest`, `--thinking off` | success: a model without thinking accepts a false |
 | `--max-output` 20 on `phi4:latest`; 30 on `gpt-oss:20b` at high effort; 30 on `gemma4:12b` with thinking | `reply_cut` each: the cap is applied (for the two reasoning runs, that the cap went to reasoning is inferred); `--max-output` 30 on `gpt-oss:20b` at its low effort succeeded with 28 tokens |
 | `embed`, `nomic-embed-text:latest`, 2 and 100 texts; `bge-m3:latest`, 1 text | success; the reply names `model` and `dimension` (768 and 1024); 100 vectors printed 1,027,394 bytes |
@@ -605,7 +634,8 @@ reach it; the tests use a fake server and the statement stays unconfirmed).
 4. `think` accepts `low`, `medium` and `high` for a model that has levels, and a model without them rejects it with a status 400 whose
    error says the model does not support thinking. A model with only on and off takes a boolean instead: that case is the `thinking` field and `--thinking` (unconfirmed 17). **[confirmed: `low` and `high` on `gpt-oss:20b`; `phi4`, a model without thinking, rejects a word (the bridge's class `effort_unsupported`; the server's text was not printed); `gemma4:12b`, which has a switch, accepted a word; the boolean case is unconfirmed 17]**
 5. A model that is not on the server gives a status 404 whose error says the model is not found. **[confirmed]**
-6. The server's default context window is small, a prompt longer than the window is cut without an error, and when `num_ctx` is set
+6. The server's default context window is small, a prompt longer than the window is cut without an error (when `truncate` is not
+   false), and when `num_ctx` is set
    and the prompt is longer than it, `prompt_eval_count` reaches `num_ctx`. The reply also always carries `prompt_eval_count`. **[corrected: the server cut a prompt that did not fit without an error, but with `num_ctx` set it reported about half the window plus 2 as `prompt_eval_count`, not the window; the unset default was not read. The second run added: a prompt below the window is not cut, even above half of it, and one over it is cut to about half the window]**
 7. `done_reason` is `length` when the reply was stopped at a limit. **[shown through the bridge: a reply stopped by `--max-output` was `reply_cut`, which the helper reads from `done_reason` `length`; the raw `done_reason` of such a reply was not printed (raw requests printed `stop`)]**
 8. A reasoning model can return an empty `message.content` with its thinking in `message.thinking`. **[shown as far as the bridge reports it: a reasoning model that spends its cap is `reply_cut`, judged before the text; whether `message.content` was empty is not visible in the printed object]**
@@ -619,7 +649,7 @@ reach it; the tests use a fake server and the statement stays unconfirmed).
     bridge's own test, and measured once on 2026-11-01 for `get_default_verify_paths`).
 13. An error status carries a body that is one JSON object with a string `error`, and the words matched in section "Errors"
     ("not found", "think", "format", "schema") appear in the error for a missing model, an unsupported thinking setting and a bad
-    format. **[confirmed for the missing model, the thinking error (seen as the bridge's class `effort_unsupported`; the server's text was not printed in the second run), the embedding 400 and the 501; not shown for the format and schema errors]**
+    format. **[confirmed for the missing model, the thinking error (seen as the bridge's class `effort_unsupported`; the server's text was not printed in the second run), the embedding 400 and the 501; not shown for the format and schema errors; the overflow words are unconfirmed 18]**
 14. `/api/embed` honours `options.num_ctx`, returns the `model` it used, answers 404 for an embedding model that is not present, and
     answers 400 with an error about the input length when `truncate` is false and a text is too long. The bridge recognizes that
     error by "input length", "context length" or "too long" in it (the first two from memory of the server's wording, "the input
@@ -634,27 +664,37 @@ reach it; the tests use a fake server and the statement stays unconfirmed).
     `think: "low"` (a report from another session on a small sample, not repeated here), and the on-off case may not be testable on a
     given server.
     **[second run on 0.35.1, one sample each: a word to `gpt-oss:20b` changes the output (23 against 187 tokens on one puzzle); a boolean to it is accepted and no effect on the output count was seen (45 and 45; input counts 76 and 81); a boolean to `gemma4:12b` changes the output (8 against 229); a word to it is accepted (297 tokens each, more than the runs with thinking on; its effect is not shown); `phi4` rejects a word and `true` and accepts `false`; `num_predict` caps the output; that a reply stopped at it has `done_reason` `length` was not printed (see 7)]**
+18. A chat request with `truncate` `false` at the top level, and a prompt of more tokens than the window, is answered with status
+    400 and an error that holds "exceeds the available context size" with the type `exceed_context_size_error`; a prompt within the
+    window is answered as without the field; the same field in `options` is ignored. **[confirmed on Ollama 0.35.1 by raw requests of
+    the second run (prompts of 2,167, 2,317 and 3,017 tokens against a window of 2,048); not shown through the bridge, which does not
+    yet send the field; unconfirmed for any other version or server]**
 
 ## Known limits
 
 Left as they are, each with its reason. Most were found by the security review of increment C (2026-11-01); the first two come from
 increment D and its review, and the one on embedding replies from increment E:
 
-- **A prompt cut by the server can still pass.** Every model section has a window and the size rule refuses most prompts that are
-  too large, but the rule is an estimate from bytes, and the check of the server's own count uses a count that, for a prompt the
-  server cut, was about half the window. The server of the run reported 8194 with no window sent, 4098 with 8192 and 2050 with 4096
-  for the same prompt. A prompt whose window is the model's limit and whose size passes the rule is sent, and what the server does
-  with it is the server's. Whether a prompt between half the window and the whole window is cut was not tested. The check of the
-  server's count is "at least the window", so a prompt that fills the window exactly is reported as an overflow whether or not
-  anything was cut.
-- **A server that cuts a prompt can report a `prompt_eval_count` far below the window, so the check for a prompt that does not fit
-  does not see it.** Measured on 2026-11-02 against Ollama 0.35.1 with `phi4:latest` and the same prompt of about 11,000 tokens:
-  with no `context` the count was 8194; with `context` 8192 (sent as `num_ctx`, the loaded window read as 8192) it was 4098; with
-  `context` 4096 it was 2050. Each cut prompt was answered as a success. The count is about half the window plus 2 once the prompt
-  is cut, so "at least `context`" never holds for it, and a prompt between half the window and the whole window is not told
-  apart from a cut one by the count alone. Corrected 6. The bridge does not count the tokens of a prompt itself; a caller that
-  must not lose the start of a prompt keeps it well under the window. A window of 1 makes every reply with a count of one or
-  more an overflow, by the same rule.
+- **A prompt cut by the server can still pass, on a server that does not refuse it.** The bridge sends `truncate` `false`, and
+  Ollama 0.35.1 then refuses a prompt over the window with its own 400 (the second run, by raw requests: the bridge did not yet send
+  the field), so the silent cut is closed for a server that honours the field. A server that ignores it, or an older one (none was
+  tested), may cut the prompt without an error and report about half the window as the count, as 0.35.1 does without the field, and
+  the bridge cannot see that: the size rule is an estimate and can pass such a prompt (the second run: on a
+  record at 8 bytes per token, a prompt of 12,000 bytes over a window of 2,048 tokens passed the rule, was cut to 1,026 tokens and was
+  answered with a success), and the check of the count ("at least the window") never holds for a count of half the window. The owner
+  who needs the stronger guard may set `bytes_per_token` to 1 for the model (a design choice; the chat template is expected to add
+  tokens to the prompt's bytes, which was not measured).
+  The check of the count is "at least the window", so a prompt that fills the window exactly is reported as an overflow whether or
+  not anything was cut.
+- **What the server does with a prompt, measured.** On 2026-11-02 against Ollama 0.35.1 with `phi4:latest`: the same prompt of about
+  11,000 tokens reported 8194 input tokens with no window sent, 4098 with `num_ctx` 8192 and 2050 with 4096, each answered as a
+  success (the first run); with `num_ctx` 2048, prompts of 617, 1017, 1517 and 1917 tokens were evaluated whole and reported at their
+  own counts, and prompts of 2167 and 2317 tokens were cut and reported at 1026 (the second run, raw requests): so nothing was cut
+  below the window, even above half of it (one model, one window of 2,048 tokens, prompts up to 1,917 tokens), and a prompt over the window is cut to about half the window plus 2. The same field
+  `truncate` inside `options` is ignored, `shift` `false` at the top level also refuses, and no route counts tokens (`/api/tokenize`
+  and `/api/count` answer 404). Corrected 6. The bridge does not count the tokens of a prompt itself; a caller that must not lose the
+  start of a prompt keeps it well under the window. A window of 1 makes every reply with a count of one or more an overflow, by the
+  same rule.
 - **A name lookup that is stuck in the system's resolver may not end at the timeout, or at all** ("Transport"): the alarm is handled
   between Python instructions and cannot run inside the resolver's call. An IP literal does no lookup.
 - **A connection that fails while the request is being sent** (a broken pipe or a reset) is `vendor_unreachable` even if the server
@@ -686,9 +726,9 @@ increment D and its review, and the one on embedding replies from increment E:
   reported: a minimum of 2.9, a median of 4.0 and a maximum of 4.6 bytes per token, with the tokenizers of `phi4` and `gpt-oss:20b`
   (not `gemma4:12b`). It is a report from another session, a small sample that was not repeated here. At a window of 16,384 tokens
   the default refuses a prompt over 32,768 bytes, which can be about 10,000 tokens. The owner sets a higher figure in the section of
-  a model whose prompts are known, and a prompt at a figure above the true bytes per token can still be cut.
+  a model whose prompts are known, and a prompt at a figure above the true bytes per token can still pass the rule and be cut by a server that does not refuse it.
 - **The defaults of a section are applied when the caller passes nothing.** A caller cannot see an effort or an output cap from its
-  own arguments; `check` prints them. An `effort` or a `thinking` that a model rejects is `effort_unsupported` (its message speaks of effort) on every call to it until the file is
+  own arguments; `check` prints them. An `effort` or a `thinking` that a model rejects is `effort_unsupported` (its message speaks of an effort or a thinking setting) on every call to it until the file is
   corrected. `output_limit` is both the default and the ceiling, so a caller that passes nothing gets the largest value, and the
   owner sets the largest that any caller needs. The mapping to the server's `think` and `num_predict` was checked on one server version for the cases tried (unconfirmed 17).
 - **The size rule refuses some prompts that fit and passes some that do not.** It is the estimate of a byte count; see "Context
