@@ -1051,3 +1051,49 @@ was not run by the reviewer.
 **Not done in G-B:** nothing of the plan's G-B is left; the stale shipped records stay out of the commit until increment I.
 
 **Open for the owner:** nothing new.
+
+### Increment H
+
+**Done:** the endpoint file is `bridge-endpoints.json`. In `packages/workbench/ask-ollama`: `ENDPOINT_FILE` and the helper's
+docstring, and the `ask_reads` of `module.json`; the fixture and the tests that name the file; a new class `Name` in
+`test_askollama_endpoints.py` (the file is read under the new name; a valid file under the old name alone is not read, and `check`,
+`ask`, `models` and `embed` say that the file is missing, with the old name not in the refusal and nothing sent; the old file is never
+read when both exist, whatever it holds; a bad new file is refused whatever the old file holds; a link under the old name is not
+followed); two tests in `test_askollama_module.py` (the helper and `module.json` name only the new file, and `ask_reads` is the new
+path); and the two tests that the review of G-B left (a 400 with an overflow word and "not found" is `context_overflow`; an overflow
+word in a field other than `error` is `bad_exit`). In the documents: `ask-ollama.md` and `docs/development.md` name the new file (the
+other text of the endpoint-file bullet of `development.md`, which still describes format 1, is increment I's). `model-bridge.md` and
+`terms.md` named the old file nowhere. The earlier decision's status line is not edited (it stays `Accepted`, as the owner left it).
+
+**Deviation from the plan, and what H does not meet.** Steps 3 and the verification line ask that the owner renames the file on disk and
+that `wb run ask-ollama check` prints the records of the renamed file, and that the whole suite passes. The installed copy of the
+helper under `.workbench/` is still the old helper (it reads `endpoints.json` and declares the old `ask_reads`) until the upgrade of
+increment J, so `wb run ask-ollama check` cannot read a renamed file before J, and the owner's file is still format 1 and must be
+rewritten into format 2 anyway: the rename and the rewrite are one edit at J. The owner must not rename the file before J (the
+installed helper would stop finding it). Between H and J the harness's ask rule, which comes from the installed declaration, still
+guards the old path and not the new file. The renamed file was read by the new helper in the scratch home of increment G's run (with
+the new name, in the second run's file), and by the module's tests; the live `check` through `wb run` moves to J, and the whole suite
+is not named by the owner's instruction of 2026-11-02 (below). The approved plan's text is not edited.
+
+**Verification as run** (Python 3.15.0, macOS), targeted as the owner asked on 2026-11-02 (the module's tests, `wb verify`, and the
+tests that handle the field that changed): the module's tests in a scripted pass that copied the tests first: against the committed
+helper 363 tests ran and 298 failed (the fixtures write the new name); against the new helper all 363 pass. A second small pass copied
+one test file (the unclosed file of a new test, and `embed` with the old name alone) and ran the module's 363 tests with
+`python3 -B -W error`: OK, with no resource warning. `wb verify packages/workbench` prints no refusal; the repository tests that
+handle `ask_reads` (`tests/test_module_asks.py`, `tests/test_approve_levels.py`): 64 tests, OK; `wb check` and
+`wb run code-work check` report no problems. The whole suite was not run: the review and a search found no reader of the endpoint
+file or of this declaration outside the module (`ask_reads` is read generically by `workbench/declarations.py` and
+`workbench/harnessstage.py`, whose tests use synthetic modules).
+
+**Review:** one read by the read-only `reviewer`: no blocking finding; it found no fallback to the old name in any path, tests that
+discriminate (a fallback of any kind would fail one), no reader that I missed, and the two deviations right. Applied: the unclosed
+file, and `embed` with the old name alone. Not changed: `development.md` still says format 1 and "three arguments" in the endpoint
+file bullet (increment I). A security review was not asked for: a rename, with no new input and no new request field.
+
+**Releases:** two of `wb release-approvals` by the owner in this increment (after the first pass and after the second); the commit
+is one, with the two passes.
+
+**Not done in H:** the on-disk rename of the owner's file and the live `check` (increment J); the stale shipped records stay out of
+the commit until increment I.
+
+**Open for the owner:** do not rename `~/.config/project-workbench/endpoints.json` before increment J.

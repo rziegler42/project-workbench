@@ -97,6 +97,16 @@ class Refusal(Truncate):
         self.fake.reply({"error": "model not found: " + REAL}, status=404)
         self.failed(error="model_unavailable")
 
+    def test_a_400_that_holds_an_overflow_word_and_not_found_is_still_the_overflow_row(self):
+        self.overflow("model not found: " + REAL)
+        self.overflow("not found: exceed_context_size_error")
+
+    def test_the_overflow_word_in_another_field_than_error_is_not_matched(self):
+        for body in ({"error": "the request was bad", "message": REAL}, {"error": "bad", "detail": "exceed_context_size_error"},
+                     {"error": "bad", "error_type": "exceed_context_size_error", "message": "exceeds the available context size"}):
+            self.fake.reply(body, status=400)
+            self.failed(error="vendor_error", detail="bad_exit")
+
     def test_a_400_whose_body_is_not_an_object_with_a_string_error_is_bad_exit(self):
         for body in (b"", b"not json", b"[]", b'{"error": 5}', b'{"error": null}', b'{"error": ["exceeds the available context size"]}',
                      b'{"message": "exceeds the available context size"}', b"\xff"):

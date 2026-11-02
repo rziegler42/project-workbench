@@ -98,7 +98,7 @@ class Check(support_ollama.Bridge):
         self.refused("extra", command="check", contains="no option")
 
     def test_a_file_that_breaks_a_rule_is_refused_with_one_line_and_nothing_on_standard_output(self):
-        os.remove(os.path.join(self.store, "endpoints.json"))
+        os.remove(os.path.join(self.store, "bridge-endpoints.json"))
         self.refused(command="check", contains="endpoint file")
         self.endpoints(ned=dict(self.record(), port=0))
         self.refused(command="check", contains="port")

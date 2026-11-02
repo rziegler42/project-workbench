@@ -289,7 +289,7 @@ class File(Models):
 
     def test_a_missing_file_is_refused(self):
         import os
-        os.remove(os.path.join(self.store, "endpoints.json"))
+        os.remove(os.path.join(self.store, "bridge-endpoints.json"))
         self.refused_models(contains="missing")
 
     def test_no_default_and_no_server_is_a_refusal(self):

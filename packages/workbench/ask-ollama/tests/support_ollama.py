@@ -232,7 +232,7 @@ class Bridge(unittest.TestCase):
         self.write_endpoint_file(json.dumps(document).encode())
 
     def write_endpoint_file(self, data):
-        with open(os.path.join(self.store, "endpoints.json"), "wb") as handle:
+        with open(os.path.join(self.store, "bridge-endpoints.json"), "wb") as handle:
             handle.write(data)
 
     def ask(self, *args, prompt=b"Review docs/plan.md\n", cwd=None, command="ask"):

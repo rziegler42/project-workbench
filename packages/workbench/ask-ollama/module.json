@@ -11,7 +11,7 @@
     "helper/ask-ollama"
   ],
   "ask_reads": [
-    "~/.config/project-workbench/endpoints.json"
+    "~/.config/project-workbench/bridge-endpoints.json"
   ],
   "commands": {
     "ask-ollama": {

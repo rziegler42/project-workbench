@@ -14,7 +14,7 @@ endpoint file of format 2 (a section for each model), the allowlist, the window 
 increments C to F of that plan. Increment C built the reader of format 2, the allowlist, the window rules and `--context` (for `ask` and `embed`), and increment D
 the model lines of `check`, the refusal of aliasing names, the guard on digits in the file and the reading of `format` first, and
 increment E the size rule and increment F the argument `models`;
-the file is named `endpoints.json` until increment H renames it `bridge-endpoints.json`. The defaults of a chat section (`effort` or
+the file is named `bridge-endpoints.json` (increment H renamed it from `endpoints.json`; the helper reads no other name). The defaults of a chat section (`effort` or
 `thinking`, and `output_limit`) and the options `--thinking` and `--max-output` are specified here under the accepted decision
 `2026-11-02-model-section-defaults-and-the-embedding-name` and were built by
 increment F-C of the plan. The field `truncate` `false` of `ask` and the refusal that goes with it are specified here (increment
@@ -76,7 +76,7 @@ conformance checklist.
 | requires, fills, writes | nothing |
 | ships | one helper, `helper/ask-ollama` |
 | commands | `ask-ollama` (`helper` `helper/ask-ollama`, `runtime` `python`, `kit` 1, `arguments` `["ask", "check", "embed", "models"]`) |
-| `ask_reads` | `~/.config/project-workbench/endpoints.json` (`bridge-endpoints.json` after increment H), so that a harness which provides `permissions` asks before the agent reads it |
+| `ask_reads` | `~/.config/project-workbench/bridge-endpoints.json`, so that a harness which provides `permissions` asks before the agent reads it |
 
 The capability name `text-embedding` is confirmed by the owner (2026-11-02; decision `2026-11-02-model-section-defaults-and-the-embedding-name`,
 item 7) as a name that mentions no vendor, so that a module may require it and a cloud embedding bridge may provide it later; the name
@@ -91,7 +91,8 @@ and the run of increment F called the command as `wb run ask-ollama embed`, so t
 The module reads the owner's file in the guarded store as two accepted decisions set it: `2026-11-01-endpoint-records-in-the-store`
 (the place, strict JSON, the grammar of `host`, the meaning of loopback, the refusal of the whole file for one bad record) and
 `2026-11-02-model-configurations-in-endpoint-records` (format 2, the `models` object, the allowlist). The file is
-`~/.config/project-workbench/endpoints.json`, and `bridge-endpoints.json` from increment H of the plan of 2026-11-02. This spec does
+`~/.config/project-workbench/bridge-endpoints.json` (named `endpoints.json` until increment H of the plan of 2026-11-02; a file
+under the old name is not read). This spec does
 not restate the host grammar; the first decision is its source. What the file holds, in format 2:
 
 - **The file.** Strict JSON (a run of more than 4,300 digits anywhere in the file is refused as not strict JSON before the file is

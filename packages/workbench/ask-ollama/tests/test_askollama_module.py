@@ -39,7 +39,7 @@ class Declaration(unittest.TestCase):
                                          "arguments": ["ask", "check", "embed", "models"]}}, fields["commands"])
 
     def test_it_asks_before_the_agent_reads_the_endpoint_file(self):
-        self.assertEqual(["~/.config/project-workbench/endpoints.json"], declaration()["ask_reads"])
+        self.assertEqual(["~/.config/project-workbench/bridge-endpoints.json"], declaration()["ask_reads"])
 
     def test_the_package_lists_it_after_the_other_bridge(self):
         with open(os.path.join(PACKAGE, "package.json"), encoding="utf-8") as handle:
@@ -55,6 +55,16 @@ class Declaration(unittest.TestCase):
             for name in files:
                 found.append(os.path.relpath(os.path.join(base, name), MODULE))
         self.assertEqual(sorted(["module.json", HELPER]), sorted(found))
+
+    def test_the_helper_names_the_endpoint_file_by_its_new_name_only(self):
+        text = helper_text()
+        self.assertIn('ENDPOINT_FILE = "bridge-endpoints.json"', text)
+        self.assertEqual([], re.findall(r"(?<!bridge-)endpoints\.json", text))
+
+    def test_no_shipped_file_of_the_module_names_the_old_endpoint_file(self):
+        for name in (HELPER, "module.json"):
+            with open(os.path.join(MODULE, name), encoding="utf-8") as handle:
+                self.assertEqual([], re.findall(r"(?<!bridge-)endpoints\.json", handle.read()), name)
 
     def test_the_helper_is_not_executable_and_names_its_interpreter(self):
         self.assertEqual(0, os.stat(os.path.join(MODULE, HELPER)).st_mode & 0o111)

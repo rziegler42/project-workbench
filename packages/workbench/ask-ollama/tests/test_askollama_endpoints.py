@@ -18,7 +18,7 @@ class Broken(support_ollama.Bridge):
         self.refused(contains=contains)
 
     def path(self):
-        return os.path.join(self.store, "endpoints.json")
+        return os.path.join(self.store, "bridge-endpoints.json")
 
     def test_a_good_file_is_read(self):
         self.assertEqual(0, self.ask(command="check")[0])
@@ -295,6 +295,57 @@ class Selection(support_ollama.Bridge):
     def test_the_model_option_beats_the_default_model(self):
         self.assertTrue(self.document("--model", "other:1b")["ok"])
         self.assertEqual("other:1b", self.model_sent())
+
+
+class Name(support_ollama.Bridge):
+    """The file is `bridge-endpoints.json` and the helper reads no other name (decision
+    `2026-11-02-model-configurations-in-endpoint-records`, item 8; plan `2026-11-02-bridge-model-configurations`, increment H)."""
+
+    OLD_NAME = "endpoints.json"
+
+    def old(self):
+        return os.path.join(self.store, self.OLD_NAME)
+
+    def new(self):
+        return os.path.join(self.store, "bridge-endpoints.json")
+
+    def test_the_file_is_read_under_the_new_name(self):
+        self.assertTrue(os.path.exists(self.new()))
+        self.assertEqual(0, self.ask(command="check")[0])
+
+    def test_a_valid_file_under_the_old_name_alone_is_not_read_and_the_file_is_missing(self):
+        os.rename(self.new(), self.old())
+        err = self.refused(command="check", contains="is missing")
+        self.refused(contains="is missing")
+        self.refused(command="models", prompt=b"", contains="is missing")
+        self.refused("--model", "nomic-embed-text", command="embed", prompt=json.dumps({"texts": ["alpha"]}).encode(),
+                     contains="is missing")
+        self.assertNotIn(self.OLD_NAME, err)
+        self.assertEqual([], self.fake.requests)
+
+    def test_the_old_file_is_never_read_even_when_both_exist(self):
+        with open(self.old(), "wb") as handle:
+            handle.write(b"not json at all")
+        self.assertEqual(0, self.ask(command="check")[0])
+        with open(self.old(), "wb") as handle:
+            handle.write(json.dumps({"format": 1, "endpoints": {}}).encode())
+        self.assertEqual(0, self.ask(command="check")[0])
+        self.assertTrue(self.document()["ok"])
+
+    def test_a_bad_file_under_the_new_name_is_refused_whatever_the_old_file_holds(self):
+        with open(self.new(), "rb") as source:
+            good = source.read()
+        with open(self.old(), "wb") as handle:
+            handle.write(good)
+        with open(self.new(), "wb") as handle:
+            handle.write(b"not json at all")
+        self.refused(command="check", contains="strict JSON")
+
+    def test_a_link_in_the_place_of_the_old_name_is_not_followed(self):
+        other = os.path.join(self.base, "other.json")
+        os.replace(self.new(), other)
+        os.symlink(other, self.old())
+        self.refused(command="check", contains="is missing")
 
 
 if __name__ == "__main__":

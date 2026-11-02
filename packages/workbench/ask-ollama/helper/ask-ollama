@@ -13,7 +13,7 @@ private copy of it through the kit runner with nothing beside it.
                                               one JSON object ``{"texts": [...]}`` on standard input; vectors out
 
 The contract is ``docs/specs/model-bridge.md`` (version 2) and the behaviour is ``docs/specs/ask-ollama.md``. The
-server is a named record of ``endpoints.json`` in the guarded store (decisions ``2026-11-01-endpoint-records-in-the-store`` and
+server is a named record of ``bridge-endpoints.json`` in the guarded store (decisions ``2026-11-01-endpoint-records-in-the-store`` and
 ``2026-11-02-model-configurations-in-endpoint-records``), never an address in an argument, an environment variable or a tracked
 file. A record holds a section for each model a call may use: only a configured model is used, and its section gives the window and, when it holds them, the defaults of a call (an effort or a
 switch for thinking, and an output limit), which a call argument replaces. A prompt that is probably larger than the window (its
@@ -73,7 +73,7 @@ EMBED_PATH = "/api/embed"
 TAGS_PATH = "/api/tags"
 MODELS_CONTRACT = 1  # the version of the contract of the object that ``models`` prints
 MAX_LISTED = 512
-ENDPOINT_FILE = "endpoints.json"
+ENDPOINT_FILE = "bridge-endpoints.json"
 _SECONDS = r"[0-9]{1,4}"
 _CONTEXT = r"[1-9][0-9]{0,7}"
 _NAME = r"[a-z0-9][a-z0-9_-]{0,31}"
