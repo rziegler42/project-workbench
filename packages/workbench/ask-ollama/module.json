@@ -21,7 +21,8 @@
       "arguments": [
         "ask",
         "check",
-        "embed"
+        "embed",
+        "models"
       ]
     }
   }

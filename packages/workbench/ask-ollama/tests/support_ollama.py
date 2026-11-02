@@ -90,6 +90,11 @@ class Fake:
                                       "headers": [(k, v) for k, v in self.headers.items()], "body": body})
                 fake.answer(self)
 
+            def do_GET(self):
+                fake.requests.append({"method": self.command, "path": self.path,
+                                      "headers": [(k, v) for k, v in self.headers.items()], "body": b""})
+                fake.answer(self)
+
         self.server = (Server6 if ipv6 else http.server.ThreadingHTTPServer)(("::1" if ipv6 else "127.0.0.1", 0), Handler)
         self.server.daemon_threads = True
         self.server.handle_error = lambda request, client_address: None

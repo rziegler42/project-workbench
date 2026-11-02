@@ -12,7 +12,7 @@ endpoint file of format 2 (a section for each model), the allowlist, the window 
 `models` are specified here under the accepted decision `2026-11-02-model-configurations-in-endpoint-records`, and are built by
 increments C to F of that plan. Increment C built the reader of format 2, the allowlist, the window rules and `--context` (for `ask` and `embed`), and increment D
 the model lines of `check`, the refusal of aliasing names, the guard on digits in the file and the reading of `format` first, and
-increment E the size rule; until the rest is built (`models`) the module does what the text before this amendment says for it;
+increment E the size rule and increment F the argument `models`;
 the file is named `endpoints.json` until increment H renames it `bridge-endpoints.json`.
 
 Terms are in `terms.md`. The contract it satisfies is `model-bridge.md` (version 2), whose sections on a bridge to a server this
@@ -260,7 +260,7 @@ cut-off reply is `unusable_reply`: both are `vendor_error`, so a caller sees the
 | a status 400 whose error says the model does not support thinking | `effort_unsupported` | null | false | "the model does not support this effort" |
 | a status 400 whose error is about the format or schema | `vendor_error` | `bad_schema` | false | "the server rejected the schema" |
 | any other status outside 200 to 299, including a redirect (which is never followed) | `vendor_error` | `bad_exit` | false | "the server answered with an error" |
-| the reply is not one object, is empty, is not `done`, or was cut short by a reset or an early close after the answer began | `vendor_error` | `unusable_reply` | false | "the server returned no usable reply" |
+| the reply is not one object, is empty, is not `done`, or was cut short by a reset or an early close after the answer began (for `models`, a reply that is not the shape of its section) | `vendor_error` | `unusable_reply` | false | "the server returned no usable reply" |
 | the reply or the response body is over its bound | `vendor_error` | `reply_too_large` | false | "the server returned more than the bridge accepts" |
 | the prompt filled the window | `vendor_error` | `context_overflow` | false | "the prompt does not fit the context window" |
 | the prompt is larger than the size rule allows (nothing was sent) | `vendor_error` | `context_overflow` | false | "the prompt is probably larger than the window" |
@@ -336,12 +336,15 @@ the other arguments.
 - **Request.** One `GET` to the fixed path `/api/tags`, with the headers `Host`, `Accept: application/json`, `Connection: close` and
   `User-Agent: ask-ollama/1` and no others. The transport, the bounds and the timeouts of "Transport" apply [unconfirmed 16].
 - **Reply.** A strict JSON object with a list `models` whose entries are objects with a string `name`; anything else is `unusable_reply`.
+  The shape is judged before the count, so a list of more than 512 entries with one entry of a wrong shape is `unusable_reply`.
 - **Output**, one object: `{"contract": 1, "ok": true, "vendor": "ollama", "present": [...], "missing": [...], "unconfigured": [...],
   "skipped": <n>}`. `present` holds the configured models that the server has, in the file's order; `missing` the configured models
   that it does not have, in the file's order; `unconfigured` the models of the server that are not configured, in the server's order.
   A name is printed only if it fits the rule for the record's model fields; a name that does not is counted in `skipped` and never
-  printed. A list of more than 512 names from the server is `reply_too_large`. Names only: no size, date, digest or detail of a model
-  is read or printed.
+  printed. A name that the server lists twice is listed once, at its first place. A list of more than 512 entries from the server is
+  `reply_too_large`, counted before any entry is set aside. Names only: no size, date, digest or detail of a model is read or
+  printed. Because names are compared as exact text, a model that the owner configured as `m` and that the server lists as
+  `m:latest` is `missing` and `unconfigured` at once; the owner configures the names as the server prints them.
 - **Failure** is the contract's failure object with `"contract": 1` and the rows of the table of errors; any status outside 200 to 299
   is the `bad_exit` row. It changes nothing, writes nothing and reads only the endpoint file. It is a call to the server, so a
   real one is made on the owner's word; the tests use a fake server.
@@ -463,7 +466,7 @@ the request line, headers and body, shows each item. No item needs a real Ollama
 16. `models`: one `GET` to `/api/tags` with no body and the headers of the section, to the record that `--server` selects and
     within `--timeout`; every option but those two is refused as unknown; standard input is not read; `present`, `missing` and `unconfigured` as the
     section says; a name that does not fit the rule is counted in `skipped` and not printed; the order of the three lists is the file's, the
-    file's and the server's; a bad endpoint file is refused with nothing sent; more than 512 names is `reply_too_large`; a reply
+    file's and the server's, each name once; a bad endpoint file is refused with nothing sent; more than 512 names is `reply_too_large`; a reply
     that is not an object with a list of objects with a string `name` is `unusable_reply`; a failure is the contract's failure object;
     the host and the port are in no output; and `check` prints one line for each model.
 

@@ -7,6 +7,7 @@ private copy of it through the kit runner with nothing beside it.
     ask-ollama ask [--model <name>] [--context <tokens>] [--effort <level>] [--timeout <seconds>] [--root <path>]
                    [--schema <path>] [--server <name>] [--confine]      the prompt is on standard input
     ask-ollama check                                                   read-only: the endpoint file, no connection
+    ask-ollama models [--server <name>] [--timeout <seconds>]          read-only: the configured models the server has
     ask-ollama embed [--model <name>] [--context <tokens>] [--server <name>] [--timeout <seconds>] [--confine]
                                               one JSON object ``{"texts": [...]}`` on standard input; vectors out
 
@@ -61,10 +62,14 @@ MAX_EMBED_BODY = 16777216
 EFFORTS = ("low", "medium", "high")
 OPTIONS = ("--model", "--context", "--effort", "--timeout", "--root", "--schema", "--server")
 EMBED_OPTIONS = ("--model", "--context", "--timeout", "--server")
+MODELS_OPTIONS = ("--timeout", "--server")
 FLAGS = ("--confine",)  # an option with no value
 USER_AGENT = "ask-ollama/1"
 CHAT_PATH = "/api/chat"
 EMBED_PATH = "/api/embed"
+TAGS_PATH = "/api/tags"
+MODELS_CONTRACT = 1  # the version of the contract of the object that ``models`` prints
+MAX_LISTED = 512
 ENDPOINT_FILE = "endpoints.json"
 _SECONDS = r"[0-9]{1,4}"
 _CONTEXT = r"[1-9][0-9]{0,7}"
@@ -629,8 +634,9 @@ def whole_call(seconds):
 
 
 def exchange(record, path, payload, timeout, limit):
-    """``(status, body)`` of one ``POST`` of `payload` (bytes) to `path` on the record's host and port. The body is read to
-    at most `limit` bytes. Raises ``Unreachable``, ``TimedOut``, ``TooLarge`` or ``Incomplete``."""
+    """``(status, body)`` of one ``POST`` of `payload` (bytes) to `path` on the record's host and port, or, when `payload` is
+    ``None``, of one bodiless ``GET``. The body is read to at most `limit` bytes. Raises ``Unreachable``, ``TimedOut``,
+    ``TooLarge`` or ``Incomplete``."""
     deadline = time.monotonic() + timeout
     connected = False
     responded = False  # the server has begun to answer (the status line and the headers were read)
@@ -645,9 +651,10 @@ def exchange(record, path, payload, timeout, limit):
             connection.connect()
             connected = True
             connection.sock.settimeout(max(0.05, deadline - time.monotonic()))
-            connection.putrequest("POST", path, skip_accept_encoding=True)
-            connection.putheader("Content-Type", "application/json")
-            connection.putheader("Content-Length", str(len(payload)))
+            connection.putrequest("POST" if payload is not None else "GET", path, skip_accept_encoding=True)
+            if payload is not None:
+                connection.putheader("Content-Type", "application/json")
+                connection.putheader("Content-Length", str(len(payload)))
             connection.putheader("Accept", "application/json")
             connection.putheader("Connection", "close")
             connection.putheader("User-Agent", USER_AGENT)
@@ -912,19 +919,63 @@ def check(args, out):
     return 0
 
 
+def models_outcome(status, body, configured):
+    """The object to print for the server's list of models, compared with the `configured` names (a list, in the file's
+    order). Names are compared as exact text and a name outside the rule for model names is counted and never printed."""
+    if not 200 <= status <= 299:
+        return failure("vendor_error", "bad_exit", MESSAGES["bad_exit"], contract=MODELS_CONTRACT)
+    document = json_object(body)
+    entries = document.get("models") if document is not None else None
+    if (not isinstance(entries, list)
+            or not all(isinstance(entry, dict) and isinstance(entry.get("name"), str) for entry in entries)):
+        return failure("vendor_error", "unusable_reply", MESSAGES["unusable_reply"], contract=MODELS_CONTRACT)
+    if len(entries) > MAX_LISTED:
+        return failure("vendor_error", "reply_too_large", MESSAGES["reply_too_large"], contract=MODELS_CONTRACT)
+    listed, order, skipped = set(), [], 0
+    for entry in entries:
+        name = entry["name"]
+        if not valid_model(name):
+            skipped += 1
+        elif name not in listed:
+            listed.add(name)
+            order.append(name)
+    known = set(configured)
+    return {"contract": MODELS_CONTRACT, "ok": True, "vendor": VENDOR,
+            "present": [name for name in configured if name in listed],
+            "missing": [name for name in configured if name not in listed],
+            "unconfigured": [name for name in order if name not in known], "skipped": skipped}
+
+
+def models(args, out):
+    """Compare the models of the selected record with the server's list: one bodiless ``GET``, names only."""
+    options = parse_options(args, MODELS_OPTIONS, "models")
+    if "--confine" in options:
+        raise Refused("--confine is not an option of models")
+    timeout = int(options.get("--timeout", DEFAULT_TIMEOUT))
+    records, default = read_endpoints()
+    record = select_record(records, default, options.get("--server"))
+    try:
+        status, body = exchange(record, TAGS_PATH, None, timeout, MAX_BODY)
+    except (Unreachable, TimedOut, TooLarge, Incomplete) as exc:
+        return emit(out, transport_failure(exc, MODELS_CONTRACT))
+    return emit(out, models_outcome(status, body, list(record["models"])))
+
+
 def main(argv, stdin, out, err, cwd=None):
     """Run one command from `cwd` (the working directory when none is given). Returns the exit code."""
     try:
         if cwd is None:
             cwd = os.getcwd()  # inside the try: a working directory that is gone is a refusal and not a traceback
-        if not argv or argv[0] not in ("ask", "check", "embed"):
+        if not argv or argv[0] not in ("ask", "check", "embed", "models"):
             raise Refused("usage: ask-ollama ask [--model <name>] [--context <tokens>] [--effort <level>] "
                           "[--timeout <seconds>] [--root <path>] [--schema <path>] [--server <name>] [--confine], with the "
-                          "prompt on standard input; ask-ollama check; or ask-ollama embed [--model <name>] "
-                          "[--context <tokens>] [--timeout <seconds>] [--server <name>] [--confine], with the texts on "
-                          "standard input")
+                          "prompt on standard input; ask-ollama check; ask-ollama models [--server <name>] "
+                          "[--timeout <seconds>]; or ask-ollama embed [--model <name>] [--context <tokens>] "
+                          "[--timeout <seconds>] [--server <name>] [--confine], with the texts on standard input")
         if argv[0] == "check":
             return check(argv[1:], out)
+        if argv[0] == "models":
+            return models(argv[1:], out)
         if argv[0] == "embed":
             return embed(argv[1:], stdin, out)
         return ask(argv[1:], stdin, cwd, out)

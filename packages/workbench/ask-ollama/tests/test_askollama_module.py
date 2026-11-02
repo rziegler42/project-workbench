@@ -36,7 +36,7 @@ class Declaration(unittest.TestCase):
         for absent in ("requires", "fills", "writes", "slots", "checks"):
             self.assertNotIn(absent, fields)
         self.assertEqual({"ask-ollama": {"helper": HELPER, "runtime": "python", "kit": 1,
-                                         "arguments": ["ask", "check", "embed"]}}, fields["commands"])
+                                         "arguments": ["ask", "check", "embed", "models"]}}, fields["commands"])
 
     def test_it_asks_before_the_agent_reads_the_endpoint_file(self):
         self.assertEqual(["~/.config/project-workbench/endpoints.json"], declaration()["ask_reads"])

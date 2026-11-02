@@ -675,3 +675,41 @@ twice before it, for the extension of the plan and for the deferred items from t
 records stay out of the commit until increment I.
 
 **Open for the owner:** nothing new.
+
+### Increment F
+
+**Done:** `ask-ollama models [--server <name>] [--timeout <seconds>]`: one bodiless `GET` of `/api/tags` to the selected record (the
+headers Host, Accept, Connection and User-Agent and no others; `exchange` sends a GET when it has no payload and is otherwise
+unchanged), and one object of its own contract 1 with `present` (configured and on the server, in the file's order), `missing`
+(configured and not on the server, in the file's order), `unconfigured` (on the server and not configured, in the server's order,
+each name once) and `skipped` (a count of names that fail the model-name rule, which are never printed). Names are compared as
+exact text. An entry must be an object with a string `name`, else the reply is `unusable_reply`; more than 512 entries is
+`reply_too_large`; a status outside 200 to 299 is `bad_exit`; a refused connection is `vendor_unreachable`, a server that never
+answers ends at the timeout; every failure object carries contract 1. Every other option (`--confine` included) is refused,
+standard input is not read, no model is needed, nothing is written. `module.json` lists the argument and the fake server answers a
+GET. The spec's header says the argument is built, and `models` says that a name listed twice is listed once, that the shape is
+judged before the count, and that a model written as `m` and listed as `m:latest` is both missing and unconfigured (the owner
+configures the names as the server prints them).
+
+**Verification as run** (Python 3.15.0, macOS): the module's tests in a scripted pass that copied the tests and `module.json` first:
+against the old helper 309 tests ran and 30 failed (the 31 new `models` tests, one of which passes without the change); against the
+new helper all 309 pass. The whole suite, `python3 -B -W error tests/run_all.py`: 6,634 tests in 14 roots, OK. `wb verify
+packages/workbench` prints no refusal; `wb check` and `wb run code-work check` report no problems. `wb preview release-approvals`
+after the owner's release: 14 records `recorded` and eight stale shipped records (the six listed under E, plus `971bc651…` and
+`f4e31fef…`).
+
+**Review:** one read by the read-only `reviewer`: no blocking finding; it found that `exchange` is unchanged for a POST, so `ask` and
+`embed` send byte-identical requests, that only validated names reach the output, that the output cannot pass the object bound, and
+that no reply value is used as a path, header or field. Applied (spec only): the order of the shape check and the count, and the
+row of the table of errors that said "is not `done`". Deferred to the pass of increment F-C, as tests are package files: a test that
+pins "at its first place" for a name listed twice (for example `gamma, x, gamma` giving `gamma, x`); a fake `do_GET` that reads a
+body, so that the test of "no body" is not constant; a test with a 302 whose `Location` is the fake server itself, to show that
+`models` makes no second request. A security review was not asked for: one more `GET` through the existing transport and a parser
+for the reply, with the reply's names the only thing that reaches the output.
+
+**Releases:** one more of `wb release-approvals` by the owner in this increment (in a terminal).
+
+**Not done in F:** the real shape of the server's reply (unconfirmed 16) is for increment G; the defaults and the confirmation of
+`text-embedding` (F-A to F-C); the stale shipped records stay out of the commit until increment I.
+
+**Open for the owner:** nothing new.
