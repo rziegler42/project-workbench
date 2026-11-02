@@ -713,3 +713,36 @@ for the reply, with the reply's names the only thing that reaches the output.
 `text-embedding` (F-A to F-C); the stale shipped records stay out of the commit until increment I.
 
 **Open for the owner:** nothing new.
+
+### Increment F-A
+
+**Done:** the decision record `docs/decisions/2026-11-02-model-section-defaults-and-the-embedding-name.md`, written as `Proposed`.
+It amends item 3 of `2026-11-02-model-configurations-in-endpoint-records` (and nothing else of it): a chat section may hold
+`effort` (`low`, `medium` or `high`) or `thinking` (a boolean), at most one of the two, and `output_limit` (1 to 10,000,000 tokens);
+an embedding section holds none; a default is sent as `think` (a word or a boolean) and `options.num_predict` when the call passes
+no argument; `--effort` and the new `--thinking on|off` replace the section's `effort` or `thinking` and are refused together; the
+new `--max-output <tokens>` replaces `output_limit` and is refused above it (and up to 10,000,000 when the section has none); the
+new options belong to `ask-ollama` and not to the contract's common core, and `embed` and `models` refuse them; `check` appends the
+defaults to a model line; a reply stopped at the cap is `reply_cut`, and an effort that a model rejects is `effort_unsupported`; the
+mapping to the server is from memory and increment G confirms or corrects it, including the two combinations that nobody has tried;
+and the owner's confirmation of the capability name `text-embedding` in the owner's words ("keep it, and keep it vendor-neutral"),
+with `model-bridge` staying unconfirmed. The earlier record is not edited.
+
+**Verification as run:** `wb check` and `wb run code-work check` report no problems; a scan of the record finds no dotted address and
+no home path.
+
+**Review:** one read by the read-only `reviewer`: no blocking finding. Applied: the figures "20 output tokens with `--effort low` and
+44 without" are marked as read in the session (the specification records only "fewer"); item 6 says that the on-off case may not be
+testable on a given server; the lead-in of item 3 names the two new options as the ones that belong to `ask-ollama`; item 1 no
+longer cites the earlier record for the rule that a refusal never quotes a value; item 2 says that a call may pass the arguments to a
+model whose section holds no default, that an `output_limit` is not compared with the window, and that a reply over what the bridge
+accepts is `reply_too_large`. Noted for increment F-B: three lines of `ask-ollama.md` become false when the decision is built ("Without
+`--effort`, `think` is left out", "No other field is sent", "`think` only when it applies") and must be changed there. A security
+review was not asked for: a decision record.
+
+**Acceptance:** the owner asked for it and `wb run groundwork accept` ran with the previewed digest (`e2ce7401…`, level `ask`); the
+record carries the owner's acceptance in its status line and its recorded sha256 is `e373165a…`.
+
+**Not done in F-A:** increments F-B and F-C are not started.
+
+**Open for the owner:** whether the temperature is the next section default (an open question in the record).
