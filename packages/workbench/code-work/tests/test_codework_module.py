@@ -203,18 +203,38 @@ class Blocks(unittest.TestCase):
         text = " ".join(block("policy").split())
         bullets = [bullet for bullet in text.split("- ") if "security-review" in bullet]
         self.assertEqual(1, len(bullets), bullets)
-        for rule in ("materially touches", "authentication", "authorization", "secrets", "untrusted input",
-                     "parsing", "the filesystem", "a subprocess", "a network boundary", "dependencies",
-                     "a build or deployment permission", "ask the owner whether to run a security review",
+        # Plan 2026-11-02-verification-effort-guidance, increment C: the trigger "materially touches" is replaced by a
+        # named exposure, and the listed areas are where to look (docs/specs/verification-effort.md, "Recommending a
+        # security review"); the capability name, the owner-only run and "say so" stay.
+        for rule in ("When you can name what a change exposes", "authentication", "authorization", "secrets",
+                     "untrusted input", "parsing", "the filesystem", "a subprocess", "a network boundary",
+                     "dependencies", "a build or deployment permission", "is a place to look, not a reason",
+                     "Ask once per surface", "ask the owner whether to run a security review",
                      "an installed module that provides `security-review`", "if none is installed, say so",
                      "only when the owner asks"):
             self.assertIn(rule, bullets[0])
+        self.assertNotIn("materially touches", text)
         self.assertNotIn("security-reviewer", text)
         self.assertNotIn("skill", bullets[0])
 
+    def test_the_policy_block_asks_for_the_minimum_testing_and_a_named_reason_before_a_wider_run(self):
+        # Plan 2026-11-02-verification-effort-guidance, increment C (docs/specs/verification-effort.md, "Behavior").
+        text = " ".join(block("policy").split())
+        bullets = [bullet for bullet in text.split("- ") if "tested area" in bullet]
+        self.assertEqual(1, len(bullets), bullets)
+        for rule in ("Test the minimum that shows a change did not break what it touched",
+                     "do not rerun a check that already passed on unchanged inputs",
+                     "Before any run wider than the plan names",
+                     "what specifically could break outside the tested area",
+                     "the owner decides whether it runs"):
+            self.assertIn(rule, bullets[0])
+        self.assertNotIn("full suite", text)
+
     def test_the_policy_block_is_short_and_names_no_tool(self):
         text = block("policy")
-        self.assertLessEqual(len(text.splitlines()), 28)  # 23 before the security-review bullet, which takes 5
+        # 23 before the testing and security-review bullets, which take 3 and 6 since plan
+        # 2026-11-02-verification-effort-guidance, increment C (the security-review bullet took 5 before)
+        self.assertLessEqual(len(text.splitlines()), 32)
         for word in ("Claude", "claude", "opencode", "Codex", "CLAUDE.md"):
             self.assertNotIn(word, text)
         self.assertEqual({"wb approve-plan", "wb plan-status", "wb settings"},

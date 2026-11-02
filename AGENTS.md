@@ -48,11 +48,15 @@ Modules add their policy here, each in its own block above the marker.
   result, unresolved risks and the next action. The plan, not the conversation, is the state:
   record an increment's outcome in the plan before the session is compacted or ends. Raw logs
   and superseded hypotheses need not survive.
-- When a change materially touches authentication, authorization, secrets, untrusted input,
-  parsing, the filesystem, a subprocess, a network boundary, dependencies, or a build or
-  deployment permission, ask the owner whether to run a security review with an installed
-  module that provides `security-review`; if none is installed, say so. A review runs only
-  when the owner asks.
+- Test the minimum that shows a change did not break what it touched, and do not rerun a check
+  that already passed on unchanged inputs. Before any run wider than the plan names, tell the
+  owner what specifically could break outside the tested area; the owner decides whether it runs.
+- When you can name what a change exposes, such as an input that reaches a privileged use with
+  nothing checking it, ask the owner whether to run a security review with an installed module
+  that provides `security-review`; if none is installed, say so. Touching authentication,
+  authorization, secrets, untrusted input, parsing, the filesystem, a subprocess, a network
+  boundary, dependencies or a build or deployment permission is a place to look, not a reason.
+  Ask once per surface. A review runs only when the owner asks.
 - Report an increment as done only with the verification that was actually run. Stop when
   something is wrong; do not widen the plan to get past it.
 <!-- END workbench/code-work slot:policy -->
