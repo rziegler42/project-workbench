@@ -1,6 +1,6 @@
 # Temperature and keep_alive for the Ollama bridge, and retryable server errors
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-02
 Candidate: none (a follow-up to the completed plan `2026-11-02-bridge-model-configurations`, whose "Deferred work" holds these three items; the owner may add a roadmap candidate)
 Specs: ask-ollama, model-bridge
@@ -575,4 +575,35 @@ report quoting an existing mention of `.claude/settings.local.json` in the guide
 
 **Left open:** the isolating calls for criterion 7 (above); the plan's other deferred work (below).
 
-**Open for the owner:** the commit of increment G.
+**Committed** as `f8a5eb9`.
+
+### Increment H
+
+**Done:** the owner ran `wb upgrade` in a terminal (it did not ask for `wb acknowledge`). The upgrade installed the new helper
+under `.workbench/workbench/ask-ollama/helper/ask-ollama` and changed `.workbench/manifest.json`; `module.json` was already
+current. The owner's endpoint file was left as it was: the new fields are optional, so it works unchanged, and the agent offered
+the text to add and did not write the store.
+
+**Verification as run** (macOS), targeted: a comparison of every installed file under `.workbench/workbench/` that the package
+ships with its source in `packages/workbench/`, by SHA-256: 60 compared, 60 identical (the helper begins `3579496a…`), and the two
+manifest rows for the helper and the declaration match their files; `wb check` reports no problems; `wb run ask-ollama check`
+(the installed helper, the owner's real file; no server contacted) prints the record `ned` and its five models and exits 0. **The
+live check, on the owner's word ("yes for all three"), through the launcher on the installed helper:** `wb run ask-ollama models`
+(five present, four unconfigured, none set aside); `wb run --provides model-bridge ask-ollama ask --temperature 0.5
+--keep-alive 0` with a one-word prompt to `phi4:latest` (success, "Pong", 18 input and 4 output tokens); `wb run --provides
+text-embedding ask-ollama embed --keep-alive 0` with one text on `nomic-embed-text:latest` (success, 1 vector of 768 values). This
+is the first time the options `--temperature` and `--keep-alive` went through the launcher. The loaded models were not read
+afterwards. No test was run (installed copies only; the module's tests ran in increment E).
+
+**Review:** none asked for: no code or decision changed; the comparison and the live calls are the evidence. The security review
+was run in increment E.
+
+**Releases:** none in this increment (the shipped approvals were current after increment E and the upgrade changes no shipped
+file).
+
+**The plan, complete.** Increments A to H are committed. Criterion 7 is met in part (above). The deferred work is listed below.
+The local commits are not pushed; a push is the owner's word only. The plan's status line is set to `Completed` with this
+increment (a status edit, which needs no new approval).
+
+**Open for the owner:** the commit of increment H; the push of the local commits ("push origin main", after `wb run code-work
+shared` and `wb run safe-git push-check`); whether to add `temperature` and `keep_alive` to the models of the endpoint file.
