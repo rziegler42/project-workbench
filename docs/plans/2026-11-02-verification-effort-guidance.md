@@ -191,6 +191,22 @@ Reviewer: the `reviewer` agent (read-only). Rounds: 1 of 3. Outcome: no blocking
 - **Left for the owner:** nothing open. The second round was not asked for: the fixes are wording, pinned by tests that failed before
   and passed after.
 
+### Increment B
+
+Reviewer: the `reviewer` agent (read-only). Rounds: 1 of 3. Outcome: no blocking findings; five non-blocking findings.
+
+- **Applied:** (4) the sentence in `verification-effort.md` that the review had found long and awkward is rewrapped and reworded; no pass
+  was needed, since the spec is not a package file.
+- **Rejected, with reasons:** (2) `evaluate-findings` need not point to the record of a declined recommendation: the rule lives in step 8 of
+  `run-increment`, which writes `## Result`, and a second copy would drift; (3) the wording of step 4 of `request-review` reads correctly,
+  and a change costs a pass and a release for no change in meaning.
+- **Recorded, not changed:** (1) `reviewer.md` asks it to check the work against the increment's verification, and also not to judge whether
+  enough testing was done. The reviewer reads the first as whether the plan's line was run as written, and the paragraph says the second
+  explicitly, so no change was made; a clause saying so would cost a pass and a release, and the owner may ask for it. (5) The reviewer
+  reads the plan, whose `## Result` can record earlier recommendations and decisions, so the withholding in `request-review` is partial; the
+  agent text copes by asking for a risk whether or not one was recommended. This is inherent to the design.
+- **Left for the owner:** whether to add the clause for finding 1 in a later pass.
+
 ## Deferred work
 
 - An enforced checkpoint for a wider run, with levels, if the conversational stop proves too weak.
@@ -223,3 +239,27 @@ suite). A first version of one guard flagged the ordinary word "make", which the
 renumbered, and no other file cites those numbers. (4) Two old phrases of `test-first` that pinned the text removed here were replaced in
 `test_codework_practice.py`, for the stated reason. (5) The release printed two warnings about stale shipped records
 (`670a75728168`, `67192317fbbb`); increment D removes them.
+
+### Increment B
+
+**Done, not committed:** `agents/reviewer.md`, `skills/request-review/SKILL.md`, `skills/evaluate-findings/SKILL.md` and the tests
+`test_codework_reviewer.py` and `test_codework_skills.py` of `packages/workbench/code-work/`, in one scripted pass (the owner's word "run the
+pass", then the owner's `wb release-approvals`). The spec `docs/specs/verification-effort.md` has two edits: a correction (the reviewer is
+not passed the recommendations by `request-review`, but it reads the plan, whose `## Result` may record them, so it flags a risk whether or
+not one is recorded) and a rewrap from the review.
+
+**Verification as run** (macOS, Python 3.15.0, `-I -B -W error`): the module's tests before this increment: 343 ran, OK, 2 skipped. The new tests
+ran first against the old text: 345 ran, 2 failed, both on a missing phrase, no import or syntax error; then against the new text: 345 ran,
+OK, 2 skipped. After the release the module's tests were run again: 345 ran, OK, 2 skipped. `wb verify packages/workbench` listed all 13
+modules and no refusal; `wb check` reported no problems; `wb plan-status` still reads `approved`. `git diff` of `reviewer.md` has no added or
+removed line that touches `tools:`, and the test that pins `tools: read, search` passes.
+
+**Not run, and why:** the whole suite and other modules' tests. The change is text and the tests of text in this module; the repo-level search
+made for increment A (tests outside this module that name these skills) found only `mempalace` and `groundwork` tests that check their own
+skill texts, and nothing here changes those. The reviewer's reading of `code-work.md` "Review" was not checked against the texts; increment C
+edits that spec.
+
+**Deviations and choices, for the owner:** (1) One new test is a guard that passes before and after by design (what the reviewer is given
+holds no recommendation or decision). (2) One test count: 345 against 343, the two new tests. (3) The plan says the reviewer is not given the
+recommendations; the texts and the corrected spec say `request-review` does not pass them and the reviewer flags a risk regardless, because
+it reads the plan. (4) The review's finding 1 was not applied; see the review record.

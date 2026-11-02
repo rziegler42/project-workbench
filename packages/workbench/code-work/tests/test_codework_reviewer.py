@@ -83,6 +83,17 @@ class Agent(unittest.TestCase):
                        "`blocking findings`", "blocking or not blocking"):
             self.assertIn(phrase, text, phrase)
 
+    def test_the_text_asks_for_any_named_security_risk_and_leaves_the_amount_of_testing_to_others(self):
+        # Plan 2026-11-02-verification-effort-guidance, increment B (docs/specs/verification-effort.md, "The reviewer").
+        text = " ".join(agent_text().split()).lower()
+        for phrase in ("a security risk you can name in the work", "say what specifically is exposed and where",
+                       "whether or not a security review was recommended, declined or run",
+                       "weighs your finding against what the owner has decided",
+                       "do not report that a change merely touches a sensitive area",
+                       "do not judge whether enough testing was done or which tests should run",
+                       "report it as an ordinary finding"):
+            self.assertIn(phrase, text, phrase)
+
     def test_the_text_names_no_harness_tool_program_or_address(self):
         body = agent_text().split("---\n", 2)[2]
         for word in ("Bash", "shell", "git ", "curl", "http://", "https://", "sudo", "WebFetch", "<!--",

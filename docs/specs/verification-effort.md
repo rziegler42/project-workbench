@@ -108,9 +108,10 @@ The change fails even if it works as written when:
 ### The reviewer
 
 - The reviewer reads the increment as now and also flags, as a finding, any concrete security risk it can name in it,
-  whether or not the agent recommended a review. It is not given the agent's recommendations or the owner's decisions;
-  the agent judges each finding against what it has already recorded, through `evaluate-findings`, and a risk the owner
-  already accepted is rejected with that reason. The reviewer does not rerun the agent's checks.
+  whether or not the agent recommended a review. `request-review` does not pass it the agent's recommendations or the
+  owner's decisions, and it flags a risk whether or not the plan it reads records one. The agent judges each finding
+  against what it has already recorded, through `evaluate-findings`, and a risk the owner already accepted is
+  rejected with that reason. The reviewer does not rerun the agent's checks.
 - The reviewer is deliberately not asked to judge whether the agent tested enough. A missed wider-testing risk is cheap
   to find on a later run, and asking a read-only reviewer to audit test scope would push toward more testing. This is a
   choice and not an omission; the reviewer may still raise a concrete breakage it sees as an ordinary finding.

@@ -28,6 +28,9 @@ Rules:
 
 - A repeated finding, one you already evaluated and the reviewer raised again without new evidence, is not
   a new round of work. Report it to the owner with both positions.
+- Before you reject a security finding as a risk the owner already accepted, read the plan's `## Result` for
+  the recommendation and the owner's decision, and cite that record in your reason. With no such record, judge
+  the finding on its evidence.
 - Whether the work may proceed is the owner's decision. Report the record and your recommendation, and wait.
 - Change a plan only in its status, its review record and its result. Anything else needs the owner's new
   approval.
