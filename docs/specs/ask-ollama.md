@@ -716,6 +716,45 @@ same server (version 0.35.1).
 
 This is the first run of the launcher routes `--provides model-bridge` and `--provides text-embedding`. One sample each.
 
+### After increments D and E: the temperature, the keep_alive and a 5xx
+
+Provenance: run on 2026-11-02 by the agent on the owner's word ("go with 3b"), with the package helper at commit
+`03d8e6a1996db890636b8b0aefcec232253d9682` loaded in-process from a scratch home that held a file of format 2 with the new fields
+(not through `wb run`, and not with the owner's store or the installed copy), on macOS with Python 3.15.0, against the same server
+(version 0.35.1, plain `http`, the host not recorded here). 61 calls of the bridge in three parts, and read-only raw requests of
+`/api/version` and `/api/ps` (the models the server has loaded) made by the script, not by the bridge. Every case is one sample on
+one server; the prompts were test prompts. Conclusion: the request fields behave as the spec says for the cases tried, and no
+5xx was seen. The server listed no model before the first call and none at the last read.
+
+| Case | Result |
+|---|---|
+| `phi4:latest`, five calls of one short prompt with `--temperature 0` | all five replies identical |
+| the same with `--temperature 1` | five replies, all different |
+| a record whose section holds `temperature` `"0.2"`, three calls with no option, and three with `--temperature 1` | two distinct replies of three, and three distinct of three |
+| `--temperature 2` and `--temperature 2.00` | both accepted; a reply each |
+| `--keep-alive 0` on a chat call | the model was not in the loaded list afterwards |
+| `--keep-alive 10s` (a string) | listed with an expiry about ten seconds ahead, not listed 15 seconds later |
+| `--keep-alive -1` (the number -1) | accepted; the expiry listed is in the year 2319 (kept loaded) |
+| `--keep-alive 5m` (a string), and a section with `keep_alive` `"5m"` | both accepted; the expiry listed is about five minutes ahead |
+| `embed --keep-alive 0`, and a section with `keep_alive` `"30s"` | accepted; the embedding model was not listed after `0`, and was listed with an expiry about 30 seconds ahead for the section's value; `phi4` stayed as it was |
+| sixteen pairs of a chat call and then an embedding call: `phi4` kept (`5m`) five times and unloaded (`0`) five times, `gpt-oss:20b` kept three times and unloaded three times | **every embedding call succeeded; no 5xx was seen**; the models listed after each pair were as the keep_alive of the chat call says |
+
+What the run showed beyond the table:
+
+- The unload by `0` was complete at once in nine reads of the loaded list taken right after a call with `0`; in one, taken right
+  after the two restoring calls at the end of part 2, both models were still listed, and three reads about 20 seconds later (made
+  once by the agent and not kept in the results) listed none. So an unload may finish a moment after the reply, seen once; a caller
+  that needs the card free at that moment may wait or read the list.
+- Four of the six `gpt-oss:20b` chat calls, with `--max-output 20`, were `reply_cut`. The cause that the spec gives for a thinking
+  model, that its reasoning spends the cap, was not shown by the run: the raw `done_reason` and the thinking text were not printed.
+- **A call's `--temperature` replacing a section's `temperature` is not shown by this run.** The rows of the record with `"0.2"`
+  (two distinct replies of three, then three of three) are too small a sample to separate the section's value from the server's own
+  default, and no call with `--temperature 0` was made against that section. The replacement is shown by the fake-server tests,
+  which record the request.
+- Not reached: a temperature above 2, a malformed keep_alive, the string `"-1"` and `-1m` (the bridge sends none of them), a 5xx
+  from the server (so the label `retryable` and the guidance of "Retrying" are shown by the fake-server tests only), TLS, and a
+  call through the launcher.
+
 ## Unconfirmed statements
 
 These came from memory of the Ollama documentation. Each is tagged with what the runs of 2026-11-02 (the two sections above) showed:
@@ -767,17 +806,22 @@ reach it; the tests use a fake server and the statement stays unconfirmed).
     version or server]**
 19. `options.temperature` is read by the server as a number from 0 to 2 on `/api/chat`, and a temperature of exactly 2 is accepted.
     A call at 0 may still give different replies on a server (a GPU, a reasoning model). A temperature above what the server accepts
-    is never sent and is not tested. **[not shown: increment F of the plan `2026-11-02-bridge-request-controls` records a small
-    repeated sample at 0 and at 1.0 and a temperature of exactly 2]**
+    is never sent and is not tested. **[confirmed on 0.35.1 for the cases tried, one model and one prompt, as far as variation can show it: five calls at 0 gave five
+    identical replies and five at 1 gave five different ones, so the number appears to be read and to act (inferred from the
+    variation; the request itself was not observed); a temperature of exactly 2 and of `2.00` was accepted. Of the range "0 to 2"
+    only 0, 1, 2 and the section's 0.2 were tried. That equal replies at 0 are guaranteed is not shown and is not claimed]**
 20. A top-level `keep_alive` on `/api/chat` and on `/api/embed` accepts the number `0` (unload at once), the number `-1` (keep
     loaded) and a duration string such as `"30m"`, and the loaded models that the server lists (`/api/ps`) show the effect. A report
-    from memory says that a server may refuse the string `"-1"` and `-1m`; the bridge sends neither. **[not shown: increment F sends
-    `0` and `-1` as numbers and a duration as a string and records each answer; if the server refuses `-1` as a number, the plan
-    stops and the decision is revisited with the owner]**
+    from memory says that a server may refuse the string `"-1"` and `-1m`; the bridge sends neither. **[confirmed on 0.35.1: `0` as a number unloaded the model, `-1` as a number kept it
+    (the listed expiry was in the year 2319), `10s` and `5m` as strings set the expiry, on `/api/chat`; `/api/embed` accepted
+    `0` and `30s` and acted on them; the loaded list showed the effect, and a read right after a `0` was seen once to list the model
+    for a moment. The durations tried were `10s`, `5m` and `30s`, not an hour; the string `"-1"` and `-1m` were not sent and are
+    not shown]**
 21. A transient server error (a 500, 502 or 503 from memory pressure on a one-card server, such as an embedding call right after a
     chat call) is retryable, and a few tries with a wait of tens of seconds recover it. **[not shown: it is the knowledge-base
-    module's report (six tries 20 seconds apart recovered every time on the owner's server); increment F records a 5xx only if the
-    server gives one, and otherwise "no 5xx seen"; the fake-server tests are the proof of the rule]**
+    module's report (six tries 20 seconds apart recovered every time on the owner's server). The run of increment F of the plan `2026-11-02-bridge-request-controls` made sixteen
+    pairs of a chat call and an embedding call, with the chat model kept and unloaded, `phi4` and `gpt-oss:20b`: no 5xx was seen,
+    so the 500 was not reproduced; the fake-server tests are the proof of the rule]**
 
 ## Known limits
 

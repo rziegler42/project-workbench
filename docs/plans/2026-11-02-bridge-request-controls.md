@@ -507,4 +507,43 @@ could be named as the attribute that the short-body test uses. An accepted recor
 **Deviations from the plan:** increment E took three scripted passes and three releases, not one, because each review found a real
 problem; the digit guard is a fourth change at the owner's word.
 
-**Open for the owner:** the commit of increment E.
+**Committed** as `03d8e6a`.
+
+### Increment F
+
+**Done:** the temperature, the keep_alive and a 5xx were run against the owner's real server, with the owner's word ("go with 3b"
+after the list of calls and their effects had been shown), and recorded in `docs/specs/ask-ollama.md` under "The run against a real
+server" ("After increments D and E: the temperature, the keep_alive and a 5xx"), with the tags of unconfirmed statements 19 to 21.
+The helper was run in-process from a scratch home that held a file of format 2 with the new fields, as the earlier runs were; the
+owner's store, the installed copy and `wb run` were not used. Server version 0.35.1, plain `http`, macOS, Python 3.15.0, the helper
+at `03d8e6a`. 61 calls of the bridge (18, 9 and 34 in three parts) and read-only raw requests of `/api/version` and `/api/ps`
+made by the script. The address is in no tracked file.
+
+**What the server showed:** five calls at temperature 0 gave five identical replies and five at 1 gave five different ones; 2 and
+`2.00` were accepted; `--keep-alive 0` unloaded the model, `10s` expired, `-1` as a number kept it (the listed expiry was in the
+year 2319), `5m` and the section's `5m` set the expiry, and `embed` took `0` and the section's `30s`; **sixteen pairs of a chat
+call and an embedding call** (`phi4` and `gpt-oss:20b`, the chat model kept and unloaded) **gave no 5xx**, so the 500 was not
+reproduced and the retryable rule rests on the fake-server tests. One read right after two `0` calls still listed both models; reads
+about 20 seconds later listed none. Four of the six `gpt-oss:20b` calls with `--max-output 20` were `reply_cut`. No case differed
+from the spec, so no correction of the helper or the specification was needed and no pass was made.
+
+**Verification as run:** `wb check` and `wb run code-work check` report no problems; a search of the spec for a private address,
+`:11434` and `/Users/` found none; the server held no model at the first read of part 1 and none at the last read of part 3. No
+test was run (a document only; the package was not touched).
+
+**Review:** the `reviewer` agent compared every claim with the raw results of the three parts and found no blocking problem and
+eight non-blocking findings, all applied: the table's 0.2-section rows cannot show that a call's `--temperature` replaces a
+section's value, so the record now says that this is not shown by the run; the tag of statement 19 now says the effect is inferred
+from the variation and that only 0, 1, 2 and 0.2 of the range were tried; the late unload is stated as seen once and the three
+later reads as made by the agent and not kept; the cause of the `reply_cut` is stated as the spec's explanation and not shown;
+"none after the last call" became "none at the last read"; the tag of 20 says which durations were tried; statement 21 names the
+plan; the provenance has a conclusion line. **Criterion 7 is met in part:** everything in it was shown except that a call's value
+replaces a section's, which the run did not isolate (the fake-server tests show it).
+
+**Not done, for increment G (documents).** The reviewer listed these sentences of `docs/specs/ask-ollama.md` as stale, none false:
+the header paragraphs at lines 3 to 9 and 23 to 27 ("until then the helper does none of them", and the runs they name), and the
+intro of "Unconfirmed statements" ("the two sections above"), which should name the new section.
+
+**Open for the owner:** whether five more calls are made to isolate the replacement (a record whose section holds `temperature`
+`"1"` and five calls with `--temperature 0`: identical replies would show that the option replaced the section); the commit of
+increment F.
