@@ -477,9 +477,10 @@ for an embedding gets a 501, and a prompt over the window is cut without an erro
 and the size rule, ran the helper from a scratch home with a file of format 2; it found that the server refuses an oversize chat
 prompt when `truncate` is false and does not cut a prompt below the window, and after that `ask` sends the field and reports the
 refusal as `context_overflow`. Neither run reached a server that is off; the `--provides` route was first run through the launcher after the upgrade of the
-plan's last increment (`ask-ollama.md`, "After the upgrade"). Plan `2026-11-02-bridge-request-controls` specifies in
-`ask-ollama.md` a temperature and a keep_alive for a model section and the retryable statuses 500, 502 and 503, to be built by its
-increments D and E; this paragraph is updated when they are. The limits of that bridge are in
+plan's last increment (`ask-ollama.md`, "After the upgrade"). Plan `2026-11-02-bridge-request-controls` added to
+`ask-ollama` a temperature and a keep_alive for a model section and the retryable statuses 500, 502 and 503 (specified in
+`ask-ollama.md`, built by its increments D and E and run once against the same server by F: the temperature and the keep_alive
+acted as specified, and no 5xx was seen in sixteen pairs of a chat and an embedding call). The limits of that bridge are in
 `ask-ollama.md`, "Known limits", and are not repeated here.
 
 How it meets the contract:

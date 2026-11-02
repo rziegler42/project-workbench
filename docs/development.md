@@ -53,7 +53,7 @@ ambiguous blank.
 | Preview and remove exact project paths | `python3 -m workbench run safe-git remove [--recursive] -- <path> ...`, then the same with `--confirm` after the owner approves |
 | Report what a commit, a removal or a push would act on (read-only) | `python3 -m workbench run safe-git describe commit\|remove <the arguments of the real command>` or `describe push <the arguments that follow git push>` (a push is described locally and never contacts the remote): prints one JSON object (`contract`, `action`, `ok`, `truncated`, `errors`, `facts`), changes nothing, and exits 0 for a refusal of the real command (`ok: false` with an error code); see `docs/specs/safe-git.md`, "Describe" |
 | Ask a model one read-only question | `python3 -m workbench run --provides model-bridge ask-codex ask [--model <name>] [--effort low\|medium\|high] [--timeout <seconds>] [--root <path>] [--schema <path>] [--confine]` with the prompt on standard input (the `ask-codex` module's command; needs a `codex` program and a sign-in; `--server <name>` is recognized and refused, because this bridge starts a program; see "The ask-codex bridge") |
-| Ask a model on a server one question, check the endpoint file, compare its models, or embed texts | `python3 -m workbench run --provides model-bridge ask-ollama ask [--model <name>] [--context <tokens>] [--effort <level> or --thinking on\|off] [--max-output <tokens>] [--timeout <seconds>] [--root <path>] [--schema <path>] [--server <name>] [--confine]` with the prompt on standard input; `python3 -m workbench run ask-ollama check` (reads the endpoint file, contacts no server, prints one line per record and one per model, and a warning for an unauthenticated `http` record away from loopback); `python3 -m workbench run ask-ollama models [--server <name>] [--timeout <seconds>]` (compares the models of the file with the server's list, names only); `python3 -m workbench run --provides text-embedding ask-ollama embed [--model <name>] [--context <tokens>] [--timeout <seconds>] [--server <name>]` with `{"texts": [...]}` on standard input (the `ask-ollama` module's command; needs an Ollama server named in `~/.config/project-workbench/bridge-endpoints.json`; see "The ask-ollama bridge") |
+| Ask a model on a server one question, check the endpoint file, compare its models, or embed texts | `python3 -m workbench run --provides model-bridge ask-ollama ask [--model <name>] [--context <tokens>] [--effort <level> or --thinking on\|off] [--max-output <tokens>] [--temperature <value>] [--keep-alive <value>] [--timeout <seconds>] [--root <path>] [--schema <path>] [--server <name>] [--confine]` with the prompt on standard input; `python3 -m workbench run ask-ollama check` (reads the endpoint file, contacts no server, prints one line per record and one per model, and a warning for an unauthenticated `http` record away from loopback); `python3 -m workbench run ask-ollama models [--server <name>] [--timeout <seconds>]` (compares the models of the file with the server's list, names only); `python3 -m workbench run --provides text-embedding ask-ollama embed [--model <name>] [--context <tokens>] [--keep-alive <value>] [--timeout <seconds>] [--server <name>]` with `{"texts": [...]}` on standard input (the `ask-ollama` module's command; needs an Ollama server named in `~/.config/project-workbench/bridge-endpoints.json`; see "The ask-ollama bridge") |
 | Review one command the harness is about to run (read-only) | `python3 -m workbench run action-review review [--log-row] '<the command text>'` (the `action-review` module's command; needs the command's module and a `model-bridge` installed and pinned, and `.workbench/review.json`; prints one verdict object and exits 0, or exits 1 or 2 (allow only on exit 0 with a whole, valid object); see "The action-review engine") |
 | Search the owner's memory (agent-safe) | `python3 -m workbench run mempalace status`, and `python3 -m workbench run mempalace search [--wing <name>] [--room <name>] [--results <1-20>] [--since <date>] [--before <date>] -- <query>` (the `mempalace` module's command; needs a `mempalace` program and its cached embedding model; see "The mempalace module") |
 | Owner-run: build the memory (terminal only) | `python3 -m workbench run mempalace init <dir> [--yes] [--allow-project-root]`, and `python3 -m workbench run mempalace mine <dir> [--confirm] [--wing <name>] [--mode projects\|convos] [--allow-project-root]` (refuse unless standard input and output are terminals; `mine` is a dry run without `--confirm`) |
@@ -128,13 +128,16 @@ text), and its `models` argument compares the models of the file with the server
 `ask`, `check`, `embed` and `models`. It keeps no state and writes nothing.
 
 - **The endpoint file.** The owner writes `~/.config/project-workbench/bridge-endpoints.json` (the accepted decisions
-  `2026-11-01-endpoint-records-in-the-store`, `2026-11-02-model-configurations-in-endpoint-records` and
-  `2026-11-02-model-section-defaults-and-the-embedding-name`): `format` 2, an optional `default`, and an `endpoints` object of named
+  `2026-11-01-endpoint-records-in-the-store`, `2026-11-02-model-configurations-in-endpoint-records`,
+  `2026-11-02-model-section-defaults-and-the-embedding-name` and `2026-11-02-temperature-and-keep-alive-in-model-sections`): `format` 2, an optional `default`, and an `endpoints` object of named
   records with `scheme`, `host`, `port`, `location` (`this-machine`, `owner-network` or `vendor-cloud`), `authenticated` (false only),
   the optional `default_model` and `embedding_model`, and a required `models` object with a section for each model that a call may
   use. A section holds `kind` (`chat` or `embedding`), `context` (the largest window the owner declares for the model),
   an optional `default_context` and `bytes_per_token` (2 when absent), and, for a chat model, `effort` or `thinking` (not both) and
-  an `output_limit`. A file of format 1, or one under the old name `endpoints.json`, is not read. The agent never writes the file.
+  an `output_limit` and a `temperature`, and for a model of either kind a `keep_alive` (how long the server keeps the model loaded
+  after a call). Both are JSON strings of an exact grammar, because the file's reader refuses a number with a fraction: a
+  `temperature` from `"0"` to `"2"` with at most two decimals (`"0.2"`), a `keep_alive` of `"0"` (unload at once), `"-1"` (keep
+  loaded) or a duration (`"30m"`). A file of format 1, or one under the old name `endpoints.json`, is not read. The agent never writes the file.
   `wb run ask-ollama check` reads it and prints one line per record and per model; it contacts no server. `ask-ollama.md`, "The
   endpoint file", has a worked example.
 - **Which model.** Only a configured model of the kind the command needs is used: `--model`, else the record's `default_model` (or
@@ -148,8 +151,17 @@ text), and its `models` argument compares the models of the file with the server
   an error (`ask-ollama.md`, "Known limits").
 - **Defaults and their options.** A chat section's `effort` or `thinking` and `output_limit` are used when a call passes nothing, so a
   module that calls the bridge passes only the model name. `--effort`, `--thinking on|off` and `--max-output <tokens>` replace
-  them (the last is refused above the section's `output_limit`). The two new options belong to this bridge and not to the contract's
-  common core, and `embed` and `models` refuse all three.
+  them (the last is refused above the section's `output_limit`). `--temperature <value>` (for `ask`) and `--keep-alive <value>` (for
+  `ask` and `embed`) replace a section's `temperature` and `keep_alive`, so a module can run at 0.2 and retry at 0.5 with one
+  section. The values are sent as numbers where the server reads numbers (`0` and `-1` for a keep_alive are numbers on the wire,
+  a duration a string). These options belong to this bridge and not to the contract's common core; `embed` refuses all but
+  `--keep-alive`, and `models` refuses all of them. A temperature of 0 did not make replies differ in the run recorded (one model, one
+  prompt, five calls), but equal replies are not guaranteed, so a caller whose cache key is built from the prompt includes the model and the temperature.
+- **Server errors and retries.** A status 500, 502 or 503 from the server is `vendor_error` / `bad_exit` with `retryable` true, for
+  `ask`, `embed` and `models` (decision `2026-11-02-retryable-server-errors-in-bridges-to-a-server`); every other status stays not
+  retryable. The bridge never retries: a caller retries a few times with a wait of tens of seconds and then stops, because a 500
+  can be permanent (the figure is a report, and no 5xx was seen in the run that tried to reproduce it). A reply that closes before
+  its declared length is `unusable_reply` and not retryable. The unload by a `keep_alive` of `0` may finish a moment after the reply.
 - **`models`.** One read of the server's list: `present` (configured and on the server), `missing`, `unconfigured` and a count of names
   set aside; names are compared as exact text, so configure the names as `ollama list` prints them.
 - **What a real call needs.** The module installed (`wb add`, run by the owner), the endpoint file under its name, and a server that
@@ -161,7 +173,8 @@ text), and its `models` argument compares the models of the file with the server
   twice against a real server on 2026-11-02 through an agent session's shell tool on the owner's word (the second from a scratch
   home, with a file of format 2); `ask-ollama.md`, "The run against a real server", says what each run showed and what it did not
   reach; a later check, after the upgrade, ran `ask` through `--provides model-bridge` and `embed` through `--provides
-  text-embedding` against the real server.
+  text-embedding` against the real server; a third run recorded the temperature, the keep_alive and sixteen pairs of a chat and an
+  embedding call (no 5xx).
 - **Calling it from a module.** A module that runs inside the workbench declares `requires` `model-bridge` (and `text-embedding` for
   vectors, a name that the owner confirmed as vendor-neutral) and calls the bridge through `wbkit.call.run_command` with
   `provides`, as the review engine does. It names no host: the file picks the server and `--server` picks the record.

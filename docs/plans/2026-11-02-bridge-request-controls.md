@@ -544,6 +544,35 @@ replaces a section's, which the run did not isolate (the fake-server tests show 
 the header paragraphs at lines 3 to 9 and 23 to 27 ("until then the helper does none of them", and the runs they name), and the
 intro of "Unconfirmed statements" ("the two sections above"), which should name the new section.
 
-**Open for the owner:** whether five more calls are made to isolate the replacement (a record whose section holds `temperature`
-`"1"` and five calls with `--temperature 0`: identical replies would show that the option replaced the section); the commit of
-increment F.
+**Committed** as `f0ebf52`. The five further calls that would isolate the replacement (a record whose section holds `temperature`
+`"1"` and five calls with `--temperature 0`: identical replies would show that the option replaced the section) were offered and
+not made; the fake-server tests show the replacement.
+
+### Increment G
+
+**Done:** the documents agree with what was built and run. `docs/specs/ask-ollama.md`: the header paragraphs; the rule that a
+reply which closes before its declared `Content-Length` is `unusable_reply` under any status, as `http.client` reads the length (a
+chunked reply, a 304 and a length such as `+500` follow it), in the paragraph "When several conditions hold", the 500/502/503 and
+`unusable_reply` rows of the errors table, the bullet on a connection that closes or resets, the `embed` Failure bullet and
+checklist item 22; the intro of the unconfirmed statements; and two Known limits (the digit guard is linear, and the check relies on
+`HTTPResponse.length`). `docs/specs/model-bridge.md`: the "As built" paragraph. `docs/development.md`: the command row, the
+endpoint-file bullet with the grammar of `temperature` and `keep_alive`, the defaults and options bullet, a bullet "Server errors
+and retries", and the hand-run bullet. The eight stale shipped approval records (two tracked, from the earlier plan's close-out,
+and six untracked, left by this plan's passes) were deleted after the owner's approval of the exact list ("approve the list"),
+through `wb run safe-git remove --recursive --confirm`; the two current records of the package that were not yet tracked
+(`09b0e7d6…` and `670a7572…`) are committed with this increment.
+
+**Verification as run:** `wb check` and `wb run code-work check` report no problems; `wb verify packages/workbench` exits 0; the
+release preview reads `recorded` for every package and module and `stale records: 0`; a search of the three documents for a private
+address, `:11434` and `/Users/` found only the documentation-range placeholder that was already in the worked example. No test was
+run (documents and approval records only; the package was not touched in this increment).
+
+**Review:** the `reviewer` agent read the three documents against the helper, the two decisions and the Results of C to F: no
+false statement, no contradiction and no blocking finding; one wording point applied (the guide's sentence on a temperature of 0
+now says one model, one prompt, five calls) and one not applied (several lines run longer than their neighbours, in the style of
+earlier long lines). A note from the harness that the reviewer's report matched an instruction-shaped pattern was caused by the
+report quoting an existing mention of `.claude/settings.local.json` in the guide; it held no instruction and nothing was done.
+
+**Left open:** the isolating calls for criterion 7 (above); the plan's other deferred work (below).
+
+**Open for the owner:** the commit of increment G.

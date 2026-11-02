@@ -4,7 +4,8 @@ Status: Draft. Written by plan `2026-11-01-ask-ollama-bridge` (increment B), bef
 tests are built against this text. Increment C built the module for `ask` and `check` (against a fake server in its tests);
 increment D built the rules for the context window, a cut reply and thinking; increment E built the `embed` argument. Increment F
 ran the bridge once against a real server (2026-11-02; section "The run against a real server"), and increment G of the plan of
-2026-11-02 ran the new helper against it a second time (section "The second run").
+2026-11-02 ran the new helper against it a second time (section "The second run"), and increment F of the plan
+`2026-11-02-bridge-request-controls` a third time (section "After increments D and E").
 Every statement about the Ollama server's own interface is listed under "Unconfirmed statements" and tagged with what that run
 showed. The spec stays `Draft` until the owner approves it.
 
@@ -20,11 +21,12 @@ the file is named `bridge-endpoints.json` (increment H renamed it from `endpoint
 increment F-C of the plan. The field `truncate` `false` of `ask` and the refusal that goes with it are specified here (increment
 G-A of that plan) and were built by increment G-B.
 
-Plan `2026-11-02-bridge-request-controls` (increment C) amends this text before the helper changes: the section fields `temperature`
-and `keep_alive`, the options `--temperature` and `--keep-alive`, and the retryable statuses 500, 502 and 503 are specified here under
-the accepted decisions `2026-11-02-temperature-and-keep-alive-in-model-sections` and
-`2026-11-02-retryable-server-errors-in-bridges-to-a-server`, and are built by increments D and E of that plan; until then the helper
-does none of them.
+Plan `2026-11-02-bridge-request-controls` specified in its increment C, under the accepted decisions
+`2026-11-02-temperature-and-keep-alive-in-model-sections` and `2026-11-02-retryable-server-errors-in-bridges-to-a-server`, the
+section fields `temperature` and `keep_alive`, the options `--temperature` and `--keep-alive`, and the retryable statuses 500, 502
+and 503. Its increment D built the fields and the options, and its increment E the retryable statuses, the rule that a reply that
+closes before its declared length is an incomplete reply, and a linear guard on runs of digits. Its increment F ran them against a
+real server (section "After increments D and E: the temperature, the keep_alive and a 5xx").
 
 Terms are in `terms.md`. The contract it satisfies is `model-bridge.md` (version 2), whose sections on a bridge to a server this
 spec fills in. The endpoint file is set by the accepted decision `2026-11-01-endpoint-records-in-the-store` as amended by
@@ -279,7 +281,8 @@ never returned, never put in a message and never counted as the reply [unconfirm
   reports anything else, or nothing, an empty or blank `message.content` is `unusable_reply`. The thinking text is never returned
   as the reply.
 - **A server that closes the connection or resets it after it began to answer, or sends a reply that is `done` false,** is
-  `unusable_reply`. Before it began to answer, a close or a reset is `vendor_unreachable` (below).
+  `unusable_reply`; so is a reply that closes before the `Content-Length` it declared, whatever the status (see "When several
+  conditions hold"). Before it began to answer, a close or a reset is `vendor_unreachable` (below).
 
 ### Errors
 
@@ -298,9 +301,13 @@ the window), which is judged before the thinking and the format words. For `embe
 is never copied into the object. [unconfirmed 13]
 
 **When several conditions hold**, one rule decides. Before any request, the size rule of "Context window" may end an `ask` call as
-`context_overflow` with nothing sent. A body over its bound is `reply_too_large`, whatever the status, and a connection cut after the status line was read is
-`unusable_reply`, whatever the status; both are judged before any status and are not retryable. A status 500, 502 or 503 is the
-retryable `bad_exit` row, chosen by the status alone, for a response that was read whole within its bound. For a status 400 the words are
+`context_overflow` with nothing sent. A body over its bound is `reply_too_large`, whatever the status. A reply that ended before it was complete is
+`unusable_reply`, whatever the status: a connection reset after the status line was read, or a connection that closed before the
+length that the response declared in `Content-Length` (the length as `http.client` reads it, through its `length` attribute after
+the body was read: a chunked reply is judged by its chunks and not by a length that it also declares, a 304 has no body, and a length
+that `http.client` ignores is ignored; a 200 whose JSON is complete but shorter than declared is not a success). Both are judged
+before any status and are not retryable. A status 500, 502 or 503 is the retryable `bad_exit` row, chosen by the status alone, for a
+response that was read whole: within its bound and to its declared length. For a status 400 the words are
 judged in this order: the overflow words, then "think", then "format" or "schema"; a text of the overflow words with a status other than
 400 is the `bad_exit` row. For a status
 outside 200 to 299 the status rows of the table apply, and the body is used only as the matching rule above says, so an error
@@ -321,9 +328,9 @@ cut-off reply is `unusable_reply`: both are `vendor_error`, so a caller sees the
 | a status 400 whose error says the model does not support thinking | `effort_unsupported` | null | false | "the model does not support this effort or thinking setting" |
 | a status 400 whose error says that the request exceeds the available context size | `vendor_error` | `context_overflow` | false | "the prompt does not fit the context window" |
 | a status 400 whose error is about the format or schema | `vendor_error` | `bad_schema` | false | "the server rejected the schema" |
-| a status 500, 502 or 503, with the whole body read within its bound (the status alone chooses the row; no word of the body is matched) | `vendor_error` | `bad_exit` | true | "the server answered with an error" |
+| a status 500, 502 or 503, with the whole body read within its bound and to its declared length (the status alone chooses the row; no word of the body is matched) | `vendor_error` | `bad_exit` | true | "the server answered with an error" |
 | any other status outside 200 to 299 (a 501 that no row names, a 429, a 504, any other 4xx or 5xx), including a redirect (which is never followed) | `vendor_error` | `bad_exit` | false | "the server answered with an error" |
-| the reply is not one object, is empty, is not `done`, or was cut short by a reset or an early close after the answer began (for `models`, a reply that is not the shape of its section) | `vendor_error` | `unusable_reply` | false | "the server returned no usable reply" |
+| the reply is not one object, is empty, is not `done`, or was cut short by a reset, or by a close before its declared `Content-Length`, after the answer began (for `models`, a reply that is not the shape of its section) | `vendor_error` | `unusable_reply` | false | "the server returned no usable reply" |
 | the reply or the response body is over its bound | `vendor_error` | `reply_too_large` | false | "the server returned more than the bridge accepts" |
 | the prompt filled the window | `vendor_error` | `context_overflow` | false | "the prompt does not fit the context window" |
 | the prompt is larger than the size rule allows (nothing was sent) | `vendor_error` | `context_overflow` | false | "the prompt is probably larger than the window" |
@@ -461,7 +468,7 @@ standard input.
   a 404 whose error holds "not found" is `model_unavailable`, as for `ask`, and any other 404 is `bad_exit`. A status 501 whose
   error, in lower case, holds "does not support embeddings" (a chat model sent to `/api/embed`) is `model_unavailable` with the
   message "the model cannot produce embeddings"; any other 501 is `bad_exit`, not retryable. A status 500, 502 or 503 is the retryable `bad_exit` row of the table of errors,
-  chosen by the status alone for a response read whole within its bound. A chat model is refused by the allowlist before any request is made; the 501 row is kept for a model that is configured as an
+  chosen by the status alone for a response read whole, within its bound and to its declared length. A chat model is refused by the allowlist before any request is made; the 501 row is kept for a model that is configured as an
   embedding model and that the server does not support for embeddings. A model whose reply holds no usable vectors, or a
   count of vectors different from the count of texts, is `vendor_error` with `unusable_reply`. The server's
   words are matched only to choose a row and are never copied. [confirmed 9, 14 in part; corrected 10]
@@ -595,8 +602,11 @@ the request line, headers and body, shows each item. No item needs a real Ollama
     answered with an error" in `ask`, in `embed` and in `models`, whatever the body that was read whole (a JSON object, one that
     holds the overflow, `think`, `format` or `schema` words, one that is not JSON, an empty body), and no word of the body is in the
     object; a 501 (with and without the words of the `embed` row), a 429, a 504, a 505, a 400, a 404 and a 3xx are as before and not
-    retryable; a 500 whose body is over its bound is `reply_too_large` and one whose connection is cut after the status line is
-    `unusable_reply`, each not retryable; the other retryable rows (a refused connection and a timeout) are as before; the helper
+    retryable; a 500 whose body is over its bound is `reply_too_large`, one whose connection is reset after the status line is
+    `unusable_reply`, and one that closes before its declared `Content-Length` is `unusable_reply` too (a 200 whose complete JSON is
+    shorter than declared is not a success), each not retryable; a chunked reply that also declares a length is read by its chunks,
+    a 304 is judged by its status, and a length such as `+500`, which `http.client` reads, is a declared length; the other
+    retryable rows (a refused connection and a timeout) are as before; the helper
     makes exactly one request for each call.
 
 ## The run against a real server
@@ -757,7 +767,7 @@ What the run showed beyond the table:
 
 ## Unconfirmed statements
 
-These came from memory of the Ollama documentation. Each is tagged with what the runs of 2026-11-02 (the two sections above) showed:
+These came from memory of the Ollama documentation. Each is tagged with what the runs of 2026-11-02 (the sections under "The run against a real server") showed:
 **confirmed**, **corrected** (the statement was wrong and the text above is the corrected one) or **not shown** (the run did not
 reach it; the tests use a fake server and the statement stays unconfirmed).
 
@@ -867,7 +877,14 @@ increment D and its review, and the one on embedding replies from increment E:
   already knows the address it was reached at, and `model` is not a record of which model answered. Only what the bridge itself
   puts in an object is promised to hold no host or port.
 - **A run of more than 4,300 digits anywhere in a reply or a schema is refused**, including inside a string, so a legitimate reply
-  that contains such a run is `unusable_reply`.
+  that contains such a run is `unusable_reply`. The search is linear in the size of the data, because a run can only start where
+  the digits before it end; the first form of the pattern cost seconds a megabyte on a hostile reply of runs just under the limit
+  and was found by the security review of increments D and E of the plan `2026-11-02-bridge-request-controls`.
+- **The check for a reply cut short relies on `HTTPResponse.length`.** After the body is read to the close, the bridge asks
+  `http.client` how many bytes it still owed; the attribute is long-standing but not documented by the standard library. A change
+  in its meaning would show in the tests of a short body, a chunked reply, a 304 and a length such as `+500`, in
+  `test_askollama_retryable.py`. A server that declares a shorter length than it should have sent is not detected by anything the
+  bridge can see.
 - **The owner's `context` can be wrong.** It is the owner's declaration of the model's limit and is not read from the server. A value
   above what the server gives is sent as `num_ctx` and the server may clamp it or refuse it; a value that is too high costs the
   server memory (not measured). `default_context` is the way to send less than the declared limit.
