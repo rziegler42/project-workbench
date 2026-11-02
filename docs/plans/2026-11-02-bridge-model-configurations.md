@@ -746,3 +746,38 @@ record carries the owner's acceptance in its status line and its recorded sha256
 **Not done in F-A:** increments F-B and F-C are not started.
 
 **Open for the owner:** whether the temperature is the next section default (an open question in the record).
+
+### Increment F-B
+
+**Done:** `ask-ollama.md` and `model-bridge.md` state what the accepted decision of F-A sets, as increment F-C will build it. In
+`ask-ollama.md`: the declaration paragraph says that the owner confirmed `text-embedding` (vendor-neutral, a module may require it and
+a cloud bridge may provide it) and that `model-bridge` is still unconfirmed; the header names the defaults; a chat section may hold
+`effort` or `thinking` (not both) and `output_limit`, an embedding section none, with the refusals; the worked example carries them;
+the options table has `--effort` (now overriding a section's `effort` or `thinking`, and read from the section when absent),
+`--thinking on|off` and `--max-output <tokens>` (the form of `--context`, the ceiling `output_limit`); the request puts
+`num_predict` inside `options` and `format` and `think` at the top level; a reply stopped at the cap is `reply_cut`; an
+`output_limit` is not compared with the window; `check` appends the defaults to the model line in a fixed order; `embed` refuses the
+new options (and `models` refuses every option but two); checklist items 17 (the defaults) and 18 (the call arguments) are added and
+item 3 cites them; unconfirmed 17 (the server's mapping, the two untried combinations, the other session's report and that the on-off
+case may not be testable) and a "Known limits" bullet are added; and the decision is in the list of governing decisions. The three
+lines that the decision made false ("Without `--effort`, `think` is left out", "No other field is sent", "`think` only when it
+applies") are rewritten. In `model-bridge.md`: the `--effort` row and the endpoint-record paragraph say that a bridge to a server may
+take the default from the section.
+
+**Verification as run** (macOS): `wb check`, `wb run code-work check` and `wb verify packages/workbench` report no problem; the whole
+suite, `python3 -B -W error tests/run_all.py`: 6,634 tests in 14 roots, OK (the suite started before the last review corrections,
+which are text only, and `wb check` and the plan check were run after them). A scan of both specs finds one dotted address, the
+documentation-range placeholder of the example, and no home path.
+
+**Review:** one read by the read-only `reviewer`: no blocking finding. Applied: where `num_predict`, `format` and `think` go in the
+request; the missing rule that an `output_limit` is not compared with the window; "holds only these fields"; item 3 cites items 12
+and 17; the order of the defaults on the `check` line is fixed in item 17; item 18 adds a `--max-output` with an unconfigured model,
+`--effort` and `--thinking` given to a section with no default, and drops an ordering clause that the decision does not state; the
+decision is in the governing list; unconfirmed 17 records the other session's report. Not changed here: `docs/development.md` still
+describes the endpoint file of format 1 (increment I rewrites it); `terms.md`, `module-contract.md` and the module test that checks
+their wording still call `text-embedding` unconfirmed on purpose, and increment F-C changes all three together. The reviewer found no
+other document that contradicts the confirmation.
+
+**Not done in F-B:** the module is not changed; increment F-C is not started.
+
+**Open for the owner:** nothing new.

@@ -13,11 +13,14 @@ endpoint file of format 2 (a section for each model), the allowlist, the window 
 increments C to F of that plan. Increment C built the reader of format 2, the allowlist, the window rules and `--context` (for `ask` and `embed`), and increment D
 the model lines of `check`, the refusal of aliasing names, the guard on digits in the file and the reading of `format` first, and
 increment E the size rule and increment F the argument `models`;
-the file is named `endpoints.json` until increment H renames it `bridge-endpoints.json`.
+the file is named `endpoints.json` until increment H renames it `bridge-endpoints.json`. The defaults of a chat section (`effort` or
+`thinking`, and `output_limit`) and the options `--thinking` and `--max-output` are specified here under the accepted decision
+`2026-11-02-model-section-defaults-and-the-embedding-name` and are built by
+increment F-C of the plan.
 
 Terms are in `terms.md`. The contract it satisfies is `model-bridge.md` (version 2), whose sections on a bridge to a server this
 spec fills in. The endpoint file is set by the accepted decision `2026-11-01-endpoint-records-in-the-store` as amended by
-`2026-11-02-model-configurations-in-endpoint-records`; the contract by `2026-11-01-bridge-contract-version-2`.
+`2026-11-02-model-configurations-in-endpoint-records` and by `2026-11-02-model-section-defaults-and-the-embedding-name`; the contract by `2026-11-01-bridge-contract-version-2`.
 
 ## Scope
 
@@ -73,7 +76,9 @@ conformance checklist.
 | commands | `ask-ollama` (`helper` `helper/ask-ollama`, `runtime` `python`, `kit` 1, `arguments` `["ask", "check", "embed", "models"]`) |
 | `ask_reads` | `~/.config/project-workbench/endpoints.json` (`bridge-endpoints.json` after increment H), so that a harness which provides `permissions` asks before the agent reads it |
 
-The capability name `text-embedding` is this spec's proposal. Like `model-bridge`, it is the owner's to confirm. It has no prefix, so
+The capability name `text-embedding` is confirmed by the owner (2026-11-02; decision `2026-11-02-model-section-defaults-and-the-embedding-name`,
+item 7) as a name that mentions no vendor, so that a module may require it and a cloud embedding bridge may provide it later; the name
+`model-bridge` is still the owner's to confirm. It has no prefix, so
 only the first-party package may provide it: the verifier accepts the module's declaration from the first-party package and refuses
 the name from any other (shown by the module's tests). The module provides both `model-bridge` and `text-embedding`, and a caller
 asks for an embedding as `wb run --provides text-embedding ask-ollama embed`. That launcher path is not run by the module's tests,
@@ -98,10 +103,14 @@ not restate the host grammar; the first decision is its source. What the file ho
   still has it is refused as a field that is not allowed.
 - **`models`** is an object of 1 to 64 entries from a model name to a section. A name follows the rule for the record's model fields
   (1 to 128 characters of letters, digits and `._:-`, with `/` between segments; each segment starts with a letter or a digit; no
-  `//`, no `..`, no leading or trailing `/`). A section holds exactly: `kind` (`chat` or `embedding`, required); `context` (required,
+  `//`, no `..`, no leading or trailing `/`). A section holds only these fields: `kind` (`chat` or `embedding`, required); `context` (required,
   a whole number from 1 to 10,000,000: the largest window, in tokens, that the owner declares the model accepts); `default_context`
-  (optional, a whole number from 1 to `context`); and `bytes_per_token` (optional, a whole number from 1 to 8, default 2). A float, a
-  boolean or a string where a whole number belongs, a field not listed and a missing `kind` or `context` are each refused.
+  (optional, a whole number from 1 to `context`); and `bytes_per_token` (optional, a whole number from 1 to 8, default 2). A section of `kind` `chat` may also hold the defaults of a call: `effort`
+  (`low`, `medium` or `high`) or `thinking` (a JSON boolean, for a model that only switches thinking on and off), at most one of the
+  two, and `output_limit` (a whole number from 1 to 10,000,000, in tokens: the default output cap and the ceiling of `--max-output`);
+  a section of `kind` `embedding` holds none of the three. A float, a
+  boolean or a string where a whole number belongs, a field not listed, a missing `kind` or `context`, an `effort` outside the three words, both `effort` and `thinking`, a `thinking` that
+  is not a boolean, and any of the three defaults in a section of `kind` `embedding` are each refused.
 - **Two names that a server may read as one** are refused: in one record, two model names that are equal after lower-casing and
   dropping a trailing `:latest`. The same name in two records is not an alias.
 - **`default_model` and `embedding_model`**, when present, name a key of `models`: the first one of `kind` `chat`, the second one of
@@ -123,8 +132,8 @@ A worked example, with a placeholder host from the documentation range (a real f
       "default_model": "chat-a:latest",
       "embedding_model": "embed-a:latest",
       "models": {
-        "chat-a:latest": {"kind": "chat", "context": 16384, "default_context": 8192},
-        "chat-b:7b": {"kind": "chat", "context": 32768, "bytes_per_token": 1},
+        "chat-a:latest": {"kind": "chat", "context": 16384, "default_context": 8192, "effort": "low", "output_limit": 6000},
+        "chat-b:7b": {"kind": "chat", "context": 32768, "bytes_per_token": 1, "thinking": false, "output_limit": 3000},
         "embed-a:latest": {"kind": "embedding", "context": 8192}
       }
     }
@@ -160,7 +169,9 @@ value as the next argument except `--confine`, and a refusal of anything else be
 |---|---|
 | `--model <name>` | The model to use, which must be a key of the selected record's `models` of `kind` `chat` (the allowlist above). A bridge to a server checks the value against the configured names in place of the contract's character set: a value that fits the record's model rule and is configured is accepted, so a name with a `/` can be given; any other value is refused before anything is sent, which is how the contract's rule for an unknown `--model` is met for this bridge. Sent as the request's `model`. When absent, the record's `default_model` is used; when the record has none the call is refused ("no model is named; pass --model or set default_model in the record"), because a server has no default. |
 | `--context <tokens>` | An option of this bridge only, not part of the contract's common core. A whole number: 1 to 8 ASCII digits, no sign, no leading zero, no space and no other character (so `007`, `+5`, `1e3` and ` 5` are refused), from 1 to the model's `context`; a larger value, a value that is not a whole number and the option without a configured model are refused before anything is sent. It sets the window of the call ("Context window" below). A caller that wants interchangeable bridges does not pass it. |
-| `--effort <level>` | `low`, `medium` or `high`, validated as in the contract. Sent as the request's `think` with the same word. Without `--effort`, `think` is left out and the server decides. A server that rejects it for this model gives `effort_unsupported`. [unconfirmed 4] |
+| `--effort <level>` | `low`, `medium` or `high`, validated as in the contract. Sent as the request's `think` with the same word, and it replaces the section's `effort` or `thinking`. Without `--effort` and without `--thinking`, the section's `effort` (the word) or `thinking` (the boolean) is sent as `think`; when the section holds neither, `think` is left out and the server decides. A server that rejects it for this model gives `effort_unsupported`. [unconfirmed 4, 17] |
+| `--thinking <on\|off>` | An option of this bridge only, not part of the contract's common core. Sent as the request's `think` with the boolean (`on` true, `off` false), and it replaces the section's `effort` or `thinking`. `--effort` and `--thinking` in one call are refused. A model that has levels and not a switch may answer a boolean as the server does. [unconfirmed 17] |
+| `--max-output <tokens>` | An option of this bridge only. A whole number: 1 to 8 ASCII digits, no sign, no leading zero, no space and no other character, from 1 to the section's `output_limit` when it holds one, and up to 10,000,000 when it holds none; a larger value, a value of another form and the option without a configured model are refused before anything is sent. Sent as the request's `options.num_predict`, and it replaces the section's `output_limit`. [unconfirmed 17] |
 | `--timeout <seconds>` | The whole call, from the start of the connection to the last byte of the reply. The connection itself is given at most 10 seconds (this spec's choice) or the whole timeout if that is shorter. |
 | `--root <path>` | Validated by the contract's path rules (inside the project, no link, exists, a directory, not in `.git` or `.workbench`) and then ignored: a server has no working directory. |
 | `--schema <path>` | Located as `ask-codex` locates it: inside the project, no link, a regular file, at most 65,536 bytes, one JSON object. Parsed more strictly than `ask-codex` parses it, because the schema is read and written out again: a repeated key, `NaN`, a number too large for a finite float (`1e999`), a run of more than 4,300 digits, a lone surrogate or nesting deeper than 32 levels is refused here, and a schema that has one of these and that `ask-codex` passes on is refused by this bridge, which is the one refusal the two bridges do not share. Sent as the request's `format`, with the same keys and values. [unconfirmed 3] |
@@ -169,9 +180,11 @@ value as the next argument except `--confine`, and a refusal of anything else be
 
 ### `ask`: the request
 
-One `POST` to the fixed path `/api/chat` with `Content-Type: application/json` [unconfirmed 1, 2]. The body is one JSON object with exactly: `model`;
+One `POST` to the fixed path `/api/chat` with `Content-Type: application/json` [unconfirmed 1, 2, 17]. The body is one JSON object with exactly: `model`;
 `messages`, one message with `role` `user` and `content` the prompt (a string; the prompt is UTF-8 text); `stream` `false`; `options`
-with `num_ctx` (the window of the call), and, only when they apply, `format` (the schema) and `think` (the effort). No other field is
+with `num_ctx` (the window of the call) and, only when it applies, `num_predict` (the output limit, from `--max-output` or the
+section's `output_limit`); and, only when they apply, the top-level fields `format` (the schema) and `think` (the effort, a word, or
+the thinking, a boolean). No other field is
 sent, and the prompt appears nowhere else. The headers are `Host` (the record's host, with brackets for an IPv6 literal, and the
 port when it is not the scheme's default), `Content-Type: application/json`, `Content-Length`, `Accept: application/json`,
 `Connection: close` and `User-Agent: ask-ollama/1` (a fixed string that does not change with the version of the module); no other
@@ -216,8 +229,12 @@ never returned, never put in a message and never counted as the reply [unconfirm
 - **A prompt that fills the window.** When `prompt_eval_count` is at least the window of the call, the prompt filled the window
   and may have been cut. The call is `vendor_error` with `context_overflow`, not retryable, and no reply is returned. If the reply
   carries no `prompt_eval_count`, the check cannot run and does not; the spec states that rather than implying it.
+- **The output limit.** A section's `output_limit`, or `--max-output`, is sent as `num_predict` and is not compared with the window of
+  the call: the bridge does not know how the two share the window, and the server decides. A reply larger than the bridge accepts
+  (262,144 bytes) is `reply_too_large`, as before.
 - **A reply that was cut.** When `done_reason` is `length`, the server stopped at a limit. The call is `vendor_error` with
-  `reply_cut`, not retryable, even if some text came back.
+  `reply_cut`, not retryable, even if some text came back. A reply stopped at the output cap of the call (`num_predict`) is that
+  case.
 - **A thinking model.** A model that reasons may spend its limit in its reasoning and return an empty `message.content`. When the
   server reports `done_reason` `length`, that is `reply_cut`, which names the cause; the cut is judged before the text. When it
   reports anything else, or nothing, an empty or blank `message.content` is `unusable_reply`. The thinking text is never returned
@@ -311,10 +328,11 @@ to standard output, in the file's order, for each record one line of this form (
 
 and after it, for each model of that record in the file's order, one line of this form:
 
-`model <name>/<model> kind=<chat|embedding> context=<n> window=<n> bytes_per_token=<n>`
+`model <name>/<model> kind=<chat|embedding> context=<n> window=<n> bytes_per_token=<n>[ effort=<word>|thinking=<on|off>][ output_limit=<n>]`
 
 where `window` is the section's `default_context`, or its `context` when there is none, and `bytes_per_token` is the section's
-figure or 2. After all the records come, for each unauthenticated `http` record whose host is not a loopback address (decision, item
+figure or 2; the section's `effort` (as ` effort=<word>`) or `thinking` (as ` thinking=on` or ` thinking=off`), and then its
+`output_limit` (as ` output_limit=<n>`), follow it, each only when the section holds it. After all the records come, for each unauthenticated `http` record whose host is not a loopback address (decision, item
 4), one line of this form:
 
 `warning: <name>: unauthenticated http away from loopback; content sent to it travels in the clear`
@@ -361,7 +379,7 @@ standard input.
   above, as for `ask`, so a namespaced name with a `/` can be given when it is configured); when absent, the record's
   `embedding_model`; when neither, a refusal. `--context` is as for `ask`, with the section's `context` as its ceiling. `--server`,
   `--timeout` and `--confine` are as for `ask` (`--confine` has no effect).
-  `--effort`, `--root`, `--schema` and anything else are refused as unknown options.
+  `--effort`, `--thinking`, `--max-output`, `--root`, `--schema` and anything else are refused as unknown options.
 - **Request.** One `POST` to the fixed path `/api/embed`. The body is one JSON object with `model`, `input` (the list of texts) and
   `truncate` `false`, so that a text longer than the model's window is an error and not a silent cut, and `options` holding `num_ctx`
   with the window of the call (the value of `--context`, else `default_context`, else `context`); no other field. The headers are exactly those of `ask` (above: `Host`,
@@ -422,11 +440,11 @@ the request line, headers and body, shows each item. No item needs a real Ollama
 3. Every refusal of the endpoint file and of a record is made before a connection and shows no host: a missing, unreadable,
    linked, non-regular or oversize file; a file that is not strict JSON (a duplicate key, `NaN`, a float or a boolean where an
    integer belongs); a wrong `format`; an unknown or missing field; more than 64 records; a bad record name; a bad `scheme`,
-   `port`, `location`, `authenticated`, `default_model`, `embedding_model`, `models` or a model section (item 12); a `host` in any
+   `port`, `location`, `authenticated`, `default_model`, `embedding_model`, `models` or a model section (items 12 and 17); a `host` in any
    form the decision refuses;
    an `authenticated` record; a `default` that names no record; an unknown `--server` name; and no model.
 4. The request is exactly as above: the path, the method, the body fields and the headers; the prompt only in `content`; nothing of
-   the record but the destination and the `Host` header; the schema only as `format`; `num_ctx` always, as the window of the call; `think` only when it applies.
+   the record but the destination and the `Host` header; the schema only as `format`; `num_ctx` always, as the window of the call; `num_predict` and `think` only when they apply.
 5. A redirect is not followed and is `bad_exit`; a connection that is refused, reset or not made within its limit is
    `vendor_unreachable`, and a server that accepts and then never replies, or sends a byte at a time, ends at the timeout as
    `timeout`.
@@ -469,6 +487,23 @@ the request line, headers and body, shows each item. No item needs a real Ollama
     file's and the server's, each name once; a bad endpoint file is refused with nothing sent; more than 512 names is `reply_too_large`; a reply
     that is not an object with a list of objects with a string `name` is `unusable_reply`; a failure is the contract's failure object;
     the host and the port are in no output; and `check` prints one line for each model.
+17. The defaults of a section: a chat section that holds `effort` (each of the three words), `thinking` (true and false) and
+    `output_limit` (1 and 10,000,000) is read; an `effort` outside the three words, a `thinking` that is not a boolean (a word, a
+    string, a number, `null`), an `output_limit` that is not a whole number in range (0, 10,000,001, a float, a string, a boolean),
+    both `effort` and `thinking`, and any of the three in an embedding section are each refused with nothing sent and with no value
+    quoted; a call that passes no `--effort` and no `--thinking` sends `think` with the section's `effort` (a word) or `thinking` (a
+    boolean), and sends no `think` when the section holds neither; a call sends `options.num_predict` with the section's
+    `output_limit`, and none when the section holds none; a section with no default sends what it sent before; and `check` prints the
+    defaults on the model line in a fixed order (`effort` or `thinking`, then `output_limit`), whatever the order of the keys in the
+    file.
+18. The call arguments: `--effort` replaces a section's `effort` and a section's `thinking`, and is sent as the word; `--thinking on`
+    and `--thinking off` replace both and are sent as the booleans true and false; `--effort` with `--thinking` is refused, as is a
+    `--thinking` of any other word, a repeated option and one without a value; `--max-output` replaces `output_limit`, is sent as
+    `num_predict`, may equal the section's `output_limit` and is refused above it (one more than the limit), with the forms of
+    `--context` refused as it refuses them (a leading zero, a sign, a space, a non-ASCII digit, 9 digits); a section with no
+    `output_limit` takes a value up to 10,000,000 and refuses 10,000,001; a `--max-output` with a model that is not configured is refused for the model; `--effort` and `--thinking` given to a section that
+    holds no default are sent as given; each refusal is made with nothing sent; `--effort`, `--thinking` and `--max-output` are refused by `embed` and by `models` as unknown options; and a
+    reply stopped at the cap (`done_reason` `length`) is `reply_cut`.
 
 ## The run against a real server
 
@@ -511,8 +546,7 @@ reach it; the tests use a fake server and the statement stays unconfirmed).
 2. The request fields `model`, `messages`, `stream`, `options.num_ctx`, `format` and `think` have the meanings used above. **[confirmed]**
 3. `format` accepts a JSON Schema object, and the reply then is one JSON object. **[confirmed]**
 4. `think` accepts `low`, `medium` and `high` for a model that has levels, and a model without them rejects it with a status 400 whose
-   error says the model does not support thinking. A model with only on and off may need a boolean; if so, the mapping of
-   `--effort` for such a model is decided in the run. **[confirmed for `gpt-oss:20b` with `low`; the refusal text of a model without levels was shown only as `effort_unsupported`; the boolean case is not shown]**
+   error says the model does not support thinking. A model with only on and off takes a boolean instead: that case is the `thinking` field and `--thinking` (unconfirmed 17). **[confirmed for `gpt-oss:20b` with `low`; the refusal text of a model without levels was shown only as `effort_unsupported`; the boolean case is not shown]**
 5. A model that is not on the server gives a status 404 whose error says the model is not found. **[confirmed]**
 6. The server's default context window is small, a prompt longer than the window is cut without an error, and when `num_ctx` is set
    and the prompt is longer than it, `prompt_eval_count` reaches `num_ctx`. The reply also always carries `prompt_eval_count`. **[corrected: the server cut a prompt that did not fit without an error, but with `num_ctx` set it reported about half the window plus 2 as `prompt_eval_count`, not the window; the unset default was not read]**
@@ -536,6 +570,13 @@ reach it; the tests use a fake server and the statement stays unconfirmed).
 15. The size of a batch of embeddings, as printed, is close to the estimate in section "embed". **[not shown; no size was measured]**
 16. `GET /api/tags` returns one JSON object with a list `models` whose entries have a string `name`, and the names are those of the
     models the server holds, as `ollama list` prints them. **[not shown; increment G of the plan of 2026-11-02 shows it]**
+17. `think` takes a word (`low`, `medium` or `high`) for a model that has levels and a boolean for a model that only switches thinking
+    on and off; `options.num_predict` caps the output, and a reply stopped at it has `done_reason` `length`. What the server answers
+    to a boolean sent to a model with levels, and to a word sent to a model that only switches, is not known (nobody has tried it).
+    The knowledge-base module's session reported that `gemma4:12b` accepted `think: false` and that `gpt-oss:20b` accepted
+    `think: "low"` (a report from another session on a small sample, not repeated here), and the on-off case may not be testable on a
+    given server.
+    **[not shown; increment G shows what the owner's server allows, and a case that it does not allow stays unconfirmed]**
 
 ## Known limits
 
@@ -589,6 +630,10 @@ increment D and its review, and the one on embedding replies from increment E:
   (not `gemma4:12b`). It is a report from another session, a small sample that was not repeated here. At a window of 16,384 tokens
   the default refuses a prompt over 32,768 bytes, which can be about 10,000 tokens. The owner sets a higher figure in the section of
   a model whose prompts are known, and a prompt at a figure above the true bytes per token can still be cut.
+- **The defaults of a section are applied when the caller passes nothing.** A caller cannot see an effort or an output cap from its
+  own arguments; `check` prints them. An `effort` that a model rejects is `effort_unsupported` on every call to it until the file is
+  corrected. `output_limit` is both the default and the ceiling, so a caller that passes nothing gets the largest value, and the
+  owner sets the largest that any caller needs. The mapping to the server's `think` and `num_predict` is from memory (unconfirmed 17).
 - **The size rule refuses some prompts that fit and passes some that do not.** It is the estimate of a byte count; see "Context
   window". It is not applied to `embed`.
 - **The allowlist is not a boundary.** The agent can read the file and a shell can call the server directly; the allowlist limits what
@@ -621,6 +666,7 @@ increment D and its review, and the one on embedding replies from increment E:
 ## Governing decisions and references
 
 - Decisions:
+  [2026-11-02-model-section-defaults-and-the-embedding-name](../decisions/2026-11-02-model-section-defaults-and-the-embedding-name.md),
   [2026-11-02-model-configurations-in-endpoint-records](../decisions/2026-11-02-model-configurations-in-endpoint-records.md),
   [2026-11-01-endpoint-records-in-the-store](../decisions/2026-11-01-endpoint-records-in-the-store.md) (superseded in part by the one
   above),
