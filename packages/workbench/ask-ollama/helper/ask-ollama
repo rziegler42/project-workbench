@@ -4,15 +4,16 @@
 It is one file that imports the standard library and the workbench kit (``wbkit``); the launcher runs a
 private copy of it through the kit runner with nothing beside it.
 
-    ask-ollama ask [--model <name>] [--effort <level>] [--timeout <seconds>] [--root <path>]
+    ask-ollama ask [--model <name>] [--context <tokens>] [--effort <level>] [--timeout <seconds>] [--root <path>]
                    [--schema <path>] [--server <name>] [--confine]      the prompt is on standard input
     ask-ollama check                                                   read-only: the endpoint file, no connection
-    ask-ollama embed [--model <name>] [--server <name>] [--timeout <seconds>] [--confine]
+    ask-ollama embed [--model <name>] [--context <tokens>] [--server <name>] [--timeout <seconds>] [--confine]
                                               one JSON object ``{"texts": [...]}`` on standard input; vectors out
 
 The contract is ``docs/specs/model-bridge.md`` (version 2) and the behaviour is ``docs/specs/ask-ollama.md``. The
-server is a named record of ``endpoints.json`` in the guarded store (decision ``2026-11-01-endpoint-records-in-the-store``),
-never an address in an argument, an environment variable or a tracked file. The helper makes one request, to the host and
+server is a named record of ``endpoints.json`` in the guarded store (decisions ``2026-11-01-endpoint-records-in-the-store`` and
+``2026-11-02-model-configurations-in-endpoint-records``), never an address in an argument, an environment variable or a tracked
+file. A record holds a section for each model a call may use: only a configured model is used, and its section gives the window. The helper makes one request, to the host and
 port of that record and to no other, follows no redirect, verifies an ``https`` server, keeps no state, writes nothing and
 logs nothing. What the server returns is data: it is classified and copied, never run and never believed.
 """
@@ -43,8 +44,9 @@ MAX_SCHEMA = 65536
 MAX_OBJECT = 2000000
 MAX_REQUEST = 2100000
 MAX_BODY = 4194304
-MAX_ENDPOINT_FILE = 65536
+MAX_ENDPOINT_FILE = 262144
 MAX_RECORDS = 64
+MAX_MODELS = 64
 MAX_COUNT = 10 ** 12
 MAX_DEPTH = 32
 CONNECT_LIMIT = 10
@@ -56,21 +58,24 @@ MAX_TEXT = 32768
 MAX_DIMENSION = 8192
 MAX_EMBED_BODY = 16777216
 EFFORTS = ("low", "medium", "high")
-OPTIONS = ("--model", "--effort", "--timeout", "--root", "--schema", "--server")
-EMBED_OPTIONS = ("--model", "--timeout", "--server")
+OPTIONS = ("--model", "--context", "--effort", "--timeout", "--root", "--schema", "--server")
+EMBED_OPTIONS = ("--model", "--context", "--timeout", "--server")
 FLAGS = ("--confine",)  # an option with no value
 USER_AGENT = "ask-ollama/1"
 CHAT_PATH = "/api/chat"
 EMBED_PATH = "/api/embed"
 ENDPOINT_FILE = "endpoints.json"
 _SECONDS = r"[0-9]{1,4}"
+_CONTEXT = r"[1-9][0-9]{0,7}"
 _NAME = r"[a-z0-9][a-z0-9_-]{0,31}"
-_CONTRACT_MODEL = r"[A-Za-z0-9][A-Za-z0-9._:-]{0,63}"
 _SEGMENT = r"[A-Za-z0-9][A-Za-z0-9._:-]*"
 _LABEL = r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
 LOCATIONS = ("this-machine", "owner-network", "vendor-cloud")
-RECORD_KEYS = ("scheme", "host", "port", "location", "authenticated")
-OPTIONAL_KEYS = ("default_model", "embedding_model", "context")
+RECORD_KEYS = ("scheme", "host", "port", "location", "authenticated", "models")
+OPTIONAL_KEYS = ("default_model", "embedding_model")
+KINDS = ("chat", "embedding")
+SECTION_KEYS = ("kind", "context", "default_context", "bytes_per_token")
+MAX_WINDOW = 10000000
 
 MESSAGES = {
     "unreachable": "the server did not answer",
@@ -323,9 +328,44 @@ def validate_record(name, record):
     for key in ("default_model", "embedding_model"):
         if key in record and not valid_model(record[key]):
             raise _field(name, "%s is not an allowed model name" % key)
-    if "context" in record and (type(record["context"]) is not int or not 1 <= record["context"] <= 10000000):
-        raise _field(name, "context is not a whole number from 1 to 10000000")
+    validate_models(name, record["models"])
+    for key, kind in (("default_model", "chat"), ("embedding_model", "embedding")):
+        if key in record and record["models"].get(record[key], {}).get("kind") != kind:
+            raise _field(name, "%s is not a configured model of kind %s" % (key, kind))
     return record
+
+
+def whole(value, low, high):
+    return type(value) is int and low <= value <= high
+
+
+def validate_models(name, models):
+    """The ``models`` object of a record: 1 to `MAX_MODELS` model names, each with a section. A refusal names the rule and
+    never a model name or a value."""
+    if not isinstance(models, dict) or not 1 <= len(models) <= MAX_MODELS:
+        raise _field(name, "models is an object of 1 to %d models" % MAX_MODELS)
+    for model, section in models.items():
+        if not valid_model(model):
+            raise _field(name, "a model name in models is not allowed")
+        validate_section(name, section)
+
+
+def validate_section(name, section):
+    if not isinstance(section, dict):
+        raise _field(name, "a model section is not an object")
+    if set(section) - set(SECTION_KEYS):
+        raise _field(name, "a model section holds a field that is not allowed")
+    for key in ("kind", "context"):
+        if key not in section:
+            raise _field(name, "a model section is missing the field %s" % key)
+    if not isinstance(section["kind"], str) or section["kind"] not in KINDS:
+        raise _field(name, "a model section's kind is not chat or embedding")
+    if not whole(section["context"], 1, MAX_WINDOW):
+        raise _field(name, "a model section's context is not a whole number from 1 to %d" % MAX_WINDOW)
+    if "default_context" in section and not whole(section["default_context"], 1, section["context"]):
+        raise _field(name, "a model section's default_context is not a whole number from 1 to its context")
+    if "bytes_per_token" in section and not whole(section["bytes_per_token"], 1, 8):
+        raise _field(name, "a model section's bytes_per_token is not a whole number from 1 to 8")
 
 
 def validate_document(document):
@@ -333,8 +373,10 @@ def validate_document(document):
     unknown = set(document) - {"format", "endpoints", "default"}
     if unknown:
         raise Refused("the endpoint file holds a field that is not allowed")
-    if type(document.get("format")) is not int or document["format"] != 1:
-        raise Refused("the endpoint file: format is not 1")
+    if type(document.get("format")) is int and document["format"] == 1:
+        raise Refused("the endpoint file is in an older format and must be rewritten")
+    if type(document.get("format")) is not int or document["format"] != 2:
+        raise Refused("the endpoint file: format is not 2")
     endpoints = document.get("endpoints")
     if not isinstance(endpoints, dict):
         raise Refused("the endpoint file: endpoints is missing or is not an object")
@@ -397,6 +439,36 @@ def select_record(records, default, server):
     return records[name]
 
 
+def select_model(record, requested, kind):
+    """``(name, section)`` of the model a call uses: `requested` (the ``--model`` value), else the record's default of that
+    kind. The model must be a key of the record's ``models`` and of the kind the command needs; a refusal never quotes it."""
+    chat = kind == "chat"
+    name = requested if requested is not None else record.get("default_model" if chat else "embedding_model")
+    if name is None:
+        if chat:
+            raise Refused("no model is named; pass --model or set default_model in the record")
+        raise Refused("no embedding model is named; pass --model or set embedding_model in the record")
+    section = record["models"].get(name)
+    if section is None:
+        raise Refused("--model is not a model that this endpoint configures" if requested is not None
+                      else "the default model is not configured")
+    if section["kind"] != kind:
+        raise Refused("--model is configured for the other kind of call" if requested is not None
+                      else "the default model is configured for the other kind of call")
+    return name, section
+
+
+def call_window(options, section):
+    """The window of a call: ``--context``, else the section's ``default_context``, else its ``context``. A ``--context``
+    above the section's ``context`` is refused."""
+    if "--context" in options:
+        value = int(options["--context"])
+        if value > section["context"]:
+            raise Refused("--context is larger than the largest window configured for the model")
+        return value
+    return section.get("default_context", section["context"])
+
+
 # --------------------------------------------------------------------------------------- options and paths
 
 
@@ -419,9 +491,11 @@ def parse_options(args, options=OPTIONS, command="ask"):
             raise Refused("%s needs a value" % name)
         found[name] = args[position + 1]
         position += 2
-    if "--model" in found and not (re.fullmatch(_CONTRACT_MODEL, found["--model"]) and valid_model(found["--model"])):
-        raise Refused("--model is at most 64 characters of letters, digits and ._:-, starts with a letter or digit, "
-                      "and has no ..")
+    if "--model" in found and not valid_model(found["--model"]):
+        raise Refused("--model is at most 128 characters of letters, digits and ._:-, with / between segments, each "
+                      "starting with a letter or digit, and has no ..")
+    if "--context" in found and not re.fullmatch(_CONTEXT, found["--context"]):
+        raise Refused("--context is a whole number of 1 to 8 digits, with no sign and no leading zero")
     if "--effort" in found and found["--effort"] not in EFFORTS:
         raise Refused("--effort is one of %s" % ", ".join(EFFORTS))
     if "--timeout" in found:
@@ -641,13 +715,9 @@ def error_for(status, body):
     return failure("vendor_error", "bad_exit", MESSAGES["bad_exit"])
 
 
-def chat_body(model, prompt, record, options, schema):
-    body = {"model": model, "messages": [{"role": "user", "content": prompt}], "stream": False}
-    parameters = {}
-    if "context" in record:
-        parameters["num_ctx"] = record["context"]
-    if parameters:
-        body["options"] = parameters
+def chat_body(model, prompt, window, options, schema):
+    body = {"model": model, "messages": [{"role": "user", "content": prompt}], "stream": False,
+            "options": {"num_ctx": window}}
     if schema is not None:
         body["format"] = schema
     if "--effort" in options:
@@ -656,7 +726,7 @@ def chat_body(model, prompt, record, options, schema):
 
 
 def chat_outcome(status, body, model, schema, context=None):
-    """The object to print for a finished request. `context` is the record's window, if it has one. For a success status the
+    """The object to print for a finished request. `context` is the window of the call. For a success status the
     conditions are judged in the order of the spec: the body, ``done``, a prompt that filled the window, a reply cut at the
     server's limit, and only then the text (so a reasoning model that spent its limit is a cut and not an empty reply)."""
     if not 200 <= status <= 299:
@@ -710,17 +780,16 @@ def ask(args, stdin, cwd, out):
     timeout = int(options.get("--timeout", DEFAULT_TIMEOUT))
     records, default = read_endpoints()
     record = select_record(records, default, options.get("--server"))
-    model = options.get("--model", record.get("default_model"))
-    if model is None:
-        raise Refused("no model is named; pass --model or set default_model in the record")
-    payload = json.dumps(chat_body(model, prompt, record, options, schema)).encode("ascii")
+    model, section = select_model(record, options.get("--model"), "chat")
+    window = call_window(options, section)
+    payload = json.dumps(chat_body(model, prompt, window, options, schema)).encode("ascii")
     if len(payload) > MAX_REQUEST:
         raise Refused("the request is too large")
     try:
         status, body = exchange(record, CHAT_PATH, payload, timeout, MAX_BODY)
     except (Unreachable, TimedOut, TooLarge, Incomplete) as exc:
         return emit(out, transport_failure(exc))
-    return emit(out, chat_outcome(status, body, model, schema, record.get("context")))
+    return emit(out, chat_outcome(status, body, model, schema, window))
 
 
 # ------------------------------------------------------------------------------------------------ embed
@@ -792,12 +861,8 @@ def embed(args, stdin, out):
     timeout = int(options.get("--timeout", DEFAULT_TIMEOUT))
     records, default = read_endpoints()
     record = select_record(records, default, options.get("--server"))
-    model = options.get("--model", record.get("embedding_model"))
-    if model is None:
-        raise Refused("no embedding model is named; pass --model or set embedding_model in the record")
-    request = {"model": model, "input": texts, "truncate": False}
-    if "context" in record:
-        request["options"] = {"num_ctx": record["context"]}
+    model, section = select_model(record, options.get("--model"), "embedding")
+    request = {"model": model, "input": texts, "truncate": False, "options": {"num_ctx": call_window(options, section)}}
     payload = json.dumps(request).encode("ascii")
     if len(payload) > MAX_REQUEST:
         raise Refused("the request is too large")
@@ -835,10 +900,11 @@ def main(argv, stdin, out, err, cwd=None):
         if cwd is None:
             cwd = os.getcwd()  # inside the try: a working directory that is gone is a refusal and not a traceback
         if not argv or argv[0] not in ("ask", "check", "embed"):
-            raise Refused("usage: ask-ollama ask [--model <name>] [--effort <level>] [--timeout <seconds>] "
-                          "[--root <path>] [--schema <path>] [--server <name>] [--confine], with the prompt on standard "
-                          "input; ask-ollama check; or ask-ollama embed [--model <name>] [--timeout <seconds>] "
-                          "[--server <name>] [--confine], with the texts on standard input")
+            raise Refused("usage: ask-ollama ask [--model <name>] [--context <tokens>] [--effort <level>] "
+                          "[--timeout <seconds>] [--root <path>] [--schema <path>] [--server <name>] [--confine], with the "
+                          "prompt on standard input; ask-ollama check; or ask-ollama embed [--model <name>] "
+                          "[--context <tokens>] [--timeout <seconds>] [--server <name>] [--confine], with the texts on "
+                          "standard input")
         if argv[0] == "check":
             return check(argv[1:], out)
         if argv[0] == "embed":

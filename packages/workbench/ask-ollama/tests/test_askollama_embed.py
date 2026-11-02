@@ -82,12 +82,12 @@ class Request(Embed):
         self.assertEqual(("application/json", "application/json", "close", "ask-ollama/1", str(len(request["body"]))),
                          (headers["Content-Type"], headers["Accept"], headers["Connection"], headers["User-Agent"],
                           headers["Content-Length"]))
-        self.assertEqual({"model": "nomic-embed-text", "input": ["alpha", "beta"], "truncate": False},
-                         json.loads(request["body"]))
+        self.assertEqual({"model": "nomic-embed-text", "input": ["alpha", "beta"], "truncate": False,
+                          "options": {"num_ctx": 8192}}, json.loads(request["body"]))
 
-    def test_the_context_of_the_record_is_the_window_and_otherwise_none_is_sent(self):
+    def test_the_context_of_the_model_is_the_window_that_is_sent(self):
         self.assertTrue(self.result()["ok"])
-        self.assertNotIn("options", json.loads(self.fake.requests[-1]["body"]))
+        self.assertEqual({"num_ctx": 8192}, json.loads(self.fake.requests[-1]["body"])["options"])
         self.endpoints(ned=self.record(embedding_model="nomic-embed-text", context=2048))
         self.assertTrue(self.result()["ok"])
         self.assertEqual({"num_ctx": 2048}, json.loads(self.fake.requests[-1]["body"])["options"])

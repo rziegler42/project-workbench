@@ -408,3 +408,61 @@ with its reason, as the acceptance criterion allows. A security review was not a
 **Not done in B:** the module is not changed; increments C to J are not started.
 
 **Open for the owner:** the details the specs add beyond the decision, listed above.
+
+### Increment C
+
+**Done:** `packages/workbench/ask-ollama/helper/ask-ollama` reads the endpoint file of format 2: `format` 1 is refused as an older
+format and any other number as "not 2"; the file bound is 262,144 bytes; a record has no `context` and requires `models` (1 to 64
+sections of `kind`, `context`, optional `default_context` and optional `bytes_per_token`, each with its bounds); `default_model` and
+`embedding_model` must be configured and of their kind. `select_model` uses only a configured model of the kind the command needs
+(a refusal never quotes the name); `--model` is checked by the record's model rule (so a name with a `/` can be given when it is
+configured); `--context` (1 to 8 digits, no sign, no leading zero) is an option of `ask` and `embed`, refused above the section's
+`context`; the window of a call is `--context`, else `default_context`, else `context`, always sent as `num_ctx`, and the check of the
+server's count uses it. The shared test fixture `record()` builds format 2 (standard models are configured in every record that gives
+no `models`, so the allowlist tests use names outside that set); existing tests moved to format 2; a new file,
+`test_askollama_sections.py`, holds the format, allowlist and window tests (and a float where a whole number belongs is shown to be
+refused as not strict JSON).
+
+**Deviation from the plan:** because the record's shape changed, `embed` already takes its model from the configured embedding models
+and sends the window rules in this increment; increment D adds its own new tests for `embed` and the `check` model lines.
+
+**Verification as run** (Python 3.15.0, macOS): the module's tests in a scripted pass that copied the tests first: against the old
+helper 257 tests ran and 192 failed (191 failures and 1 error, as expected, since the fixtures are in format 2); against the new helper
+all 257 pass. The whole suite, `python3 -B -W error tests/run_all.py`: 6,582 tests in 14 roots, OK. `wb verify packages/workbench`
+prints no refusal; `wb check` and `wb run code-work check` report no problems. `wb preview release-approvals` after the release:
+14 records `recorded`, 2 stale (`ec712287…` and `f50d8904…`, the records of the earlier plan's increment G, replaced by the new tree).
+
+**Review:** one read by the read-only `reviewer`: no blocking finding. Applied (spec only): item 12 and the header of `ask-ollama.md`
+(a fraction such as 2.5 for `format` is not strict JSON and is refused as that; the header says what C built). Deferred to the pass
+of increment D, to avoid a release for each: (a) `validate_document` refuses unknown top-level fields before it reads `format`, so a
+format 1 file with an extra top-level key gets "field not allowed" and not "older format" (still refused, nothing sent; check
+`format` first); (b) the docstring and the name of one test in `test_askollama_window.py` still speak of the old record ("the window of
+the record", plan of 2026-11-01); (c) the endpoint file goes through the kit's `jsonstrict`, which has no guard for a run of more than
+4,300 digits, so such a number is refused only by Python's own limit (a caller who lifts the limit could make parsing slow; the file
+is the owner's and bounded); a test and a decision about a guard are open. Not applied: the digit-count case "123456789" of the
+`--context` test is also refused by the ceiling (the behaviour is the same either way), and the `Windows` and `Window` test classes
+overlap (harmless).
+
+**Security review** (asked by the owner; the `security-reviewer`, on a copy with a loopback fake server and a temporary home, the
+tree untouched): no Critical, High or Medium finding. About 90 hostile endpoint files (every field with odd types, bools and floats,
+huge integers and a 5,000-digit run, deep nesting, duplicate keys, 65 models, option-like and control-character names, wrong kinds)
+and about 20 hostile option values were each refused with a `refused:` line, no request reached the server, and no refusal quoted a
+file value, host, port or model name; no route was found from the file or the options to the destination, path, headers or method,
+or for an unconfigured or wrong-kind model to the server (`embed` included); the window arithmetic and the `--context` ceiling are
+exact; the largest valid file parses in about 10 ms; imports and calls are unchanged apart from the new functions, with no write,
+subprocess, `eval` or `exec`. Low findings: (1) a model name is matched as exact text, while a server may treat `m` and
+`m:latest` as one model, so an owner file that configures them with different kinds is accepted (an owner mistake, no attacker path):
+documented in "Known limits" of `ask-ollama.md`; a parse-time refusal is possible and is the owner's choice for increment D's pass;
+(2) `parse_options` echoes an unknown option name of the caller (cut to 60 characters and ASCII-filtered, unchanged by this
+increment); (3) `context` up to 10,000,000 becomes `num_ctx` and could cost the server memory (the owner's declaration, already a
+known limit). Limits of the evidence: the reviewer ran the helper in-process from a copy, not as a separate process, could not run
+`git` or the project's own tests, and did not retest the transport or TLS code, which this increment does not change.
+
+**Releases:** one of `wb release-approvals` by the owner in this increment (the first plain attempt was refused at level `ask`
+and the owner then ran it in a terminal).
+
+**Not done in C:** the size rule, the `models` argument and the model lines of `check` (increments E, F and D); the two stale shipped
+records and the new untracked ones stay out of the commit until increment I.
+
+**Open for the owner:** whether increment D's pass also refuses two model names of one record that are equal after lower-casing and
+dropping a trailing `:latest` (Low 1 of the security review; documented as a known limit otherwise).

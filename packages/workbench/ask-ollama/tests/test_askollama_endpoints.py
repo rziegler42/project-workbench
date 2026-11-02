@@ -58,7 +58,7 @@ class Broken(support_ollama.Bridge):
         os.symlink(other, self.path())
         words["link"] = self.refused(command="check", contains="is linked")
         os.remove(self.path())
-        self.write_endpoint_file(b" " * 65537)
+        self.write_endpoint_file(b" " * 262145)
         words["large"] = self.refused(command="check", contains="is too large")
         self.assertEqual(4, len(set(words.values())))
         for text in words.values():
@@ -71,30 +71,30 @@ class Broken(support_ollama.Bridge):
         self.broken("linked")
 
     def test_a_file_over_its_bound_is_refused(self):
-        self.write_endpoint_file(b" " * 65537)
+        self.write_endpoint_file(b" " * 262145)
         self.broken("too large")
 
     def test_a_file_at_its_bound_is_read(self):
-        document = json.dumps({"format": 1, "endpoints": {"ned": self.record()}}).encode()
-        self.write_endpoint_file(document + b" " * (65536 - len(document)))
+        document = json.dumps({"format": 2, "endpoints": {"ned": self.record()}}).encode()
+        self.write_endpoint_file(document + b" " * (262144 - len(document)))
         self.assertEqual(0, self.ask(command="check")[0])
 
     def test_a_file_that_is_not_strict_json_is_refused(self):
-        good = {"format": 1, "endpoints": {"ned": self.record(port=11434)}}
-        for data in (b"", b"not json", b"[]", b"[1]", b'{"format": 1', b"\xff\xfe",
-                     b'{"format": 1, "format": 1, "endpoints": {}}',
+        good = {"format": 2, "endpoints": {"ned": self.record(port=11434)}}
+        for data in (b"", b"not json", b"[]", b"[1]", b'{"format": 2', b"\xff\xfe",
+                     b'{"format": 2, "format": 1, "endpoints": {}}',
                      b'{"format": NaN, "endpoints": {}}',
                      json.dumps(good).replace("11434", "11434.0").encode(),
                      json.dumps(good).replace("11434", "1.1e4").encode(),
-                     b'{"format": 1, "endpoints": {"a": {"a": ' + b"[" * 200 + b"]" * 200 + b"}}}"):
+                     b'{"format": 2, "endpoints": {"a": {"a": ' + b"[" * 200 + b"]" * 200 + b"}}}"):
             self.write_endpoint_file(data)
             self.broken("strict JSON")
 
     def test_a_wrong_format_or_an_unknown_or_missing_top_field_is_refused(self):
-        for document in ({"format": 2, "endpoints": {}}, {"format": True, "endpoints": {}},
-                         {"format": "1", "endpoints": {}}, {"endpoints": {}}, {"format": 1},
-                         {"format": 1, "endpoints": []}, {"format": 1, "endpoints": {}, "extra": 1},
-                         {"format": 1, "endpoints": {}, "default": 1}):
+        for document in ({"format": 3, "endpoints": {}}, {"format": True, "endpoints": {}},
+                         {"format": "2", "endpoints": {}}, {"endpoints": {}}, {"format": 2},
+                         {"format": 2, "endpoints": []}, {"format": 2, "endpoints": {}, "extra": 1},
+                         {"format": 2, "endpoints": {}, "default": 1}):
             self.write_endpoint_file(json.dumps(document).encode())
             self.broken()
 
@@ -122,7 +122,7 @@ class Broken(support_ollama.Bridge):
             self.broken()
 
     def test_a_record_with_a_required_field_missing_is_refused(self):
-        for key in ("scheme", "host", "port", "location", "authenticated"):
+        for key in ("scheme", "host", "port", "location", "authenticated", "models"):
             record = self.record()
             del record[key]
             self.endpoints(ned=record)
@@ -166,20 +166,20 @@ class Broken(support_ollama.Bridge):
 
     def test_a_model_field_at_its_limits_is_read(self):
         for name in ("a", "llama3:8b", "nomic-embed-text:latest", "user/model:tag", "hf.co/org/model", "x" * 128, "a/b/c"):
-            self.endpoints(ned=dict(self.record(), default_model=name, embedding_model=name))
+            self.endpoints(ned=self.record(models={name: {"kind": "chat", "context": 4096}}, default_model=name))
+            self.assertEqual(0, self.ask(command="check")[0], name)
+            self.endpoints(ned=self.record(models={name: {"kind": "embedding", "context": 4096}}, default_model=None,
+                                           embedding_model=name))
             self.assertEqual(0, self.ask(command="check")[0], name)
 
-    def test_a_context_outside_its_form_is_refused(self):
-        for context in (0, -1, 10000001, "4096", True, None, [4096], 10 ** 30):
+    def test_the_context_of_format_1_is_no_longer_a_field_of_the_record(self):
+        for context in (0, 4096, 10000000):
             self.endpoints(ned=dict(self.record(), context=context))
-            self.broken("context")
-        for context in (1, 4096, 10000000):
-            self.endpoints(ned=dict(self.record(), context=context))
-            self.assertEqual(0, self.ask(command="check")[0], context)
+            self.broken("not allowed")
 
     def test_a_default_that_names_no_record_is_refused(self):
         for default in ("alt", "", "Ned", 1, None, ["ned"]):
-            self.write_endpoint_file(json.dumps({"format": 1, "endpoints": {"ned": self.record()},
+            self.write_endpoint_file(json.dumps({"format": 2, "endpoints": {"ned": self.record()},
                                                  "default": default}).encode())
             self.broken("default")
 

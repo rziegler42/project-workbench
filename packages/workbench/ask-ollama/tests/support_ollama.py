@@ -23,6 +23,8 @@ import unittest.mock
 from tests import support_helpers
 
 CERTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "certs")
+STANDARD_CHAT = ("llama3:8b", "other:1b", "gpt-oss:20b", "gpt-5")
+STANDARD_EMBED = ("nomic-embed-text", "mxbai-embed-large")
 
 
 def chat(content="the reply", **fields):
@@ -190,15 +192,34 @@ class Bridge(unittest.TestCase):
         self.addCleanup(self.fake.close)
         self.endpoints()
 
-    def record(self, **fields):
+    def record(self, models=None, chat=(), embed=(), context=8192, default_context=None, bytes_per_token=None, **fields):
+        """A record of format 2. Without `models`, it configures the standard models (STANDARD_CHAT and STANDARD_EMBED), the
+        names in `chat` and `embed`, and the record's own `default_model` and `embedding_model`, each with the window `context`
+        (and `default_context` and `bytes_per_token` when they are given)."""
         record = {"scheme": "http", "host": "127.0.0.1", "port": self.fake.port, "location": "this-machine",
                   "authenticated": False, "default_model": "llama3:8b"}
         record.update(fields)
+        if models is None:
+            kinds = {name: "chat" for name in STANDARD_CHAT + tuple(chat)}
+            kinds.update({name: "embedding" for name in STANDARD_EMBED + tuple(embed)})
+            for key, kind in (("default_model", "chat"), ("embedding_model", "embedding")):
+                name = record.get(key)
+                if isinstance(name, str) and name not in kinds:
+                    kinds[name] = kind
+            models = {}
+            for name, kind in kinds.items():
+                section = {"kind": kind, "context": context}
+                if default_context is not None:
+                    section["default_context"] = default_context
+                if bytes_per_token is not None:
+                    section["bytes_per_token"] = bytes_per_token
+                models[name] = section
+        record["models"] = models
         return {key: value for key, value in record.items() if value is not None}
 
     def endpoints(self, default="ned", **records):
         """Write the endpoint file: a record `ned` (as ``record()`` makes it) unless `records` gives others."""
-        document = {"format": 1, "endpoints": records or {"ned": self.record()}}
+        document = {"format": 2, "endpoints": records or {"ned": self.record()}}
         if default is not None:
             document["default"] = default
         self.write_endpoint_file(json.dumps(document).encode())

@@ -28,11 +28,11 @@ class Request(support_ollama.Bridge):
         self.assertEqual("close", headers["Connection"])
         self.assertEqual("ask-ollama/1", headers["User-Agent"])
         self.assertEqual({"model": "gpt-5", "messages": [{"role": "user", "content": "Review docs/plan.md\n"}],
-                          "stream": False}, json.loads(request["body"]))
+                          "stream": False, "options": {"num_ctx": 8192}}, json.loads(request["body"]))
 
-    def test_the_context_of_the_record_is_the_window_and_otherwise_none_is_sent(self):
+    def test_the_context_of_the_model_is_the_window_that_is_sent(self):
         self.assertTrue(self.document()["ok"])
-        self.assertNotIn("options", json.loads(self.fake.requests[-1]["body"]))
+        self.assertEqual({"num_ctx": 8192}, json.loads(self.fake.requests[-1]["body"])["options"])
         self.endpoints(ned=self.record(context=4096))
         self.assertTrue(self.document()["ok"])
         self.assertEqual({"num_ctx": 4096}, json.loads(self.fake.requests[-1]["body"])["options"])

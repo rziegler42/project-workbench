@@ -10,7 +10,8 @@ showed. The spec stays `Draft` until the owner approves it.
 Plan `2026-11-02-bridge-model-configurations` (increment B) amended this text before the module changes, as the first plan did: the
 endpoint file of format 2 (a section for each model), the allowlist, the window rules, `--context`, the size rule and the argument
 `models` are specified here under the accepted decision `2026-11-02-model-configurations-in-endpoint-records`, and are built by
-increments C to F of that plan. Until each is built the module reads format 1 and does what the text before this amendment says;
+increments C to F of that plan. Increment C built the reader of format 2, the allowlist, the window rules and `--context` (for `ask` and `embed`); until the rest is
+built (the size rule, `models` and the model lines of `check`) the module does what the text before this amendment says for them;
 the file is named `endpoints.json` until increment H renames it `bridge-endpoints.json`.
 
 Terms are in `terms.md`. The contract it satisfies is `model-bridge.md` (version 2), whose sections on a bridge to a server this
@@ -430,7 +431,7 @@ the request line, headers and body, shows each item. No item needs a real Ollama
 10. `embed`: the input rules, the request, the output shape, the checks on the reply and the size bound as above.
 11. The project and the store are byte for byte the same after every call.
 12. The file of format 2: a file of format 1 is refused with nothing sent and with a line that says the file is older, and a file of
-    any other `format` (0, 3, 2.5, a string) with a line that says the format is not 2; a record that still holds `context` is refused; a record with no `models`, with an empty `models`, with more than 64
+    any other `format` (0, 3, a string, a boolean; a fraction such as 2.5 is not strict JSON and is refused as that) with a line that says the format is not 2; a record that still holds `context` is refused; a record with no `models`, with an empty `models`, with more than 64
     sections or with a bad model name is refused; a section with no `kind` or no `context`, a `kind` that is neither `chat` nor
     `embedding`, a `context` or `default_context` that is not a whole number in range, a `default_context` above `context`, a
     `bytes_per_token` outside 1 to 8 and a field not listed are each refused; a `default_model` that is not a key or is not of kind
@@ -564,6 +565,11 @@ increment D and its review, and the one on embedding replies from increment E:
 - **The owner's `context` can be wrong.** It is the owner's declaration of the model's limit and is not read from the server. A value
   above what the server gives is sent as `num_ctx` and the server may clamp it or refuse it; a value that is too high costs the
   server memory (not measured). `default_context` is the way to send less than the declared limit.
+- **Names are matched as exact text, and the server may not.** The allowlist compares a model name with the file's keys exactly. A
+  server may treat `m`, `m:latest` and possibly a name of another case as one model (not verified). A file that configures such
+  names with different kinds is the owner's mistake, and the bridge does not catch it; the call goes to the server under the name
+  that was configured. A parse-time refusal of two names in one record that are equal after lower-casing and dropping a trailing
+  `:latest` is possible and is not built (found by the security review of increment C of the plan of 2026-11-02).
 - **The size rule refuses some prompts that fit and passes some that do not.** It is the estimate of a byte count; see "Context
   window". It is not applied to `embed`.
 - **The allowlist is not a boundary.** The agent can read the file and a shell can call the server directly; the allowlist limits what

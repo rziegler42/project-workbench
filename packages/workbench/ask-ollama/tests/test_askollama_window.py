@@ -58,11 +58,12 @@ class Window(support_ollama.Bridge):
         self.fake.reply(chat("an answer", prompt_eval_count=0))
         self.assertTrue(self.document()["ok"])
 
-    def test_with_no_window_in_the_record_there_is_no_overflow_check(self):
-        self.fake.reply(chat("the answer", prompt_eval_count=10 ** 9))
-        document = self.document()
-        self.assertEqual(("the answer", 10 ** 9), (document["reply"], document["usage"]["input_tokens"]))
-        self.assertNotIn("options", json.loads(self.fake.requests[-1]["body"]))
+    def test_every_call_has_a_window_that_is_sent_and_checked_against(self):
+        self.assertTrue(self.document()["ok"])
+        self.assertEqual({"num_ctx": 8192}, json.loads(self.fake.requests[-1]["body"])["options"])
+        body = chat("the answer", prompt_eval_count=10 ** 9)
+        self.fake.reply(body)
+        self.overflow(body)
 
     def test_when_the_reply_has_no_usable_count_the_check_cannot_run_and_does_not(self):
         self.endpoints(ned=self.record(context=100))

@@ -25,12 +25,14 @@ class Options(support_ollama.Bridge):
         self.refused("--server=ned", contains="not an option")
         self.refused("--", "--confine", contains="not an option")
 
-    def test_a_model_outside_the_contract_rule_or_the_record_rule_is_refused(self):
-        for bad in ("", "a b", "a;b", "$(x)", "a/b", "-x", "--effort", "m\n", "x" * 65, "é", "a=b", "a..b", "a...b"):
+    def test_a_model_outside_the_record_rule_or_not_configured_is_refused(self):
+        for bad in ("", "a b", "a;b", "$(x)", "a/b", "-x", "--effort", "m\n", "x" * 129, "é", "a=b", "a..b", "a...b"):
             self.refused("--model", bad, contains="--model")
 
-    def test_a_model_at_the_limits_is_accepted_and_sent_as_given(self):
-        for good in ("gpt-5", "a", "o3.mini:high_1", "x" * 64, "llama3:8b", "0"):
+    def test_a_configured_model_at_the_limits_is_accepted_and_sent_as_given(self):
+        names = ("gpt-5", "a", "o3.mini:high_1", "x" * 64, "x" * 128, "llama3:8b", "0", "org/model:tag")
+        self.endpoints(ned=self.record(chat=names))
+        for good in names:
             self.assertTrue(self.document("--model", good)["ok"], good)
             self.assertEqual(good, json.loads(self.fake.requests[-1]["body"])["model"])
 

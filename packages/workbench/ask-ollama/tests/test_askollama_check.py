@@ -41,7 +41,7 @@ class Check(support_ollama.Bridge):
 
     def test_a_file_with_no_record_prints_one_line_and_succeeds(self):
         self.endpoints(default=None)
-        self.write_endpoint_file(b'{"format": 1, "endpoints": {}}')
+        self.write_endpoint_file(b'{"format": 2, "endpoints": {}}')
         code, lines, err = self.check()
         self.assertEqual((0, ["no endpoints"], ""), (code, lines, err))
 
