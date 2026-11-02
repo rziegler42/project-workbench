@@ -369,9 +369,42 @@ edit after approval needs the owner's new approval. A security review was not as
 **Acceptance:** the owner asked for it and `wb run groundwork accept` ran with the previewed digest (`b68fef57…`, level `ask`); the
 record now carries the owner's acceptance in its status line and its recorded sha256 is `c557be5e…`.
 
-**Not done:** increments B to J are not started. The decisions README has no index list to update.
+**Not done in A:** increments B to J were not started. The decisions README has no index list to update.
 
 **Open for the owner:** whether the earlier record, which this one
 supersedes in part, stays `Accepted` (recommended, because it still governs the items that stand) or gets a `Superseded by` line;
 the default of 2 bytes per token; the file bound; and whether to add a case for the range between half the window and the whole
 window to increment G.
+
+### Increment B
+
+**Done:** `docs/specs/ask-ollama.md` and `docs/specs/model-bridge.md` state what the accepted decision sets, as the module will be
+built by increments C to F (the header of `ask-ollama.md` says that until each is built the module reads format 1). In
+`ask-ollama.md`: the endpoint file of format 2 with every field and bound of a record and of a model section, the refusal of format 1
+(and of any other `format`), a worked example with a documentation-range placeholder host, the allowlist and kinds; `--model` as a
+configured key and the new option `--context` (1 to 8 ASCII digits, no sign, no leading zero); the window of a call and the request's
+`num_ctx` always sent; the size rule (default 2 bytes per token) with its row in the table of errors; `check` printing a line for each
+model; the new argument `models` (`GET /api/tags`, three lists and a `skipped` count); the `embed` options and request; checklist items
+3 and 4 changed and items 12 to 16 added; the readings of the run that the decision cited (the model's limit of 16384, the loaded
+windows, the text of the 501); unconfirmed 16 (the list route) and the tags moved to the end of their items; and Known limits (the
+cut that can still pass, the owner's declared `context`, the estimate, the allowlist as no boundary). In `model-bridge.md`: the
+`--model` row, the endpoint-record paragraph of guarantee 7, and checklist items 3 and 19. `docs/specs/module-contract.md` was not
+touched: it does not describe `ask_reads`.
+
+**Verification as run** (Python 3.15.0, macOS): `wb check` and `wb run code-work check` report no problems; the whole suite,
+`python3 -B -W error tests/run_all.py`: 6,548 tests in 14 roots, OK. A scan of both specs finds one dotted address, `192.0.2.10`
+(the placeholder of the example), and no home path.
+
+**Review:** one read by the read-only `reviewer`: no blocking finding. Applied: the older-format wording is for format 1 only and any
+other `format` has its own line; the `embed` synopsis names `--context`; `models` states its options, that it reads no standard input,
+that it needs no model and that names are compared as exact text, and its checklist item tests `--server`, `--timeout`, `skipped`, the
+order of the lists and a bad file; checklist item 12 adds a section that is not an object, a `models` of the wrong type and 64
+against 65 sections; `--context` has an exact syntax; "Known limits" no longer speaks of `context` in a record; and the `--model` row
+of `model-bridge.md` says a configured name must fit the record's model rule. Noted, not changed: the specs add details that the decision
+does not state (the `skipped` key and the 512-name cap, the path and headers of `models`, the `window=` and `bytes_per_token=` fields of
+`check`, and the size rule running after the schema is read); the unconfirmed list still carries items the run did not reach, each
+with its reason, as the acceptance criterion allows. A security review was not asked for: documents only.
+
+**Not done in B:** the module is not changed; increments C to J are not started.
+
+**Open for the owner:** the details the specs add beyond the decision, listed above.

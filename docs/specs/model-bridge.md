@@ -70,7 +70,7 @@ because the launcher passes the caller's standard input through to the helper it
 
 | option | meaning | default |
 |---|---|---|
-| `--model <name>` | the vendor's model name, at most 64 characters of `A-Za-z0-9._:-`, starting with a letter or digit (so it can never read as an option) | the vendor's default; a server has none, so a bridge to a server uses the endpoint record's default model and refuses a call that names none, which means that leaving `--model` out is not interchangeable between the two kinds of bridge |
+| `--model <name>` | the vendor's model name, at most 64 characters of `A-Za-z0-9._:-`, starting with a letter or digit (so it can never read as an option) | the vendor's default; a server has none, so a bridge to a server uses the endpoint record's default model and refuses a call that names none, which means that leaving `--model` out is not interchangeable between the two kinds of bridge. A bridge to a server checks the value against the models the record configures, in place of this character set (decision `2026-11-02-model-configurations-in-endpoint-records`, item 4): a configured name is accepted if it fits the record's model rule (which allows a `/`), and any other value is refused |
 | `--effort <level>` | one of `low`, `medium`, `high` | the vendor's default |
 | `--timeout <seconds>` | a whole number from 1 to 3600 for the whole call (the range and default are this spec's choice) | 600 |
 | `--root <path>` | the directory the vendor program starts in (it does not limit what the program reads) | the project root |
@@ -352,8 +352,11 @@ network rules and the treatment of the reply as data. Its own rules for the conn
      `2026-11-01-endpoint-records-in-the-store`, and the bridge's behaviour is in `ask-ollama.md`. A record
      holds, and is refused if it does not: a name of the safe character set; a scheme of `http` or `https` and no other; a host and
      a port, with no user name, password or token in the address; whether the endpoint is authenticated; a location class the owner
-     declares (this machine, the owner's network or a vendor's cloud); and a credential, where there is one, held in the store and
-     never in an argument, an address, the object or a message. The transport follows the scheme: `https` means TLS with the
+     declares (this machine, the owner's network or a vendor's cloud); a section for each model that a call may use, with its kind
+     and the largest window the owner declares for it (a bridge uses only a configured model, and a call may ask for a smaller
+     window and is refused when it asks for a larger one: the decision `2026-11-02-model-configurations-in-endpoint-records`; the
+     option for a window belongs to the bridge and not to this contract's common core); and a credential, where there is one, held in
+     the store and never in an argument, an address, the object or a message. The transport follows the scheme: `https` means TLS with the
      server's certificate validated and `http` means none, so there is no separate TLS field that could disagree with it. An
      authenticated endpoint must use `https`, except where the host is a literal loopback address, where `http` is allowed. A bridge
      may decline an authenticated record until a credential has a decision: it then refuses the record before anything is sent, and
@@ -391,7 +394,8 @@ and the store. The checklist of a bridge to a server is completed by its own spe
    before the agent reads it (`module-contract.md`); `ask-codex` declares `["~/.codex/auth.json"]` (since 2026-10-29,
    plan `2026-10-29-policy-and-module-asks`). The installer names no vendor: the module does.
 2. A missing, empty, non-UTF-8 or oversize prompt is refused and nothing runs.
-3. An unknown option, a repeated option, a missing value, a `--model` outside its charset or length, an
+3. An unknown option, a repeated option, a missing value, a `--model` outside its charset or length (for a bridge to a server, a
+   `--model` that is not a model its record configures), an
    `--effort` outside the three levels, a `--timeout` out of range, a `--server` outside its grammar and a value after
    `--confine` are each refused and nothing runs.
 4. The vendor program is started with the read-only flags, a fresh unsaved session and no user configuration,
@@ -437,7 +441,10 @@ and the store. The checklist of a bridge to a server is completed by its own spe
     port is absent from the object, the message, any diagnostic and the arguments of the bridge's own process; a record that says it
     is authenticated is refused when the bridge supports no credential, and an authenticated record over `http` away from a literal
     loopback address is refused when it does; an `https` server whose certificate is not trusted, has expired or is for another host
-    is refused as `vendor_unreachable`, and a trusted matching one is accepted; and the timeout ends a server that does not answer.
+    is refused as `vendor_unreachable`, and a trusted matching one is accepted; the timeout ends a server that does not answer; and,
+    where the record configures models, a model that the record does not configure or configures for the other kind is refused with
+    nothing sent, a window above the model's declared largest is refused with nothing sent, and a prompt larger than the size rule
+    allows is not sent (decision `2026-11-02-model-configurations-in-endpoint-records`).
     (`ask-ollama` shows them against a fake server in its tests, apart from an authenticated record over `http` away from loopback,
     which it refuses outright because it supports no credential; `ask-ollama.md` lists them for its module.)
 

@@ -7,17 +7,25 @@ ran the bridge once against a real server (2026-11-02; section "The run against 
 Every statement about the Ollama server's own interface is listed under "Unconfirmed statements" and tagged with what that run
 showed. The spec stays `Draft` until the owner approves it.
 
+Plan `2026-11-02-bridge-model-configurations` (increment B) amended this text before the module changes, as the first plan did: the
+endpoint file of format 2 (a section for each model), the allowlist, the window rules, `--context`, the size rule and the argument
+`models` are specified here under the accepted decision `2026-11-02-model-configurations-in-endpoint-records`, and are built by
+increments C to F of that plan. Until each is built the module reads format 1 and does what the text before this amendment says;
+the file is named `endpoints.json` until increment H renames it `bridge-endpoints.json`.
+
 Terms are in `terms.md`. The contract it satisfies is `model-bridge.md` (version 2), whose sections on a bridge to a server this
-spec fills in. The endpoint file is set by the accepted decision `2026-11-01-endpoint-records-in-the-store`; the contract by
-`2026-11-01-bridge-contract-version-2`.
+spec fills in. The endpoint file is set by the accepted decision `2026-11-01-endpoint-records-in-the-store` as amended by
+`2026-11-02-model-configurations-in-endpoint-records`; the contract by `2026-11-01-bridge-contract-version-2`.
 
 ## Scope
 
-The first-party module `ask-ollama`: a model bridge to an Ollama server. It has one command, `ask-ollama`, with three arguments:
+The first-party module `ask-ollama`: a model bridge to an Ollama server. It has one command, `ask-ollama`, with four arguments:
 
 - `ask` answers one prompt with one contract version 2 object, as `ask-codex` does.
 - `check` is a read-only diagnostic of the endpoint file.
 - `embed` takes a batch of texts and returns vectors, under the capability `text-embedding` (built by increment E of the plan).
+- `models` is a read-only diagnostic of the server: which configured models it has and which of its models are not configured
+  (increment F of the plan of 2026-11-02).
 
 The verifier refuses two commands that name one helper, so the embedding is an argument of the one command and not a second command.
 (An earlier draft of this spec had a second command, `embed-ollama`.)
@@ -30,11 +38,13 @@ conformance checklist.
 
 - Authenticated endpoints and any credential. A record that says `authenticated: true` is refused (decision, item 3).
 - A command that writes the endpoint file. The owner writes it by hand.
-- Installing, pulling, listing or starting a model, and choosing a model, retrying or falling back to another bridge.
+- Installing, pulling or starting a model, and choosing a model, retrying or falling back to another bridge. (`models` only reads.)
 - Routing between machines, quotas, a registry and the library's doctor. They belong to the knowledge base.
 - Sending a document to the server so that the review engine can use it. This bridge reads no project file but the schema file.
 - Streaming, the server's tools or function calling, images, and any request that is not a prompt or an embedding.
-- Verifying where a host is. The location class is the owner's word.
+- Verifying where a host is. The location class is the owner's word. The window that a model section declares is the owner's word too:
+  the bridge does not read it from the server.
+- An exact count of the tokens of a prompt. The size rule is an estimate.
 
 ## Assumptions and constraints
 
@@ -58,8 +68,8 @@ conformance checklist.
 | provides | `model-bridge` and `text-embedding` |
 | requires, fills, writes | nothing |
 | ships | one helper, `helper/ask-ollama` |
-| commands | `ask-ollama` (`helper` `helper/ask-ollama`, `runtime` `python`, `kit` 1, `arguments` `["ask", "check", "embed"]`) |
-| `ask_reads` | `~/.config/project-workbench/endpoints.json`, so that a harness which provides `permissions` asks before the agent reads it |
+| commands | `ask-ollama` (`helper` `helper/ask-ollama`, `runtime` `python`, `kit` 1, `arguments` `["ask", "check", "embed", "models"]`) |
+| `ask_reads` | `~/.config/project-workbench/endpoints.json` (`bridge-endpoints.json` after increment H), so that a harness which provides `permissions` asks before the agent reads it |
 
 The capability name `text-embedding` is this spec's proposal. Like `model-bridge`, it is the owner's to confirm. It has no prefix, so
 only the first-party package may provide it: the verifier accepts the module's declaration from the first-party package and refuses
@@ -69,17 +79,68 @@ and the run of increment F called the command as `wb run ask-ollama embed`, so t
 
 ### The endpoint file
 
-The module reads `~/.config/project-workbench/endpoints.json` as the accepted decision sets it: its place, its format (`format` 1,
-`endpoints`, `default`), its bounds, the fields of a record, the grammar of `host`, the meaning of loopback and the refusal of the
-whole file for any bad record. This spec does not restate the grammar; the decision is its source. What the bridge adds:
+The module reads the owner's file in the guarded store as two accepted decisions set it: `2026-11-01-endpoint-records-in-the-store`
+(the place, strict JSON, the grammar of `host`, the meaning of loopback, the refusal of the whole file for one bad record) and
+`2026-11-02-model-configurations-in-endpoint-records` (format 2, the `models` object, the allowlist). The file is
+`~/.config/project-workbench/endpoints.json`, and `bridge-endpoints.json` from increment H of the plan of 2026-11-02. This spec does
+not restate the host grammar; the first decision is its source. What the file holds, in format 2:
+
+- **The file.** Strict JSON, one object, at most 262,144 bytes, with exactly `format` (the integer 2), `endpoints` (an object of at
+  most 64 records named as before) and optionally `default` (the name of a record). A file with `format` 1 is
+  refused with a line that says the file is in an older format and must be rewritten; a file with any other `format` is refused with
+  a line that says the format is not 2. Nothing is read from either and there is no fallback.
+- **A record** holds `scheme`, `host`, `port`, `location` and `authenticated` (false only) as before, optionally `default_model` and
+  `embedding_model`, and the required `models`. It holds no `context`: the field moved into the model sections, and a record that
+  still has it is refused as a field that is not allowed.
+- **`models`** is an object of 1 to 64 entries from a model name to a section. A name follows the rule for the record's model fields
+  (1 to 128 characters of letters, digits and `._:-`, with `/` between segments; each segment starts with a letter or a digit; no
+  `//`, no `..`, no leading or trailing `/`). A section holds exactly: `kind` (`chat` or `embedding`, required); `context` (required,
+  a whole number from 1 to 10,000,000: the largest window, in tokens, that the owner declares the model accepts); `default_context`
+  (optional, a whole number from 1 to `context`); and `bytes_per_token` (optional, a whole number from 1 to 8, default 2). A float, a
+  boolean or a string where a whole number belongs, a field not listed and a missing `kind` or `context` are each refused.
+- **`default_model` and `embedding_model`**, when present, name a key of `models`: the first one of `kind` `chat`, the second one of
+  `kind` `embedding`. A name that is not a key, or is a key of the other kind, makes the file invalid.
+
+A worked example, with a placeholder host from the documentation range (a real file holds the owner's own host):
+
+```json
+{
+  "format": 2,
+  "default": "lab",
+  "endpoints": {
+    "lab": {
+      "scheme": "http",
+      "host": "192.0.2.10",
+      "port": 11434,
+      "location": "owner-network",
+      "authenticated": false,
+      "default_model": "chat-a:latest",
+      "embedding_model": "embed-a:latest",
+      "models": {
+        "chat-a:latest": {"kind": "chat", "context": 16384, "default_context": 8192},
+        "chat-b:7b": {"kind": "chat", "context": 32768, "bytes_per_token": 1},
+        "embed-a:latest": {"kind": "embedding", "context": 8192}
+      }
+    }
+  }
+}
+```
+
+What the bridge adds:
 
 - **Reading.** By the fixed path under the home directory, through the kit's no-follow layer, on every call. `HOME` is honoured, as
   the operating system does, and nothing else moves the path.
-- **Refusals.** A missing, unreadable, linked, non-regular or oversize file, a file that is not strict JSON of the format, a record
-  outside the rules, a `default` that names no record, and a record with `authenticated: true` are each refused before a
-  connection is made, with one `refused:` line on standard error, nothing on standard output and exit 1. The line names the rule
-  and the field and never quotes the value, the host or the port.
+- **Refusals.** A missing, unreadable, linked, non-regular or oversize file, a file that is not strict JSON of the format, a file of
+  an older format, a record or a model section outside the rules, a `default` that names no record, a `default_model` or
+  `embedding_model` that is not a key of its kind, and a record with `authenticated: true` are each refused before a connection
+  is made, with one `refused:` line on standard error, nothing on standard output and exit 1. The line names the rule and the field
+  and never quotes the value, the host or the port.
 - **Which record.** `--server <name>`, else `default`, else a refusal; a name that no record carries is a refusal.
+- **Which model, and the allowlist.** A call uses a model only if it is a key of the selected record's `models`, compared as exact
+  text, and only if its `kind` is the one the command needs (`ask`: `chat`; `embed`: `embedding`). A model that is not a key, or is a
+  key of the other kind, is refused before anything is sent, with a line that names the rule and does not quote the name. Without
+  `--model` the call uses `default_model` (`ask`) or `embedding_model` (`embed`), and with neither it is refused. The allowlist limits
+  what the bridge sends; it does not limit the server, which anything that reaches its address can ask for any model.
 - **What the bridge never does with a record.** It never prints, logs or passes on the host or the port: not in an object, a
   message, a refusal, a diagnostic or the arguments of its own process. The server necessarily sees the destination of the
   connection and the `Host` header, and both come only from the selected record.
@@ -91,7 +152,8 @@ value as the next argument except `--confine`, and a refusal of anything else be
 
 | option | what this bridge does |
 |---|---|
-| `--model <name>` | Validated by the contract's rule and also by the rule for the record's model fields (decision, item 3), so a value such as `a..b`, which the contract allows and the record rule refuses, is refused for this bridge. Sent as the request's `model`. When absent, the record's `default_model` is used. When neither names a model the call is refused ("no model is named; pass --model or set default_model in the record"), because a server has no default. |
+| `--model <name>` | The model to use, which must be a key of the selected record's `models` of `kind` `chat` (the allowlist above). A bridge to a server checks the value against the configured names in place of the contract's character set: a value that fits the record's model rule and is configured is accepted, so a name with a `/` can be given; any other value is refused before anything is sent, which is how the contract's rule for an unknown `--model` is met for this bridge. Sent as the request's `model`. When absent, the record's `default_model` is used; when the record has none the call is refused ("no model is named; pass --model or set default_model in the record"), because a server has no default. |
+| `--context <tokens>` | An option of this bridge only, not part of the contract's common core. A whole number: 1 to 8 ASCII digits, no sign, no leading zero, no space and no other character (so `007`, `+5`, `1e3` and ` 5` are refused), from 1 to the model's `context`; a larger value, a value that is not a whole number and the option without a configured model are refused before anything is sent. It sets the window of the call ("Context window" below). A caller that wants interchangeable bridges does not pass it. |
 | `--effort <level>` | `low`, `medium` or `high`, validated as in the contract. Sent as the request's `think` with the same word. Without `--effort`, `think` is left out and the server decides. A server that rejects it for this model gives `effort_unsupported`. [unconfirmed 4] |
 | `--timeout <seconds>` | The whole call, from the start of the connection to the last byte of the reply. The connection itself is given at most 10 seconds (this spec's choice) or the whole timeout if that is shorter. |
 | `--root <path>` | Validated by the contract's path rules (inside the project, no link, exists, a directory, not in `.git` or `.workbench`) and then ignored: a server has no working directory. |
@@ -102,8 +164,8 @@ value as the next argument except `--confine`, and a refusal of anything else be
 ### `ask`: the request
 
 One `POST` to the fixed path `/api/chat` with `Content-Type: application/json` [unconfirmed 1, 2]. The body is one JSON object with exactly: `model`;
-`messages`, one message with `role` `user` and `content` the prompt (a string; the prompt is UTF-8 text); `stream` `false`; and, only
-when they apply, `options` with `num_ctx` (the record's `context`), `format` (the schema) and `think` (the effort). No other field is
+`messages`, one message with `role` `user` and `content` the prompt (a string; the prompt is UTF-8 text); `stream` `false`; `options`
+with `num_ctx` (the window of the call), and, only when they apply, `format` (the schema) and `think` (the effort). No other field is
 sent, and the prompt appears nowhere else. The headers are `Host` (the record's host, with brackets for an IPv6 literal, and the
 port when it is not the scheme's default), `Content-Type: application/json`, `Content-Length`, `Accept: application/json`,
 `Connection: close` and `User-Agent: ask-ollama/1` (a fixed string that does not change with the version of the module); no other
@@ -131,14 +193,21 @@ never returned, never put in a message and never counted as the reply [unconfirm
 
 ### Context window, truncation and thinking
 
-- **The window.** When the record has `context`, the request sets `options.num_ctx` to it. When it has none, the request leaves the
-  server's own window, and the bridge makes no overflow check, because it does not know the window. The spec states this because
-  a long prompt may be cut silently, and the run shows that the server does so (corrected 6).
-- **A prompt that does not fit.** When the record has `context` and `prompt_eval_count` is at least `context`, the prompt was
-  filled to the window and may have been cut. The call is `vendor_error` with `context_overflow`, not retryable, and no reply is
-  returned. If the reply carries no `prompt_eval_count`, the check cannot run and does not; the spec states that rather than
-  implying it. **Against the server of the run this check does not fire for a prompt that is cut:** that server cut the prompt and
-  reported about half the window (see "Known limits"). The check is shown only against the fake server, which reports the window.
+- **The window.** Every model section has a `context`, so every call has a window: the value of `--context`, else the section's
+  `default_context`, else its `context`. The request sets `options.num_ctx` to it. The window is what the owner declared and what
+  the caller asked for, and the bridge does not read the server's own. The run showed that the server gives the window the request
+  asks for (corrected 6).
+- **The size rule.** Before any request, the bridge compares the size of the prompt in bytes of UTF-8 with the window of the call
+  times the section's `bytes_per_token` (2 when absent). A larger prompt is not sent: the result is `vendor_error` with
+  `context_overflow`, not retryable, with the message "the prompt is probably larger than the window", and no part of the prompt is
+  in it. The rule runs after the options and the model are validated and after the schema is read, and it does not apply to `embed`,
+  where the server already answers a text that is too long with an error. It is an estimate: a token covers at least one byte of
+  text, so a figure of 1 never passes a prompt that the window would cut, and a higher figure passes more prompts that fit and some
+  that the window cuts. The owner sets 1 for a model whose work must not lose the start of a prompt (a review, for example). The
+  rule does not replace the next one, and the server's own count can still show a cut that this one let through.
+- **A prompt that fills the window.** When `prompt_eval_count` is at least the window of the call, the prompt filled the window
+  and may have been cut. The call is `vendor_error` with `context_overflow`, not retryable, and no reply is returned. If the reply
+  carries no `prompt_eval_count`, the check cannot run and does not; the spec states that rather than implying it.
 - **A reply that was cut.** When `done_reason` is `length`, the server stopped at a limit. The call is `vendor_error` with
   `reply_cut`, not retryable, even if some text came back.
 - **A thinking model.** A model that reasons may spend its limit in its reasoning and return an empty `message.content`. When the
@@ -163,7 +232,8 @@ string `error` and matches that string in lower case by substring, only to choos
 "too long" in a 400 (section "`embed`"). A body that is not of that shape is not matched and the status falls to the `bad_exit` row. The text
 is never copied into the object. [unconfirmed 13]
 
-**When several conditions hold**, one rule decides. A body over its bound is `reply_too_large`, whatever the status. For a status
+**When several conditions hold**, one rule decides. Before any request, the size rule of "Context window" may end an `ask` call as
+`context_overflow` with nothing sent. A body over its bound is `reply_too_large`, whatever the status. For a status
 outside 200 to 299 the status rows of the table apply, and the body is used only as the matching rule above says, so an error
 status whose body is not one JSON object with a string `error` is the `bad_exit` row and never `unusable_reply`. For a status from 200
 to 299 the first of these applies: a body that is not one JSON object (`unusable_reply`); a reply whose `done` is not `true`
@@ -185,6 +255,7 @@ cut-off reply is `unusable_reply`: both are `vendor_error`, so a caller sees the
 | the reply is not one object, is empty, is not `done`, or was cut short by a reset or an early close after the answer began | `vendor_error` | `unusable_reply` | false | "the server returned no usable reply" |
 | the reply or the response body is over its bound | `vendor_error` | `reply_too_large` | false | "the server returned more than the bridge accepts" |
 | the prompt filled the window | `vendor_error` | `context_overflow` | false | "the prompt does not fit the context window" |
+| the prompt is larger than the size rule allows (nothing was sent) | `vendor_error` | `context_overflow` | false | "the prompt is probably larger than the window" |
 | (`embed`) a 400 that says the input is too long for the model | `vendor_error` | `context_overflow` | false | "the input does not fit the context window" |
 | the reply was cut at the server's limit | `vendor_error` | `reply_cut` | false | "the server stopped the reply at its length limit" |
 
@@ -226,33 +297,63 @@ the contract allows; an engine treats an unknown code as `vendor_error`.
 ### `check`
 
 `ask-ollama check` takes no option. It reads the endpoint file by the rules above, opens no connection and writes nothing. It prints
-to standard output, in the file's order, for each record exactly one line of this form (no other whitespace):
+to standard output, in the file's order, for each record one line of this form (no other whitespace):
 
 `<name> scheme=<scheme> location=<location> authenticated=<true|false> default=<yes|no>`
 
-and then, for each unauthenticated `http` record whose host is not a loopback address (decision, item 4), one line of this form:
+and after it, for each model of that record in the file's order, one line of this form:
+
+`model <name>/<model> kind=<chat|embedding> context=<n> window=<n> bytes_per_token=<n>`
+
+where `window` is the section's `default_context`, or its `context` when there is none, and `bytes_per_token` is the section's
+figure or 2. After all the records come, for each unauthenticated `http` record whose host is not a loopback address (decision, item
+4), one line of this form:
 
 `warning: <name>: unauthenticated http away from loopback; content sent to it travels in the clear`
 
 A file with no record prints the single line `no endpoints`. It exits 0 when the file is valid, whether or not it printed a warning,
-and 1 with one `refused:` line on standard error and nothing on standard output when the file breaks a rule. It never prints the
-host, the port, a model name or the context. An owner runs it after editing the file; an agent may run it, because it prints no
-address. The warning lines are what the contract decision calls the diagnostic.
+and 1 with one `refused:` line on standard error and nothing on standard output when the file breaks a rule, including a file of an
+older format. It never prints the host or the port; it prints the record names, the model names and the numbers above, which hold no
+address. An owner runs it after editing the file; an agent may run it, because it prints no address. The warning lines are what the
+contract decision calls the diagnostic.
+
+### `models`
+
+`ask-ollama models [--server <name>] [--timeout <seconds>]` makes one read of the server's list of models and compares it with the
+selected record. It takes no input on standard input (it does not read it) and sends no body. `--server` and `--timeout` are as for
+`ask`; every other option, `--model` and `--context` included, is refused as unknown. It needs no `default_model` and no `--model`,
+so the refusal of a call with no model does not apply to it. A name is compared as exact text. A bad endpoint file is refused as for
+the other arguments.
+
+- **Request.** One `GET` to the fixed path `/api/tags`, with the headers `Host`, `Accept: application/json`, `Connection: close` and
+  `User-Agent: ask-ollama/1` and no others. The transport, the bounds and the timeouts of "Transport" apply [unconfirmed 16].
+- **Reply.** A strict JSON object with a list `models` whose entries are objects with a string `name`; anything else is `unusable_reply`.
+- **Output**, one object: `{"contract": 1, "ok": true, "vendor": "ollama", "present": [...], "missing": [...], "unconfigured": [...],
+  "skipped": <n>}`. `present` holds the configured models that the server has, in the file's order; `missing` the configured models
+  that it does not have, in the file's order; `unconfigured` the models of the server that are not configured, in the server's order.
+  A name is printed only if it fits the rule for the record's model fields; a name that does not is counted in `skipped` and never
+  printed. A list of more than 512 names from the server is `reply_too_large`. Names only: no size, date, digest or detail of a model
+  is read or printed.
+- **Failure** is the contract's failure object with `"contract": 1` and the rows of the table of errors; any status outside 200 to 299
+  is the `bad_exit` row. It changes nothing, writes nothing and reads only the endpoint file. It is a call to the server, so a
+  real one is made on the owner's word; the tests use a fake server.
 
 ### `embed`
 
-`ask-ollama embed [--model <name>] [--server <name>] [--timeout <seconds>] [--confine]`, with one JSON object on standard input.
+`ask-ollama embed [--model <name>] [--context <tokens>] [--server <name>] [--timeout <seconds>] [--confine]`, with one JSON object on
+standard input.
 
 - **Input.** Strict JSON, at most 262,144 bytes (this binds well before 100 texts of 32,768 bytes), exactly one key, `texts`: a list
   of 1 to 100 strings, each of 1 to 32,768 bytes of UTF-8 that holds at least one character other than white space, and that is
   valid text (a string with an unpaired surrogate is refused). Anything else is refused before a connection is made.
-- **Options.** `--model` is the embedding model, validated by the contract's rule and also by the rule for the record's model
-  fields, as for `ask` (so a namespaced name with a `/` can be given by the record only); when absent, the record's
-  `embedding_model`; when neither, a refusal. `--server`, `--timeout` and `--confine` are as for `ask` (`--confine` has no effect).
+- **Options.** `--model` is the embedding model, a key of the selected record's `models` of `kind` `embedding` (the allowlist
+  above, as for `ask`, so a namespaced name with a `/` can be given when it is configured); when absent, the record's
+  `embedding_model`; when neither, a refusal. `--context` is as for `ask`, with the section's `context` as its ceiling. `--server`,
+  `--timeout` and `--confine` are as for `ask` (`--confine` has no effect).
   `--effort`, `--root`, `--schema` and anything else are refused as unknown options.
 - **Request.** One `POST` to the fixed path `/api/embed`. The body is one JSON object with `model`, `input` (the list of texts) and
-  `truncate` `false`, so that a text longer than the model's window is an error and not a silent cut, and, only when the record has
-  `context`, `options` holding `num_ctx` with that value; no other field. The headers are exactly those of `ask` (above: `Host`,
+  `truncate` `false`, so that a text longer than the model's window is an error and not a silent cut, and `options` holding `num_ctx`
+  with the window of the call (the value of `--context`, else `default_context`, else `context`); no other field. The headers are exactly those of `ask` (above: `Host`,
   `Content-Type: application/json`, `Content-Length`, `Accept: application/json`, `Connection: close` and `User-Agent:
   ask-ollama/1`), and the transport, the bounds and the timeouts of "Transport" apply to it. [unconfirmed 9, 14]
 - **Output**, one object on standard output, at most 2,000,000 bytes:
@@ -272,7 +373,8 @@ address. The warning lines are what the contract decision calls the diagnostic.
   input does not fit the context window"; any other 400 is `bad_exit` (the thinking and format rows do not apply to an embedding);
   a 404 whose error holds "not found" is `model_unavailable`, as for `ask`, and any other 404 is `bad_exit`. A status 501 whose
   error, in lower case, holds "does not support embeddings" (a chat model sent to `/api/embed`) is `model_unavailable` with the
-  message "the model cannot produce embeddings"; any other 501 is `bad_exit`. A model whose reply holds no usable vectors, or a
+  message "the model cannot produce embeddings"; any other 501 is `bad_exit`. A chat model is refused by the allowlist before any request is made; the 501 row is kept for a model that is configured as an
+  embedding model and that the server does not support for embeddings. A model whose reply holds no usable vectors, or a
   count of vectors different from the count of texts, is `vendor_error` with `unusable_reply`. The server's
   words are matched only to choose a row and are never copied. [confirmed 9, 14 in part; corrected 10]
 - **Checks on the reply, and their order.** The chat-only checks of `ask` (`done`, the window, the cut reply and the content) do
@@ -309,10 +411,11 @@ the request line, headers and body, shows each item. No item needs a real Ollama
 3. Every refusal of the endpoint file and of a record is made before a connection and shows no host: a missing, unreadable,
    linked, non-regular or oversize file; a file that is not strict JSON (a duplicate key, `NaN`, a float or a boolean where an
    integer belongs); a wrong `format`; an unknown or missing field; more than 64 records; a bad record name; a bad `scheme`,
-   `port`, `location`, `authenticated`, `default_model`, `embedding_model` or `context`; a `host` in any form the decision refuses;
+   `port`, `location`, `authenticated`, `default_model`, `embedding_model`, `models` or a model section (item 12); a `host` in any
+   form the decision refuses;
    an `authenticated` record; a `default` that names no record; an unknown `--server` name; and no model.
 4. The request is exactly as above: the path, the method, the body fields and the headers; the prompt only in `content`; nothing of
-   the record but the destination and the `Host` header; the schema only as `format`; `think` and `num_ctx` only when they apply.
+   the record but the destination and the `Host` header; the schema only as `format`; `num_ctx` always, as the window of the call; `think` only when it applies.
 5. A redirect is not followed and is `bad_exit`; a connection that is refused, reset or not made within its limit is
    `vendor_unreachable`, and a server that accepts and then never replies, or sends a byte at a time, ends at the timeout as
    `timeout`.
@@ -326,6 +429,31 @@ the request line, headers and body, shows each item. No item needs a real Ollama
    none other, makes no connection, writes nothing, and refuses a bad file.
 10. `embed`: the input rules, the request, the output shape, the checks on the reply and the size bound as above.
 11. The project and the store are byte for byte the same after every call.
+12. The file of format 2: a file of format 1 is refused with nothing sent and with a line that says the file is older, and a file of
+    any other `format` (0, 3, 2.5, a string) with a line that says the format is not 2; a record that still holds `context` is refused; a record with no `models`, with an empty `models`, with more than 64
+    sections or with a bad model name is refused; a section with no `kind` or no `context`, a `kind` that is neither `chat` nor
+    `embedding`, a `context` or `default_context` that is not a whole number in range, a `default_context` above `context`, a
+    `bytes_per_token` outside 1 to 8 and a field not listed are each refused; a `default_model` that is not a key or is not of kind
+    `chat`, and an `embedding_model` that is not a key or is not of kind `embedding`, are refused; a section that is not an object, a `kind` that is not a string, and a `models` that is not an object are refused; 64 sections
+    are accepted and 65 are refused; and a file of 262,144 bytes is accepted and one byte more is refused.
+13. The allowlist: a `--model` that is not a configured key (including one that fits the rule and one with a `/`) is refused with
+    nothing sent and the name is not quoted; a configured name with a `/` is accepted; a model of kind `embedding` given to `ask`
+    and a model of kind `chat` given to `embed` are refused; without `--model` the call uses `default_model` or `embedding_model`
+    and with neither is refused.
+14. The window: with no `--context` and no `default_context` the request carries the section's `context` as `num_ctx`; with a
+    `default_context` it carries that; with `--context` it carries that, for `ask` and for `embed`; a `--context` of 0, above the
+    section's `context`, not a whole number, or without a configured model is refused with nothing sent; one equal to the
+    `context` is accepted; and the check of the server's count uses the window that was sent.
+15. The size rule: a prompt of exactly the window times `bytes_per_token` bytes is sent; one byte more is not sent and is
+    `context_overflow` with the message of the table and no part of the prompt; the figure is the section's `bytes_per_token`, and 2
+    when absent; the size is counted in bytes of UTF-8; no request reaches the fake server for a refused prompt; and `embed` is not
+    subject to it.
+16. `models`: one `GET` to `/api/tags` with no body and the headers of the section, to the record that `--server` selects and
+    within `--timeout`; every option but those two is refused as unknown; standard input is not read; `present`, `missing` and `unconfigured` as the
+    section says; a name that does not fit the rule is counted in `skipped` and not printed; the order of the three lists is the file's, the
+    file's and the server's; a bad endpoint file is refused with nothing sent; more than 512 names is `reply_too_large`; a reply
+    that is not an object with a list of objects with a string `name` is `unusable_reply`; a failure is the contract's failure object;
+    the host and the port are in no output; and `check` prints one line for each model.
 
 ## The run against a real server
 
@@ -348,6 +476,12 @@ printed). The record named the models below; the host is not recorded here. Mode
 | Embedding with `phi4:latest` | status 501, now `model_unavailable` "the model cannot produce embeddings" (was `bad_exit`) |
 | One text of 30,000 bytes, `nomic-embed-text:latest` | status 400, `context_overflow` |
 
+Readings from the same run that were not in this record before increment B of the plan of 2026-11-02: `ollama show phi4:latest`
+printed `context length 16384` (the model's own limit; the limits of the other models were not read); `/api/ps` showed a loaded
+window of 8192 while the record said 8192 and of 4096 while it said 4096; and the 501 for a chat model sent to `/api/embed` read
+"This server does not support embeddings. Start it with `--embeddings`" (the bridge matches the lower-case words "does not support
+embeddings").
+
 Not run: a server switched off (the run cannot switch the owner's server off), and a reply cut at the limit (it cannot be caused
 reliably). The fake-server tests are the proof for both.
 
@@ -357,52 +491,57 @@ These came from memory of the Ollama documentation. Each is tagged with what the
 **confirmed**, **corrected** (the statement was wrong and the text above is the corrected one) or **not shown** (the run did not
 reach it; the tests use a fake server and the statement stays unconfirmed).
 
-1. `POST /api/chat` with `stream` false returns one JSON object with `message.content`, `model`, `done`, `done_reason`, **[confirmed for all but `done_reason`, which the printed objects do not show (see 7)]**
-   `prompt_eval_count` and `eval_count`.
+1. `POST /api/chat` with `stream` false returns one JSON object with `message.content`, `model`, `done`, `done_reason`,
+   `prompt_eval_count` and `eval_count`. **[confirmed for all but `done_reason`, which the printed objects do not show (see 7)]**
 2. The request fields `model`, `messages`, `stream`, `options.num_ctx`, `format` and `think` have the meanings used above. **[confirmed]**
 3. `format` accepts a JSON Schema object, and the reply then is one JSON object. **[confirmed]**
-4. `think` accepts `low`, `medium` and `high` for a model that has levels, and a model without them rejects it with a status 400 whose **[confirmed for `gpt-oss:20b` with `low`; the refusal text of a model without levels was shown only as `effort_unsupported`; the boolean case is not shown]**
+4. `think` accepts `low`, `medium` and `high` for a model that has levels, and a model without them rejects it with a status 400 whose
    error says the model does not support thinking. A model with only on and off may need a boolean; if so, the mapping of
-   `--effort` for such a model is decided in the run.
+   `--effort` for such a model is decided in the run. **[confirmed for `gpt-oss:20b` with `low`; the refusal text of a model without levels was shown only as `effort_unsupported`; the boolean case is not shown]**
 5. A model that is not on the server gives a status 404 whose error says the model is not found. **[confirmed]**
-6. The server's default context window is small, a prompt longer than the window is cut without an error, and when `num_ctx` is set **[corrected: the server cut a prompt that did not fit without an error, but with `num_ctx` set it reported about half the window plus 2 as `prompt_eval_count`, not the window; the unset default was not read]**
-   and the prompt is longer than it, `prompt_eval_count` reaches `num_ctx`. The reply also always carries `prompt_eval_count`.
+6. The server's default context window is small, a prompt longer than the window is cut without an error, and when `num_ctx` is set
+   and the prompt is longer than it, `prompt_eval_count` reaches `num_ctx`. The reply also always carries `prompt_eval_count`. **[corrected: the server cut a prompt that did not fit without an error, but with `num_ctx` set it reported about half the window plus 2 as `prompt_eval_count`, not the window; the unset default was not read]**
 7. `done_reason` is `length` when the reply was stopped at a limit. **[not shown]**
 8. A reasoning model can return an empty `message.content` with its thinking in `message.thinking`. **[not shown; `gpt-oss:20b` returned its reply in `message.content` for the prompts tried]**
-9. `POST /api/embed` with `model`, `input` (a list) and `truncate` returns `embeddings`, a list of vectors in the order of the input, **[confirmed for the order, the count and the dimension; `truncate` false confirmed by the 400 below]**
-   and `prompt_eval_count`; with `truncate` false a text longer than the window is an error.
+9. `POST /api/embed` with `model`, `input` (a list) and `truncate` returns `embeddings`, a list of vectors in the order of the input,
+   and `prompt_eval_count`; with `truncate` false a text longer than the window is an error. **[confirmed for the order, the count and the dimension; `truncate` false confirmed by the 400 below]**
 10. A chat model sent to `/api/embed` gives an error or a result the checks refuse. **[corrected: the server answers 501 with an error, which is now `model_unavailable`]**
 11. Resolved on 2026-11-01 (a workbench fact, not an Ollama one): the verifier refuses two commands of one module that name the same
     helper (`workbench/declarations.py`: "two commands name the helper"). The embedding is an argument of the one command.
 12. The context built from `openssl_cafile` and `openssl_capath` verifies a certificate chain and a host name on the owner's machine
     with the machine's default bundle, and ignores `SSL_CERT_FILE` and `SSL_CERT_DIR` (a Python and OpenSSL fact, shown by the
     bridge's own test, and measured once on 2026-11-01 for `get_default_verify_paths`).
-13. An error status carries a body that is one JSON object with a string `error`, and the words matched in section "Errors" **[confirmed for the missing model, the thinking error (a 400 with "think" in it gave `effort_unsupported`), the embedding 400 and the 501; not shown for the format and schema errors]**
+13. An error status carries a body that is one JSON object with a string `error`, and the words matched in section "Errors"
     ("not found", "think", "format", "schema") appear in the error for a missing model, an unsupported thinking setting and a bad
-    format.
-14. `/api/embed` honours `options.num_ctx`, returns the `model` it used, answers 404 for an embedding model that is not present, and **[the 400 about the input length confirmed ("the input length exceeds the context length"); `num_ctx` for an embedding, and the 404 for a missing embedding model, not shown]**
+    format. **[confirmed for the missing model, the thinking error (a 400 with "think" in it gave `effort_unsupported`), the embedding 400 and the 501; not shown for the format and schema errors]**
+14. `/api/embed` honours `options.num_ctx`, returns the `model` it used, answers 404 for an embedding model that is not present, and
     answers 400 with an error about the input length when `truncate` is false and a text is too long. The bridge recognizes that
     error by "input length", "context length" or "too long" in it (the first two from memory of the server's wording, "the input
-    length exceeds the context length"); a different wording is `bad_exit` until the run corrects the words.
+    length exceeds the context length"); a different wording is `bad_exit` until the run corrects the words. **[the 400 about the input length confirmed ("the input length exceeds the context length"); `num_ctx` for an embedding, and the 404 for a missing embedding model, not shown]**
 15. The size of a batch of embeddings, as printed, is close to the estimate in section "embed". **[not shown; no size was measured]**
+16. `GET /api/tags` returns one JSON object with a list `models` whose entries have a string `name`, and the names are those of the
+    models the server holds, as `ollama list` prints them. **[not shown; increment G of the plan of 2026-11-02 shows it]**
 
 ## Known limits
 
 Left as they are, each with its reason. Most were found by the security review of increment C (2026-11-01); the first two come from
 increment D and its review, and the one on embedding replies from increment E:
 
-- **Without `context` in the record a prompt cut by the server's own window is not detected.** The bridge does not know the window
-  then, and a real server cut such a prompt without an error (corrected 6). With `context`, the check is "at least the window", so a prompt that
-  fills the window exactly is reported as an overflow whether or not anything was cut. (Increment C had neither this check nor
-  `reply_cut` and returned both cases as a success; increment D built them.)
+- **A prompt cut by the server can still pass.** Every model section has a window and the size rule refuses most prompts that are
+  too large, but the rule is an estimate from bytes, and the check of the server's own count uses a count that, for a prompt the
+  server cut, was about half the window. The server of the run reported 8194 with no window sent, 4098 with 8192 and 2050 with 4096
+  for the same prompt. A prompt whose window is the model's limit and whose size passes the rule is sent, and what the server does
+  with it is the server's. Whether a prompt between half the window and the whole window is cut was not tested. The check of the
+  server's count is "at least the window", so a prompt that fills the window exactly is reported as an overflow whether or not
+  anything was cut.
 - **A server that cuts a prompt can report a `prompt_eval_count` far below the window, so the check for a prompt that does not fit
   does not see it.** Measured on 2026-11-02 against Ollama 0.35.1 with `phi4:latest` and the same prompt of about 11,000 tokens:
   with no `context` the count was 8194; with `context` 8192 (sent as `num_ctx`, the loaded window read as 8192) it was 4098; with
   `context` 4096 it was 2050. Each cut prompt was answered as a success. The count is about half the window plus 2 once the prompt
   is cut, so "at least `context`" never holds for it, and a prompt between half the window and the whole window is not told
   apart from a cut one by the count alone. Corrected 6. The bridge does not count the tokens of a prompt itself; a caller that
-  must not lose the start of a prompt keeps it well under the window. A record whose `context` is 1 makes every reply with a
-  count of one or more an overflow, by the same rule.
+  must not lose the start of a prompt keeps it well under the window. A window of 1 makes every reply with a count of one or
+  more an overflow, by the same rule.
 - **A name lookup that is stuck in the system's resolver may not end at the timeout, or at all** ("Transport"): the alarm is handled
   between Python instructions and cannot run inside the resolver's call. An IP literal does no lookup.
 - **A connection that fails while the request is being sent** (a broken pipe or a reset) is `vendor_unreachable` even if the server
@@ -422,6 +561,13 @@ increment D and its review, and the one on embedding replies from increment E:
   puts in an object is promised to hold no host or port.
 - **A run of more than 4,300 digits anywhere in a reply or a schema is refused**, including inside a string, so a legitimate reply
   that contains such a run is `unusable_reply`.
+- **The owner's `context` can be wrong.** It is the owner's declaration of the model's limit and is not read from the server. A value
+  above what the server gives is sent as `num_ctx` and the server may clamp it or refuse it; a value that is too high costs the
+  server memory (not measured). `default_context` is the way to send less than the declared limit.
+- **The size rule refuses some prompts that fit and passes some that do not.** It is the estimate of a byte count; see "Context
+  window". It is not applied to `embed`.
+- **The allowlist is not a boundary.** The agent can read the file and a shell can call the server directly; the allowlist limits what
+  this bridge sends and nothing else.
 - **`HOME` finds the store**, as it does for the rest of the workbench (`2026-10-20-fixed-store-location`: `HOME` is honoured, as
   the operating system does). A process that sets `HOME` for the helper chooses which endpoint file it reads; it is already the
   caller, and the launcher's pin and approval live in the same store.
@@ -450,11 +596,13 @@ increment D and its review, and the one on embedding replies from increment E:
 ## Governing decisions and references
 
 - Decisions:
-  [2026-11-01-endpoint-records-in-the-store](../decisions/2026-11-01-endpoint-records-in-the-store.md),
+  [2026-11-02-model-configurations-in-endpoint-records](../decisions/2026-11-02-model-configurations-in-endpoint-records.md),
+  [2026-11-01-endpoint-records-in-the-store](../decisions/2026-11-01-endpoint-records-in-the-store.md) (superseded in part by the one
+  above),
   [2026-11-01-bridge-contract-version-2](../decisions/2026-11-01-bridge-contract-version-2.md),
   [2026-10-22-model-calls-go-through-vendor-bridges](../decisions/2026-10-22-model-calls-go-through-vendor-bridges.md),
   [2026-10-20-fixed-store-location](../decisions/2026-10-20-fixed-store-location.md).
 - Specs: `model-bridge.md` (the contract), `module-contract.md`, `module-boundary.md`, `terms.md`.
-- Plan: `docs/plans/2026-11-01-ask-ollama-bridge.md`.
+- Plans: `docs/plans/2026-11-01-ask-ollama-bridge.md` and `docs/plans/2026-11-02-bridge-model-configurations.md`.
 - References: none. The Ollama interface was described from memory and checked on one server on 2026-11-02; the statements the
   run did not reach are tagged "not shown" above.
