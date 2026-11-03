@@ -100,7 +100,7 @@ def _once(words):
 # The owner-run commands only the owner runs, from a terminal (``rules`` renders a deny for each), derived from the table.
 OWNER_RUN = _once(spec.word for spec in INSTALLER_KEYS.values())
 # Commands an agent may run: they only read, or run a helper that checks its own pin.
-AGENT_SAFE = ("verify", "preview", "launch", "check", "run", "plan-status", "settings", "gate",
+AGENT_SAFE = ("verify", "preview", "launch", "check", "run", "plan-status", "settings", "doctor", "gate",
               "agent-gate", "gate-command", "delegate-approve-plan")
 # Of the agent-safe words, those that are not a key of the owner's ``levels`` table
 # (``docs/specs/command-permissions.md``, "A level for every command"): the hook entry points, which the

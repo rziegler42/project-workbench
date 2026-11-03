@@ -10,7 +10,7 @@ import os
 import re
 import sys
 
-from . import (acknowledge, agent_gate, approvalcmd, approve, attach, check, command_gate, delegation, firstparty,
+from . import (acknowledge, agent_gate, approvalcmd, approve, attach, check, command_gate, delegation, doctor, firstparty,
                gate_hook, gatelog, harnesses, install, launch, levelrun, levels, pins, planapprovals, preview, recover,
                rendering, rerender, settings, settingscmd, sources, store, target, upgrade, verify)
 from . import commands as module_commands
@@ -45,6 +45,8 @@ USAGE = ("usage: python3 -m workbench verify [<package> | --dir <path>] "
          "       python3 -m workbench attach [<target> | --dir <path>] --harness <package>/<module>\n"
          "                                   [--package <source> [--ref <ref>]] ...   (owner-run)\n"
          "       python3 -m workbench check [<target> | --dir <path>]   (read-only)\n"
+         "       python3 -m workbench doctor [<target> | --dir <path>]   (read-only; what the permission settings do not do as\n"
+         "                                   they say, and what they allow that is dangerous)\n"
          "       python3 -m workbench approve-plan <plan>   (owner-run, terminal only)\n"
          "       python3 -m workbench plan-status <plan>   (read-only)\n"
          "       python3 -m workbench delegate-approve-plan <plan>\n"
@@ -494,6 +496,22 @@ def _check(tokens, out, err, store_root, distribution):
     return check.run(guarded, command, out, err, distribution)
 
 
+def _doctor(tokens, out, err, store_root, distribution):
+    """``doctor``: the same arguments as ``check``; read-only."""
+    try:
+        command = check.parse(tokens)
+    except sources.UsageError as exc:
+        err.write("%s\n%s" % (_clean(str(exc)), USAGE))
+        return 2
+    opened = _open_store(store_root, err)
+    if opened is None:
+        return 1
+    guarded, notes = opened
+    for note in notes:  # the launcher is not rewritten here: the report reads, and `wb check` is the command that does
+        err.write("warning: %s\n" % _clean(note))
+    return doctor.run(guarded, command, out, err, distribution)
+
+
 def _run(tokens, out, err, store_root, distribution):
     """``run``: the arguments are the helper's and are never parsed as options here."""
     if module_commands.split(tokens) is None:
@@ -647,6 +665,8 @@ def main(argv, out=None, err=None, *, store_root=None, distribution=None, stdin=
         return _attach(argv[1:], out, err, store_root, distribution, home, stdin)
     if argv and argv[0] == "check":
         return _check(argv[1:], out, err, store_root, distribution)
+    if argv and argv[0] == "doctor":
+        return _doctor(argv[1:], out, err, store_root, distribution)
     if argv and argv[0] == "rerender":
         return _rerender(argv[1:], out, err, store_root, distribution, stdin, home)
     if argv and argv[0] in ("upgrade", "add"):

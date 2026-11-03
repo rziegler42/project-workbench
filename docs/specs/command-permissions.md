@@ -290,7 +290,7 @@ list the operations and the attempts with no outcome as unfinished (a killed pro
 
 It prints the `checkpoint` and `cap` lines it always printed, then one `level <key>: <level>` line for every key it knows: the
 declared checkpoints, then the installer's owner-run commands, then the agent-safe actions (`wb verify`, `wb preview install`,
-`wb preview adopt`, `wb preview upgrade`, `wb preview add`, `wb preview rerender`, `wb preview release-approvals`, `wb launch`, `wb check`, `wb plan-status`, `wb settings`), then `wb run
+`wb preview adopt`, `wb preview upgrade`, `wb preview add`, `wb preview rerender`, `wb preview release-approvals`, `wb launch`, `wb check`, `wb plan-status`, `wb settings`, `wb doctor`), then `wb run
 <command> <argument>` for each argument the installed modules declare (an owner-run argument first), with the defaults and the
 table applied. An agent-safe key and a declared argument that is not owner-run default to `none`; every other key defaults to `block`.
 The hook entry points, the dispatcher words and `delegate-approve-plan` are not keys. As built by Increments A and C of the plan, a
@@ -301,6 +301,46 @@ built by Increment F of the plan `2026-11-02-permission-system-consistency`), th
 <word> read as <level>` line for each checkpoint word it read as a level because the table does not name the key (Increment B).
 Problems and notes print as `settings:` lines. Two declarations that
 give one key are a refusal.
+
+### `wb doctor`
+
+Built by Increment L of the plan `2026-11-02-permission-system-consistency`. `wb doctor [<target> | --dir <path>]` reports what the
+permission configuration of a project does not do as it says, and what it does that is dangerous. It is read-only and agent-safe: its
+key is `wb doctor`, class `reads`, default `none`, offering `block` and `none`, and set to `block` it renders a `deny` like any
+agent-safe key. It decides nothing and changes nothing. One line per finding, strictest first, then a summary line:
+
+- `problem: <area>: <text>`: the configuration does not do what it says. The exit code is 1 when there is one; a refusal (a target
+  that is no installed project) is 1 as well, and a usage error 2.
+- `risk: <area>: <text>`: it does what it says, and what it says is dangerous. A risk never fails the command.
+- `note: <area>: <text>`: something to see, such as a prompt a module declares as a minimum (`asks`, decision 5 of
+  `2026-11-02-one-permission-registry-and-key-model`) or the refusal counts of the gate.
+
+The areas: `settings` (the problems the loader finds and the notes of the effective table: a level that reads other than set);
+`floor` (the personal copy of the compiled floor lacks a stop, or names one the floor does not hold; the compiled floor applies
+whatever the copy says); a `governs` key set looser than its shipped default; `package` (a package tree that differs from its
+release, with the first place and the commands that clear it, from `harnesses.lock_cause`); `rendering` (the harness's permissions
+file differs from the record attach kept, or was rendered from another table than the settings give now, as `wb check` reports);
+`hook` (a hook that runs `wb` where `wb` does not resolve, or resolves to something other than the guarded store's launcher);
+`allow` (an `allow` rule in the harness settings that covers a key the registry does not class as `reads`; a broader rule is one
+finding that counts the keys it covers); `skill` (an installed skill or agent that says never to run a key offered at `ask` or
+`none`); and `gate-log` (the counts per rule, the lines not in the log's format counted and never printed, and a log that is full,
+which the owner rotates by hand; the writer stops when the next line would pass 1 MiB, so a log within one line's maximum of that
+size is full). The log is read whole, bounded by the store's file limit, and not only its last 64 KiB as decision 6 of
+`2026-11-02-command-gate-reads-gaps-and-data-positions` says; the counts are of the whole file. A line holds a key and a path and
+never a value: a rule that covers no dangerous key is never printed, a rule that covers one is named by its key, a rule that covers
+several is shown by its own text (cut, in ASCII), and no file content is. A bare `Bash` rule and `Bash(*)` cover every key. The
+command opens the guarded store as `wb check` does, which may create the store directory and seed the personal settings file (also
+when the target is not a project, which it then refuses); it does not rewrite the launcher and writes nothing in the project. A
+severity lists at most 40 lines of one area and then says how many more there are, so that a flood of one kind cannot hide the
+others; the summary counts every finding. The gate-log note lists at most six rules and then says how many more. An unreadable
+permissions file (a link, a hard link, a special file, a directory, too large, not JSON), a missing permissions file that the
+rendering record names and a gate log that cannot be read are findings, not silence; a missing rendering record for an attached
+harness is a `risk` that says "if it renders permissions" (a harness that provides none has no record on purpose) and names
+`wb rerender`. The files it reads that the agent can write (the harness's settings files, the installed skill texts, the gate log)
+are read without following a link and within a size and count limit; an installed skill text that cannot be read that way is
+skipped. Names that someone else chose (a module directory, a floor id, the harness name) are shown as quoted ASCII. Not read: a plan approval that changed since it was given (`wb plan-status` says it, plan by
+plan), the launcher spellings that documents use and the generated rules do not cover (decision 6 of the record) and the harness's own
+global configuration.
 
 ## A level for every command
 
@@ -313,7 +353,7 @@ A state in which an owner has set every key to `none`, and so has no protections
 freedom and not a feature: there is no master switch, profile or command that sets it.
 
 **Coverage.** Every command and subcommand that `cli.py` routes has a key, the agent-safe ones included (`verify`, `preview install`,
-`preview adopt`, `preview upgrade`, `preview add`, `preview rerender`, `preview release-approvals`, `launch`, `check`, `plan-status`, `settings`), so the owner can tighten a command that is always allowed
+`preview adopt`, `preview upgrade`, `preview add`, `preview rerender`, `preview release-approvals`, `launch`, `check`, `plan-status`, `settings`, `doctor`), so the owner can tighten a command that is always allowed
 today. The hook entry points `gate`, `agent-gate` and `gate-command` are the exception: the harness runs them, they are not keys and
 they stay always allowed (the owner's decision). A test fails when `cli.py` routes any other command or subcommand with no key, as the test
 in `rules.py` does for the owner-run and agent-safe split. A subcommand has a key when it is a different action (`wb preview

@@ -219,4 +219,18 @@ def refusal_text(harness, distribution=None, needs="whose layout describes the g
     if cause is None:
         return plain
     sentence, fix_first = cause
-    return "%s is not available: %s; %s" % (name, sentence, (FIX_FIRST + CLEAR) if fix_first else CLEAR)
+    return "%s is not available: %s; %s" % (name, sentence, lock_advice(fix_first))
+
+
+def lock_advice(fix_first):
+    """What clears a lock: the owner's two commands, after removing or restoring what the release refuses when `fix_first`."""
+    return (FIX_FIRST + CLEAR) if fix_first else CLEAR
+
+
+def lock_cause(distribution=None):
+    """``(sentence, fix_first)`` for the package tree of `distribution` when it differs from its release, else ``None``. Never
+    raises; reads the tree and prints paths, as ``refusal_text`` does (``wb doctor`` reports it before a gate refuses)."""
+    try:
+        return _cause(distribution or firstparty.default_distribution(), time.monotonic())
+    except Exception:
+        return None

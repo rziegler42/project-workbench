@@ -926,5 +926,91 @@ conformance check and author guide, and named risk profiles. Also deferred: `del
   rendered skill and agent (two agents, twenty-one skill files) as "left as it is" and ends "nothing to change"; the rendered
   `peer-review` skill holds the new sentence. `test_gate_hook` was not rerun (this increment changes skill text and a policy block,
   not code it reads; it passed after J).
-- **Not done:** the commit; the six stale shipped records; `code-work/files/docs/plans/README.md` still says "the owner makes it"
-  (a seeded document the test does not read).
+- **Committed as** `ed15371e810d307086f4b5f435f04a3a6d28ac10`. Not pushed. Afterwards, outside any increment and at the owner's word:
+  the six stale shipped records were removed through `wb run safe-git remove` (preview, then `--confirm`) and committed as
+  `d0c18076a6a3f16a18831c23b4de144b3b44f54a`; `docs/plans/README.md` (the project's copy, not the seed in the package) now states how
+  a plan is approved at each level, committed as `361d7c3d1c420ba843419cbb75d7ccdf76538a2a`. The seed
+  `code-work/files/docs/plans/README.md` still says "the owner makes it" and differs from the copy; changing it is a package edit
+  and waits for the next package increment.
+
+### Increment L — `wb doctor`
+
+- **Done:** `workbench/doctor.py` and the command `wb doctor [<target> | --dir <path>]` (`cli._doctor`; `doctor` is in
+  `levels.AGENT_SAFE`, so the registry has the key `wb doctor`: class `reads`, default `none`, offering `block` and `none`, no rule
+  rendered at the default, a `deny` in every spelling at `block`). One line per finding, `problem:`, `risk:` or `note:`, a key and a
+  path and never a value, strictest first, then `doctor found <n> problems and <m> risks`; exit 0 unless a problem is found. It reads
+  the project, the personal settings, the gate log and the installed skills, and decides and changes nothing in the project. Its
+  checks are functions of their input (`settings_findings`, `floor_findings`, `relaxed_findings`, `minimum_findings`,
+  `package_findings`, `hook_findings`, `allow_findings`, `skill_findings`, `log_findings`, `report`). It shares three helpers: the
+  "never run" reader with the drift test (`doctor.groups`, `named_token`, `names_key`; `tests/test_permissions_drift.py` imports
+  them), `check.rendering_drift` (a public name for what `wb check` reads), and `harnesses.lock_cause` and `lock_advice` (the cause
+  and the commands of increment J).
+- **Tests first:** `tests/test_doctor.py` (59 tests), written before the module and seen to fail on the missing module: the key's
+  facts, one test per check on made-up input, the hostile cases (a name that reads like advice, a log line with an escape, a rule
+  that covers nothing never printed, a link, a FIFO, a deeply nested file, a value in the settings never printed), and runs in an
+  attached project (default table, a governing key set looser, an `allow` rule, a table changed after attach, a setting that reads
+  other than set, a damaged file, a changed floor, a stray file in a package, the gate-log counts, nothing changed, the arguments, a
+  directory that is no project). `tests/test_levels.py` lists the new agent key; `tests/test_gate_corpus.py` lets `doctor.py` read
+  the spelling list.
+- **Run on this project:** `wb doctor` prints 5 problems (the four settings at `ask` that the key does not offer, which read `block`,
+  and the `approve-plan` checkpoint word against its level), 8 risks (keys of the `governs` class at `ask`: `accept-decision`,
+  `approve-plan`, `wb release-approvals` and the five review-engine arguments), and notes (gate-log: 6 refusals, all `names`; the
+  three `asks` minimums); no hook, allow or skill finding. These are the lines that step 1 of increment M has the owner act on.
+- **Documents:** `docs/development.md` (one row), `docs/specs/command-permissions.md` (`### wb doctor`, and `wb doctor` in the two lists
+  of agent-safe keys).
+- **Deviations from the plan, for the owner to know:** (a) a third severity, `note`, for what decision 5 asks `wb doctor` to list (every
+  `asks` as a project-declared minimum) and the gate-log counts; the plan names two. (b) "A rule that disagrees with the registry" is
+  read as drift from the rendering record (the file hash, the table digest: `wb check`'s reading) plus the `allow` reader; the rules
+  are not re-rendered and diffed one by one. (c) "A stale approval" is the package lock cause; a plan approval that changed since it
+  was given is not read (`wb plan-status` says it, plan by plan). (d) The launcher-spelling check of decision 6 is not built. (e) The
+  gate log is read whole (it is at most 1 MiB) and not only its last 64 KiB as the accepted gate decision says. (f) `cli.py` opens the
+  guarded store as `wb check` does but does not call `launch.install_wrapper`, so the command rewrites no launcher; it may still seed
+  the settings file. `check.py` and `harnesses.py` were changed although the plan's affected areas do not list them.
+- **Review:** the `reviewer` agent, one exchange, three blocking findings, all applied and tested: (1) a full log was almost never
+  reported (the writer stops up to one line short of the cap, and the test fed a size that cannot occur; now "within one line's
+  maximum of the cap", with tests for both sides); (2) a bare `Bash` allow rule, which allows every command, was skipped (now
+  covers every key); (3) a deeply nested settings file raised `RecursionError` past the command (now caught; a test with 200,000
+  levels). Also applied: `installed_texts` followed a linked directory and opened a file without `O_NOFOLLOW` or `O_NONBLOCK` (now
+  every directory is checked as a directory and not a link, a bounded number of directories is walked, and a file is opened
+  without following a link and without blocking); the spec says a rule that covers several keys is shown by its text; the spec
+  records the store opening and the log reading. Not changed: an allow rule with an absolute launcher path, odd spacing or glob
+  classes is not matched (the generated rules and the gate have the same limit; decision 6 is deferred); the hook check examines only
+  a command whose first word is `wb` and uses `wb doctor`'s own `PATH`; `lock_cause` returns nothing when the tree cannot be read; the
+  skill reader reads only the "never run" wording. The tests for the three blocking findings were not run against the module before
+  the fixes. The reviewer ran nothing.
+- **Verification as run** (`-W error`): `test_doctor` 59, `test_settingscmd` 33, `test_check` 45, `test_levels` 35,
+  `test_levels_facts` 37, `test_settings` 84, `test_permissions_drift` 22, `test_rendering` 85, `test_cli` 33, `test_command_gate` 130,
+  `test_gate_corpus` 15, `test_agent_gate` 59, `test_harness_lock` 30, all OK; `wb run code-work check`: 82 plans, no problems. The
+  full suite was not run.
+- **Security review (the owner asked for it):** the `security-reviewer` agent, on copies; no Critical or High finding. Found sound and
+  tested: nothing raised past `run` or hung (huge, deeply nested and invalid files, FIFOs, links, loops, a 1 MiB gate log with 14,598
+  rule names, 30,000 files under `.workbench`); no line could be forged and the 400-character cut never removed a prefix or the
+  summary; a forged rendering record naming `/etc/hosts`, `../outside` or a path through a link read nothing outside the project;
+  nothing was written in the project, the home or the distribution (the store is created and seeded, below). Findings and what
+  was done (the owner said "fix 1 to 4 and 6"):
+  1. **Medium, fixed.** A rendered settings file replaced by a link to an allow-all file (or a hard link, FIFO or directory) gave
+     "doctor found no problems", and a missing or damaged rendering record the same. Now an unreadable file is a problem and is not
+     followed, a file over the size limit and a file that is not JSON are problems, and a missing rendering record for an attached
+     harness is reported (below).
+  2. **Medium, fixed.** No cap on the output: 30,000 allow rules gave 30,000 lines that sorted before the real problem. A severity now
+     lists at most 40 lines of one area, then `and <n> more`; the summary counts every finding.
+  3. **Low, fixed.** Names someone else chose reached a line unquoted (a module directory name, a floor id, the harness name): now
+     quoted ASCII; the gate-log note lists at most six rules. The text of a rule that covers several keys is still shown, cut at 60.
+  4. **Low, fixed.** A gate log over the store's limit, or that is not a regular file, was ignored: now a risk.
+  5. **Low, not changed.** The allow reader treats `[` and `?` as glob classes (the harness reads them literally: a false positive)
+     and misses odd spacing, an absolute launcher path, `env` and `&&` (decision 6 is deferred).
+  6. **Low, fixed in the text.** The spec and the table row say the command may create the store and seed the settings, also when it
+     refuses a target that is no project.
+  7. **Low, not changed.** `lock_cause` gives nothing when the tree cannot be read.
+  Second look at the fixes (the `reviewer` agent, one exchange; it ran nothing): two blocking findings, both applied. (a) The first
+  version of the missing-record finding was a `problem` with the advice "attach the harness again", which `wb attach` refuses for a
+  clone that records a harness, and it was false for a harness that provides no permissions (it has no record on purpose): now a
+  `risk` that says "if it renders permissions" and names `wb rerender`, which writes the record. (b) A deleted permissions file
+  that the record names was still silent: now a problem (the shared file, which the harness may create later, stays quiet when
+  missing). Also applied: the spec said an unreadable file "is skipped" (now true only of installed skill texts); the module docstring,
+  the spec and the table row name the new findings. Not changed: the cap prefers no kind of line, so in one area 40 broad-rule lines can
+  push a single-key line into "and n more" (the count and the exit code stay right); `_quoted` can cut after a backslash and show
+  `'ab\...'`; key names and the settings loader's own text are shown through `_name` and not quoted (they come from installed modules
+  and the guarded store). The tests for these fixes were not run against the module before them. After the fixes: `test_doctor` 72,
+  and the others as above, all OK.
+- **Not done:** the commit.

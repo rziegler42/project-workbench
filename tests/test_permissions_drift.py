@@ -23,7 +23,7 @@ import re
 import unittest
 import unittest.mock
 
-from workbench import declarations, levels, rules, settings
+from workbench import declarations, doctor, levels, rules, settings
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
@@ -165,34 +165,8 @@ def neutral_texts():
     return found
 
 
-def groups(text):
-    """The paragraphs and list items of `text`, each as one string."""
-    current, found = [], []
-    for line in text.splitlines():
-        if not line.strip() or re.match(r"\s*(?:- |\d+\. )", line):
-            if current:
-                found.append(" ".join(current))
-            current = [line.strip()] if line.strip() else []
-        else:
-            current.append(line.strip())
-    if current:
-        found.append(" ".join(current))
-    return found
-
-
-def named_token(key):
-    """How a skill names `key`: the argument of ``wb run <command> <argument>`` (in backticks), the whole of ``wb <word>``
-    (in backticks), or a checkpoint's name (in backticks or bare, but not inside a longer name such as
-    ``delegate-approve-plan``)."""
-    parts = key.split(" ")
-    return parts[-1] if key.startswith("wb run ") else key
-
-
-def names_key(group, key):
-    token = named_token(key)
-    if "`%s`" % token in group:
-        return True
-    return " " not in key and re.search(r"(?<![\w-])%s(?![\w-])" % re.escape(token), group) is not None
+# One reader of "never run <key>" for the shipped texts and for the installed ones (``wb doctor``).
+groups, named_token, names_key = doctor.groups, doctor.named_token, doctor.names_key
 
 
 def skills_against_levels(keys, texts):
