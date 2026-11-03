@@ -143,6 +143,33 @@ with the exit code. If the attempt cannot be written the helper is not started; 
 the exit code is 3 (a helper that itself exits 3 gives the same code; the line on standard error tells them apart). A run at a terminal reads no level and writes no entry. `wb launch` stays terminal-only for an owner-run argument at
 every level, because the `ask` rule is rendered for the `wb run` spelling only.
 
+**Decided, not built: `delegated` for an action key, and named risk profiles** (accepted decision
+[2026-11-03-delegated-for-an-action-key-and-named-risk-profiles](../decisions/2026-11-03-delegated-for-an-action-key-and-named-risk-profiles.md);
+plan `2026-11-03-delegated-levels-and-risk-profiles`). Nothing in this paragraph is built, and every line of this spec that says that
+`approve-plan` alone offers `delegated`, or that `verify` refuses `delegated` in a module's `levels`, describes what is built now.
+The decision is:
+
+- `delegated` for an action key offers what `ask` offers: the same read-only preview, the same digest, the same check of that
+  digest inside the command's own lock. It changes only who may confirm: the owner at the prompt, or a bridge (`ask-codex`,
+  `ask-ollama`) that has reviewed the exact command and approves that digest. The owner's prompt is shown alongside, so the owner
+  does not wait on a slow bridge (whether the harness shows it while a hook runs is not yet known and is tested first).
+- A decline waits for the owner, who may override it by confirming. A failure of the bridge or the hook is a decline, so it fails
+  closed. Without the modules `delegated` reads as `ask`; it never lets through what `ask` would not. The plan approval keeps its
+  converged-review gate until the hook is built.
+- Every key whose declaration offers `delegated` and whose action has a bridge rule (a `describe` and a rule) offers it, digest-bound
+  keys included. Today the engine has rules for `safe-git commit` and `remove` only. The floor and the compiled hard stops are never
+  offered. When built, "`approve-plan` only" above becomes "the keys whose declaration offers it", and `verify` stops refusing
+  `delegated` for a command that gives a `describe` and a rule.
+- A plan is delegable only with exactly one Risks section that lists no hard-stop action, whoever confirms.
+- The owner may set one `profile` (`cautious`, the default and today's behaviour; `balanced`, which sets `project` keys to `ask`;
+  `trusting`, which sets `project` keys to `delegated` where offered and to `ask` where not, and `governs` keys to `ask`), and a
+  per-key entry overrides it. A profile only chooses among the levels a key offers, and a key it cannot set reads as its shipped
+  default (today the six `project` keys offer only `block` and `none`, so few keys are affected). It never sets `none`, never touches
+  the floor, and never sets `delegated` for a `governs` key, where `delegated` counts as beyond `ask`; for `project` keys it does not,
+  because `delegated` reads as `ask` without the modules. An unknown profile reads as `block` for the whole table. `wb settings` prints
+  the profile and what it set, `wb doctor` reports a relaxed key in a dangerous class, and the settings version is bumped with the old
+  version still read. Increment C of the plan builds the profiles and the owner may drop it.
+
 ### Shipped defaults
 
 Every default is `block`, except the agent-safe actions and the declared module arguments that are not owner-run, which default to

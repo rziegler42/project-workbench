@@ -60,6 +60,25 @@ interface and the decisions in this spec stand as the design; what changed is th
   trusted as instructions; a typo in a rule file that silently turns the review off for every command (the
   approver does this today, measured on 2026-10-25).
 
+**Decided, not built: the delegate to a bridge for any action key** (accepted decision
+[2026-11-03-delegated-for-an-action-key-and-named-risk-profiles](../decisions/2026-11-03-delegated-for-an-action-key-and-named-risk-profiles.md);
+plan `2026-11-03-delegated-levels-and-risk-profiles`). The "does not widen delegation" line above and the `DELEGABLE` constant
+describe what is built now. The owner's goal is that, for any action the owner sets to `delegated`, this module's engine, through the
+configured bridge, approves the same confirmation `ask` asks for while the owner's own prompt is shown alongside. The decision
+changes, when the hook is built and not before:
+
+- Which actions a verdict may stand in for is decided by the owner's levels table and a module's declaration with a bridge rule,
+  not by a code constant; `DELEGABLE` goes when the hook is built. Digest-bound keys (such as the review engine's `extend`) are
+  eligible, each needing a `describe` and a rule, built one action at a time after the shadow period.
+- A decline waits for the owner, who may override it. A failure of the bridge, the engine or the hook is a decline. The reason of a
+  decline is shown as far as the harness allows and is not required.
+- The hook is registered in the owner's user-level configuration, outside a project's reach, and reads the owner's levels table to
+  learn which keys are `delegated`; `wb doctor` can only note that it depends on a hook it cannot see.
+- Whether the harness shows the permission prompt while a `PermissionRequest` hook runs is not known; a test on a copy comes before
+  the hook is built, and a record says what the owner sees and for how long if the prompt is held.
+- The cutover bound ("Accuracy and cutover") is a precondition, and the old approver's declines by failed check are the evidence that
+  false declines are what to measure.
+
 ## The design
 
 ### The `describe` interface (default)

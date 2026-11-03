@@ -189,6 +189,20 @@ offers only the levels its command or checkpoint supports (`command-permissions.
   A module's other writes to the store, such as the review engine's seal key and
   marks, are not approvals and are unchanged.
 
+**Decided, not built: `delegated` for an action key** (accepted decision
+[2026-11-03-delegated-for-an-action-key-and-named-risk-profiles](../decisions/2026-11-03-delegated-for-an-action-key-and-named-risk-profiles.md);
+plan `2026-11-03-delegated-levels-and-risk-profiles`). The lines of this section describe what is built, which is the plan approval
+by a converged, sealed review. The decision adds, and nothing of it is built:
+
+- The plan approval becomes a key like the others. In the end state it is approved at `delegated` by the same route as any action
+  key: a bridge's approval of the exact digest, with the owner's prompt alongside. Until the hook that decides is built, it keeps the
+  converged-review gate above and does not read as `ask` without the modules.
+- A decline by the bridge waits for the owner, who may override it; a failure of the bridge is a decline; each verdict, failure and
+  override is logged.
+- The restriction on a plan's content stands whoever confirms: a plan with more or fewer than one Risks section, or one whose Risks
+  section lists a hard-stop action, is not approved by a bridge. Hard stops still stop at the time of the action whatever the plan
+  says.
+
 ### Hard stops and the floor
 
 A hard stop is an irreversible or externally-effecting action. It always stops for

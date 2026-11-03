@@ -266,3 +266,22 @@ tested area.
   claim in decision 8 about the hashed project files, which is the spec's.
 - **For the owner:** the decision whether the plan approval's present gate stays until the hook is built (decision 4), and whether
   `delegated` may never be set by a profile for `governs` (decision 10), are the two choices most worth a look before accepting.
+  The owner accepted the record at `ask` on 2026-11-03 (commit 34db953).
+
+### Increment B (2026-11-03)
+
+- **Done:** added a paragraph headed "Decided, not built" to `docs/specs/command-permissions.md` (before "Shipped defaults"),
+  `docs/specs/trust-and-approval.md` (end of "Delegated approval") and `docs/specs/action-review.md` (end of "Non-goals and
+  anti-goals"). Each names the accepted record and says what it decides: the meaning of `delegated` for an action key, the prompt
+  alongside and the harness unknown, decline and fail-closed, the keys offered and never offered, the plan approval keeping its
+  converged-review gate, the plan-content restriction, the profiles (command-permissions), the hook's place and the cutover bound
+  (action-review). No existing line was changed: the diff of the three specs is 60 added lines and 0 removed.
+- **Verification run:** `wb check` -> "check found no problems", run before and after the review fixes.
+- **Review:** one round by the `reviewer` agent, no bridge. Three findings, none blocking, all applied: a `via` bullet in
+  trust-and-approval that the record does not support was dropped; the profile summary gained the `ask` fallback, the shipped-default
+  reading, the `governs` versus `project` treatment of `delegated`, and the `wb settings`/`wb doctor`/version points; the
+  command-permissions paragraph now says "every line of this spec", so later lines that say the plan approval alone offers `delegated`
+  are covered. The reviewer could not run `git diff`; the additions-only check above was run by the author.
+- **Not done / not checked:** the specs still describe what is built; they change in increment D. Not checked: whether `wb check`
+  validates the relative link to the record. Increment C (profiles) is not started.
+- **For the owner:** nothing is decided here; whether to keep increment C (profiles) is still yours.
