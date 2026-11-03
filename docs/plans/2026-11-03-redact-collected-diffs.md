@@ -262,6 +262,41 @@ Then the three files were copied byte-for-byte into the real tree (`cmp` equal) 
 two new shipped records (`f365ddd2a3d4…`, the package; `b7f550cd1b6d…`, the module). In the real tree `wb check .` and
 `wb run code-work check` (83 plans) report no problem, `python3 -B -W error tests/run_all.py` passes (7,055 tests in 14 roots) and
 `git diff --check` is clean. Two older records belong to no release now (`49f51831d166…`, the package, and `86669eeefa5c…`, the
-module); they are still tracked, awaiting the owner's word.
+module); the owner had them removed, in `50d5859`. Increment B is committed as `cc4c0bd`.
 
-Not done in this section yet: the commit.
+### Increment C
+
+Changed (text only; no package file, so no release): `docs/specs/action-review.md` and `docs/development.md`.
+
+Done: "The data files" says that the `command`, `facts` and `reason` of a collected row and the `reason` of a verdict row are stored
+redacted, and a new "Redaction" part names the kinds and the marker, what is kept, that `command_sha256` is of the raw command and
+`facts_sha256` of the unredacted facts, and how the hook acts when a redaction cannot be done (the readings recorded under
+Increment B). It says that the redaction is best effort and lists what it does not find and what it hides that is not a secret,
+among them the keys of the facts and the engine's own fields. Step 3 of "The owner's steps" now says the same in short and still asks
+the owner not to copy, share or back up the file; the decision list and the status paragraph record the plan; the command table of
+`docs/development.md` says that the hook's rows are redacted.
+
+Check of the text against the code: a script ran fifteen examples through the real `redact_text` and compared the result with what
+the spec says; one example in the spec (`token: str`, too short to be redacted) was wrong and now reads `token: Optional[str]`.
+
+Verification as run in the real tree on 2026-11-03: `wb check .` and `wb run code-work check` (83 plans) report no problem and
+`git diff --check` is clean. No test is affected by a change to text, and none was run again.
+
+**A mistake of mine, recorded.** The script that compared the spec with the code loaded the real tree's `shadow_hook.py` without
+`-B`, which made a `__pycache__` directory inside `packages/workbench/`; the installer then stopped trusting the first-party package
+and the command gate closed. The owner removed the directory. It is the same fault as the one that the subprocess tests had earlier.
+
+### The plan as a whole
+
+Run in the real tree on 2026-11-03 after Increment C's text was in: `python3 -B -W error tests/run_all.py` passes (7,055 tests in 14
+roots, the pins test and the tests of `label.py`, `report.py` and `run_testset.py` among them, unchanged); `wb check .` and
+`wb run code-work check` (83 plans) report no problem; `git diff --check` is clean; `python3 -m workbench verify packages/workbench`
+exits 0. Completion criteria 1 to 6 are met, with one reading recorded under Increment B for criterion 3 (the verdict row keeps its
+redacted reason when only the collected row's line is refused by the store).
+
+Not run by the agent: the hook against Claude Code, a real bridge and a real model; the patterns were tested on made-up secrets and
+on hostile shapes, not on the owner's real commands. Still open for the owner: the follow-up item "keep the facts out of the
+bridge's request when they hold a secret" (Deferred work), the tested security review that the owner postponed, and the owner's own
+hand run of the shadow (criterion 9 of plan `2026-10-29-action-review-shadow-hook`).
+
+Not done in this section yet: the commit of Increment C.

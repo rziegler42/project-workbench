@@ -8,7 +8,7 @@ separately chosen; the owner may still change it. The approval is of the design 
 `describe` interface is a decision record of its own, accepted by the owner on 2026-10-25
 (`2026-10-25-describe-interface-for-action-review`). The rule schema, the module's layout and declaration, the bridge setting and the checks for `commit` and `remove` were
 written on 2026-10-26 by Increment A of plan `2026-10-26-action-review-engine` and wait for the owner's reading
-("The rule schema, the module and the checks"). The engine is built for `commit` and `remove` (plan `2026-10-26-action-review-engine`, Increments B to K; "As built, and its limits" at the end of the design says where it differs from the text and what it does not do), and so are the `describe` side of `safe-git` (for `commit`, `remove` and `push`) and the launcher rule (plans `2026-10-25-safe-git-describe` and `2026-10-26-safe-git-describe-push`). The shadow (the hook that records and decides nothing, its store, the labelling tool, the report and the test-set runner) is built by plan `2026-10-29-action-review-shadow-hook`, Increments A to H ("The shadow hook"), and corrected after a security review by plan `2026-10-30-shadow-review-fixes`; it has not been installed or run by the owner. The status stays `Draft` because the owner has not read the engine's sections, because the shadow has not been run on real commands, and because the push rule, a hook that decides, the owner's personal setting and the cutover are not built (plan 5 of the split below).
+("The rule schema, the module and the checks"). The engine is built for `commit` and `remove` (plan `2026-10-26-action-review-engine`, Increments B to K; "As built, and its limits" at the end of the design says where it differs from the text and what it does not do), and so are the `describe` side of `safe-git` (for `commit`, `remove` and `push`) and the launcher rule (plans `2026-10-25-safe-git-describe` and `2026-10-26-safe-git-describe-push`). The shadow (the hook that records and decides nothing, its store, the labelling tool, the report and the test-set runner) is built by plan `2026-10-29-action-review-shadow-hook`, Increments A to H ("The shadow hook"), corrected after a security review by plan `2026-10-30-shadow-review-fixes`, and made to store redacted text by plan `2026-11-03-redact-collected-diffs`; it has not been installed or run by the owner. The status stays `Draft` because the owner has not read the engine's sections, because the shadow has not been run on real commands, and because the push rule, a hook that decides, the owner's personal setting and the cutover are not built (plan 5 of the split below).
 
 Terms are defined in `terms.md`. The engine sits above the bridge of `model-bridge.md` and beside the engine of
 `review-engine.md`. The decision behind it is `2026-10-22-model-calls-go-through-vendor-bridges` (decisions 3, 6, 7
@@ -566,18 +566,54 @@ JSON is refused on write and skipped, with a count, on read.
   raw command text, to link a collected row); `outcome`, one of `reviewed`, `no_rule`, `unreviewable`, `refused`, `failed`,
   `timeout`, `malformed_input`, `not_bash`; `verdict` (`approve`, `decline` or null); `failed_checks`; `reason`; `reviewed`
   (a boolean); `no_review_reason` (null when reviewed, else the outcome); and the engine's log-row fields when there is one
-  (`rule`, `facts_sha256`, `rubric_sha256`, `bridge`, `model`, `effort`, `format`). It holds no command text. A case where the
+  (`rule`, `facts_sha256`, `rubric_sha256`, `bridge`, `model`, `effort`, `format`). It holds no command text, and its `reason` is
+  redacted ("Redaction", below). A case where the
   directory cannot be written leaves no row and is noted on standard error; the plan's earlier `store_error` outcome is dropped
   for that reason, since it could never appear in a row.
 - `collected.jsonl`: one row per reviewed command. Fields: `id` (a random 128-bit hex string), `ts`, `rule` (the engine's rule
   name, such as `safe-git-commit`, which names the action for the per-action counts), `command_sha256` (of the raw text, equal to
-  the verdict row's), `command` (the raw text, at most 4,096 characters), `facts` (the `describe` object as received, at most the object cap of `safe-git.md`), `verdict`,
-  `failed_checks`, `reason`. It may hold diffs and secrets and is never tracked or inside a project.
+  the verdict row's), `command` (the text as redacted, at most 4,096 characters), `facts` (a redacted copy of the `describe`
+  object, at most the object cap of `safe-git.md`), `verdict`, `failed_checks`, `reason` (redacted). It may still hold what the
+  redaction does not find, and it is never tracked or inside a project.
 - `labels.jsonl`: `id` (a collected id), `label` (`right`, `wrong` or `skip`), `ts`, optional `note` (at most 300 characters). A
   `skip` is a row the owner could not judge; it counts toward neither the labels nor the per-action minimums, and a later row for
   the same `id` replaces an earlier one.
 - `testset.jsonl`: one row per dangerous case run through a real bridge: `case`, `ts`, `expected`, `verdict`, `failed_checks`,
   `mismatch`, and the bridge, model and effort.
+
+**Redaction (plan `2026-11-03-redact-collected-diffs`, Increments A and B; `hook/shadow_hook.py`).** The hook redacts the three
+texts it keeps before it writes a row: the `command` and the `facts` of a collected row, and the `reason` of both files (the model's
+words can quote a secret). A secret that a pattern finds is replaced by `[redacted:<kind>]`, which holds nothing of it, not even its
+length. The kinds:
+- `private-key`: a whole `-----BEGIN ... PRIVATE KEY-----` block, a PGP block included, or the text from its start to the end when
+  the block is cut off;
+- `jwt`; `token`: the prefixes `AKIA`, `ASIA`, `ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_`, `github_pat_`, `sk-`, `sk-ant-`, `xox[abprs]-`
+  and `AIza`;
+- `bearer`: the value of an `Authorization` header, or a `Bearer` value of 16 characters or more that holds a digit or a sign;
+- `url-credentials`: the user and password before the `@` of a URL;
+- `assignment`: the value given with `:` or `=` to a name that holds `secret`, `token`, `password`, `passphrase`, `credential`,
+  `apikey`, `accesskey`, `privatekey`, `authkey`, `_key` or `-key`, or given after a flag of such a name, in plain or JSON-escaped
+  quotes; an unquoted value is redacted from four characters, and a quoted one when it is not empty.
+
+The keys, numbers, booleans and nulls of the facts are kept, the line breaks stay, and a text with no secret is stored as it was.
+`command_sha256` is of the raw command in both files. `facts_sha256` in a verdict row is the engine's hash of the facts before
+redaction, so it does not match the stored facts; no tool compares them.
+
+*As built: it is best effort, not a guarantee.* It finds what it names and nothing else. Not found: another service's token prefix
+(`sk_live_`, `glpat-`, `npm_`, `xapp-`), a bare `key=`, `pass=` or `pwd=`, a value cut at an escaped quote, a URL password over 200
+characters or with a `/`, a value on the line after its name, and a secret that was split. The keys of the facts and the engine's own
+fields (`rule`, `failed_checks`, `bridge`, `model`, `effort`) are stored as they are; the store limits the first three to a
+lowercase pattern and the others come from the engine's settings, so a key that carried user text is the one gap. It also hides some
+facts that are not secrets: `tokens = parse(line)`, a type hint such as `token: Optional[str]`, a path given to `--secret-file`, a branch name
+that starts with `sk-` and runs on. The owner then judges from the command and the rest of the facts, or skips. There is no rule by
+entropy, because it would hide the git hashes that the owner needs. The work is linear in the text: a test redacts the largest text
+the hook can hold (393,216 characters) in each of 24 hostile shapes, with a limit of 2 seconds; the longest took under 0.1 second.
+
+*As built: when a redaction cannot be done.* It raises (an object nested deeper than 64, a key that is not a string, a value that is
+not JSON), or the redacted reason would be over 300 characters, or the redacted command over 4,096. The verdict row is then written
+without its reason, no collected row is written, and the hook notes it on standard error in fixed text. If the redacted facts make
+a line that the store refuses (over 512 KiB), the collected row is lost and the verdict row keeps its redacted reason. Rows written
+before this change are not rewritten; none existed when it was made.
 
 Rules the store enforces on every row, written and read (`hook/shadow_store.py`, built by Increment C): a reviewed row names an
 approve with no failed check or a decline with at least one, as the engine's verdict does, and a row that was not reviewed holds no
@@ -852,9 +888,9 @@ of plan `2026-10-29-action-review-shadow-hook`, Increment H.
    ```
    **What leaves your machine from here on:** every prompted command that matches a rule is reviewed by the engine, which sends
    its facts, a commit's diff included, to the bridge's vendor (two model calls at most per command). `collected.jsonl` keeps the
-   command text and those facts on your disk (mode 0600, outside every project) until you delete it, and a diff may hold a secret.
-   Do not copy, share or back up that file to anywhere you do not control: the stored diffs are not redacted yet (a follow-up plan
-   is to do it, "Decided by the owner (2026-10-29 to 2026-11-03)").
+   command text, those facts and the reason on your disk (mode 0600, outside every project) until you delete it. The hook redacts
+   them first with a fixed list of patterns ("Redaction", in "The data files"), but the list is best effort: a secret in a shape it
+   does not name is kept as it was. Do not copy, share or back up that file to anywhere you do not control.
 4. **To collect commits as well as removals,** add a user-level `ask` rule for `wb run safe-git commit`, in the form your other rules
    use. Every commit then raises a prompt, which changes your workflow while the shadow runs; remove the rule when it ends. The
    module's `remove` already asks; the accepted decision `2026-10-29-workbench-asks-for-remove-submit-and-fetch` leaves `commit`
@@ -971,8 +1007,9 @@ Decided in session while plan `2026-10-29-action-review-shadow-hook` was drafted
 
 - **The store module is `hook/shadow_store.py`** (accepted 2026-11-03): the installer's boundary test forbids a module file named like
   a file of the installer, so the plan's name `hook/store.py` could not stand.
-- **Redacting the diffs kept in `collected.jsonl` is wanted, as a small follow-up plan, and is not done** (2026-11-03). Until then
-  the file is not to be shared or backed up outside the owner's control (the owner's steps say so).
+- **What the hook stores is redacted by a fixed list of patterns, best effort** (decided 2026-11-03, built by plan
+  `2026-11-03-redact-collected-diffs`; "Redaction"). The file is still not to be shared or backed up outside the owner's control
+  (the owner's steps say so).
 
 - **The shadow's data directory is `~/.config/project-workbench/action-review/`**, a subdirectory of the guarded store, fixed (no
   environment variable moves it), mode 0700 ("The data files").
