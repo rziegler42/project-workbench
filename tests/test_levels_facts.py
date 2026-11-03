@@ -200,5 +200,139 @@ class TheOfferedLevelsAndDefaultsDoNotMove(unittest.TestCase):
                              (new[name].offers, new[name].default, new[name].agent), name)
 
 
+def old_gate_words(key):
+    """``command_gate.words`` as it was before increment F, frozen: it parsed a key's name on its own."""
+    if key in levels.COMMAND_OF_CHECKPOINT:
+        return [levels.COMMAND_OF_CHECKPOINT[key]]
+    if key == "approve-plan":
+        return ["approve-plan"]
+    parts = key.split(" ")
+    if parts[:2] == ["wb", "run"] and len(parts) >= 4:
+        return parts[2:]
+    if parts[0] == "wb" and len(parts) == 2:
+        return [parts[1]]
+    return []
+
+
+def old_key_patterns(key):
+    """``rendering.key_patterns`` as it was before increment F, frozen: it parsed a key's name a second way."""
+    agent_words = frozenset(name[3:] for name in levels.agent_keys() if " " not in name[3:])
+    if key == levels.APPROVE_PLAN:
+        return rules.owner_run_command_patterns(key)
+    if key in levels.COMMAND_OF_CHECKPOINT:
+        return rules.owner_run_command_patterns(levels.COMMAND_OF_CHECKPOINT[key])
+    if key.startswith("wb run "):
+        parts = key.split(" ")
+        if len(parts) >= 4:
+            return rules.command_owner_patterns(parts[2], [" ".join(parts[3:])])
+        return []
+    if key.startswith("wb preview "):
+        action = key[len("wb preview "):]
+        return rules.owner_run_command_patterns("preview " + action) if action in rules.PREVIEW_ACTIONS else []
+    if key.startswith("wb ") and (key[3:] in rules.OWNER_RUN or key[3:] in agent_words):
+        return rules.owner_run_command_patterns(key[3:])
+    return []
+
+
+def old_by_launcher(key):
+    """``command_gate._by_launcher`` as it was before increment F, frozen."""
+    return bool(old_gate_words(key)) and key != "approve-plan" and not key.startswith("wb run ")
+
+
+def old_forms(key, store_bin):
+    """``command_gate.forms`` as it was before increment F, frozen: the patterns, as text."""
+    import re
+    from workbench import command_gate
+    heads = ["wb", re.escape(store_bin)]
+    if key == "approve-plan":
+        return ["%s approve-plan %s( --digest %s)?" % (head, command_gate._PATH, command_gate._DIGEST) for head in heads]
+    found = old_gate_words(key)
+    if not found:
+        return []
+    tail = " ".join(re.escape(word) for word in found)
+    middle = " run " if key.startswith("wb run ") else " "
+    return ["%s%s%s(?: %s)*" % (head, middle, tail, command_gate._TOKEN) for head in heads]
+
+
+def old_reads_argument_as_data(text, key, store_bin):
+    """``command_gate.reads_argument_as_data`` as it was before increment F, frozen."""
+    import re
+    from workbench import command_gate
+    found = old_gate_words(key)
+    if not key.startswith("wb run ") or len(found) != 2 or not command_gate.literal_run(text, store_bin):
+        return False
+    heads = "|".join(["wb", re.escape(store_bin)])
+    call = re.fullmatch(r"(?:%s) run (%s) (%s)(?: %s)*" % (heads, command_gate._RUN_NAME, command_gate._RUN_PLAIN,
+                                                           command_gate._RUN_ARGUMENT), text)
+    return bool(call) and call.group(1) == found[0] and command_gate._folded(call.group(2)) != command_gate._folded(found[1])
+
+
+CALLS = ("wb run review-engine preview docs/x.md 2", "wb run review-engine extend docs/x.md 2", "wb run groundwork accept x",
+         "wb run groundwork preview x", "wb run tool look", "wb run tool look extra", "wb install", "wb run a b c", "")
+STORE_BIN = "/home/owner/.config/project-workbench/bin/wb"
+
+ODD_KEYS = ("", "wb", "wb run", "wb run x", "wb run x y", "wb run x y z", "wb run  x y", "wb preview", "wb preview install",
+            "wb preview release-approvals", "wb preview nonsense", "wb preview a b", "wb install", "wb nonsense", "approve-plan",
+            "acknowledge-first-tier", "acknowledge-second-tier", "accept-decision", "push-shared-branch", "wb  install",
+            " wb install", "wb install ", "WB install", "wb check", "wb gate", "wb run tool look", "wb acknowledge", "wb pin x")
+
+
+class TheOneParserOfAKeysName(unittest.TestCase):
+    """``levels.command_words`` is the single place a key's name is read as a command; the rendering and the command gate
+    use it, and give the same answers as the two parsers they replaced."""
+
+    @classmethod
+    def setUpClass(cls):
+        loaded = declarations.load_package(os.path.join(REPO, "packages", "workbench"), first_party=True)
+        checkpoints = [name for m in loaded.modules if m.type == "process" for name in m.checkpoints]
+        cls.real = list(levels.registry(checkpoints, [levels.command_entry(c) for m in loaded.modules for c in m.commands]))
+
+    def test_the_words_of_the_keys_that_name_a_command(self):
+        for key, words in (("approve-plan", ("approve-plan",)), ("acknowledge-first-tier", ("acknowledge",)),
+                           ("wb install", ("install",)), ("wb pin", ("pin",)), ("wb check", ("check",)),
+                           ("wb preview install", ("preview", "install")), ("wb run tool look", ("run", "tool", "look")),
+                           ("wb run a b c", ("run", "a", "b", "c"))):
+            with self.subTest(key=key):
+                self.assertEqual(words, levels.command_words(key))
+
+    def test_the_keys_that_name_no_command(self):
+        for key in ("", "wb", "wb run x", "acknowledge-second-tier", "accept-decision", "push-shared-branch", "WB install",
+                    " wb install", "wb preview a b"):
+            with self.subTest(key=key):
+                self.assertEqual((), levels.command_words(key))
+
+    def test_the_gate_reads_the_same_words_as_before_for_every_key(self):
+        from workbench import command_gate
+        for key in self.real + list(ODD_KEYS):
+            with self.subTest(key=key):
+                self.assertEqual(old_gate_words(key), command_gate.words(key))
+
+    def test_the_other_gate_readers_of_a_key_give_the_same_answers_as_before_for_every_key(self):
+        """``_by_launcher``, ``forms`` and ``reads_argument_as_data`` were rewritten to ask ``command_words`` as well."""
+        from workbench import command_gate
+        for key in self.real + list(ODD_KEYS):
+            with self.subTest(key=key):
+                self.assertEqual(old_by_launcher(key), command_gate._by_launcher(key))
+                self.assertEqual(old_forms(key, STORE_BIN), [form.pattern for form in command_gate.forms(key, STORE_BIN)])
+                for text in CALLS:
+                    self.assertEqual(old_reads_argument_as_data(text, key, STORE_BIN),
+                                     command_gate.reads_argument_as_data(text, key, STORE_BIN), text)
+
+    def test_the_rendering_reads_the_same_patterns_as_before_for_every_key(self):
+        from workbench import rendering
+        for key in self.real + list(ODD_KEYS):
+            with self.subTest(key=key):
+                self.assertEqual(old_key_patterns(key), rendering.key_patterns(key))
+
+    def test_the_two_readers_no_longer_parse_a_key_themselves(self):
+        for name in ("command_gate.py", "rendering.py"):
+            with open(os.path.join(REPO, "workbench", name), encoding="utf-8") as handle:
+                text = handle.read()
+            with self.subTest(file=name):
+                self.assertTrue("command_words(" in text, "%s does not use levels.command_words" % name)
+                self.assertFalse('key.split(" ")' in text, "%s splits a key's name itself" % name)
+                self.assertFalse('startswith("wb run ")' in text, "%s tests a key's name for a module argument itself" % name)
+
+
 if __name__ == "__main__":
     unittest.main()

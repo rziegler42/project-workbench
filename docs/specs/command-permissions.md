@@ -293,7 +293,9 @@ declared checkpoints, then the installer's owner-run commands, then the agent-sa
 table applied. An agent-safe key and a declared argument that is not owner-run default to `none`; every other key defaults to `block`.
 The hook entry points, the dispatcher words and `delegate-approve-plan` are not keys. As built by Increments A and C of the plan, a
 `block` set on an agent-safe key is rendered as a `deny` at the next attach ("Rendering"); the table a harness renders and digests holds
-an agent-safe key only when it is not at its default, so an attached clone's record is unchanged. After the `level` lines it prints one `translated <key>:
+an agent-safe key only when it is not at its default, so an attached clone's record is unchanged. After the `level` lines it prints one `key <key>: class=<class>
+offers=<levels>` line for each of them (the registry's facts: the danger class, `reads`, `project` or `governs`, and the levels the key offers, strictest first;
+built by Increment F of the plan `2026-11-02-permission-system-consistency`), then one `translated <key>:
 <word> read as <level>` line for each checkpoint word it read as a level because the table does not name the key (Increment B).
 Problems and notes print as `settings:` lines. Two declarations that
 give one key are a refusal.

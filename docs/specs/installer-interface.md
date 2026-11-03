@@ -677,7 +677,8 @@ The text is fixed by the tests (`tests/test_planapprovals.py`, `test_delegation.
 found as `wb run` finds them. It resolves exactly one process module, none or more than one being a refusal, reads
 its verified declaration and prints, on standard output, one line per declared checkpoint, `checkpoint <name>:
 stop` or `checkpoint <name>: delegate`, then one line per declared cap, `cap <name>: <n>`, then one `level <key>: <level>`
-line per key it knows (`command-permissions.md`, "`wb settings`"), then one `settings:
+line per key it knows (`command-permissions.md`, "`wb settings`"), then one `key <key>: class=<class> offers=<levels>` line per such key,
+then one `settings:
 <text>` line per problem in the owner's settings. It is read-only and agent-safe. Exit codes: 0 printed, 1 refused
 (a `refused:` line on standard error and nothing on standard output), 2 usage error.
 

@@ -8,6 +8,8 @@ the same reading ``approve-plan`` uses), the owner's personal settings from the 
     cap <name>: <n>                      one per declared cap, in declaration order
     level <key>: <level>                 one per key the installer knows: the checkpoints, the owner-run commands, the
                                          agent-safe actions, then each argument an installed command declares
+    key <key>: class=<class> offers=<levels>   one per level line, after them: the key's danger class (reads, project or
+                                         governs) and the levels the owner may set it to, strictest first (the registry's facts)
     translated <key>: <word> read as <level>   one per checkpoint word the table does not override, read as a level
     settings: <text>                     one per problem in the owner's settings
 
@@ -59,6 +61,11 @@ def run(guarded, tokens, out, err, *, cwd=None):
         out.write("cap %s: %d\n" % (cap.name, effective.caps[cap.name]))
     for name, level in effective.levels.items():
         out.write("level %s: %s\n" % (name, level))
+    # What each key is and offers (the registry's facts): its danger class and the levels the owner may set it to.
+    keys = levels.registry(module.checkpoints, owner_commands)
+    for name in effective.levels:
+        if name in keys:
+            out.write("key %s: class=%s offers=%s\n" % (name, keys[name].klass, ",".join(keys[name].offers)))
     for name, word, level in effective.translated:
         out.write("translated %s: %s read as %s\n" % (name, word, level))
     for text in list(loaded.problems) + list(effective.notes):

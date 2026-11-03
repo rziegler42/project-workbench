@@ -610,6 +610,44 @@ conformance check and author guide, and named risk profiles. Also deferred: `del
   the author first said. Until then **increment L does not report a risk for a module argument whose class is derived**; it
   reports one for the installer's keys, the checkpoints and an argument that carries an `asks`, and for a module argument only
   once a module declares its class. The divergence is pinned by a test (`tests/test_levels_facts.py`) so it cannot change unseen.
-- **Not done:** the commit, which waits for the owner's word; a security review of this increment (the code decides which commands
-  get a deny rule and which level a key may be set to, but the comparison above shows both unchanged); `anchor` is recorded only
-  for the installer's keys and checkpoints, and a module argument has none because its module documents it.
+- **Committed** as `c6b18ce02e75315cc7a967a2c1b549a89814dcf5`. Not done: a security review of this increment (the code decides which
+  commands get a deny rule and which level a key may be set to, but the comparison above shows both unchanged); `anchor` is
+  recorded only for the installer's keys and checkpoints, and a module argument has none because its module documents it.
+
+### Increment F — The readers move onto the registry
+
+- **Done:** one function now reads a key's name as a command. `levels.command_words(key)` returns the words of the command a key
+  names (`("approve-plan",)`, `("install",)`, `("preview", "install")`, `("run", "<command>", "<argument>")`, or `()`), and the
+  rendering (`key_patterns`) and the command gate (`words`, `_by_launcher`, `reads_argument_as_data`, `forms`, through a
+  new `_run_key`) use it instead of each splitting the name themselves. `wb settings` prints a `key <key>: class=<class>
+  offers=<levels>` line for each key, after the `level` lines (the plan's step 3). The line kind is documented in the
+  `settingscmd.py` docstring, `docs/development.md`, `docs/specs/command-permissions.md` and `docs/specs/installer-interface.md`.
+- **Found while reading, a correction to the plan's list:** four of the six readers the plan names have nothing to move.
+  `verify.py` and `rerender.py` use no permission fact; `settings.py` already builds its keys from `levels.registry`; `ownerargs.py`
+  compares one level constant. The readers that parsed a key's name by hand were `rendering.key_patterns` and `command_gate.words`
+  and its three neighbours, which the plan does not list, so they were changed. Step 2: no spelling changed and the rendering
+  record's content did not change (its digest is identical), so its format was not bumped and no old format needs reading.
+- **Beyond the plan's list of affected areas:** `workbench/levels.py` and `workbench/command_gate.py` (above), the three documents
+  that describe the `wb settings` output, and `tests/test_levels_facts.py` (the parser tests) beside `tests/test_settingscmd.py`.
+  `tests/test_settingscmd.py`'s expected output gained the `key` lines through its one helper; that is the plan's step 3 and no
+  other assertion changed.
+- **Verification as run:** 1303 tests OK across 30 modules that use the rendering, the gate, the settings command or the registry
+  (including `test_command_gate`, `test_gate_corpus`, `test_permissions_drift`, `test_rendering`, `test_rerender`, `test_attach`,
+  `test_owner_argument_levels`, `test_check`, `test_verify`), and 135 more in `test_settings`, `test_gate` and `test_levellog`
+  loaded the way `tests/run_all.py` loads them. `tests/test_levels_facts.py` freezes the old parsers (`words`, `key_patterns`,
+  `_by_launcher`, `forms`, `reads_argument_as_data`) and shows the new code gives the same answers for all 72 real keys and 28
+  odd strings. A dump of the compiled lists, all keys with their offers, defaults and order, the deny patterns of every key, the
+  rendering plan (300 deny patterns) and its digest, taken from the committed tree and the working tree in separate processes, is
+  identical; the 88 existing lines of `wb settings` are identical and 72 `key` lines are added. The full suite was not run.
+- **A second incident, stated plainly:** to compare outputs I ran the command line of an extracted copy of `HEAD`. A command
+  initializes the guarded store and rewrites its launcher (`~/.config/project-workbench/bin/wb`) to the copy's tree, which has no
+  `packages/`; the hooks then found no known harness and refused every `Edit`, `Write` and `Bash` call, and rewrote the launcher to
+  the same path each time. A search for stray files in `packages/` found nothing and was a dead end; reading the launcher showed
+  the cause. The owner repaired it with `python3 -B -m workbench settings` from the repository root in a terminal. No gate was worked
+  around. The lesson is in memory (compare by importing a copy and dumping data, never by running its command line). It is also a fact
+  for the lock record: the launcher is a shared piece of state that any workbench command can repoint.
+- **Review:** the `reviewer` agent, one exchange: four findings, none blocking. Applied: the `key` lines are documented, and the
+  differential test covers the other gate readers too. Not changed: the guard test that the two readers no longer split a key is a text
+  search (brittle, harmless), and the `key` loop skips a name the registry lacks (it cannot happen today). No security review was
+  run: the gate's answers are proved unchanged by the differential tests, and the plan offers one at increment I.
+- **Not done:** the commit, which waits for the owner's word.

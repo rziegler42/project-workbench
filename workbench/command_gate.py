@@ -71,21 +71,23 @@ Refusal = gate_hook.Refusal
 
 def words(key):
     """The words of the command `key` names, in order: ``approve-plan``; ``wb run <command> <argument>`` gives both."""
-    if key in levels.COMMAND_OF_CHECKPOINT:
-        return [levels.COMMAND_OF_CHECKPOINT[key]]
-    if key == "approve-plan":
-        return ["approve-plan"]
-    parts = key.split(" ")
-    if parts[:2] == ["wb", "run"] and len(parts) >= 4:
-        return parts[2:]
-    if parts[0] == "wb" and len(parts) == 2:
-        return [parts[1]]
-    return []
+    found = levels.command_words(key)
+    if found[:1] == ("run",) and len(found) >= 3:
+        return list(found[1:])
+    if found[:1] == ("preview",) and len(found) == 2:
+        return []
+    return list(found)
+
+
+def _run_key(key):
+    """Whether `key` is a module argument, ``wb run <command> <argument>``."""
+    found = levels.command_words(key)
+    return found[:1] == ("run",) and len(found) >= 3
 
 
 def _by_launcher(key):
     """Whether `key` is read as a launcher and then a word (not ``approve-plan`` and not ``wb run <command> <argument>``)."""
-    return bool(words(key)) and key != "approve-plan" and not key.startswith("wb run ")
+    return bool(words(key)) and key != "approve-plan" and not _run_key(key)
 
 
 def alternatives(key):
@@ -125,7 +127,7 @@ def reads_argument_as_data(text, key, store_bin):
     and a command of another name is not freed. This holds only for a module command whose helper takes its action from the
     first argument alone; a helper that took it from a later position, or re-dispatched one, would need its key left out."""
     found = words(key)
-    if not key.startswith("wb run ") or len(found) != 2 or not literal_run(text, store_bin):
+    if not _run_key(key) or len(found) != 2 or not literal_run(text, store_bin):
         return False
     heads = "|".join(["wb", re.escape(store_bin)])
     call = re.fullmatch(r"(?:%s) run (%s) (%s)(?: %s)*" % (heads, _RUN_NAME, _RUN_PLAIN, _RUN_ARGUMENT), text)
@@ -142,7 +144,7 @@ def forms(key, store_bin):
     if not found:
         return []
     tail = " ".join(re.escape(word) for word in found)
-    middle = " run " if key.startswith("wb run ") else " "
+    middle = " run " if _run_key(key) else " "
     return [re.compile("%s%s%s(?: %s)*" % (head, middle, tail, _TOKEN)) for head in heads]
 
 

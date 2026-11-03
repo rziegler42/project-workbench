@@ -137,6 +137,28 @@ def strictest(*given):
     return min(given, key=LEVELS.index)
 
 
+def command_words(key):
+    """The words of the command the key `key` names, after the launcher: ``("approve-plan",)``, ``("install",)``,
+    ``("preview", "install")``, ``("run", "<command>", "<argument>"...)``, or ``()`` for a key that names no command (a
+    checkpoint the agent follows, or a name of another shape). It reads the shape of the name only: whether a word is a command
+    the installer has is for the caller to ask (``OWNER_RUN``, ``AGENT_SAFE``, ``PREVIEW_ACTIONS``). The rendering and the command
+    gate both read a key's name through this one function."""
+    if key in COMMAND_OF_CHECKPOINT:
+        return (COMMAND_OF_CHECKPOINT[key],)
+    if key == APPROVE_PLAN:
+        return (APPROVE_PLAN,)
+    parts = key.split(" ")
+    if parts[0] != "wb":
+        return ()
+    if parts[1:2] == ["run"] and len(parts) >= 4:
+        return tuple(["run"] + parts[2:])
+    if parts[1:2] == ["preview"] and len(parts) == 3:
+        return ("preview", parts[2])
+    if len(parts) == 2:
+        return (parts[1],)
+    return ()
+
+
 def command_entry(command):
     """The facts of a declared command that the registry reads, as ``registry`` takes them: ``(name, owner-run arguments,
     all declared arguments, ``levels`` as ``((argument, (level, ...)), ...)``, ``checkpoint_of`` as
