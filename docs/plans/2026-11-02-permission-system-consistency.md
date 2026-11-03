@@ -439,4 +439,27 @@ conformance check and author guide, and named risk profiles. Also deferred: `del
 
 ## Result
 
-Empty until work starts.
+### Increment A — Decision: one subsystem, one key model
+
+- **Done:** `docs/decisions/2026-11-02-one-permission-registry-and-key-model.md`, `Proposed`. It reaffirms the accepted records
+  (decisions 1 to 6 of `2026-10-26-a-level-for-every-command`, the `wb rerender` exception, the clarification note), puts the
+  facts of every key in one registry (module declarations authoritative for a module's own facts, the registry reconciling),
+  names four kinds of key and three danger classes (information only; no default or offered level changes), says which mechanism
+  governs when a level, a checkpoint and an `asks` meet, and records the spelling policy (keep, generate, report gaps) as provisional
+  until increment D's corpus tests it.
+- **Found while reading, recorded in the decision:** two of this plan's Scope findings were partly decided already. The two
+  settings for `approve-plan` follow decision 5 of `2026-10-26-a-level-for-every-command` (the table wins; the seed still writes
+  an empty `checkpoints`); the "level `none` with an `ask` rule" mismatch for `remote-runner submit` and `fetch` and `safe-git remove`
+  is the module `asks` of `2026-10-29-workbench-asks-for-remove-submit-and-fetch`, an accepted minimum prompt that the personal
+  settings cannot lower. Scope items 2 and 3 are therefore overstated as "drift"; the plan's increments still hold.
+- **Open for the owner, in the record:** whether an owner may lower an `asks` with a level (the author recommends not yet), and the
+  class of each key.
+- **Verification as run:** `wb check` and `wb run code-work check`, both without problems. No code changed.
+- **Review:** the `reviewer` agent, one exchange: seven findings, one blocking. Applied all seven after checking each against the
+  files: the record no longer promises to map the remote commands to their checkpoints (`checkpoint_of` applies only to an owner-run
+  argument that offers `levels`, and the mapping would move a default); the three agent-safe keys that act outward or delete are in
+  the third class and `reset` and `prune` moved there; the exceptions of the clarification note are named; the `checkpoints` wording
+  is true for a version 2 file; the spec's rule on `asks` is cited; the spelling claim is marked provisional; the follow-on plan's
+  additions are stated. The corrected text was not reviewed again.
+- **Not done:** acceptance, which is the owner's checkpoint (`accept-decision` is at `ask`); the digest the preview printed is
+  `55a716cf8a797b8f8ca0d790dbfd96b9`.
