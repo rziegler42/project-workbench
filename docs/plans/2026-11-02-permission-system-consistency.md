@@ -1,6 +1,6 @@
 # One permission subsystem: remove the drift, fix the refusals
 
-Status: In Progress
+Status: Completed
 Created: 2026-11-02
 Candidate: none (the closest, `workbench-v1#checkpoint-levels-beyond-block`, widens levels and leaves this cleanup out of its boundary; the follow-on plan `2026-11-02-permission-levels-for-every-command` takes the widening; the owner directed both on 2026-11-02)
 Specs: command-permissions, module-contract, trust-and-approval, harness-refresh, review-engine
@@ -1092,7 +1092,12 @@ conformance check and author guide, and named risk profiles. Also deferred: `del
   on their skills and policy block). The status above is therefore `In Progress` again, and the fixes are the plan
   `2026-11-03-full-suite-regressions-of-the-permission-plan`, which the owner approves before work starts. The note below stands
   with that correction: the criteria were met by the targeted evidence recorded, and not by a full run.
-- **Plan completed (superseded by the note above).** The completion criteria are met with the evidence recorded above, with these caveats, each recorded where it
+- **Full run after the repair (2026-11-03).** The plan `2026-11-03-full-suite-regressions-of-the-permission-plan` (increments A to E)
+  fixed the 15 failures, and `python3 -B -W error tests/run_all.py` then passed: 7,021 tests in 14 roots, OK, exit 0 (the record
+  is in that plan's Result for increment E). The criteria stand on the targeted evidence recorded in each increment and now on a full
+  run as well. The owner marked the plan `Completed` again on 2026-11-03.
+- **Plan completed again (2026-11-03, at the owner's word; first marked completed earlier the same day and reopened by the full run
+  above).** The completion criteria are met with the evidence recorded above, with these caveats, each recorded where it
   arose: criterion 6, a heredoc whose docstrings hold double backticks is still refused by the gap rule (deferred, Increment M);
   criterion 7, a deliberate edit to a module's file is named by its module directory (Increment J); criterion 10, `wb doctor` has a
   third severity and reads neither a plan approval that changed since it was given nor the launcher spellings (Increment L).

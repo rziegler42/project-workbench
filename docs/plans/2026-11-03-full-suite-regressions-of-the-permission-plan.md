@@ -1,6 +1,6 @@
 # Fix the 15 full-suite regressions of the permission consistency plan
 
-Status: In Progress
+Status: Completed
 Created: 2026-11-03
 Candidate: none (this repairs work of the plan `2026-11-02-permission-system-consistency`, which the owner reopened; it adds no roadmap candidate)
 Specs: command-permissions, module-contract, module-boundary, code-work, review-engine
@@ -340,4 +340,32 @@ Empty until a review is asked for.
   `test_firstparty` 57, `test_harnesses` 28, `test_harness_lock` 30, `test_gate` 27, `test_self_hosting` 3, `test_rerender` 80,
   `test_attach` 76, `test_check` 45, `test_rendering` 85, all OK; the document check: 83 plans, no problems; `wb check`: no
   problems; `wb doctor`: no problems and 8 risks. The full run is increment E.
-- **Not done:** the three stale shipped records of increment K (removed only on the owner's word, as before); the commit; increment E.
+- **Committed as** `989f5581c7e9144614ec2be61e5a1d07d7b486a7`. Not pushed.
+
+### Increment E — The full run
+
+- **Before the run:** the three shipped records of increment K, which the release of increment D reported as no longer part of it, were
+  removed through `wb run safe-git remove` (the preview listed the three directories, each with one `approval.json`; the run with
+  `--confirm` followed the owner's word); `wb preview release-approvals` then read `stale records: 0`. The deletion was in the working
+  tree during the run and is committed after it.
+- **Run:** `python3 -B -W error tests/run_all.py`, once, in the background, output written to a file (2026-11-03, on the commit of
+  increment D plus those three deletions; workbench 0.1.0, Python 3.15.0). Result: **7,021 tests in 14 roots, OK, exit 0.** Per
+  root: `tests` 4,011 (1 skipped), `action-review` 463, `ask-codex` 103, `ask-ollama` 437, `claude` 34, `code-work` 346 (2 skipped),
+  `freecad` 23, `groundwork` 251, `mempalace` 152, `remote-runner` 107, `review-engine` 409, `safe-git` 647, `security-review` 24,
+  `verilog` 14. The first full run of the day, at commit `76d7294`, had 7,018 tests and 15 failures in three roots (`tests` 6,
+  `code-work` 7, `review-engine` 2); the 3 more tests are this plan's (the boundary tests for the exemption, increment C).
+- **Skipped tests:** 3 in all, as in the first run (1 in `tests`, 2 in `code-work`); none was added by this plan.
+- **Each of the 15 failures, and where it ended:** the kit file's `compile` and module names, and the self-hosting record
+  (increment A); the boundary rule and the registry's module name (increments B and C, by the accepted record: two conformance tests
+  exempt by path, the pairing out of the installer, three test files reworded); the seven `code-work` and two `review-engine` module
+  pins (increment D, one assertion at a time, as the record's table says, with the seeded plans README made level).
+- **The removal, committed as** `e0b920c9e796616a69ef7e9262851d3f1f0cdd47` (three deleted `approval.json` files, no plan trailer, as
+  with the earlier removal). Not pushed.
+- **Plan completed (2026-11-03, at the owner's word).** The completion criteria, against what is recorded: (1) the full run passes,
+  7,021 tests in 14 roots, exit 0, run on the commit of increment D with the three deletions of the stale records, which were
+  committed straight after; (2) each of the 15 failures has its cause and fix above, and the nine module pins changed only as the
+  accepted record's table says; (3) the decision of increment B is `Accepted` and increments C and D built it; (4) `wb preview
+  rerender` reads "nothing to change", `AGENTS.md` and the `.workbench` copies are current, and `wb doctor` reads no problems (8
+  risks, the owner's chosen levels); (5) the Result of `2026-11-02-permission-system-consistency` records the full run, and its status
+  is `Completed` again by the owner's word.
+- **Not done:** the commit of this Result and of the two status lines; a push.
