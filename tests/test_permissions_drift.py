@@ -36,13 +36,12 @@ INCREMENTS = tuple("ABCDEFGHIJKLM")
 # decision 5): each has a key of its own, and the two can carry different defaults.
 CHECKPOINT_PAIRS = {"submit-remote-job": "wb run remote-runner submit", "fetch-remote-output": "wb run remote-runner fetch"}
 
-# Every disagreement that exists today, and the increment of the plan that ends it. (E ended three: the registry now records an
-# ``asks`` as a module's declared minimum, so it is no longer a disagreement.) (G ended three: the registry records the two pairs of a checkpoint and a command as deliberate, and the seed writes
-# the table and not the version 1 object. K ended the six where a skill said never run a key that the registry offers at ask or none.)
-# M: the document.
-KNOWN = {
-    "development-table: release-approvals is an owner-run command but no Owner-run row of docs/development.md shows it": "M",
-}
+# Every disagreement that exists today, and the increment of the plan that ends it. The list is empty (completion criterion 4 of the
+# plan): E ended three (the registry records an ``asks`` as a module's declared minimum), G three (the two pairs of a checkpoint and a
+# command are recorded as deliberate, and the seed writes the table and not the version 1 object), K six (a skill said never run a key
+# that the registry offers at ask or none) and M the last (``docs/development.md`` had no Owner-run row for ``release-approvals``). A
+# disagreement found later is added here with the increment that will end it, or fixed.
+KNOWN = {}
 
 
 def modules():
@@ -303,8 +302,8 @@ class Drift(unittest.TestCase):
         self.assertEqual(["asks-vs-level: wb run nothing nowhere defaults to none and its module renders an ask"],
                          compare(now, stale)["listed but gone"])
         self.assertEqual([], compare(now, stale)["not listed"])
-        fewer = {key: value for key, value in KNOWN.items() if not key.startswith("development-table")}
-        self.assertEqual(1, len(compare(now, fewer)["not listed"]))
+        self.assertEqual(["invented: a disagreement nobody listed"],
+                         compare(now + ["invented: a disagreement nobody listed"], KNOWN)["not listed"])
 
     def test_the_readers_are_not_empty(self):
         """A parser that finds nothing would pass the comparison for the wrong reason."""
@@ -380,8 +379,10 @@ class EachReaderFindsADisagreementItIsGiven(unittest.TestCase):
 
     def test_the_development_table_without_a_row(self):
         text = read(DEVELOPMENT)
-        self.assertEqual(["development-table: release-approvals is an owner-run command but no Owner-run row of "
-                          "docs/development.md shows it"], list(development_against_rules(text)))
+        self.assertEqual([], list(development_against_rules(text)))
+        no_release = "\n".join(line for line in text.splitlines() if "python3 -m workbench release-approvals" not in line)
+        self.assertIn("development-table: release-approvals is an owner-run command but no Owner-run row of "
+                      "docs/development.md shows it", list(development_against_rules(no_release)))
         without = "\n".join(line for line in text.splitlines() if "python3 -m workbench pin " not in line)
         self.assertIn("development-table: pin is an owner-run command but no Owner-run row of docs/development.md shows it",
                       list(development_against_rules(without)))

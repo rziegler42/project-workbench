@@ -9,7 +9,11 @@ every command and subcommand the owner can govern, the agent-safe ones included,
 owner-run installer command and for `accept-decision`, and by the plan `2026-10-27-rerender-attached-harness`, which built
 `wb rerender` ("Re-rendering an attached clone"), and by the plan `2026-10-27-levels-for-the-review-workflow`, which built `ask` and
 `none` for the review engine's five owner-run arguments, and by the plan `2026-10-29-accept-decision-at-ask` (`ask` for `accept-decision`) and
-the plan `2026-10-30-release-approvals-at-ask` (`ask` for `wb release-approvals`). `approve-plan` alone offers `delegated`, and it, those
+the plan `2026-10-30-release-approvals-at-ask` (`ask` for `wb release-approvals`), and by the plan `2026-11-02-permission-system-consistency`,
+which made `levels.py` the one registry of keys and their facts, gave each checkpoint one setting, rewrote the gate's text rules (data
+positions and gaps, not letters in order), named and logged its refusals, explained the lock of a changed package tree, brought the
+skills and the policy block into line with the levels and built `wb doctor` (each is described where it is built, below).
+`approve-plan` alone offers `delegated`, and it, those
 five, `accept-decision` and `wb release-approvals` offer `ask`. The keys that still offer
 `block` only are listed under "Not built"; `wb rerender` offers it by design and is described in its own section. The design is `docs/decisions/2026-10-26-per-command-permission-levels.md`, as refined by
 `docs/decisions/2026-10-26-permission-levels-as-built.md` and `docs/decisions/2026-10-26-a-level-for-every-command.md` (all accepted),
@@ -220,21 +224,40 @@ spellings. The layout fields are `hooks.command_gate` (`tool`, `field`, `timeout
 prints one `refused:` line and returns 2 to block; every failure, a crash, a deadline, an oversize command (64 KiB), a NUL byte, a
 wrong tool and a project that cannot be read, is a block. The relaxed keys are the table's and also every key the record says
 was rendered at `ask` or `none`, so a table set back to `block` after attach does not open the gate. A command that names no word of
-a relaxed command is allowed. A command that is exactly the simple command the `ask` rule matches, on the raw text with single
-spaces and case kept (`wb approve-plan <path> [--digest <32 hex>]`, or the same through the store's `bin/wb`), is allowed, and the
-harness then prompts. Every other command that names the word is blocked, however it is written: after case and Unicode folding;
-after removing every character that is not a letter or a digit (so quote splicing, backslashes and punctuation do not hide it);
-after decoding each static `$'…'` string as bash decodes it, tried at every position; and, when the command holds `$ ? * [ { ` or a
-backtick, when the letters of the word fall in order within three times its length, with at least a third of them written out, an
-escape sequence, a glob character or an expansion standing for a letter, and the inside of an expansion also dropped (it may expand
-to nothing). A command with more than 64 `$'…'` strings is blocked. The agent-safe `delegate-approve-plan` is exempt from the
-word test, but not from the in-order rule.
+a relaxed command is allowed. The rules that judge a command, as built by Increment I of the plan
+`2026-11-02-permission-system-consistency` (decision `2026-11-02-command-gate-reads-gaps-and-data-positions`, tested by
+`tests/test_command_gate.py` and the corpus `tests/fixtures/gate_corpus.json`):
+
+1. *A data position.* A command that is one simple command, or a pipeline of simple commands joined by ` | `, of `cat`, `diff`,
+   `grep`, `head`, `ls`, `tail` and `wc`, every argument a plain token (`[A-Za-z0-9._/:=@,+-]+`) or a single-quoted string, with no `$`,
+   backtick, `;`, `&&`, `||`, glob, double quote or redirection but `2>/dev/null` and `2>&1`, matched in full on the raw text, names a
+   word only as data and is allowed (`grep -c 'approve-plan' docs/plans/a.md | head -1`).
+2. *The exact simple command* the `ask` rule matches, on the raw text with single spaces and case kept
+   (`wb approve-plan <path> [--digest <32 hex>]`, or the same through the store's `bin/wb`), is allowed, and the harness then prompts.
+3. *The names test.* Every other command that names the word is blocked, however it is written: after case and Unicode folding; after
+   removing every character that is not a letter or a digit (so quote splicing, backslashes and punctuation do not hide it); after
+   decoding each static `$'…'` string as bash decodes it, tried at every position; and after the values of the variables that the text
+   itself sets by a simple assignment (`a=approve b=plan; wb $a-$b`) are put in at their uses.
+4. *The gap rule.* When the command holds `$ ? * [ { ` or a backtick, it is also blocked when the letters of the word occur one after
+   another with nothing between two of them but wildcards, and at least a third of them are written out. A wildcard is an escape
+   sequence, a glob character or class, a bare parameter, a brace group or an expansion (an expansion, a bare parameter and a brace
+   group stand for up to eight letters, a `*` for three, a `?`, a class and an escape for one). A literal letter between two of the
+   word's letters breaks the match, so letters of unrelated words do not add up to a word: a heredoc with `[`, `{` and `$` in it passes
+   when it names nothing. Inside an expansion (`$(…)`, `${…}`, backticks) other characters may sit between the letters, within three
+   times the word's length, because the expansion can strip them (`$(printf 'inst%s' all)`), and a command that holds a parameter
+   operator (`${x/Q/}`) is also read by the earlier in-order rule, because a value that the tracker does not follow can carry padding
+   that the operator removes. While a key with words is relaxed, a command with more than 64 `$'` strings is blocked.
+
+The agent-safe `delegate-approve-plan` is exempt from the word test, but not from the gap rule. Every refusal by these text rules and
+by the size limit names the rule that fired (`names`, `gap`, `dollar-quote-limit` or `size-limit`) and its reason ends
+`(rule: <name>)`, and "The refusal log" below keeps a count of them. The other blocks (a wrong tool, a missing command field, a harness or
+store that cannot be read, a deadline, a crash) name no rule and are not logged.
 
 A key whose command is an ordinary word (`wb install`, `wb adopt`, `wb add`, `wb pin` and the other single-word owner-run keys,
 as opposed to `approve-plan` and `wb run <command> <argument>`) is read in command position (built by Increment E; decision
 `2026-10-27-command-gate-command-position`): the gate counts a command as naming it only when it holds a launcher and the word, in either order
 (`echo install | xargs wb` passes the word to the launcher as data), where the launchers are `wb` (also the end of the store's `bin/wb`) and `workbench` (of `python3 -m workbench`; the last
-words of `rules.SPELLINGS`). The folding, the skeleton, the decoding of `$'…'` and the in-order rule for expansions, globs and
+words of `rules.SPELLINGS`). The folding, the skeleton, the decoding of `$'…'` and the gap rule for expansions, globs and
 escapes are applied to the pair, so `w""b install`, `wb inst""all` and `wb $'\x69nstall'` are blocked, and `npm install`, `git add`, a
 commit message or a path that holds the word are allowed. The exact pair `preview <action>` for each action of
 `rules.PREVIEW_ACTIONS` is removed before the search, as `delegate-approve-plan` is, for these keys only; the pattern rule still reads the text as written,
@@ -249,14 +272,15 @@ name of the form a pin or a command has that is not a launcher, a verb of `rules
 (`[A-Za-z0-9._/:=@,+-]+`) or single-quoted strings (any character, a newline included), names the word only as data: `wb run` runs a
 declared, pinned module command and never an owner-run verb. So `wb run safe-git commit --subject 'Add tests' -- tests/test_add.py`
 passes with `wb add` relaxed, whatever words the subject and paths hold. An operator, a substitution, a double-quoted or escaped
-argument, a trailing newline or any other form is judged as before, and `approve-plan` is not exempted, nor is `wb run --provides
-<capability> <name> ...` (a name does not start with `-`). The keys `wb run <command> <argument>` are exempted only in the narrower way
-described after this paragraph. And a launcher followed by the exact
+argument, a trailing newline or any other form is judged as before, and `wb run --provides <capability> <name> ...` is not exempted
+(a name does not start with `-`). The same literal `wb run` call is freed for `approve-plan` too, whose word is data in it
+(decision 4 of `2026-11-02-command-gate-reads-gaps-and-data-positions`, built by Increment I; no other `wb run <command> <argument>`
+key is freed this way). The keys `wb run <command> <argument>` are exempted only in the narrower way described after this paragraph. And a launcher followed by the exact
 token of a command that continues the word (`wb approve-plan` for `wb approve`, taken from `rules`) is removed before the search, as
 `preview <action>` is, so relaxing `wb approve` does not block `wb approve-plan`; the token alone stays, so `A=approve-plan; wb ${A%-plan}`
-is still seen however far apart they are, and the in-order rule still reads the text as written. What stays blocked with such a key relaxed: any other command that holds a launcher and the word
+is still seen however far apart they are, and the gap rule still reads the text as written. What stays blocked with such a key relaxed: any other command that holds a launcher and the word
 (`wb check tests/test_install.py`, `git diff workbench/install.py`, whose `workbench` is a launcher), `git commit -m 'add new base'`
-for `wb add` (the skeleton joins `new base`), and a command with `$ ? * [ {` and scattered letters. The reason the gate prints for a
+for `wb add` (the skeleton joins `new base`), and a command with `$ ? * [ {` whose letters spell the word through wildcards (the gap rule). The reason the gate prints for a
 key at `none` does not name an `ask` rule: it says the form cannot be told from a call and that a path with `~` or `$VAR`, a wrapper or a
 compound command is read that way.
 
@@ -285,6 +309,36 @@ attempt is written after every read-only check and just before the change; if it
 outcome cannot be written after the change, the command says so on standard error and exits 3. `levellog.read` and `levellog.report`
 list the operations and the attempts with no outcome as unfinished (a killed process leaves an attempt after it acted, so
 "unfinished" does not mean "not approved"); no `wb` command prints the log yet, and the owner can read the plain-text file.
+
+### The refusal log
+
+Built by Increment I of the plan `2026-11-02-permission-system-consistency` (`workbench/gatelog.py`; decision
+`2026-11-02-command-gate-reads-gaps-and-data-positions`, 6). The command gate appends one line to `gate-log` in the guarded store for
+each refusal, after the verdict is fixed: `<time>`, `<rule>` and the first 12 hexadecimal characters of the SHA-256 of the command
+(its first 64 KiB), tab-separated, ASCII, at most 256 bytes. It never holds the command's text. It is written with the no-follow,
+single-link append of the other logs, never read by the writer, capped at 1 MiB (at the cap the gate stops appending), and every failure
+to write it is swallowed: it is a diagnostic and not an audit record, because the gate runs as the agent's process and the agent can
+write or fill the file. The owner reads it, rotates it by hand when it is full, and `wb doctor` prints the counts per rule and says when
+it is full. Each refusal that names a rule is logged; the blocks that name none are not. Tests: `tests/test_gatelog.py` and
+`TheRefusalLog` in `tests/test_command_gate.py`.
+
+### While a package tree differs from its release
+
+Built by Increment J of the plan `2026-11-02-permission-system-consistency` (decision
+`2026-11-02-gates-while-a-package-tree-differs-from-its-release`). The edit gate, the command gate and a confined agent's gate find the
+harness through `harnesses.known`, which accepts a package only while its declaration hash and its tree hash match a shipped record
+(`firstparty.is_first_party`). While they do not, the harness is not known and the gates stay closed: the hooked tools (`Edit`,
+`MultiEdit`, `NotebookEdit`, `Write` and `Bash`) are refused, `Read`, `Grep`, `Glob` and the owner's terminal are not, and a call is
+never let through on a guess. The refusal line says why instead of "is not a known harness": the package tree differs from its release
+and where (the module directory for an edit to a module's file, because the shipped records hold a hash for the package and one for each
+module and no more; the full path of a stray file, a link, a special file or a name the workbench refuses), or that no release approval
+exists, and the two commands the owner runs in a terminal, `wb preview release-approvals` and then
+`wb release-approvals --digest <digest>` (after removing or restoring what the release itself refuses, which the line says). The line holds
+paths in quotes and no value. Finding the cause is bounded: the search for a link or a refused name stops after 20,000 entries (the tree
+hash then finds it anyway), and after three seconds the line says the cause was not searched and still gives the commands. Tests:
+`tests/test_harness_lock.py`, and one case each in `test_gate_hook.py`, `test_agent_gate.py` and `test_rendering.py`. `wb doctor` reports the same cause before a gate refuses. An edit to a package changes no installed command:
+`wb run` is governed by the installed copy and the pin, not by the shipped records. Narrowing the lock to the harness module alone is not
+decided and not built (the decision describes it and the tamper path it opens).
 
 ### `wb settings`
 
@@ -789,14 +843,24 @@ that is not a boundary; the owner's review of the commit that holds the records 
 These are accepted by the owner in writing (`2026-10-26-ask-level-spelling-limit`, `2026-10-26-ask-level-command-gate` and its
 clarification note) and are tested where a test can show them (`tests/test_command_gate.py`).
 
-- The gate reads text. A word whose letters are not in the text (base64, `rev`), a word built from variables whose parts lie farther
-  apart than the window, a script file or program that makes the call (`python3 x.py` ran with no prompt in the owner's probe), a
-  function or alias defined earlier, and a `*` standing for more than three letters are not seen.
+- The gate reads text. A word whose letters are not in the text (base64, `rev`), a variable set by `read`, an array or an expansion and
+  not by a simple assignment in the same text, an all-wildcard spelling with fewer than a third of the letters written out (`wb $a$b`
+  with `a` and `b` set elsewhere), a script file or program that makes the call (`python3 x.py` ran with no prompt in the owner's
+  probe; a heredoc to `python3 -` is read for the names test, but code in it that builds the word is not seen), a function or alias
+  defined earlier, and a `*` standing for more than three letters are not seen. A glob or an alternation that a file in the working
+  directory completes into the word (`wb approve-*`, in bash with `extglob` or in zsh `wb appr(ov|zz)e-plan`) is allowed too; it was
+  found by the security review of Increment I, is not new, and is left for the owner to decide.
 - A command that merely names the word, such as a `grep` or a commit message, is blocked while a key is relaxed; the owner runs it.
-  Two forms are exceptions: a literal `wb run` call for a single-word key, and a literal call of the key's own command whose first
-  argument is a plain token other than the key's argument, for a `wb run <command> <argument>` key (see "The command gate"). A call of
-  a differently named command that holds the words of such a key (`wb run safe-git commit --subject 'review-engine extend'`) stays
-  blocked.
+  Exceptions: the data position (a single command or a pipeline of `cat`, `diff`, `grep`, `head`, `ls`, `tail` and `wc` with plain or
+  single-quoted arguments), a literal `wb run` call for a single-word key and for `approve-plan`, and a literal call of the key's own
+  command whose first argument is a plain token other than the key's argument, for a `wb run <command> <argument>` key (see "The
+  command gate"). A compound command (`echo start && grep -c 'release-approvals' file`) and a call of a differently named command that
+  holds the words of such a key (`wb run safe-git commit --subject 'review-engine extend'`) stay blocked.
+- **A known false positive (found in the walk-through of Increment M, deferred):** the gap rule reads a pair of backticks as a command
+  substitution, so a heredoc to a script whose docstrings use double backticks (reStructuredText) can be refused for a word it never
+  names; a 3 KiB script of that kind was refused for `wb release-approvals`, and the same shape without backticks passes. Freeing the
+  body of a quoted heredoc (`<<'EOF'`, which bash does not expand) from the gap rule, and keeping the names test on it, would end it;
+  that changes the gate and needs its own record. The owner writes such a script with the editor tool.
 - A hook is not a boundary. The `ask` rule and the gate are best-effort matches; the auto-mode classifier remained the barrier for the
   rest (it denied the script and base64 cases in the owner's probe, which the gate did not control), while auto mode was the owner's
   setting. The reset of 2026-10-29 ended that setting, so for those cases no barrier is claimed here under factory defaults, and

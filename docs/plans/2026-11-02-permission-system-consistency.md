@@ -1013,4 +1013,71 @@ conformance check and author guide, and named risk profiles. Also deferred: `del
   `'ab\...'`; key names and the settings loader's own text are shown through `_name` and not quoted (they come from installed modules
   and the guarded store). The tests for these fixes were not run against the module before them. After the fixes: `test_doctor` 72,
   and the others as above, all OK.
-- **Not done:** the commit.
+- **Committed as** `61f5dfc195544bd98edca5ea8227918426f2eb0b`. Not pushed.
+
+### Increment M — Walk-through in this clone, and the specs as built
+
+- **Step 1, `wb doctor` in this clone** (at the start of M): 5 problems, 8 risks, notes. The problems are the settings the owner can
+  fix in their own file: `acknowledge-first-tier`, `wb approve`, `wb attach` and `wb upgrade` set to `ask`, which those keys do not offer
+  (they read `block`), and the `approve-plan` checkpoint word (`delegated`) beside its level (`ask`; the level applies). The risks are the
+  eight `governs` keys at `ask` (`accept-decision`, `approve-plan`, `wb release-approvals`, the five review-engine arguments), which the
+  owner chose. No hook, allow or skill finding. The owner's settings file is the owner's, so the four lines wait for them (below); the
+  `fewer-permission-prompts` skill, for the harness's own read-only prompts outside the workbench's gate, is the owner's to run.
+- **Step 2 and 3, the six examples, one call each, recorded** (output as printed):
+  1. *An `extend` through preview and digest — fixed, as run.* `wb run review-engine preview extend <this plan> 4` refused ("the bound is
+     3 and 4 more would pass the ceiling of 5"); with 1 it printed the preview (bound now 3, after 4, `digest: 2e63db21…`); `wb run
+     review-engine extend <this plan> 1 --digest 2e63db21…` ran after the owner's confirmation on the prompt and the status read
+     `"bound": 4`. This changed the bound of this plan's own review from 3 to 4; nothing else. Tests: `test_levelrun`
+     for the launcher's `ask` flow, and the review engine's own tests under `packages/workbench/review-engine/tests/`.
+  2. *A `release-approvals` through preview and digest — fixed, as run.* `wb preview release-approvals` printed 14 records all
+     "recorded", `stale records: 0`, `digest: a2b80241…`; `wb release-approvals --digest a2b80241…` ran after the owner's confirmation
+     and printed "wrote 14 approvals for 1 first-party packages"; `git status` stayed clean (an idempotent write).
+  3. *A script with a heredoc — deferred (the refused shape); the other shape passes.* A python heredoc that holds
+     `[`, `{`, `$` and `*` in its text and names nothing ran (`2 items, first a, ${HOME} stays text, 3 * 4 = 12`). A 3 KiB heredoc of mine
+     that rewrote a function, written with reStructuredText docstrings, was refused earlier in this run by the gap rule for
+     `wb release-approvals`, and is still refused by the gate as built (checked: `gap`). Cause found by removing text: the double
+     backticks of the docstrings are read as command substitutions; the same script with them removed passes, and removing only the
+     triple quotes does not help. **Deferred:** freeing the body of a quoted heredoc from the gap rule (the names test stays) needs its
+     own record; the spec's "Limits" says so, and the editor tool is the way meanwhile.
+  4. *A compound command that holds a relaxed word as data — accepted limit for the compound, fixed for the pipeline.* `grep -c
+     'release-approvals' docs/specs/command-permissions.md | head -1` ran (`36`; the data position of Increment I).
+     `echo start && grep -c 'release-approvals' docs/specs/command-permissions.md` was refused by the names rule ("the command names
+     workbench release-approvals ..."), as decision B of `2026-11-02-command-gate-reads-gaps-and-data-positions` says: only a single command or a pipeline of seven programs is a
+     data position.
+  5. *A stray file in a package directory — fixed, tested; not run live here.* Increment J's tests and a run on a copy of the real
+     `packages/` (a stray `__pycache__/x.pyc` in `ask-ollama`) printed `... differs from its release: 'packages/workbench/ask-ollama/
+     __pycache__/x.pyc' is a file no module accounts for; the release refuses a tree like this, so remove or restore it first, and then
+     the owner clears it in a terminal ...`. A live run in this clone locks every hooked tool until the owner removes the file in a
+     terminal, so it waits for the owner's word.
+  6. *A deliberate package edit — fixed, run live by increment K.* The owner's text pass over five package files closed the gates, and
+     the refusal line read `claude is not available: the package tree differs from its release: first at 'packages/workbench/code-work';
+     the owner clears it in a terminal with wb preview release-approvals and then wb release-approvals --digest <digest> ...`; the
+     owner's release cleared it.
+  Entries 1 to 4 were run in M. Entries 5 and 6 were not re-run by M: step 2 asks for one call each in this clone, and the evidence for
+  them is the tests of J and the live lock of K (entry 6 was in this clone, entry 5 only on a copy). The owner may ask for a live run
+  of entry 5.
+- **Review:** the `reviewer` agent, one exchange, no blocking finding; it read the spec against the code and ran nothing. Applied: the
+  spec said every refusal names a rule and is logged (only the text rules and the size limit do; a wrong tool, a missing field, a store
+  that cannot be read, a deadline and a crash do not); the two bounds of the lock search are stated as they behave (the 20,000 entries
+  end only the walk for a link or a refused name, the three seconds end the search and say so); the old "in order" and "scattered
+  letters" wording is replaced; the 64 `$'` limit applies while a key with words is relaxed; tests are named for the refusal log and
+  the lock; the heredoc entry is labelled deferred (step 3 allows fixed, accepted limit or deferred). Not changed: the `KNOWN`
+  docstring still says "every disagreement that exists now" (true of an empty list).
+- **Specs and documents as built:** `docs/specs/command-permissions.md`: the header names this plan; "The command gate" now states the
+  four rules (data position, the exact simple command, the names test with variables put in, the gap rule with free regions and the
+  parameter-operator read), that every refusal names its rule, and that `approve-plan` is freed for a literal `wb run` call; new
+  sections "The refusal log" (Increment I) and "While a package tree differs from its release" (Increment J); "Limits" says what the
+  gate does not see as built (including the glob and alternation case left open by the security review of I and the heredoc false
+  positive above). `### wb doctor` and the key lists were written with Increment L, `wb settings` and the seed with F and G.
+  `docs/development.md` gains the Owner-run row of `release-approvals` (the last drift entry), so `KNOWN` in
+  `tests/test_permissions_drift.py` is empty: completion criterion 4. `module-contract.md`, `trust-and-approval.md`,
+  `harness-refresh.md` and `review-engine.md` were read and need no change: the first two were updated with G and H, the review
+  engine's spec already says the agent runs the preview and then the command with `--digest`, and the refresh spec's commands did
+  not change. **The roadmap file `workbench-v1` is not edited** (a roadmap changes only when direction does); the owner decides whether
+  the candidate `checkpoint-levels-beyond-block` is touched by the follow-on plan.
+- **Verification as run:** `wb doctor` (above), `wb verify packages/workbench` (13 modules listed, no problem), `wb run code-work check`
+  (82 plans, no problems), `test_permissions_drift` 22 (an empty `KNOWN`), `test_gate_corpus` 15, `test_command_gate` 130,
+  `test_doctor` 72, `test_levels` 35, `test_levels_facts` 37, `test_settingscmd` 33, all OK (`-W error`). The full suite was not run.
+- **Not done:** the commit; the owner's own steps (the four settings lines in their file, the `fewer-permission-prompts` skill, a live
+  stray-file run); the heredoc decision; the seeded `code-work/files/docs/plans/README.md` (a package edit); Low 3 of increment I (globs
+  and alternations).
