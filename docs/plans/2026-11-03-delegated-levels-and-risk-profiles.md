@@ -1,6 +1,6 @@
 # The level `delegated` for an action key, and named risk profiles
 
-Status: Proposed
+Status: In Progress
 Created: 2026-11-03
 Candidate: none (the closest, `workbench-v1#checkpoint-levels-beyond-block`, leaves `delegated` for keys other than the plan approval out of its boundary; this plan decides what it means, on the owner's direction of 2026-11-03, without building the hook that carries it; it is the first of three plans that split `2026-11-02-permission-levels-for-every-command`)
 Specs: command-permissions, trust-and-approval, action-review
@@ -239,4 +239,30 @@ tested area.
 
 ## Result
 
-Empty until work starts.
+### Increment A (2026-11-03)
+
+- **Done:** wrote the record `docs/decisions/2026-11-03-delegated-for-an-action-key-and-named-risk-profiles.md` with the status
+  `Proposed`; ten numbered decisions (the meaning of `delegated` for an action key, the owner's prompt alongside, the keys that offer
+  it, the plan approval as a key like the others, the plan-content restriction, the keys never offered, decline, failure and
+  override, where the hook is registered, what must be true before a hook that decides is built, and the three profiles with the
+  danger class they act on), the alternatives, the consequences and the evidence. The plan's status is `In Progress`. No code and no
+  spec changed.
+- **Verification run:** `wb run code-work check` -> "checked 88 plans, check found no problems" (it checks plans, not decision
+  records). The key counts in the record (73 keys: 44 `reads`, 23 `governs`, 6 `project`) come from `wb settings` run in this clone.
+- **Review:** one round by the `reviewer` agent, no bridge. Seven findings, one blocking, all applied or answered:
+  - Blocking: the record said both that `delegated` reads as `ask` without the modules and that the plan approval keeps its working gate
+    (a converged review with no hook); decisions 1 and 4 now say the general route is for a key with a bridge rule and the plan
+    approval keeps its gate.
+  - The record changes two lines of present specs (the engine "does not widen delegation" and "a code constant", and `verify`
+    refusing `delegated` in a module's `levels`); decision 3 now names both, for increment B to label.
+  - The record now names `governs` as the dangerous class, says `delegated` counts as beyond `ask` for it and not for `project`, and
+    that the plan approval, a `governs` key, gets `delegated` only by the owner's own entry.
+  - The profiles change almost nothing today (the six `project` keys offer `block` and `none` only; three `governs` keys offer
+    `ask`); the record says so and that this depends on the sibling plans.
+  - The decline counts (102, 102, 48) were worded as if inside the 146; they are over all 336 declines.
+  - The alternative "`delegated` through a profile alone" was added; the evidence names tool versions.
+- **Not done / not checked:** the record is `Proposed`; accepting it is the owner's checkpoint at `ask`. Not checked: the hooks
+  documentation beyond the part read verbatim (no content hash), the harness's behaviour with a `PermissionRequest` hook, and the
+  claim in decision 8 about the hashed project files, which is the spec's.
+- **For the owner:** the decision whether the plan approval's present gate stays until the hook is built (decision 4), and whether
+  `delegated` may never be set by a profile for `governs` (decision 10), are the two choices most worth a look before accepting.
