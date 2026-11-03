@@ -1,6 +1,6 @@
 # One permission subsystem: remove the drift, fix the refusals
 
-Status: Approved
+Status: Completed
 Created: 2026-11-02
 Candidate: none (the closest, `workbench-v1#checkpoint-levels-beyond-block`, widens levels and leaves this cleanup out of its boundary; the follow-on plan `2026-11-02-permission-levels-for-every-command` takes the widening; the owner directed both on 2026-11-02)
 Specs: command-permissions, module-contract, trust-and-approval, harness-refresh, review-engine
@@ -1078,6 +1078,16 @@ conformance check and author guide, and named risk profiles. Also deferred: `del
 - **Verification as run:** `wb doctor` (above), `wb verify packages/workbench` (13 modules listed, no problem), `wb run code-work check`
   (82 plans, no problems), `test_permissions_drift` 22 (an empty `KNOWN`), `test_gate_corpus` 15, `test_command_gate` 130,
   `test_doctor` 72, `test_levels` 35, `test_levels_facts` 37, `test_settingscmd` 33, all OK (`-W error`). The full suite was not run.
-- **Not done:** the commit; the owner's own steps (the four settings lines in their file, the `fewer-permission-prompts` skill, a live
-  stray-file run); the heredoc decision; the seeded `code-work/files/docs/plans/README.md` (a package edit); Low 3 of increment I (globs
-  and alternations).
+- **Committed as** `3cd5043d4f302d535df3fa9ba32801df477ac3a8`. Not pushed.
+- **The owner's step 1, done afterwards (2026-11-03):** the owner removed from their settings file the four levels that their keys do
+  not offer (`acknowledge-first-tier`, `wb upgrade`, `wb attach`, `wb approve`, each set to `ask`, each reading `block`) and the
+  version 1 `checkpoints` entry for `approve-plan` (its level `ask` already applied). `wb doctor` then printed "doctor found no problems
+  and 8 risks" (the eight `governs` keys at `ask` that the owner chose), with no rendering drift, because no level that applies changed.
+- **Plan completed.** The completion criteria are met with the evidence recorded above, with these caveats, each recorded where it
+  arose: criterion 6, a heredoc whose docstrings hold double backticks is still refused by the gap rule (deferred, Increment M);
+  criterion 7, a deliberate edit to a module's file is named by its module directory (Increment J); criterion 10, `wb doctor` has a
+  third severity and reads neither a plan approval that changed since it was given nor the launcher spellings (Increment L).
+- **Left open, for the owner:** the `fewer-permission-prompts` skill; a live stray-file run (optional); a small decision on freeing the
+  body of a quoted heredoc from the gap rule; Low 3 of increment I (globs and alternations); the seeded
+  `code-work/files/docs/plans/README.md` (a package edit, with the next one); the plan
+  `2026-11-02-permission-levels-for-every-command`, which starts now and wants its review before approval.
