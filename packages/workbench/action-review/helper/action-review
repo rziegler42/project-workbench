@@ -49,7 +49,7 @@ PINS = {
     # Not read by the review: the owner's shadow hook, which is copied out of the project, and the owner compares the copy's
     # hash with this one (plan `2026-10-29-action-review-shadow-hook`).
     "hook/shadow_store.py": "db5fafbf8c64b03a3c1d1b74c011512225f09b06e6b96f1155a0dd96050e2c32",
-    "hook/shadow_hook.py": "894bfec673f200e30fda5fe0264d4dcf17bb3b179fdab040a6285dca09079710",
+    "hook/shadow_hook.py": "1b85065eb0447faf616a849bc453d0e4ad381072e6f4d19b79246013440edd4a",
 }
 MAX_RULE = 16384
 MAX_RULES = 64

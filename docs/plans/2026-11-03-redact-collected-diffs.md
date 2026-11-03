@@ -171,4 +171,52 @@ Empty until a review is asked for.
 
 ## Result
 
-Empty until work starts.
+### Increment A
+
+Built in a scratch clone at `54ee638`.
+
+Changed: `packages/workbench/action-review/hook/shadow_hook.py` (a "redaction" section: `redact`, `redact_text`, the patterns; `import
+re`), `packages/workbench/action-review/tests/test_hook_redact.py` (new, 33 tests), and `packages/workbench/action-review/helper/
+action-review`.
+
+**A departure from the plan's affected-areas list.** The helper's `PINS` holds the hash of `hook/shadow_hook.py`, and
+`test_actionreview_pins` fails when the file changes. The one entry was updated to the file's new hash. Nothing else in the helper
+changed.
+
+Done: `redact_text` replaces private-key blocks (a PGP block included, and one cut off by the end of the text), JWTs, prefixed tokens
+(AWS, GitHub, OpenAI-style, Slack, Google), `Authorization` and bearer values, the user and password of a URL, `--flag value` secrets,
+and values assigned to a name with `secret`, `token`, `password`, `passphrase`, `credential` or `key` in it (`api_key`, `ssh-key`;
+not a bare `key`). A value is kept apart from its name, quotes stay, the JSON form escaped in a shell string is found, and the line
+breaks (a carriage return too) stay. `redact` walks a list or object, keeps keys, numbers, booleans and nulls, returns a copy, and
+refuses with `ValueError` a value of another type, a key that is not a string, or a nesting deeper than 64.
+
+Verification as run in the scratch clone on 2026-11-03: the tests failed first (no `redact`); 33 tests pass under `-W error`; the
+full suite passes (7,041 tests in 14 roots); 78 single-change mutations of the redaction code are each caught (thirteen survived at
+first, which led to more tests and to the removal of four redundant pieces of code, one of which was a leak: a bearer token that
+began with a word and a hyphen was kept). The time of each of the 24 hostile shapes of 393,216 characters in the test is under 0.1 s,
+against a limit of 2 s.
+
+Review: the `reviewer` agent, one exchange, five findings.
+- F1 (blocking, applied): the JWT pattern was quadratic on `eyJ-` repeated (15.5 s, timed after the finding); it starts at a lookbehind
+  now (0.03 s), and the time test has ten more shapes, among them that one.
+- F2 (applied): a JSON value escaped inside a shell string (`\"password\":\"x\"`) was not found; an optional backslash before the
+  quotes is allowed in the assignment and the `Authorization` patterns.
+- F3 (partly applied): PGP private key blocks, unquoted values of four characters (was six), names ending in `_key` or `-key`, and a
+  URL password that holds an `@` are now found. Not applied, and known limits: the `sk_live_`, `glpat-`, `npm_` and `xapp-` prefixes
+  (the plan lists the eight it lists), a bare `key=` and `pass=`/`pwd=`, a value cut at an escaped quote, a URL password over 200
+  characters or holding a `/`, and `authorization: AWS4-HMAC-SHA256 ...`.
+- F4 (accepted): `tokens = parse(line)`, `token: Optional[str]`, `--password-stdin host` and `--secret-file path` have their value
+  redacted, and a name that starts with `sk-` and holds 20 word characters is taken for a token. The cost is a hidden fact in a diff,
+  which the owner meets as a `skip`. `password=""` is kept as it is.
+- F5 (applied): a carriage return after an unclosed quote is kept.
+
+The fixes were checked by tests and mutations, with no second exchange with the reviewer.
+
+Then the three files were copied byte-for-byte into the real tree (`cmp` equal) and the owner released the package
+(`wb preview release-approvals`, then `wb release-approvals --digest ...`, which is at the level `ask` since the merge of
+2026-11-03). The release wrote two new shipped records (`49f51831d166…`, the package; `86669eeefa5c…`, the module). In the real tree
+`wb check .` and `wb run code-work check` (83 plans) report no problem, `python3 -B -W error tests/run_all.py` passes (7,041 tests in
+14 roots) and `git diff --check` is clean. Two older records belong to no release now (`5e4c352f0d5f…`, the package, and
+`dfbdef5b7b6f…`, the module); they are still tracked, awaiting the owner's word.
+
+Not done in this section yet: the commit.
