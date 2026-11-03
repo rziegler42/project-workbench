@@ -8,7 +8,9 @@ rendering record, the command gate and `approve-plan` at the levels `ask` and `n
 every command and subcommand the owner can govern, the agent-safe ones included, a default that suits each, and `none` for every
 owner-run installer command and for `accept-decision`, and by the plan `2026-10-27-rerender-attached-harness`, which built
 `wb rerender` ("Re-rendering an attached clone"), and by the plan `2026-10-27-levels-for-the-review-workflow`, which built `ask` and
-`none` for the review engine's five owner-run arguments. `approve-plan` alone offers `delegated`, and it and those five offer `ask`. The keys that still offer
+`none` for the review engine's five owner-run arguments, and by the plan `2026-10-29-accept-decision-at-ask` (`ask` for `accept-decision`) and
+the plan `2026-10-30-release-approvals-at-ask` (`ask` for `wb release-approvals`). `approve-plan` alone offers `delegated`, and it, those
+five, `accept-decision` and `wb release-approvals` offer `ask`. The keys that still offer
 `block` only are listed under "Not built"; `wb rerender` offers it by design and is described in its own section. The design is `docs/decisions/2026-10-26-per-command-permission-levels.md`, as refined by
 `docs/decisions/2026-10-26-permission-levels-as-built.md` and `docs/decisions/2026-10-26-a-level-for-every-command.md` (all accepted),
 which state what stands, what changed and what was not built; where they differ on the defaults or the offered levels, this spec
@@ -55,7 +57,7 @@ a harness renders it, and the command gate that protects the rendering.
 
 | Level | Who runs it | What makes it run |
 |---|---|---|
-| `block` | the owner, never the agent | the harness denies the agent; the command's own terminal test applies exactly where it applies today (`wb release-approvals` has none and keeps none) |
+| `block` | the owner, never the agent | the harness denies the agent; the command's own terminal test applies exactly where it applies today (`wb release-approvals` has none and keeps none; at `ask` it refuses a run without a terminal that has no digest, "`wb release-approvals` at `ask`") |
 | `delegated` | the agent | a gate the command declares has passed |
 | `ask` | the agent | the owner confirms a harness prompt, and the command carries the digest of its preview |
 | `none` | the agent | nothing |
@@ -109,7 +111,7 @@ separated by single spaces, at most 96 characters.
 - `block`: every key.
 - `delegated`: `approve-plan` only, whose gate is a converged, sealed review of the exact bytes (`delegation.py`). The gate must
   pass at the moment of the run, and the run counts only while the table still reads `delegated`.
-- `ask`: `approve-plan`, and an owner-run argument of a module's command whose declaration names it in `levels` (below). `none`: `approve-plan`, `wb install`, `wb adopt` (built by Increment F), `wb upgrade` and `wb add` (built by Increment G), `wb approve` and `wb pin` (built by Increment H), `acknowledge-first-tier`, `acknowledge-second-tier`, `wb recover`, `wb attach` and `wb release-approvals` (built by Increment J), `accept-decision` (built by Increment K), every agent-safe action and
+- `ask`: `approve-plan`, `accept-decision` (a checkpoint of a command that declares it), `wb release-approvals` (a digest of the preview of its release, "`wb release-approvals` at `ask`"), and an owner-run argument of a module's command whose declaration names it in `levels` (below). `none`: `approve-plan`, `wb install`, `wb adopt` (built by Increment F), `wb upgrade` and `wb add` (built by Increment G), `wb approve` and `wb pin` (built by Increment H), `acknowledge-first-tier`, `acknowledge-second-tier`, `wb recover`, `wb attach` and `wb release-approvals` (built by Increment J), `accept-decision` (built by Increment K), every agent-safe action and
   every declared module argument that is not owner-run; the keys under "Not built" offer `block` only, and so does `wb rerender`. A key offers a level only
   from the version that builds it for that command.
 
@@ -271,7 +273,7 @@ agent runs and shows the preview first (`review-engine.md`).
 
 ### The log
 
-Every run at a level other than `block` that goes on without a terminal appends two lines (except `attach` and `release-approvals` where no level can be read, a run that changes nothing, and `accept-decision`, which no command runs; see their paragraphs above) to `level-log` in the guarded store, never rewriting one: the attempt, with
+Every run at a level other than `block` that goes on without a terminal appends two lines (except `attach`, and `release-approvals` where no level can be read and the owner's own settings are sound and do not say `ask` for it (where they say `ask` or cannot be read, the run is logged at `ask`, "`wb release-approvals` at `ask`"), a run that changes nothing, and an acceptance at a terminal; see their paragraphs above, and "Accepting a decision through a command" for the command of `accept-decision`, whose runs without a terminal are logged) to `level-log` in the guarded store, never rewriting one: the attempt, with
 a random operation identifier, the time, the key, the level and the evidence (`digest:<d>` at `ask`, `converged-<n>-of-<bound>` for a
 delegated approval, empty at `none`); then the outcome, with the same identifier, the time, `done` or `refused`, and a reason of at
 most 200 printable ASCII characters. Lines are tab-separated, at most 1,024 bytes, and written by one `write` to a descriptor opened
@@ -286,7 +288,7 @@ list the operations and the attempts with no outcome as unfinished (a killed pro
 
 It prints the `checkpoint` and `cap` lines it always printed, then one `level <key>: <level>` line for every key it knows: the
 declared checkpoints, then the installer's owner-run commands, then the agent-safe actions (`wb verify`, `wb preview install`,
-`wb preview adopt`, `wb preview upgrade`, `wb preview add`, `wb preview rerender`, `wb launch`, `wb check`, `wb plan-status`, `wb settings`), then `wb run
+`wb preview adopt`, `wb preview upgrade`, `wb preview add`, `wb preview rerender`, `wb preview release-approvals`, `wb launch`, `wb check`, `wb plan-status`, `wb settings`), then `wb run
 <command> <argument>` for each argument the installed modules declare (an owner-run argument first), with the defaults and the
 table applied. An agent-safe key and a declared argument that is not owner-run default to `none`; every other key defaults to `block`.
 The hook entry points, the dispatcher words and `delegate-approve-plan` are not keys. As built by Increments A and C of the plan, a
@@ -307,7 +309,7 @@ A state in which an owner has set every key to `none`, and so has no protections
 freedom and not a feature: there is no master switch, profile or command that sets it.
 
 **Coverage.** Every command and subcommand that `cli.py` routes has a key, the agent-safe ones included (`verify`, `preview install`,
-`preview adopt`, `preview upgrade`, `preview add`, `preview rerender`, `launch`, `check`, `plan-status`, `settings`), so the owner can tighten a command that is always allowed
+`preview adopt`, `preview upgrade`, `preview add`, `preview rerender`, `preview release-approvals`, `launch`, `check`, `plan-status`, `settings`), so the owner can tighten a command that is always allowed
 today. The hook entry points `gate`, `agent-gate` and `gate-command` are the exception: the harness runs them, they are not keys and
 they stay always allowed (the owner's decision). A test fails when `cli.py` routes any other command or subcommand with no key, as the test
 in `rules.py` does for the owner-run and agent-safe split. A subcommand has a key when it is a different action (`wb preview
@@ -321,15 +323,15 @@ contract has no read-only declaration, so none is used. An undeclared command or
 checks its own pin, defaults to `none`. The owner-run commands, the checkpoints and the owner-run module arguments keep their
 default of `block`. `approve-plan` stays `block`; the default is not raised to `ask` (see "Shipped defaults").
 
-**Levels offered.** Every key offers `block` and `none`, except `wb rerender`, which offers `block` only for good (see "Re-rendering an
+**Levels offered.** Every key offers `block` and `none` (and `wb release-approvals` and `accept-decision` also offer `ask`, below), except `wb rerender`, which offers `block` only for good (see "Re-rendering an
 attached clone"), and the owner-run arguments of module commands (`wb run <command>
 <argument>` where the argument is owner-run), which offer `block` only unless the command's declaration gives `levels` (built by
 Increment C of the plan `2026-10-27-levels-for-the-review-workflow`; "Which levels a key offers"; only the review engine declares it).
 `delegated` stays `approve-plan` only, and `ask` is offered by a key once
 that key has a preview digest of its own, built as `approve-plan`'s is (for an owner-run argument of a module's command, once its
-declaration names a `preview` argument; `verify` checks the name, and the digest the argument prints is the module's to build). Every key built by the plan offers `none`; the keys that still offer `block` only are listed under "Not built". Only the review engine's five owner-run arguments have a digest of their own and so offer `ask` besides `approve-plan` (built by Increments E and F of the plan `2026-10-27-levels-for-the-review-workflow`). At `none` an owner-run command runs without a terminal
+declaration names a `preview` argument; `verify` checks the name, and the digest the argument prints is the module's to build). Every key built by the plan offers `none`; the keys that still offer `block` only are listed under "Not built". Besides `approve-plan`, `ask` is offered by the review engine's five owner-run arguments (built by Increments E and F of the plan `2026-10-27-levels-for-the-review-workflow`), by `accept-decision` through the command `groundwork accept` (the plan `2026-10-29-accept-decision-at-ask`) and by `wb release-approvals`, whose preview `wb preview release-approvals` prints its digest (the plan `2026-10-30-release-approvals-at-ask`). At `none` an owner-run command runs without a terminal
 and without a harness `deny`; the command's own checks of its input and its log entry apply, and the terminal prompt does not.
-`accept-decision` offers `block` and `none`. Since 2026-10-29 the groundwork policy block in `AGENTS.md` says that accepting a
+`accept-decision` offers `block`, `ask` and `none` (built by the plan `2026-10-29-accept-decision-at-ask`; "Accepting a decision through a command"). Since 2026-10-29 the groundwork policy block in `AGENTS.md` says that accepting a
 decision is a checkpoint that stops by default and that the level `wb settings` prints for it says whether the agent may accept; the
 `draft-decision` skill says what each level allows.
 
@@ -400,7 +402,8 @@ read once, before the fetch and the second verification, so a harness edit made 
 `--root` as spelled and refuses one that names the project only through a link or `..`.
 
 **`acknowledge`, `recover`, `attach` and `release-approvals` at `none`** (built by Increment J). The keys `acknowledge-first-tier`,
-`acknowledge-second-tier`, `wb recover`, `wb attach` and `wb release-approvals` offer `block` and `none`; the shipped defaults stay
+`acknowledge-second-tier`, `wb recover`, `wb attach` and `wb release-approvals` offer `block` and `none`, and `wb release-approvals` also offers `ask`
+("`wb release-approvals` at `ask`", built by the plan `2026-10-30-release-approvals-at-ask`); the shipped defaults stay
 `block`. The command line reads the level for the project the working directory is in (`levelrun.route`), as for the commands above.
 *`acknowledge`* is governed by the checkpoint `acknowledge-first-tier` (the owner's choice): every path the command can list has a
 baseline, so it is the manifest, a file under `.workbench/`, `AGENTS.md` or a seeded file, which are first-tier material, and the
@@ -418,24 +421,26 @@ text and the marker of a failed `install` or `adopt` names no project and is in 
 the project the level was read for (the level is the owner's setting for the project the agent works in, as for `install`); a marker
 that names a project (an unfinished `upgrade` or `add`) must name that one, which stops a mistake and not a forged marker. `attach`
 acts on its target as `install` does and compares nothing; its log entry records the level of the project the command was run from. *`attach` and `release-approvals`* have no
-terminal test and no digest, so at `none` the only change is that the `deny` is not rendered. A run without a terminal at a verified
+terminal test, and at `none` neither takes a digest, so at `none` the only change is that the `deny` is not rendered (`release-approvals` also
+offers `ask`, with a digest, in "`wb release-approvals` at `ask`"; the rest of this paragraph is about `none`). A run without a terminal at a verified
 `none` is logged (the attempt before the command is run, the outcome after: `done` with `written` for exit 0 and `refused` with
 the exit code otherwise, a refusal included, because the command makes its own checks); a run at a terminal, at another level, or
 where no level can be read (a directory that is no project) goes on exactly as before and writes no entry, so an agent that
 runs from a directory where the level cannot be read (a directory with no project, a decoy `.git` with an unreadable manifest, a deleted
 working directory) is not logged: the log is a record and not a control, and the owner who wants these runs refused where no level
-is readable asks for that as a separate change; at a verified `none`
+is readable asks for that as a separate change (for `release-approvals` the owner's own settings, in the guarded store, are read when the
+level cannot be: where they say `ask`, or cannot be read, the digest is required and the run is logged at `ask`); at a verified `none`
 an attempt that cannot be written refuses the run and nothing is done, which these two commands did not do before. The attempt is
 written after the launcher wrapper under `bin/` is refreshed, which every command does first, at a terminal or not. A refusal for a
 level that could not be read carries the reason after the terminal-only text. `release-approvals`
 writes the approvals shipped with the first-party packages, so at `none` an agent can make the first-party packages trusted.
 
-**`accept-decision` at `none`** (built by Increment K). The checkpoint `accept-decision`, which the process module declares, offers `block` and
-`none` and defaults to `block`. It governs no command of the installer: an agent accepts a decision by editing the record, so the
-level is read by the guidance. The `draft-decision` skill tells the agent to run the one read-only command `wb settings` and to mark a
-record it drafted `Accepted`, in its status line and in its index row, only while the output holds the line `level accept-decision:
-none`; on any other line, when the line is missing or when the command fails, it stops at `Proposed` and asks the owner, and a file, a
-review or a reply is never that level. This repository's `AGENTS.md` says the same; the managed block that the groundwork module writes into other projects still says that only the
+**`accept-decision` at `none`** (built by Increment K; since 2026-10-30 it governs the command `groundwork accept`, see "Accepting a decision
+through a command"). The checkpoint `accept-decision`, which the process module declares, offers `block`, `ask` and
+`none` and defaults to `block`. The `draft-decision` skill tells the agent to run `wb settings` and to accept a record it drafted only
+while the output holds the line `level accept-decision: ask` or `level accept-decision: none`, and then only by running `wb run groundwork
+accept`, which writes the status line; on any other line, when the line is missing or when the command fails, it stops at `Proposed` and
+asks the owner, and a file, a review or a reply is never that level. (Before the plan `2026-10-29-accept-decision-at-ask` the agent marked the record `Accepted` by editing it, at `none` only.) This repository's `AGENTS.md` says the same; the managed block that the groundwork module writes into other projects still says that only the
 owner accepts a decision, which is stricter and wins there, so the skill's exception reaches a project only through its own `AGENTS.md`. **At `none` an agent can accept a decision,
 and an accepted decision outranks the code** (`## Source of truth` in `AGENTS.md`); that is the owner's choice and it is not
 logged. Nothing in the installer enforces the level, because accepting is an edit to a tracked file; the barrier is the guidance and
@@ -485,7 +490,8 @@ and not a problem, because the stale state is already safe).
   for a different reason, recorded in `2026-10-27-rerender-is-terminal-only` (accepted): at `none` the level would be read through the
   record, which reads `block` whenever the table or the permissions file differs, and those are the two ordinary reasons to run a
   re-render. A level written for it other than `block` reads as `block` with a note. It writes no level-log entry.
-- **`wb preview rerender`** is the read-only plan and is its own agent-safe key, default `none`.
+- **`wb preview rerender`** is the read-only plan and is its own agent-safe key, default `none`. So is **`wb preview release-approvals`**
+  (the read-only preview of a release, built by Increment B of the plan `2026-10-30-release-approvals-at-ask`).
 - **It runs only at a terminal**, on standard input and output, at every level; the owner types the first 12 characters of the
   preview's digest. Before the first write it rebuilds the plan and refuses unless the digest is the one confirmed.
 - **The plan lists** each key whose rule moves, the files it changes (the permissions file, the local manifest, the rendering
@@ -540,7 +546,7 @@ owner-run was run to build the table. A reading from the code or a spec is state
 | Approve a plan, at `delegated` | `wb delegate-approve-plan <plan>` | `approve-plan`, `delegated` | no | a converged, sealed review of the exact bytes (`trust-and-approval.md`), and the preconditions of the `delegate-approval` skill (a `peer-review` provider, a Risks section, no `Hard stop:` line); it counts only while the table reads `delegated`, so not while it reads `ask` *(the last clause is an inference from `trust-and-approval.md`)* |
 | Approve a plan, at `none` | `wb approve-plan <plan>`, no terminal | `approve-plan`, `none` | no | nothing; the run is logged |
 | Approve a roadmap, a spec or a design | none exists | no key | not applicable | a roadmap and a spec have no status gate (`AGENTS.md`); a design is approved by the owner's word in the conversation. Nothing records it |
-| Accept a decision | the owner edits its `Status:` line and the index | `accept-decision`, `block`; offers `block` and `none` | **yes, or an editor** *(inference)* | the rule that an agent may not accept one at `block` is guidance in `AGENTS.md` and the skill; the installer enforces nothing here. No command with an `ask` level exists for it. The owner's other route is their own edit of the personal settings to `none` (a terminal or an editor), which lets the packaged `draft-decision` accept a record; on 2026-10-27 the copy rendered in this clone said never to accept one and had no such route; the clone has since been re-rendered and its skill matches the package |
+| Accept a decision | the owner edits its `Status:` line and the index | `accept-decision`, `block`; offers `block`, `ask` and `none` | **yes, or an editor** *(inference)* | the rule that an agent may not accept one at `block` is guidance in `AGENTS.md` and the skill; the installer enforces nothing on an edit of the record, and the command `groundwork accept` ("Accepting a decision through a command") gives the checkpoint an `ask` level. The owner's other route is their own edit of the personal settings to `none` (a terminal or an editor), which lets the packaged `draft-decision` accept a record through that command; on 2026-10-27 the copy rendered in this clone said never to accept one and had no such route; the clone has since been re-rendered and its skill matches the package |
 
 Three things this map shows:
 
@@ -549,7 +555,7 @@ Three things this map shows:
   `none` once the owner sets and renders them.
 - **Blocked without a terminal:** the five owner-run arguments of the review engine at their shipped level `block`, and accepting a
   decision. These five are the subject of the plan `2026-10-27-levels-for-the-review-workflow`, which built `ask` and `none` for
-  them; the owner opts in per key in the personal settings and runs `wb rerender`. Accepting a decision has no command to give a level to.
+  them; the owner opts in per key in the personal settings and runs `wb rerender`. Accepting a decision has the command `groundwork accept` to give a level to ("Accepting a decision through a command").
 - **Not blocked, once the owner sets a level:** any of the five at `ask` (with the preview digest) or `none`. Their read-only
   `preview <argument>` runs at either level too, and is not stopped by the command gate (see "The command gate").
 
@@ -562,8 +568,152 @@ Also, in the same flow:
 - The "yes" in "Needs a terminal" for the review engine's owner-run arguments rests on `review-engine.md`, "Owner-run commands". In
   the code the test is made by the launcher (`commands.owner_refusal`), not the helper, as `review-engine.md` now says.
 
+## Accepting a decision through a command
+
+The decision `2026-10-29-accept-decision-offers-the-ask-level` (accepted on 2026-10-29) gives `accept-decision` the levels `block`, `ask`, `delegated` and
+`none`. The plan `2026-10-29-accept-decision-at-ask` built `block`, `ask` and `none`, as this section says (Increments A to G, committed
+on 2026-10-29 and 2026-10-30); a run through the real launcher and the harness prompt for the `ask` rule are the owner's checks, and
+are recorded in that plan's Result. `delegated` for `accept-decision` is not built by that plan:
+the accepted record leaves a delegated review's subject for a decision undecided, so `delegated` reads `block` here, as it does for
+every key but `approve-plan`.
+
+**The command.** The `groundwork` module ships one helper with two arguments, run with `wb run`. The installer names neither the
+module nor the helper.
+
+- `preview <record>` is agent-safe and read-only. It writes nothing and exits 0. `<record>` is a path relative to the project root that
+  names a regular file under `docs/decisions/`, with no link followed.
+- `accept <record>` is owner-run. It replaces the record's status line, and nothing else in the file, with `Status: Accepted by <approver>
+  on <date>`, where `<approver>` is the owner's git identity, `Name <email>`, read as plan approvals read it
+  (`trust-and-approval.md`, "The approver and how it was authorized") and `<date>` is today's date in the local zone.
+
+**The key.** The declaration maps `accept` to the checkpoint `accept-decision` (`module-contract.md`, `commands[].checkpoint_of`). When
+an installed process module declares that checkpoint, the key of `accept` is `accept-decision` and the key `wb run groundwork accept`
+does not exist. When none does, `accept` keeps its own key `wb run groundwork accept`, which offers `block`, `ask` and `none` and
+defaults to `block`, `wb settings` prints no `accept-decision` line, the `draft-decision` skill stops at `Proposed` as it does for any
+level it does not find, and a level the owner wrote for `accept-decision` is noted as a key no module declares and ignored. The key
+offers `block`, `ask` and `none`; `delegated` reads `block` with the note that it is not offered. The shipped default stays `block`.
+
+| Form | Level | Result |
+|---|---|---|
+| `accept <record>`, standard input and output terminals | any | the owner's terminal command: the owner types the first 12 characters of the record's SHA-256; a `--digest` given at a terminal is checked the same way, and a run without one works as above |
+| `accept <record> --digest <32 hex>` | `ask` | recorded when the digest equals the one the argument computes now |
+| `accept <record>`, no terminal | `none` | recorded, with no digest |
+| any other form without a terminal | `block`, `delegated` | refused: accepting a decision is owner-run |
+| `accept <record> --digest …` | not `ask` here | refused: a digest needs the level `ask` and its rendered rule |
+
+The last row is enforced by the launcher (plan `2026-10-29-accept-decision-at-ask`, Increment F), because the helper cannot tell its
+level and would take a digest as the route `ask`: at `none` a run of a mapped argument whose last two arguments are `--digest` and
+anything is refused before the helper starts, with nothing run and no entry written. Any other owner-run argument at `none` passes a
+trailing digest on to its helper, as before.
+
+**What `preview` prints.** Text, then a last line `digest: <32 lowercase hex>`: the project, the command and argument, the record's path,
+its status line, the SHA-256 of its bytes, and what accepting does not cover (that the owner read the record; the index row). The digest
+is the first 32 hexadecimal characters of the SHA-256 of that text, as for `plan-status --digest`, so a confirmation cannot be reused for
+another project, another record or another content.
+
+**What `accept` does, in order.** It takes the last two arguments `--digest <hex>` off at `ask` (the launcher checked their form,
+`module-contract.md`), reads the identity first (so a missing or refused identity writes nothing), reads the record (bounded, no link
+followed, regular file, one hard link), recomputes the digest, checks that the status is `Proposed`, replaces only the status line with
+the kit's hash-checked replace (`Root.replace_file`, plan `2026-10-29-accept-decision-at-ask`, Increment D), reads the result back and
+compares it with what it meant to write, and prints one result line. The replace compares the file's identity just before its rename and
+the kit has no lock, so a write that lands in that short window is overwritten without notice, and the read-back cannot show it (the file
+then holds the helper's bytes); the read-back confirms what the helper wrote, and the window is a known limit. The staged file is also
+compared with its open descriptor just before the rename; a substitute swapped in after that comparison is installed, and the read-back,
+which opens the result with the kit's no-follow reader and compares its bytes, shows it. The helper refuses and reports a result that
+is not the bytes it meant to write. It refuses, with nothing written, a record whose bytes differ from the digest, a status that is not `Proposed`, a path that
+is not under `docs/decisions/`, a link, a file over its bound, a status line that is missing or repeated, and a missing or refused
+identity. A record that already reads `Accepted` is reported as such and not changed (exit 0) only after the digest check has passed, so a
+changed record is refused whatever its status; at `none`, which has no digest, the check is on the status alone. Exit codes: 0 done or already accepted, 1
+refused with nothing written, 2 usage.
+
+**The log.** The launcher writes the attempt line before the helper starts and the outcome line after, for a run without a terminal, as
+for every owner-run argument with a level ("The log"). For this key the helper prints, after its work, one JSON line of at most 512
+bytes: `{"format": 1, "record": "<path>", "sha256": "<64 hex>", "approver": "<Name <email>>", "via": "ask" | "none"}`; the launcher checks
+its form and that `via` is the level it ran at (it compares no digest: the helper recomputes it, and the attempt line holds the one the run was given), and writes the
+route, the approver's email address and the record's hash into the outcome's reason, as `accepted by <email> via <route> sha256:<hex>`.
+The email is printable ASCII of at most 100 characters (the grammar of `trust-and-approval.md`), so the reason stays within its 200
+characters and the line within its 1,024 bytes; the name, which may be non-ASCII and up to 100 characters, is in the tracked status line
+and not in the log. A missing, malformed, over-long or mismatching line, or an approver that does not pass the grammar, makes the
+outcome `refused`, not `done`.
+A run at a terminal reads no level and writes no entry, so a terminal acceptance is recorded by the tracked status line (the approver
+and the date) and by git history only. The helper writes nothing to the guarded store. A run at a terminal prints no result line, with or without a
+`--digest`. For a record that is already accepted the line names the approver of that run, and the entry reads like an acceptance
+although nothing was changed (the helper's own text line says `already accepted`; the log keeps no such line).
+
+**What stays outside the command.** The index row of `docs/decisions/README.md` is not written by the command; the `draft-decision` skill
+tells the agent to update it afterwards, and the document check reports a row that disagrees with a status line. A hand edit of a status
+line is possible and is not gated, and the document check does not treat it as unaccepted. An agent that edits a status line with its own
+edit tool is held by the rule it follows and not by this gate, as it is for `accept-decision` today. At `none` the command runs and is
+logged, while a hand edit of a status line is never gated and never logged; that is the difference between the two routes. At `ask` the
+owner confirms a command and a digest, not that they read the record.
+
+## `wb release-approvals` at `ask`
+
+The plan `2026-10-30-release-approvals-at-ask` built this in its Increments B to D: the preview (Increment B), the digest check
+(Increment C) and the offer of `ask` with the rendered rules and the gate's reading (Increment D). The key `wb release-approvals`
+offers `block`, `ask` and `none` and defaults to `block`; `delegated` is not built for it (the roadmap candidate
+`checkpoint-levels-beyond-block` stays open). `wb preview release-approvals` does not open the guarded store or write anything. The
+check is in `cli._release`, reading the level through `levelrun.unattended` (the reading of `attach` is unchanged). The statements
+elsewhere in the specs that gave the key as `block` and `none` only were corrected by Increment E; the owner's live run at `ask` is
+Increment F of the plan.
+
+**How the existing parts treat it** (read on 2026-10-30, Increment A). The rendering is generic over the keys of the form
+`wb <word>` of `rules.OWNER_RUN`: a key at `ask` renders an `ask` rule on the launcher spellings of the command and leaves the
+interpreter spellings denied, and a key at `block` renders a `deny`, so the key needs only the offer of the level
+(`levels._OFFERS`). The command gate reads the same keys generically: the exact simple command `wb release-approvals [<token> ...]`,
+through `wb` or the guarded store's `bin/wb`, is what the `ask` rule matches, and `--digest <32 hex>` is such a token. The level of an
+owner-run command with no terminal test is read by `levelrun.optional`, which returns a route only at a verified `none`; at `ask` and
+at `block` it returns nothing and the command goes on as it always did. So the digest check uses a reading that returns the route at
+`ask` too, `levelrun.unattended`, for this command alone and not for `attach` (built by Increment C).
+
+| Form | Level | Result |
+|---|---|---|
+| `wb release-approvals`, standard input and output terminals | not read | as today: it runs and needs no digest. A `--digest` at a terminal is refused: a digest is for a run without a terminal at `ask` |
+| `wb release-approvals --digest <32 hex>`, no terminal | `ask` | writes the release, from the one release plan built now, when the digest equals that of the plan's preview |
+| `wb release-approvals`, no terminal, no digest, a malformed digest or a wrong digest | `ask` | refused; nothing is written; the refusal names `wb preview release-approvals` |
+| `wb release-approvals --digest …` given more than once, any level | | refused: give `--digest` once (the prompt shows the whole command, and the command checks one digest) |
+| `wb release-approvals --digest …`, no terminal | `none` | refused before the run: a digest needs the level `ask`; nothing is written |
+| `wb release-approvals`, no terminal | `none` | as today: it runs and is logged |
+| `wb release-approvals`, no terminal, the verified level cannot be read or reads `block`, and the owner's own setting for the key is `ask` | `ask` (the owner's setting) | as at `ask`: the digest is required and checked, and the run is logged at `ask` |
+| `wb release-approvals`, no terminal, the verified level cannot be read or reads `block`, and the owner's settings cannot be read (a file that is not JSON, a `levels` that is not an object, an invalid key name, an unsupported version) | `ask` (read so, and the refusal says the settings are damaged and to run `wb settings`) | as at `ask`: the check does not turn itself off when the owner's own settings cannot be read (the owner's decision of 2026-10-30) |
+| `wb release-approvals`, the verified level reads `block` or cannot be read, and the owner's settings are sound and do not say `ask` for the key (a missing file is seeded and is sound) | `block` | the harness denies the agent; the command does not refuse itself, as today |
+
+**The preview.** `wb preview release-approvals` is agent-safe and read-only. It builds the release plan and prints text: the number of
+first-party packages and modules; for each package and module its declaration hash and tree hash in full (64 lowercase hexadecimal
+characters each, so that the digest covers them whole and a change at any position changes it), and whether the record for those
+hashes already exists in `workbench/shipped_approvals` or would be new; the approver and the time the records would carry; the shipped
+records the release would leave stale, by their full keys; and a line that says what it does not cover. A last line `digest: <32 lowercase hex>` is the first 32 hexadecimal characters of the SHA-256 of that text, as
+`wb plan-status --digest` computes it. A refused package refuses the preview with the reasons the release gives and no digest. When the
+shipped tree exists and cannot be listed (a name the safe walk refuses), the line reads `stale records: unreadable` and not a count; the
+release itself goes on as it always did, writes the same records, and adds the warning that the shipped records could not be listed.
+
+**What the command does at `ask`.** It builds the release plan once, takes the digest of that plan's preview text, compares it with the
+one given and writes only on equality. It writes the records of that plan and does not read `packages/` again, because the kit has no
+lock: a package changed after the plan was built is not released by the run, since the records name the hashes that were confirmed and
+the changed tree no longer matches them. The attempt is written to the level log just before the write (`wb release-approvals`, `ask`,
+`digest:<32 hex>`) and the outcome after (`done`, `written`). A write that fails part way leaves the records written before the failure
+(valid, and a rerun is idempotent): the command exits with 4 and the outcome reads `stopped after writing (exit 4)`; a failure before
+any record exits with 1 and reads `refused before writing`.
+
+**What it does not cover.** The digest binds the owner's confirmation to the hashes of the previewed release, the approver and the
+time, not to the content of the packages: the owner who confirms trusts whatever the packages hold at those hashes, and reads the change
+with `git diff` before confirming. The verified level is read for the project the working directory is in and counts only while the
+rendering record is sound (`rendering.effective_level`). It reads `block` when the record, the local manifest or the harness file does
+not agree, and cannot be read from a directory that is no project; an agent can bring either about with a write that no edit tool
+guards. So the command also reads the owner's own setting in the guarded store (`cli._owner_says_ask`): where the setting for the key is
+`ask`, the digest is required whatever the verified level reads (the security review of Increments B to D found that the digest check
+could otherwise be skipped), and so it is where the settings cannot be read at all, because a damaged file reads every key as `block`
+and the check must not turn itself off then (the owner's decision after the second look). Where the setting is sound and is not `ask`, the command does not refuse itself and the harness's own rule is the barrier,
+as for the keys that already offer `none`; refusing there would refuse the owner's own runs without a terminal at the default level
+`block`. What remains: a write by an agent to the owner's settings in the guarded store, to a harness file that removes the `ask` rule,
+and to the shipped records themselves, none of which an edit tool is allowed to do and a shell write can, which is the limit of a hook
+that is not a boundary; the owner's review of the commit that holds the records is what the specs rely on.
+
 ## Not built
 
+- `delegated` for `accept-decision` and for the other seven keys that do not offer it (every key but `approve-plan`). The plan
+  `2026-10-29-accept-decision-at-ask` built `ask` for `accept-decision` and left `delegated` reading `block`: the accepted record leaves
+  undecided what a delegated review's subject is for a decision, and the roadmap candidate `checkpoint-levels-beyond-block` stays open.
 - `ask` and `none` for the owner-run arguments of the other module commands (`wb run mempalace init`, `mine`, and
   `wb run remote-runner fetch-overwrite`). The declaration fields (`levels` and `preview`), the launcher that reads the level and logs the run,
   and the review engine's five (`extend`, `reset`, `archive`, `amend`, `prune`, each with a preview and a digest) are built by the plan

@@ -48,11 +48,15 @@ Modules add their policy here, each in its own block above the marker.
   result, unresolved risks and the next action. The plan, not the conversation, is the state:
   record an increment's outcome in the plan before the session is compacted or ends. Raw logs
   and superseded hypotheses need not survive.
-- When a change materially touches authentication, authorization, secrets, untrusted input,
-  parsing, the filesystem, a subprocess, a network boundary, dependencies, or a build or
-  deployment permission, ask the owner whether to run a security review with an installed
-  module that provides `security-review`; if none is installed, say so. A review runs only
-  when the owner asks.
+- Test the minimum that shows a change did not break what it touched, and do not rerun a check
+  that already passed on unchanged inputs. Before any run wider than the plan names, tell the
+  owner what specifically could break outside the tested area; the owner decides whether it runs.
+- When you can name what a change exposes, such as an input that reaches a privileged use with
+  nothing checking it, ask the owner whether to run a security review with an installed module
+  that provides `security-review`; if none is installed, say so. Touching authentication,
+  authorization, secrets, untrusted input, parsing, the filesystem, a subprocess, a network
+  boundary, dependencies or a build or deployment permission is a place to look, not a reason.
+  Ask once per surface. A review runs only when the owner asks.
 - Report an increment as done only with the verification that was actually run. Stop when
   something is wrong; do not widen the plan to get past it.
 <!-- END workbench/code-work slot:policy -->
@@ -63,7 +67,11 @@ Modules add their policy here, each in its own block above the marker.
   (`docs/decisions/`) are durable: an accepted decision is never rewritten, and a change of
   mind is a new record that supersedes it.
 - Accepting a decision is a checkpoint that stops by default: write the record as `Proposed` and stop to ask, unless the level
-  of `accept-decision` that `wb settings` prints says otherwise. The `draft-decision` skill says what each level allows.
+  of `accept-decision` that `wb settings` prints says otherwise. At `block`, and at any other reading, the agent stops at
+  `Proposed` and asks the owner. At `ask` the agent runs `wb run groundwork preview <record>`, shows the owner what it prints, then
+  runs `wb run groundwork accept <record> --digest <digest>` with the digest that preview printed, and the owner confirms that
+  command. At `none` the agent runs `wb run groundwork accept <record>`. `delegated` reads `block`. The `draft-decision` skill
+  says the rest.
 - Record evidence with a provenance line: what was run, with which tool versions, at which
   commit, and the conclusion. For a reference, the source URL, the retrieval date and the
   content hash.

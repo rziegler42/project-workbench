@@ -118,7 +118,7 @@ class Bridge(unittest.TestCase):
         self.assertLessEqual(len(out.encode()), self.helper.MAX_OBJECT)
         document = json.loads(out)
         self.assertEqual(code, 0 if document["ok"] else 1)
-        self.assertEqual(1, document["contract"])
+        self.assertEqual(2, document["contract"])
         self.assertEqual("codex", document["vendor"])
         return document
 

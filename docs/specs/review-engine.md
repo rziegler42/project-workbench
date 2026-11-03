@@ -87,10 +87,14 @@ A round is one call to the bridge and, if the reply is valid, one recorded set o
   directory, the same bytes every round. The engine runs nothing else and imports no bridge.
 - **The reply** is accepted only when the bridge's object is valid under `model-bridge.md` (an unknown `contract`, a
   missing or oversize object or an exit code that disagrees with `ok` is a failure) and its `reply` is one JSON object
-  of the findings schema, validated by the engine again whatever the bridge or the vendor did.
+  of the findings schema, validated by the engine again whatever the bridge or the vendor did. The engine accepts contract
+  versions 1 and 2, and the object must fit the version it names: the error class `program_not_found` and a `usage` of three
+  counts belong to version 1, and the class `vendor_unreachable` and a `usage` of five counts (the three and
+  `cached_input_tokens` and `reasoning_output_tokens`) belong to version 2. An object that mixes the two is a failure. The
+  engine checks the two added counts and stores and relies on neither.
 - **A failure spends no round.** A bridge refusal, an error class (`not_signed_in`, `model_unavailable`,
-  `effort_unsupported`, `program_not_found`, `timeout`, `vendor_error`), an unusable or invalid reply and a
-  `retryable` flag are reported as they are, and nothing is stored. The engine does not retry and does not try another
+  `effort_unsupported`, `program_not_found` (version 1) or `vendor_unreachable` (version 2), `timeout`, `vendor_error`),
+  an unusable or invalid reply and a `retryable` flag are reported as they are, and nothing is stored. The engine does not retry and does not try another
   bridge. A bridge's own limit message is shown to the owner and not parsed. A failure is printed as a `refused:` line
   that names the class, its detail if any and whether the bridge calls it retryable, and ends `no round was spent`.
 - **A valid reply spends one round.** It is stored whole as `round-<n>.json` and its findings are numbered by the engine.
@@ -161,8 +165,8 @@ with the project, so a clone and a teammate keep the history. It holds:
   rounds used are the rounds from `first` on. A round is a record with exactly `n`, `file` (`round-<n>.json`), `sha256`
   (of that file), `document_sha256`, `at` (a UTC time), `bridge`, `requested` (`model` and `effort`, each or null),
   `model` (as the bridge reported it, cleaned, at most 200 characters, or null), `verdict` (the reviewer's), `reading`
-  (the engine's: `changes_needed` if any finding is `blocker` or `major`), `mismatch`, `usage` (three counts or null; a
-  count above 2,147,483,647 is stored as null) and `findings` (each with `id` and `severity`, numbered in order). Each
+  (the engine's: `changes_needed` if any finding is `blocker` or `major`), `mismatch`, `usage` (three counts or null, whatever
+  contract version the bridge used; a count above 2,147,483,647 is stored as null) and `findings` (each with `id` and `severity`, numbered in order). Each
   decision records the finding, the choice (`applied` or `rejected`), the reason and its earlier values. `closed` is a
   UTC time or null; `generation` is a count that every save raises by one;
 - `round-<n>.json`: the stored reply of round n, cleaned: `format`, `round`, `verdict`, `summary` and the findings

@@ -228,7 +228,7 @@ class Failures(Round):
 
     def test_a_missing_vendor_program_is_reported_as_the_class(self):
         os.remove(os.path.join(self.vendor, "codex"))
-        self.fails("the bridge reported program_not_found", ran=0)
+        self.fails("the bridge reported vendor_unreachable", ran=0)
 
     def test_a_vendor_reply_that_is_not_one_object_is_reported_by_the_bridge(self):
         self.control(reply="not json", events=support_bridge.EVENTS)

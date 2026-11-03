@@ -78,6 +78,18 @@ def failure(**changes):
     return body
 
 
+def answer_v2(**changes):
+    """A success of contract version 2: the five counts of `usage`, the three the engine stores and two it ignores."""
+    usage = {"input_tokens": 12, "output_tokens": 5, "total_tokens": None,
+             "cached_input_tokens": 4, "reasoning_output_tokens": 2}
+    return answer(**dict({"contract": 2, "usage": usage}, **changes))
+
+
+def failure_v2(**changes):
+    """A failure of contract version 2, which names an unreachable vendor `vendor_unreachable`."""
+    return failure(**dict({"contract": 2}, **changes))
+
+
 def result(body=None, code=None, stderr=b"", over=False, timed_out=False, raw=None):
     data = raw if raw is not None else (json.dumps(body) + "\n").encode()
     if code is None:

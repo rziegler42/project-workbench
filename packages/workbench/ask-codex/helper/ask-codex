@@ -5,9 +5,9 @@ It is one file that imports the standard library and the workbench kit (``wbkit`
 private copy of it through the kit runner with nothing beside it.
 
     ask-codex ask [--model <name>] [--effort <level>] [--timeout <seconds>] [--root <path>]
-                  [--schema <path>]      the prompt is on standard input
+                  [--schema <path>] [--server <name>] [--confine]      the prompt is on standard input
 
-The contract is ``docs/specs/model-bridge.md`` (version 1). The helper translates it to one program, ``codex``,
+The contract is ``docs/specs/model-bridge.md`` (version 2). The helper translates it to one program, ``codex``,
 found on a PATH entry outside the repository, started read-only with a fresh unsaved session and without the
 user's configuration file, in an environment built here. It prints one JSON object and keeps no state: it
 writes nothing in the project, opens no connection and logs nothing. What the program returns is data: it is
@@ -30,7 +30,7 @@ import unicodedata
 from wbkit import display, project
 
 VENDOR = "codex"
-CONTRACT = 1
+CONTRACT = 2
 PROGRAM = "codex"
 MAX_PROMPT = 262144
 MAX_REPLY = 262144
@@ -39,9 +39,17 @@ MAX_OUTPUT = 1048576
 MAX_OBJECT = 2000000
 DEFAULT_TIMEOUT = 600
 EFFORTS = ("low", "medium", "high")
-OPTIONS = ("--model", "--effort", "--timeout", "--root", "--schema")
+OPTIONS = ("--model", "--effort", "--timeout", "--root", "--schema", "--server")
+FLAGS = ("--confine",)  # an option with no value
+# What `--confine` adds (docs/specs/model-bridge.md, "Confinement"): the program's own feature names as `codex-cli`
+# 0.163.0 lists them, then the setting that turns its web tool off. The list is fixed here and is not asked of the program.
+CONFINE_FEATURES = ("apps", "browser_use", "browser_use_external", "browser_use_full_cdp_access", "computer_use",
+                    "in_app_browser", "image_generation", "multi_agent", "plugins", "remote_plugin", "goals", "hooks",
+                    "shell_tool")
+CONFINE_SETTING = 'web_search="disabled"'
 _MODEL = r"[A-Za-z0-9][A-Za-z0-9._:-]{0,63}"
 _SECONDS = r"[0-9]{1,4}"
+_SERVER = r"[a-z0-9][a-z0-9_-]{0,31}"
 _KEPT = ("HOME", "XDG_CONFIG_HOME", "USER", "LOGNAME", "LANG", "TZ", "TERM", "TMPDIR")
 
 # What the program's own words are taken to mean. The first pattern that matches wins; text that matches
@@ -128,16 +136,30 @@ def environment(entries):
     return env
 
 
+def confinement():
+    """The arguments that `--confine` adds, written once: strict configuration (a wrong setting name is an error and
+    not a warning that leaves a tool on), then each feature switched off, then the web tool's setting."""
+    argv = ["--strict-config"]
+    for name in CONFINE_FEATURES:
+        argv += ["--disable", name]
+    return argv + ["--config", CONFINE_SETTING]
+
+
 def parse_options(args):
-    """``{option: value}`` for the options in `args`: each at most once, each with a value, nothing else."""
+    """``{option: value}`` for the options in `args`, and ``True`` for a flag: each at most once, each option with a
+    value, nothing else."""
     found = {}
     position = 0
     while position < len(args):
         name = args[position]
-        if name not in OPTIONS:
+        if name not in OPTIONS and name not in FLAGS:
             raise Refused("%s is not an option of ask" % display.ascii_text(name)[:60])
         if name in found:
             raise Refused("%s is given twice" % name)
+        if name in FLAGS:
+            found[name] = True
+            position += 1
+            continue
         if position + 1 >= len(args):
             raise Refused("%s needs a value" % name)
         found[name] = args[position + 1]
@@ -150,6 +172,10 @@ def parse_options(args):
     if "--timeout" in found:
         if not re.fullmatch(_SECONDS, found["--timeout"]) or not 1 <= int(found["--timeout"]) <= 3600:
             raise Refused("--timeout is a whole number of seconds from 1 to 3600")
+    if "--server" in found:
+        if not re.fullmatch(_SERVER, found["--server"]):
+            raise Refused("--server is 1 to 32 characters of a-z, 0-9, _ and - and starts with a letter or digit")
+        raise Refused("--server names an endpoint and this bridge starts a program, which has none")
     return found
 
 
@@ -172,6 +198,8 @@ def inside_path(base, value, what):
     a link and none is `..`. Raises ``Refused`` for any other path."""
     if not value or "\0" in value:
         raise Refused("%s is not a usable path" % what)
+    if value.startswith("-"):  # so that a flag is never read as a path (a --model cannot start with one either)
+        raise Refused("%s may not start with a dash; write ./ before a relative path that does" % what)
     if os.path.isabs(value):
         prefix = base.rstrip(os.sep) + os.sep
         if value != base and not value.startswith(prefix):
@@ -353,7 +381,8 @@ MESSAGES = {
     "not_signed_in": "codex is not signed in",
     "model_unavailable": "the model is not available to this account",
     "effort_unsupported": "the model does not support this effort",
-    "program_not_found": "codex was not found in a trusted PATH entry",
+    "vendor_unreachable": "codex was not found in a trusted PATH entry",
+    "not_started": "codex was found but could not be started",
     "timeout": "codex did not finish in time",
     "usage_limit": "codex refused the call because a usage limit was reached",
     "unusable_reply": "codex returned no usable reply",
@@ -363,10 +392,10 @@ MESSAGES = {
 }
 
 
-def failure(error, detail=None):
+def failure(error, detail=None, message=None):
     return {"contract": CONTRACT, "ok": False, "vendor": VENDOR, "error": error, "detail": detail,
             "retryable": error == "timeout" or detail == "usage_limit",
-            "message": MESSAGES[detail or error]}
+            "message": message or MESSAGES[detail or error]}
 
 
 def read_reply(path):
@@ -406,7 +435,9 @@ def outcome(code, stdout, stderr, over, timed_out, reply_path, requested, schema
     return {"contract": CONTRACT, "ok": True, "vendor": VENDOR, "model": model or requested, "reply": reply,
             "usage": {"input_tokens": count(usage.get("input_tokens")),
                       "output_tokens": count(usage.get("output_tokens")),
-                      "total_tokens": count(usage.get("total_tokens"))}}
+                      "total_tokens": count(usage.get("total_tokens")),
+                      "cached_input_tokens": count(usage.get("cached_input_tokens")),
+                      "reasoning_output_tokens": count(usage.get("reasoning_output_tokens"))}}
 
 
 def emit(out, document):
@@ -431,7 +462,7 @@ def ask(args, stdin, cwd, out):
     entries = trusted_entries(boundary)
     program = trusted_which(PROGRAM, entries, boundary)
     if program is None:
-        return emit(out, failure("program_not_found"))
+        return emit(out, failure("vendor_unreachable"))
     temp = os.environ.get("TMPDIR") or tempfile.gettempdir()
     if is_inside(temp, base):
         raise Refused("the temporary directory is inside the project; set TMPDIR outside it")
@@ -452,11 +483,13 @@ def ask(args, stdin, cwd, out):
             with open(schema_path, "wb") as handle:
                 handle.write(schema)
             argv += ["--output-schema", schema_path]
+        if "--confine" in options:
+            argv += confinement()
         argv.append("-")
         try:
             finished = run_program(argv, workdir, environment(entries), prompt, timeout)
         except OSError:
-            return emit(out, failure("program_not_found"))
+            return emit(out, failure("vendor_unreachable", message=MESSAGES["not_started"]))
         return emit(out, outcome(*finished, reply_path, options.get("--model"), schema))
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
@@ -467,7 +500,7 @@ def main(argv, stdin, out, err, cwd):
     try:
         if not argv or argv[0] != "ask":
             raise Refused("usage: ask-codex ask [--model <name>] [--effort <level>] [--timeout <seconds>] "
-                          "[--root <path>] [--schema <path>], with the prompt on standard input")
+                          "[--root <path>] [--schema <path>] [--server <name>] [--confine], with the prompt on standard input")
         return ask(argv[1:], stdin, cwd, out)
     except Refused as exc:
         err.write("refused: %s\n" % exc)

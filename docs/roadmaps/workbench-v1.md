@@ -1,7 +1,7 @@
 # Roadmap: workbench-v1
 
 Status: Active
-Updated: 2026-10-29
+Updated: 2026-11-02
 
 This roadmap is direction only. It does not authorize implementation and does not
 change any plan. A candidate is referred to as `workbench-v1#<id>`. Candidates are
@@ -552,6 +552,95 @@ authoring skill are lessons learned: the package is designed against the workben
 because it exists. It does not hold decisions or conversation, and nothing tracked cites a path into it.
 **Promotion trigger:** `groundwork-module` complete and the name chosen.
 
+The next two candidates serve the knowledge base's model calls (`knowledge-base-package`), which go through the bridges. They rest on
+the owner's measurements of 2026-11-01 with `codex-cli` 0.163.0, run directly with the bridge's own safety options and through
+`ask-codex`, one run per variant, scripts not kept. The measurements are in the evidence notes of the knowledge base's overview spec,
+which is untracked, so the figures are quoted here and not cited by path: a one-word prompt used 15,836 input tokens (12,288 cached);
+disabling twelve tool-adding features gave 13,669 and also disabling the shell tool 13,029; with both disabled four canary probes (a
+file in the working directory, one above it, one outside the project by absolute path, and a shell command) all failed for want of a
+tool, while with the defaults the three reads succeeded and the shell command ran; a 400-item batch cost 17,050 input tokens and was
+answered correctly. Cached counts varied from 0 to 12,288 between runs. A later run asked the confined program to list its tools: it
+still listed an image viewer, a patch tool, MCP resource readers, agent-starting functions and a web tool, and the web tool fetched a
+public page in that configuration; setting the program's `web_search` option to disabled removed it, and the setting that should
+remove the image viewer did not. A tool list is the model's own report.
+
+### bridge-confine-and-usage — Confine the vendor program, report its token detail, correct the bridge spec
+
+**Outcome:** the `ask-codex` bridge can start its program with the tool features, the shell tool and the web tool disabled, so that in
+the owner's probes a prompt of captured text could not make the program read files, run commands or fetch a page; it reports the cached
+and reasoning token counts that the program's event stream carries, with a total only where the program reports one, and states that
+the cached count is part of the input count; and `model-bridge.md` stops implying that `--root` scopes what the program reads. The
+option is opt-in, because the review engine needs file access to read plans; a caller that sends captured text always passes it. Each
+bridge release is accepted for untrusted text only if the four file and shell canaries, a probe of the web tool and a check of the
+tool list against the list recorded for that release pass, because the protection depends on the program's version and feature list.
+**Dependencies:** none. The bridge and its contract (version 1) are built.
+**Boundary:** the `ask-codex` module, its tests and `model-bridge.md`, and the reading of the bridge's object by the two engines that
+call a bridge (`review-engine` and `action-review`), with their tests and specs, because the accepted decision
+`2026-11-01-bridge-contract-version-2` changes the contract number, a class name and the `usage` object that they check exactly. It
+adds no bulk or batch option: batching many short items into
+one call fits the existing 256 KB prompt limit and is the engine's work. `--confine` is a tripwire plus tests and not a boundary: the
+confined program still lists an image viewer and a patch tool (its writes are refused by the read-only sandbox), MCP resource readers
+and agent-starting functions, and the boundary text says so. The reasoning count is reported as an informational figure that no
+caller adds to or subtracts from another count; whether the program includes it in the output count is not relied on.
+Two questions are the plan's to settle: whether the list of disabled features is fixed or derived from the program's own feature list
+(the canary test being the backstop either way), and whether `--schema` accepts an array at the top level or a batch reply must be an
+object that holds the array, which has not been tested. A change to the `usage` object is a change to the contract and is decided in
+the plan.
+**Interchangeable bridges.** The owner requires that `ask-codex` and the Ollama bridge can replace one another without a change in
+the caller. This candidate settles the common core in the contract, and the Ollama candidate meets it: the same command shape; the
+same five options (`--model`, `--effort`, `--timeout`, `--root`, `--schema`) accepted by every bridge, plus `--confine`, which a
+bridge with no tools satisfies by construction; the same success and failure objects; and one error class for a vendor that cannot
+be reached, so that neither `program_not_found` nor a new Ollama-only class is the caller's concern. An option that only tunes
+behaviour and that a vendor cannot use (`--root` for a server) is accepted and ignored. An option that decides where
+content goes (`--server`) is refused by a bridge that cannot honour it, so that local-only content is never served by a cloud vendor
+by accident. This is proposed by the decision `2026-11-01-bridge-contract-version-2`, which moves the contract to version 2. What differs between vendors (the model name, whether usage is reported, and
+the reasons a call fails) stays in the object's existing fields. The same conformance checklist is run against both bridges.
+**Promotion trigger:** the owner chooses to begin it.
+
+### ask-ollama-bridge — A bridge for local models, and an embedding command
+
+**Outcome:** a first-party bridge module for a local Ollama server, so that a model call needs no vendor program and no cloud: one
+prompt in, one JSON reply out, the server's schema-constrained output used for `--schema`, and no file access by construction. The
+server's address is never an argument and never in a tracked file: the bridge resolves a named endpoint from the owner's guarded store
+(`2026-10-20-fixed-store-location`), chosen by a validated `--server <name>`, so a caller can pick between model machines without
+holding an address. The store record says whether an endpoint is authenticated and declares its location class; the transport follows
+the scheme (`https` validates the certificate), an authenticated endpoint must use `https` unless its host is a literal loopback
+address, and a diagnostic warns when content is sent in the clear. The bridge reaches only the host the record names and does not
+verify where that host is. A second command takes a batch of texts and returns the model name, the dimension and the vectors, within the
+reply limit (a batch near 100 texts for vectors of about 1,000 numbers), and is offered as a capability of its own, so a consumer can
+require embeddings alone.
+**Dependencies:** `knowledge-base-package` for the first consumer; the guarded store (`module-approvals`). It follows
+`bridge-confine-and-usage` so that the contract is amended once.
+**Boundary:** the new module, its tests against a fake server, and the contract: the bridge opens a connection, so guarantee 7 of
+`model-bridge.md` and the search for a vendor program are amended, by a decision record if the contract's version changes. Model
+names stay an option, validated like the codex bridge's. Redirects to another host are not followed and every request has a hard
+timeout. It installs, pulls and serves no model, and does not choose a model, retry or fall back. It reads no files, so the review
+engine cannot use it as a reviewer yet: that engine relies on the vendor program opening the document from its working directory,
+and a change to send the document in the prompt is a separate piece of work, not part of this candidate. Two behaviours of the server are the
+plan's to settle, and neither was re-checked on 2026-11-01: the server's default context window is small and a longer prompt may be
+cut silently, so the bridge sets the context size from the store's record for the endpoint and checks that the reply was not cut off;
+and a model that reasons can use up its token limit in its reasoning and return an empty reply, so the plan maps `--effort` to the
+server's thinking setting and reports an empty or cut-off reply as an unusable reply, never as a success.
+**Promotion trigger:** `bridge-confine-and-usage` complete and the owner chooses to begin it.
+
+### bridge-model-configurations — Model configurations for each endpoint, and a context ceiling
+
+**Outcome:** the owner's endpoint file describes each model that may be used on a server, so that a bridge to a server uses only a
+model the owner configured, and the window of a call is the model's own. Each endpoint record holds a configuration section for every
+allowed model: its kind (chat or embedding), the largest context it accepts, an optional lower default window, and an optional
+estimate of bytes per token. A model that is not configured, or is configured for the other kind, is refused before anything is sent.
+A caller may ask for a smaller window and gets an error, with nothing sent, when it asks for more than the model's maximum. A prompt
+that is probably larger than the window is refused before it is sent, because the server of the first run (2026-11-02) cut such a
+prompt without an error and reported about half the window. A read-only command shows which configured models the server has. The
+file is named for what it holds, in a step after the first real run of the new format.
+**Dependencies:** `ask-ollama-bridge` complete. The accepted decision `2026-11-01-endpoint-records-in-the-store` is superseded on the
+format of a record, by a new decision the owner accepts.
+**Boundary:** the endpoint file's format and the one helper that reads it, its spec and its documents. The option for a smaller window
+belongs to the Ollama bridge and not to the contract's common core, so `ask-codex` and the contract are unchanged. The older format is
+refused and is not read as a fallback. It reads no token count from the server and holds no credential, and a second bridge to a
+server, an exact count of tokens and a command that reads each model's window from the server are not part of it.
+**Promotion trigger:** `ask-ollama-bridge` complete and the owner chooses to begin it.
+
 ### port-superpowers — Port the superpowers skills the owner uses into neutral skills
 
 **Outcome:** an inventory of the superpowers skills the owner's former global configuration (the backup) and agents
@@ -662,8 +751,10 @@ the owner. A default wing per project is a larger change and is not part of this
 ### checkpoint-levels-beyond-block — Levels other than `block` for the keys that offer only `block`
 
 **Outcome:** the four keys that `command-permissions.md` lists as limited to `block` (`submit-remote-job`,
-`push-shared-branch`, `fetch-remote-output` and `change-direction`), and the four that offer `block` and `none` only
-(`accept-decision`, `wb release-approvals`, `acknowledge-first-tier` and `acknowledge-second-tier`), each offer the same levels as `approve-plan`:
+`push-shared-branch`, `fetch-remote-output` and `change-direction`), the two that offer `block` and `none` only
+(`acknowledge-first-tier` and `acknowledge-second-tier`), and `accept-decision` and `wb release-approvals`, which offer `block`, `ask`
+and `none` (since the plans `2026-10-29-accept-decision-at-ask` and `2026-10-30-release-approvals-at-ask`) and still lack `delegated`,
+each offer the same levels as `approve-plan`:
 `block`, `ask`, `delegated` and `none`, with the same meaning (the owner's direction, 2026-10-28). The accepted decision says
 no key should be limited to `block`; this closes the gap that spec lists. Today `delegate` takes effect for `approve-plan`
 only, so this widens it.
@@ -672,9 +763,11 @@ complete). The decision `2026-10-28-every-key-offers-the-approve-plan-levels`, a
 `delegated` and `none` mean for each key, in particular for the two agent checkpoints that no installer command runs and for what a
 review may stand for at a push or a remote job.
 **Boundary:** the command keys need their own preview digest before `ask` can work, and a delegated route for each; the
-agent checkpoints (`fetch-remote-output`, `change-direction`) and `accept-decision`, which no command runs, need the decision
-and a way to record the level. `wb release-approvals` runs where no project level can be read, so it needs a decision on where
-its level is read from. It does not change who may approve a plan, the hard
+agent checkpoints (`fetch-remote-output`, `change-direction`), which no command runs, need the decision and a way to record the
+level. `accept-decision` has its command and its `ask` level (`groundwork accept`); its `delegated` level waits on a decision about
+what a delegated review's subject is for a decision. `wb release-approvals` has its preview digest and its `ask` level; where the verified level
+cannot be read it reads the owner's own settings in the guarded store, and its `delegated` level waits on a decision about what a
+delegated review would stand for when it makes the first-party packages trusted. It does not change who may approve a plan, the hard
 stops, or the owner-run commands. It may be split into a plan per key.
 **Promotion trigger:** the owner chooses to begin it, after accepting the decision.
 

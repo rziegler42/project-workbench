@@ -24,7 +24,8 @@ USAGE = ("usage: python3 -m workbench verify [<package> | --dir <path>] "
          "       python3 -m workbench pin <project-id> <name> <helper> --root <dir> [--kit N]   (owner-run, terminal only)\n"
          "       python3 -m workbench launch <project-id> <name> --root <dir> -- <args>\n"
          "       python3 -m workbench run [--provides <capability>] <command> [<argument> ...]\n"
-         "       python3 -m workbench release-approvals\n"
+         "       python3 -m workbench release-approvals [--digest <32 hex>]   (--digest: at the level ask, without a terminal)\n"
+         "       python3 -m workbench preview release-approvals   (read-only; what a release would write, with a digest)\n"
          "       python3 -m workbench preview install [<target> | --dir <path>] --package <source> [--ref <ref>] ...\n"
          "                                            [--package ...] --select <module> ...   (read-only)\n"
          "       python3 -m workbench install <same arguments as preview install>   (owner-run, terminal only)\n"
@@ -97,8 +98,10 @@ def _parser():
     run_cmd.add_argument("project_id", help="the project id (64 hex digits)")
     run_cmd.add_argument("name", help="the helper's name")
     run_cmd.add_argument("--root", required=True, metavar="DIR", help="the project directory")
-    commands.add_parser("release-approvals", allow_abbrev=False,
-                        help="release time: write the approvals shipped for first-party packages")
+    release = commands.add_parser("release-approvals", allow_abbrev=False,
+                                  help="release time: write the approvals shipped for first-party packages")
+    release.add_argument("--digest", metavar="HEX", action="append",
+                         help="at the level ask without a terminal: the digest `preview release-approvals` printed (once)")
     return parser
 
 
@@ -115,17 +118,95 @@ def _target(args):
     return given[0] if given else "."
 
 
-def _release(guarded, stdin, distribution, out, err):
-    return _unattended_call(guarded, "wb release-approvals", stdin, out, err,
-                            lambda: _release_approvals(distribution, out, err))
+RELEASE_KEY = "wb release-approvals"
+_RELEASE_DIGEST = re.compile(r"[0-9a-f]{32}\Z")
 
 
-def _release_approvals(distribution, out, err):
-    try:
-        done = firstparty.release_approvals(distribution)
-    except firstparty.ReleaseError as exc:
-        err.write("refused: %s\n" % _clean(str(exc)))
+def _owner_reading(guarded):
+    """What the owner's own settings, in the guarded store, say of the key ``wb release-approvals``: ``"ask"`` when they give it the
+    level ``ask``, ``"damaged"`` when they cannot be read (a file that is not JSON, a ``levels`` that is not an object, an invalid
+    key name, an unsupported version) and the key therefore reads as ``block`` and every checkpoint stops, ``None`` otherwise. The
+    store is not written by an edit tool, and a project file, a harness file or the working directory cannot change it, unlike the
+    verified level, which reads ``block`` when the rendering record, the local manifest or the harness file disagree and cannot be
+    read from a directory that is no project (security review of Increments B to D). A damaged file is read as ``ask`` for this
+    key, so the check does not turn itself off when the owner's own settings cannot be read (the owner's decision)."""
+    loaded = settings.load(guarded)
+    if loaded.levels_blocked:
+        return "damaged"
+    return "ask" if loaded.levels.get(RELEASE_KEY) == levels.ASK else None
+
+
+def _release(guarded, stdin, distribution, out, err, digests=None):
+    """``release-approvals`` (``docs/specs/command-permissions.md``, "`wb release-approvals` at `ask`"). At a terminal it runs as it
+    always did and takes no digest. Without a terminal and at a verified ``none`` it runs and is logged, and takes no digest.
+    At ``ask`` it builds the release plan once, compares the digest of that plan's preview with the one given and writes that
+    plan and no second reading of the packages. ``ask`` is the verified level or, where the level cannot be verified (the
+    rendering record, the local manifest or the harness file no longer agree, or the directory is no project), the owner's own
+    setting. Where the level cannot be verified and the owner's setting is not ``ask``, or at a verified ``block``, it goes on
+    as it always did; the harness's own rule is the barrier there. `digests` is the list of ``--digest`` values given."""
+    def refuse(stream, text):
+        err.write("refused: %s\n" % _clean(text))
         return 1
+
+    if digests is not None and len(digests) > 1:
+        return refuse(err, "give --digest once: the prompt shows the whole command, and the command checks one digest")
+    digest = digests[0] if digests else None
+    terminal = approve.is_terminal(stdin) and approve.is_terminal(out)
+    if digest is not None and terminal:
+        return refuse(err, "a digest is for a run without a terminal at the level ask; at a terminal run %s without --digest"
+                      % RELEASE_KEY)
+    try:
+        route = levelrun.unattended(guarded, os.getcwd(), RELEASE_KEY, stdin, out)
+    except OSError:
+        route = None
+    reading = None
+    if route is None and not terminal:
+        reading = _owner_reading(guarded)
+        if reading is not None:
+            route = levelrun.Route(False, levels.ASK, None, None)
+    if route is None:
+        return _release_approvals(distribution, out, err)
+    if route.level == levels.NONE:
+        if digest is not None:
+            return refuse(err, "%s is at the level none, which takes no digest: a digest needs the level ask; run it without "
+                               "--digest" % RELEASE_KEY)
+        return levelrun.apply_logged(guarded, route, RELEASE_KEY, "", lambda: _release_approvals(distribution, out, err),
+                                     err, refuse)
+    if digest is None or not _RELEASE_DIGEST.match(digest):
+        why = ("%s is at the level ask" % RELEASE_KEY if reading != "damaged" else
+               "the owner's settings are damaged, so %s is read as ask until they are repaired (run `wb settings`)" % RELEASE_KEY)
+        return refuse(err, "%s: run `wb preview release-approvals` and give the digest it prints as --digest followed by 32 "
+                           "lowercase hexadecimal characters" % why)
+    try:
+        plan = firstparty.plan_release(distribution)
+    except firstparty.ReleaseError as exc:
+        return refuse(err, str(exc))
+    if firstparty.digest_of(firstparty.preview_text(plan)) != digest:
+        return refuse(err, "the digest is not the one of the release plan built now; run `wb preview release-approvals` again, "
+                           "read it, and give the digest it prints")
+
+    def write():
+        try:
+            done = firstparty.write_release(plan, distribution)
+        except firstparty.ReleaseError as exc:
+            return _release_failed(exc, err)
+        return _release_report(done, out)
+
+    return levelrun.apply_logged(guarded, route, RELEASE_KEY, digest, write, err, refuse)
+
+
+def _release_failed(exc, err):
+    """The exit code of a release that failed: 1 when nothing was written, 4 when some records were (they are valid and a rerun is
+    idempotent; ``levelrun.apply_logged`` then logs `stopped after writing`, not `refused before writing`)."""
+    if exc.written:
+        err.write("refused: %s; records written before the failure remain, and a rerun with a new preview repeats the "
+                  "release\n" % _clean(str(exc)))
+        return 4
+    err.write("refused: %s\n" % _clean(str(exc)))
+    return 1
+
+
+def _release_report(done, out):
     if not done.packages:
         out.write("no first-party packages\n")
     else:
@@ -133,6 +214,14 @@ def _release_approvals(distribution, out, err):
     for warning in done.warnings:
         out.write("warning: %s\n" % _clean(warning))
     return 0
+
+
+def _release_approvals(distribution, out, err):
+    try:
+        done = firstparty.release_approvals(distribution)
+    except firstparty.ReleaseError as exc:
+        return _release_failed(exc, err)
+    return _release_report(done, out)
 
 
 def _levelled(guarded, key, terminal_only, stdin, out, err, project_id=None, root=None):
@@ -269,10 +358,28 @@ def _rerender(tokens, out, err, store_root, distribution, stdin, home=None):
     return rerender.run(guarded, command, stdin, out, err, distribution, home=home)
 
 
-def _preview(argv, out, err, store_root, distribution, home=None):
-    if len(argv) < 2 or argv[1] not in ("install", "adopt", "upgrade", "add", "rerender"):
-        err.write("preview takes install, adopt, upgrade, add or rerender\n%s" % USAGE)
+def _preview_release(tokens, out, err, store_root, distribution):
+    """``preview release-approvals``: what a release would write, read-only, ending with a digest of that text."""
+    if tokens:
+        err.write("preview release-approvals takes no argument\n%s" % USAGE)
         return 2
+    try:
+        plan = firstparty.plan_release(distribution)
+    except firstparty.ReleaseError as exc:
+        err.write("refused: %s\n" % _clean(str(exc)))
+        return 1
+    text = firstparty.preview_text(plan)
+    out.write(text)
+    out.write("digest: %s\n" % firstparty.digest_of(text))
+    return 0
+
+
+def _preview(argv, out, err, store_root, distribution, home=None):
+    if len(argv) < 2 or argv[1] not in ("install", "adopt", "upgrade", "add", "rerender", "release-approvals"):
+        err.write("preview takes install, adopt, upgrade, add, rerender or release-approvals\n%s" % USAGE)
+        return 2
+    if argv[1] == "release-approvals":
+        return _preview_release(argv[2:], out, err, store_root, distribution)
     if argv[1] == "rerender":
         return _preview_rerender(argv[2:], out, err, store_root, distribution, home)
     upgrading = argv[1] == "upgrade"
@@ -596,7 +703,7 @@ def main(argv, out=None, err=None, *, store_root=None, distribution=None, stdin=
         return pins.run(guarded, args.project_id, args.name, args.helper, args.root, stdin, out, err, kit=args.kit,
                         log=log)
     if args.command == "release-approvals":
-        return _release(guarded, stdin if stdin is not None else sys.stdin, distribution, out, err)
+        return _release(guarded, stdin if stdin is not None else sys.stdin, distribution, out, err, args.digest)
     if args.command == "approve":
         for note in notes:
             err.write("warning: %s\n" % _clean(note))

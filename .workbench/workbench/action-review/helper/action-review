@@ -4,7 +4,7 @@
 It is one file that imports the standard library; the launcher runs a private copy of it through the kit
 runner with nothing beside it.
 
-    action-review review [--log-row] <command text>
+    action-review review [--log-row] [--collect] <command text>
 
 The contract is ``docs/specs/action-review.md``. The command text is read once, under a grammar so small that
 ``sh`` and ``zsh`` read it alike: single-spaced words, each a bare word of a small alphabet or a single-quoted
@@ -28,8 +28,11 @@ import time
 
 from wbkit import call, jsonstrict, project, safefs
 
-USAGE = "usage: action-review review [--log-row] <command text>"
+USAGE = "usage: action-review review [--log-row] [--collect] <command text>"
 MAX_TEXT = 4096
+# With ``--collect`` the `describe` object is printed on one line of standard error for the owner's hook. The object is at
+# most DESCRIBE_LIMIT bytes, and its ASCII-escaped canonical form is longer; a line over this bound is left out.
+MAX_FACTS_LINE = 2 * 196608
 # The installed place of the rule files, below the project root. The helper runs as a private copy with nothing beside
 # it, so it cannot find them "beside itself"; like the review setting, they are read from the project.
 RULES_DIR = ".workbench/workbench/action-review/rules"
@@ -43,6 +46,10 @@ PINS = {
     "rules/safe-git-remove.json": "dd1ce89e628c0eaef5967aa01202f9f2e94da3490b89c3887f87160aec3af917",
     "rubric/rubric.md": "5ac359f2eaf51fa3895b57f41d51f932c2fa810db508320db9580aef17c4ddbe",
     "reply-schema.json": "ead8d9b7c80e962ad890685ef6c0c054bf10bb5b0796374c02cc59e336d3570a",
+    # Not read by the review: the owner's shadow hook, which is copied out of the project, and the owner compares the copy's
+    # hash with this one (plan `2026-10-29-action-review-shadow-hook`).
+    "hook/shadow_store.py": "db5fafbf8c64b03a3c1d1b74c011512225f09b06e6b96f1155a0dd96050e2c32",
+    "hook/shadow_hook.py": "894bfec673f200e30fda5fe0264d4dcf17bb3b179fdab040a6285dca09079710",
 }
 MAX_RULE = 16384
 MAX_RULES = 64
@@ -81,6 +88,10 @@ class Unreviewable(Exception):
     """The text does not fit the grammar or a rule, so it is not reviewed and approves nothing."""
 
 
+class NoRule(Unreviewable):
+    """No rule matches the command. It is told apart from the other reasons a command is not reviewed, for ``--collect``."""
+
+
 class RulesUnavailable(Exception):
     """The rules directory cannot be used at all, so no rule is trusted to match and every review is refused."""
 
@@ -92,6 +103,10 @@ class RuleError(Exception):
 class DescribeFailed(Exception):
     """`describe` did not give an object the engine can use. The reason is fixed text: it never quotes the object, the
     standard error or a field name, because all of them are the repository's text."""
+
+
+class DescribeTimeout(DescribeFailed):
+    """`describe` did not finish in its time."""
 
 
 class AnyWord:
@@ -371,7 +386,7 @@ def find_rule(loaded, words):
         raise Unreviewable("more than one rule matches (%s), so the command is not reviewed"
                            % ", ".join(ascii(rule.file) for rule in sorted(hits, key=lambda r: r.file)))
     if not hits:
-        raise Unreviewable("no rule matches this command")
+        raise NoRule("no rule matches this command")
     return hits[0]
 
 
@@ -526,7 +541,7 @@ def describe(root, rule, arguments, cwd):
     except call.CallError:
         raise DescribeFailed("describe could not be started") from None
     if got.timed_out:
-        raise DescribeFailed("describe did not finish in %d seconds" % DESCRIBE_SECONDS)
+        raise DescribeTimeout("describe did not finish in %d seconds" % DESCRIBE_SECONDS)
     if got.over:
         raise DescribeFailed("describe printed an output larger than %d bytes" % DESCRIBE_LIMIT)
     if got.code != 0:
@@ -935,9 +950,15 @@ REVIEW_SECONDS = 25
 MAX_BRIDGE_OBJECT = 2000000
 MAX_REPLY = 262144
 MAX_COUNT = 10 ** 12
-BRIDGE_ERRORS = ("not_signed_in", "model_unavailable", "effort_unsupported", "program_not_found", "timeout",
-                 "vendor_error")
-USAGE_FIELDS = ("input_tokens", "output_tokens", "total_tokens")
+# What each contract version of the bridge's object holds (`model-bridge.md`): its error classes, and the counts of
+# `usage`. The engine keeps no usage, so the two counts that version 2 adds are checked and ignored.
+BRIDGE_ERRORS = {1: ("not_signed_in", "model_unavailable", "effort_unsupported", "program_not_found", "timeout",
+                     "vendor_error"),
+                 2: ("not_signed_in", "model_unavailable", "effort_unsupported", "vendor_unreachable", "timeout",
+                     "vendor_error")}
+USAGE_FIELDS = {1: ("input_tokens", "output_tokens", "total_tokens"),
+                2: ("input_tokens", "output_tokens", "total_tokens", "cached_input_tokens",
+                    "reasoning_output_tokens")}
 VERDICTS = ("approve", "decline")
 MAX_REASON = 300
 Setting = collections.namedtuple("Setting", ("bridge", "model", "effort"))
@@ -968,6 +989,10 @@ class BridgeRefused(Exception):
 class BridgeFailed(Exception):
     """The bridge was asked and gave nothing usable (a failure, a timeout, or an answer or reply that does not fit). The
     reason is fixed text: the vendor's message and reply are not quoted."""
+
+
+class BridgeTimeout(BridgeFailed):
+    """The bridge did not answer in the time the review had left."""
 
 
 def read_setting(root):
@@ -1109,7 +1134,7 @@ def read_answer(got):
     if not isinstance(got.stdout, bytes):
         raise BridgeFailed("the bridge's answer is not bytes")
     if got.timed_out:
-        raise BridgeFailed("the bridge did not answer in the time the review had left")
+        raise BridgeTimeout("the bridge did not answer in the time the review had left")
     if got.over:
         raise BridgeFailed("the bridge's answer is larger than %d bytes" % MAX_BRIDGE_OBJECT)
     if not got.stdout.strip():
@@ -1125,9 +1150,10 @@ def read_answer(got):
         return BridgeFailed("the bridge's answer is not a valid answer (%s)" % why)
 
     ok = body.get("ok")
-    if type(body.get("contract")) is not int or body["contract"] != 1 or type(ok) is not bool \
+    if type(body.get("contract")) is not int or body["contract"] not in BRIDGE_ERRORS or type(ok) is not bool \
             or not isinstance(body.get("vendor"), str):
         raise invalid("the contract, ok or vendor field")
+    contract = body["contract"]
     if ok:
         if set(body) != {"contract", "ok", "vendor", "model", "reply", "usage"}:
             raise invalid("the fields of a success")
@@ -1136,14 +1162,14 @@ def read_answer(got):
         if body["model"] is not None and not isinstance(body["model"], str):
             raise invalid("the model")
         usage = body["usage"]
-        if not isinstance(usage, dict) or set(usage) != set(USAGE_FIELDS) or not all(
+        if not isinstance(usage, dict) or set(usage) != set(USAGE_FIELDS[contract]) or not all(
                 value is None or (type(value) is int and 0 <= value <= MAX_COUNT) for value in usage.values()):
             raise invalid("the usage")
     else:
         if set(body) != {"contract", "ok", "vendor", "error", "detail", "retryable", "message"}:
             raise invalid("the fields of a failure")
         detail = body["detail"]
-        if body["error"] not in BRIDGE_ERRORS or type(body["retryable"]) is not bool \
+        if body["error"] not in BRIDGE_ERRORS[contract] or type(body["retryable"]) is not bool \
                 or not isinstance(body["message"], str) or len(body["message"]) > MAX_MESSAGE \
                 or (body["error"] == "vendor_error") != (detail is not None) \
                 or not (detail is None or (isinstance(detail, str) and ERROR_CODE.fullmatch(detail))):
@@ -1151,7 +1177,8 @@ def read_answer(got):
     if ok != (got.code == 0):
         raise invalid("the exit code and ok disagree")
     if not ok:
-        raise BridgeFailed("the bridge reported %s%s (%s)" % (
+        # The bridge is given a shorter time than the engine so that it reports its own timeout; that is a timeout here too.
+        raise (BridgeTimeout if body["error"] == "timeout" else BridgeFailed)("the bridge reported %s%s (%s)" % (
             body["error"], " " + body["detail"] if body["detail"] else "",
             "retryable" if body["retryable"] else "not retryable"))
     return Answer(body["reply"], _plain(body["model"], 200) or None if body["model"] is not None else None)
@@ -1195,7 +1222,7 @@ def ask_bridge(root, setting, prompt, seconds):
     the capability `model-bridge`, and stopped after `seconds`. The launcher refuses a bridge that is not installed,
     pinned and unchanged, and that is `BridgeRefused`: no other vendor is tried."""
     if not seconds > 0:
-        raise BridgeFailed("the review has no time left for the bridge")
+        raise BridgeTimeout("the review has no time left for the bridge")
     try:
         with safefs.Root(root, "project root") as tree:
             schema = tree.read_if_present(SCHEMA_FILE, MAX_SCHEMA)
@@ -1242,12 +1269,21 @@ ReviewDone = collections.namedtuple("ReviewDone", ("rule", "judgement", "command
 
 
 class Refused(Exception):
-    """The review did not run or cannot be trusted to have run: exit 1, a ``refused:`` line, nothing on standard output."""
+    """The review did not run or cannot be trusted to have run: exit 1, a ``refused:`` line, nothing on standard output.
+    `kind` is the reason ``--collect`` reports: ``refused``, ``no_rule``, ``unreviewable`` or ``timeout``."""
+
+    def __init__(self, message, kind="refused"):
+        super().__init__(message)
+        self.kind = kind
 
 
 class Failed(Exception):
     """The review ran and found nothing usable (the bridge, an internal error): exit 2, a ``failed:`` line, nothing on
-    standard output."""
+    standard output. `kind` is ``failed`` or ``timeout``."""
+
+    def __init__(self, message, kind="failed"):
+        super().__init__(message)
+        self.kind = kind
 
 
 def utc_now():
@@ -1260,29 +1296,33 @@ def _sha256(value):
 
 
 def parse_call(argv):
-    """``(log_row, text)`` from the arguments after the program name: ``review [--log-row] <command text>``, or
-    `Refused`."""
+    """``(log_row, collect, text)`` from the arguments after the program name: ``review [--log-row] [--collect] <command
+    text>``, the two flags in either order and each at most once, or `Refused`."""
     if not argv or argv[0] != "review":
         raise Refused(USAGE)
-    rest = argv[1:]
-    log_row = rest[:1] == ["--log-row"]
-    if log_row:
+    rest, flags = argv[1:], []
+    # A flag that repeats is the text, as a second ``--log-row`` always was: the call without ``--collect`` reads exactly
+    # what it read before this flag existed.
+    while rest[:1] in (["--log-row"], ["--collect"]) and rest[0] not in flags:
+        flags.append(rest[0])
         rest = rest[1:]
     if len(rest) != 1:
         raise Refused(USAGE)
-    return log_row, rest[0]
+    return "--log-row" in flags, "--collect" in flags, rest[0]
 
 
-def review(text, cwd, notes):
+def review(text, cwd, notes, trace=None):
     """The `ReviewDone` for the command `text`, run from `cwd`, or `Refused` or `Failed`. The order: the text is read once
     under the grammar, the rule is found, `describe` is asked, the code checks run; a failed check is a decline that needs
     neither the setting nor the bridge, and otherwise the setting and the rubric are read and the bridge is asked, within
-    the 25 seconds of the whole review. The rule errors are appended to `notes`."""
+    the 25 seconds of the whole review. The rule errors are appended to `notes`. When `trace` is a dict, the `describe`
+    object is stored in it under ``document`` as soon as it is read, so ``--collect`` can report it even when the review
+    ends in a refusal or a failure after that."""
     started = time.monotonic()
     try:
         parse_words(text, AnyWord())
     except Unreviewable as exc:
-        raise Refused("unreviewable: %s" % exc) from None
+        raise Refused("unreviewable: %s" % exc, "unreviewable") from None
     try:
         try:
             root = project.find_root(cwd)
@@ -1294,12 +1334,18 @@ def review(text, cwd, notes):
     notes.extend("rule error: %s: %s" % (ascii(name), why) for name, why in loaded.errors)
     try:
         rule, arguments = read_command(loaded, text)
+    except NoRule as exc:
+        raise Refused("unreviewable: %s" % exc, "no_rule") from None
     except Unreviewable as exc:
-        raise Refused("unreviewable: %s" % exc) from None
+        raise Refused("unreviewable: %s" % exc, "unreviewable") from None
     try:
         document = describe(root, rule, arguments, cwd)
+    except DescribeTimeout as exc:
+        raise Refused("describe: %s" % exc, "timeout") from None
     except DescribeFailed as exc:
         raise Refused("describe: %s" % exc) from None
+    if trace is not None:
+        trace["document"] = document
     try:
         positionals = command_positionals(rule, arguments)
         failed = run_checks(rule, document, positionals)
@@ -1314,6 +1360,8 @@ def review(text, cwd, notes):
         raise Refused(str(exc)) from None
     except BridgeRefused as exc:
         raise Refused("bridge: %s" % exc) from None
+    except BridgeTimeout as exc:
+        raise Failed("bridge: %s" % exc, "timeout") from None
     except BridgeFailed as exc:
         raise Failed("bridge: %s" % exc) from None
     return ReviewDone(rule.file[:-len(".json")], judgement,
@@ -1352,18 +1400,20 @@ def main(argv, stdin, out, err, cwd):
     nothing on standard output. With ``--log-row`` a verdict is followed by one ``log-row:`` line on standard error. The
     engine writes nothing else. Only exit 0 with a whole object is an approval: an interrupt, an exit or a failed write
     on the way out is exit 2, so an object that was cut short or followed by a failed row never counts."""
-    notes = []
+    notes, trace = [], {}
+    collect = "--collect" in argv[1:]  # for a usage error, which ends before the call is read
     try:
-        wants_row, text = parse_call(argv)
-        done = review(text, cwd, notes)
+        wants_row, collect, text = parse_call(argv)
+        done = review(text, cwd, notes, trace)
         line = verdict_line(done.judgement)
         row = log_row(done) if wants_row else None
+        facts = facts_line(trace.get("document")) if collect else None
     except Refused as exc:
-        label, reason, code = "refused", str(exc), 1
+        label, reason, code, kind = "refused", str(exc), 1, exc.kind
     except Failed as exc:
-        label, reason, code = "failed", str(exc), 2
+        label, reason, code, kind = "failed", str(exc), 2, exc.kind
     except (Exception, KeyboardInterrupt, SystemExit):
-        label, reason, code = "failed", "an internal error stopped the review", 2
+        label, reason, code, kind = "failed", "an internal error stopped the review", 2, "failed"
     else:
         try:
             for note in notes:
@@ -1372,16 +1422,41 @@ def main(argv, stdin, out, err, cwd):
             out.flush()
             if row is not None:
                 err.write("log-row: %s\n" % row)
+            if collect:
+                if facts is not None:
+                    err.write(facts + "\n")
+                err.write(outcome_line("reviewed") + "\n")
             return 0
         except (OSError, ValueError, KeyboardInterrupt, SystemExit):
-            label, reason, code = "failed", "the verdict could not be written", 2
+            label, reason, code, kind = "failed", "the verdict could not be written", 2, "failed"
     try:
         for note in notes:
             err.write(note + "\n")
+        if collect:
+            facts = facts_line(trace.get("document"))
+            if facts is not None:
+                err.write(facts + "\n")
         err.write("%s: %s\n" % (label, _plain(reason, MAX_STDERR_REASON) or "no reason is given"))
+        if collect:
+            err.write(outcome_line(kind) + "\n")
     except (OSError, ValueError, KeyboardInterrupt, SystemExit):
         pass
     return code
+
+
+def facts_line(document):
+    """The ``facts:`` line for the `describe` object `document`, or None when there is none or the line is longer than
+    MAX_FACTS_LINE. The object is written in canonical JSON, ASCII only, so one line holds it whatever the repository put in
+    it."""
+    if document is None:
+        return None
+    line = "facts: " + json.dumps(document, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+    return line if len(line) <= MAX_FACTS_LINE else None
+
+
+def outcome_line(kind):
+    """The ``outcome:`` line: one strict JSON object whose only field is the reason the engine reached its exit by."""
+    return "outcome: " + json.dumps({"reason": kind}, separators=(",", ":"))
 
 
 def code_decline(failed):

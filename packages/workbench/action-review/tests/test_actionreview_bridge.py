@@ -64,6 +64,18 @@ def failure(**changes):
     return document
 
 
+def envelope_v2(text, **changes):
+    """A success of contract version 2: five counts in `usage`."""
+    usage = {"input_tokens": 1, "output_tokens": 2, "total_tokens": None,
+             "cached_input_tokens": 0, "reasoning_output_tokens": 1}
+    return envelope(text, **dict({"contract": 2, "usage": usage}, **changes))
+
+
+def failure_v2(**changes):
+    """A failure of contract version 2, which names an unreachable vendor `vendor_unreachable`."""
+    return failure(**dict({"contract": 2}, **changes))
+
+
 def result(document, code=0, **flags):
     data = json.dumps(document).encode("utf-8") + b"\n" if document is not None else b""
     return call.Result(code, data, b"", flags.get("over", False), flags.get("timed_out", False))
@@ -343,6 +355,40 @@ class Answer(Base):
         got = self.read(envelope("text"))
         self.assertEqual(("text", "m"), (got.reply, got.model))
 
+    def test_a_success_of_contract_2_gives_the_reply_and_the_model(self):
+        got = self.read(envelope_v2("text"))
+        self.assertEqual(("text", "m"), (got.reply, got.model))
+
+    def test_the_two_added_counts_are_checked_and_ignored(self):
+        base = envelope_v2("t")
+        for added in ({"cached_input_tokens": None, "reasoning_output_tokens": None},
+                      {"cached_input_tokens": 0, "reasoning_output_tokens": 10 ** 12}):
+            self.read(dict(base, usage=dict(base["usage"], **added)))
+        for bad in (-1, "1", True, 1.5, 10 ** 12 + 1):
+            self.fails(dict(base, usage=dict(base["usage"], cached_input_tokens=bad)))
+            self.fails(dict(base, usage=dict(base["usage"], reasoning_output_tokens=bad)))
+
+    def test_the_usage_must_have_the_fields_of_the_contract_the_object_names(self):
+        self.fails(envelope("t", usage=envelope_v2("t")["usage"]), contains="not a valid answer")
+        self.fails(envelope_v2("t", usage=envelope("t")["usage"]), contains="not a valid answer")
+        for drop in ("cached_input_tokens", "reasoning_output_tokens", "total_tokens"):
+            usage = {k: v for k, v in envelope_v2("t")["usage"].items() if k != drop}
+            self.fails(envelope_v2("t", usage=usage), contains="not a valid answer")
+        self.fails(envelope_v2("t", usage=dict(envelope_v2("t")["usage"], more=1)), contains="not a valid answer")
+
+    def test_a_failure_of_contract_2_names_an_unreachable_vendor_with_the_new_class(self):
+        text = self.fails(failure_v2(error="vendor_unreachable", retryable=True), code=1,
+                          contains="vendor_unreachable")
+        self.assertIn("retryable", text)
+
+    def test_the_class_belongs_to_the_contract_the_object_names(self):
+        self.fails(failure_v2(error="program_not_found", retryable=False), code=1, contains="not a valid answer")
+        self.fails(failure(error="vendor_unreachable", retryable=False), code=1, contains="not a valid answer")
+        for error in ("not_signed_in", "model_unavailable", "effort_unsupported", "timeout"):
+            self.fails(failure_v2(error=error, retryable=False), code=1, contains=error)
+        self.fails(failure_v2(error="vendor_error", detail="usage_limit", retryable=True), code=1,
+                   contains="vendor_error usage_limit")
+
     def test_a_model_that_is_null_stays_null_and_a_usage_with_nulls_is_fine(self):
         self.assertIsNone(self.read(envelope("t", model=None)).model)
         self.read(envelope("t", usage={"input_tokens": None, "output_tokens": None, "total_tokens": None}))
@@ -352,7 +398,7 @@ class Answer(Base):
         for name in base:
             self.fails({k: v for k, v in base.items() if k != name})
         self.fails(dict(base, extra=1))
-        for name, value in (("contract", 2), ("contract", True), ("contract", "1"), ("ok", 1), ("vendor", 3),
+        for name, value in (("contract", 3), ("contract", 0), ("contract", True), ("contract", "1"), ("ok", 1), ("vendor", 3),
                             ("model", 3), ("reply", 3), ("reply", None), ("usage", None), ("usage", [1])):
             self.fails(dict(base, **{name: value}))
 
@@ -383,7 +429,7 @@ class Answer(Base):
 
     def test_a_failure_object_that_does_not_fit_is_a_failure_too(self):
         for changes in ({"error": "other"}, {"detail": "A b"}, {"detail": 3}, {"retryable": 1}, {"message": 3},
-                        {"contract": 2}, {"extra": 1}, {"vendor": None}, {"error": "vendor_error", "detail": None},
+                        {"contract": 3}, {"extra": 1}, {"vendor": None}, {"error": "vendor_error", "detail": None},
                         {"error": "timeout", "detail": "usage_limit"}):
             self.fails(failure(**changes), code=1, contains="not a valid answer")
 

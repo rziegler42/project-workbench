@@ -190,7 +190,8 @@ verify in one reviewed commit.
 For each increment, in order:
 
 1. Implement the increment.
-2. Run the verification the plan names.
+2. Run the verification the plan names, as written. A run wider than the plan names, and a security review, are recommended
+   to the owner with a named reason and wait for the owner's answer (`verification-effort.md`).
 3. Peer review the result. Review is mandatory (see "Review").
 4. If the review has blocking findings, fix them and review again, up to the round
    cap. At the cap, or on a repeated finding, stop and report.
@@ -198,7 +199,9 @@ For each increment, in order:
 6. Start the next increment. This is not a checkpoint.
 
 After the last increment, review and verify the whole plan, set the status, supply any
-required spec edit and decision record, and commit.
+required spec edit and decision record, and commit. Verifying the whole plan confirms that each increment's recorded
+verification still stands and reruns only what a later change invalidated; it is not a full run by default
+(`verification-effort.md`).
 
 The loop stops, with a report, on a failed verification the agent cannot resolve, a
 repeated identical failure, any exceeded cap, any hard stop, a missing approval, or a
@@ -236,7 +239,7 @@ step without a recorded outcome.
 | submit a remote job on a profile the plan declares | `submit-remote-job` | stop | delegable |
 | fetch the output of a remote job | `fetch-remote-output` | stop | delegable; overwriting an existing or tracked file is a hard stop |
 | change a spec's or roadmap's direction | `change-direction` | stop | delegable |
-| accept a decision | `accept-decision` | stop | not delegable: the owner decides who accepts a decision (`AGENTS.md`); the levels table offers `block` and `none`, and only at `none` may an agent accept (the `draft-decision` skill reads `wb settings`) |
+| accept a decision | `accept-decision` | stop | not delegable: the owner decides who accepts a decision (`AGENTS.md`); the levels table offers `block`, `ask` and `none`, and an agent accepts only through the `groundwork` command: at `ask` the owner confirms it with a digest, at `none` the agent runs it (the `draft-decision` skill reads `wb settings`; `command-permissions.md`) |
 | acknowledge changes made by someone else, first tier | `acknowledge-first-tier` | stop | only by explicit setting |
 | acknowledge changes made by someone else, second tier | `acknowledge-second-tier` | stop | delegable |
 
@@ -245,7 +248,7 @@ the personal settings (`trust-and-approval.md`). Setting `delegate` takes effect
 (built by `delegated-approval`, increment D); every other checkpoint stops, whatever the setting says. `wb settings`
 reports the effective values. The owner may also set a key, `approve-plan` among them, to `ask` or `none` in the `levels` table
 (`command-permissions.md`); the checkpoint names are the keys of that table. `approve-plan` offers `ask`, `delegated` and `none`;
-`accept-decision`, `acknowledge-first-tier` and `acknowledge-second-tier` offer `none`; `push-shared-branch`, `submit-remote-job`,
+`accept-decision` offers `ask` and `none`; `acknowledge-first-tier` and `acknowledge-second-tier` offer `none`; `push-shared-branch`, `submit-remote-job`,
 `fetch-remote-output` and `change-direction` offer `block` only. The `delegable` marks above describe what a way of working may
 allow; they do not make a checkpoint delegable until the installer builds it, and the installer builds `delegate` for
 `approve-plan` only.
@@ -407,11 +410,14 @@ The module fills a policy slot with a short, tool-neutral block stating:
 - that approval is a recorded approval and never a status line;
 - that review is mandatory, and the loop caps;
 - what a compaction must preserve;
-- that a change materially touching authentication, authorization, secrets, untrusted input, parsing, the
-  filesystem, a subprocess, a network boundary, dependencies or a build or deployment permission prompts the
-  agent to ask the owner whether to run a security review with an installed module that provides the capability
-  `security-review` (or to say none is installed). It names the capability and no module, and a review runs only
-  when the owner asks;
+- that an agent tests the minimum that shows a change did not break what it touched, does not rerun a check that
+  already passed on unchanged inputs, and tells the owner what specifically could break outside the tested area
+  before any run wider than the plan names, the owner deciding whether it runs (`verification-effort.md`);
+- that an agent who can name what a change exposes asks the owner whether to run a security review with an installed
+  module that provides the capability `security-review` (or says none is installed), once per surface. Touching
+  authentication, authorization, secrets, untrusted input, parsing, the filesystem, a subprocess, a network
+  boundary, dependencies or a build or deployment permission is a place to look and not a reason. It names the
+  capability and no module, and a review runs only when the owner asks;
 - that commit messages describe the change only and carry no tool attribution, which
   is a committed project setting that defaults to on and that a project may switch
   off.
@@ -441,6 +447,9 @@ installer's and is replaced on upgrade only while unedited.
 - The commit is made through the `safe-git` helper, is local, and is not followed by a push.
 - Installing `code-work` without `safe-git` stops with a hard-requirement message.
 - Exceeding a loop cap stops the run with a report.
+- A run wider than the plan names, and a security review, are recommended to the owner with a named reason and do not
+  run until the owner answers; a recommendation the owner declines is recorded under the plan's `## Result`. The
+  verification of a whole plan does not default to a full run (`verification-effort.md`).
 - `check`, `plans` and `report` change no file.
 - Upgrading never modifies an existing plan.
 
@@ -545,6 +554,11 @@ effect for `approve-plan` since increment D of `2026-10-23-delegated-approval`, 
   strictly, so two older plans are no longer delegable), and the approvals released by the owner. Limits: the passes did not run
   an end-to-end run with a fake executable, a concurrent swap, or hardlinked, FIFO and oversize plans beyond the shipped tests,
   and the owner waived a real-vendor run.
+- Built, from plan `2026-11-02-verification-effort-guidance`, increments A to C: the guidance of `verification-effort.md`
+  in the skills `test-first`, `verify-before-claiming`, `run-increment`, `draft-plan` (with its template),
+  `request-review` and `evaluate-findings`, in the `reviewer` agent, and in the policy line, which reached this repository's
+  `AGENTS.md` by the owner's `wb upgrade`. Limits: it is advice, nothing blocks a run, and there is no checkpoint, level or
+  setting for it; a plan already approved keeps its verification lines, which are run as written.
 - The helper reads untrusted plans and is bounded; the limits are in the plan `2026-10-21-code-work-plans`.
 
 ## Open items

@@ -39,6 +39,7 @@ ambiguous blank.
 | Owner-run: clear the marker of an unfinished write (terminal only; at `wb recover` set to `none`, an agent may run it with no terminal) | `python3 -m workbench recover [<target> \| --dir <path>]` |
 | Owner-run: attach the harness to a clone (no terminal test, denied to the agent by the harness; at `wb attach` set to `none` the `deny` is not rendered and an unattended run is logged) | `python3 -m workbench attach [<target> \| --dir <path>] --harness <package>/<module>` |
 | Preview a re-render of an attached clone's permissions and of its rendered skills, agents and root file that are behind their sources (read-only) | `python3 -m workbench preview rerender [<target> \| --dir <path>] [--package <source> [--ref <ref>]] ...` |
+| Preview a release of the shipped approvals: the packages and modules it would record with their hashes, the stale records and a digest (read-only; takes no argument) | `python3 -m workbench preview release-approvals` |
 | Owner-run: re-render an attached clone's permissions after changing the settings, and refresh its stale rendered skills, agents and root file (terminal only at every level; the key `wb rerender` offers `block` only) | `python3 -m workbench rerender [<target> \| --dir <path>] [--package <source> [--ref <ref>]] ...` |
 | Check a clone (read-only) | `python3 -m workbench check [<target> \| --dir <path>]` |
 | Preview an upgrade (read-only) | `python3 -m workbench preview upgrade [<target> \| --dir <path>] [--package <source> [--ref <ref>]] ...` |
@@ -51,7 +52,8 @@ ambiguous blank.
 | Commit exact paths (local) | `python3 -m workbench run safe-git commit --expected-head <full hash or none> --subject <text> [--body <text>] [--trailer 'Key: value'] [--leave-other-staged] -- <path> ...` (the `safe-git` module's command; needs git; see "The safe-git helper") |
 | Preview and remove exact project paths | `python3 -m workbench run safe-git remove [--recursive] -- <path> ...`, then the same with `--confirm` after the owner approves |
 | Report what a commit, a removal or a push would act on (read-only) | `python3 -m workbench run safe-git describe commit\|remove <the arguments of the real command>` or `describe push <the arguments that follow git push>` (a push is described locally and never contacts the remote): prints one JSON object (`contract`, `action`, `ok`, `truncated`, `errors`, `facts`), changes nothing, and exits 0 for a refusal of the real command (`ok: false` with an error code); see `docs/specs/safe-git.md`, "Describe" |
-| Ask a model one read-only question | `python3 -m workbench run --provides model-bridge ask-codex ask [--model <name>] [--effort low\|medium\|high] [--timeout <seconds>] [--root <path>] [--schema <path>]` with the prompt on standard input (the `ask-codex` module's command; needs a `codex` program and a sign-in; see "The ask-codex bridge") |
+| Ask a model one read-only question | `python3 -m workbench run --provides model-bridge ask-codex ask [--model <name>] [--effort low\|medium\|high] [--timeout <seconds>] [--root <path>] [--schema <path>] [--confine]` with the prompt on standard input (the `ask-codex` module's command; needs a `codex` program and a sign-in; `--server <name>` is recognized and refused, because this bridge starts a program; see "The ask-codex bridge") |
+| Ask a model on a server one question, check the endpoint file, compare its models, or embed texts | `python3 -m workbench run --provides model-bridge ask-ollama ask [--model <name>] [--context <tokens>] [--effort <level> or --thinking on\|off] [--max-output <tokens>] [--temperature <value>] [--keep-alive <value>] [--timeout <seconds>] [--root <path>] [--schema <path>] [--server <name>] [--confine]` with the prompt on standard input; `python3 -m workbench run ask-ollama check` (reads the endpoint file, contacts no server, prints one line per record and one per model, and a warning for an unauthenticated `http` record away from loopback); `python3 -m workbench run ask-ollama models [--server <name>] [--timeout <seconds>]` (compares the models of the file with the server's list, names only); `python3 -m workbench run --provides text-embedding ask-ollama embed [--model <name>] [--context <tokens>] [--keep-alive <value>] [--timeout <seconds>] [--server <name>]` with `{"texts": [...]}` on standard input (the `ask-ollama` module's command; needs an Ollama server named in `~/.config/project-workbench/bridge-endpoints.json`; see "The ask-ollama bridge") |
 | Review one command the harness is about to run (read-only) | `python3 -m workbench run action-review review [--log-row] [--collect] '<the command text>'` (the `action-review` module's command; needs the command's module and a `model-bridge` installed and pinned, and `.workbench/review.json`; prints one verdict object and exits 0, or exits 1 or 2 (allow only on exit 0 with a whole, valid object); see "The action-review engine") |
 | Owner-installed: record what the engine would say about each prompted command (the action-review shadow hook; registered by the owner in the user-level settings, never run by the agent; it prints nothing and always exits 0) | `python3 -B <dir>/shadow_hook.py [--wb <absolute path of the wb launcher>]` with the hook's JSON on standard input, from a directory that holds a copy of `hook/shadow_hook.py` and `hook/shadow_store.py` of the `action-review` module; rows go to `~/.config/project-workbench/action-review/`; see "The shadow hook" in `docs/specs/action-review.md` |
 | Owner-run: label the collected commands (terminal only) | `python3 -B <dir>/label.py [--skipped]` with a copy of `tools/label.py` and `hook/shadow_store.py` beside it; records `right`, `wrong` or `skip` in `labels.jsonl` |
@@ -68,7 +70,7 @@ ambiguous blank.
 | Decide one call of a confined agent (read-only; the agent's hook runs it) | `python3 -m workbench agent-gate <harness> <agent>` with the hook's JSON on standard input: no output and exit 0 to allow; one `refused:` line on standard error and exit 2 to refuse, for a write outside the scratch directory or a command no pinned pattern matches ("The agent gate" in `docs/specs/harness-modules.md`); run by hand it is `echo '{...}' \| python3 -m workbench agent-gate <harness> <agent>` from inside a project (agent-safe) |
 | Decide one Bash command (read-only; the harness's second hook runs it when a key is set to `ask` or `none`) | `python3 -m workbench gate-command <harness>` with the hook's JSON on standard input: no output and exit 0 to allow; one `refused:` line on standard error and exit 2 to block, for a command that names the relaxed command and is not exactly the simple command the `ask` rule matches, and for every failure (agent-safe; see `docs/specs/command-permissions.md`, "The command gate") |
 | Decide one edit (read-only; the harness's hook runs it) | `python3 -m workbench gate <harness>` with the hook's JSON on standard input: no output and exit 0 to allow; one `refused:` line on standard error and exit 2 to refuse, for an edit while a plan under way is not approved; run by hand it is `echo '{...}' \| python3 -m workbench gate <harness>` from inside a project (agent-safe) |
-| Release time: write the approvals shipped with first-party packages (no terminal test; at `wb release-approvals` set to `none` the `deny` is not rendered and an unattended run is logged) | `python3 -m workbench release-approvals` |
+| Release time: write the approvals shipped with first-party packages (no terminal test; at `wb release-approvals` set to `none` the `deny` is not rendered and an unattended run is logged; at a verified level `ask` a run without a terminal takes `--digest` from `preview release-approvals` and writes only that plan, and the harness asks for the command; the key offers `block`, `ask` and `none`, defaulting to `block`) | `python3 -m workbench release-approvals [--digest <32 hex>]` |
 | Verify the sample package | `python3 -m workbench verify tests/fixtures/sample-package --select sample-harness sample-notes` |
 | One focused test file | `python3 -m unittest discover -s tests -p 'test_approvals.py'` (a test module that imports `support` only loads under `discover -s tests`); for a module's own tests, `python3 -B -m unittest discover -s packages/<package>/<module>/tests -t packages/<package>/<module>/tests` from the repository root |
 | Full tests | `python3 -B -W error tests/run_all.py` (runs `tests/` and every `packages/*/*/tests/`, each as its own root) |
@@ -99,8 +101,13 @@ configuration or hooks select a program is refused, so such a repository is comm
 ## The ask-codex bridge
 
 `ask-codex ask` is a model bridge (`docs/specs/model-bridge.md`): it sends the prompt on standard input to the
-Codex command line program, read-only, and prints one JSON object (a reply, or one of six error classes). It keeps
-no state and writes nothing in the project.
+Codex command line program, read-only, and prints one JSON object of contract version 2 (a reply with five token
+counts, or one of six error classes). It keeps no state and writes nothing in the project.
+
+- **`--confine`** starts the program with its tool features, shell tool and web tool switched off. It is opt-in: the review
+  engine needs the program's file access, and a caller that sends captured text always passes it. It is a tripwire plus
+  tests and not a boundary; the spec's "Confinement" and "Release check for untrusted text" give what it stops, what remains
+  and the check a new release of the program must pass.
 
 - **What a real call needs.** A `codex` program in an absolute `PATH` entry outside the repository, and a sign-in
   that program already has under `HOME` (the bridge handles no credentials and reports `not_signed_in`). Installing
@@ -110,9 +117,71 @@ no state and writes nothing in the project.
   network.
 - **Time.** The default `--timeout` is 600 seconds. A caller's own time limit should be longer, so the bridge can
   report `timeout` and clean up.
-- **A first hand run** starts with `codex exec --help`, to check the flags the bridge passes against the installed
-  version; none has been run against a real Codex yet (`docs/specs/model-bridge.md`, "As built, and its limits").
+- **A hand run** starts with `codex exec --help`, to check the flags the bridge passes against the installed version. The
+  bridge has been run against a real Codex (`codex-cli` 0.163.0, by hand on 2026-10-23, and on 2026-11-01 through an agent
+  session's shell tool, with the release check of `--confine`); see `docs/specs/model-bridge.md`, "As built, and its
+  limits", for what was and was not tried, and for the places it could not run.
 - **The launcher** passes standard input through to the helper, so `wb run` forwards the prompt.
+
+## The ask-ollama bridge
+
+`ask-ollama` is a model bridge to a server (`docs/specs/ask-ollama.md`, `docs/specs/model-bridge.md`): it sends the prompt to an
+Ollama server named in the owner's endpoint file and prints one JSON object of contract version 2, as `ask-codex` does. Its `embed`
+argument sends a batch of texts to the server's embedding route and prints one object of embedding contract 1 (a vector for each
+text), and its `models` argument compares the models of the file with the server's list. It is one command with four arguments:
+`ask`, `check`, `embed` and `models`. It keeps no state and writes nothing.
+
+- **The endpoint file.** The owner writes `~/.config/project-workbench/bridge-endpoints.json` (the accepted decisions
+  `2026-11-01-endpoint-records-in-the-store`, `2026-11-02-model-configurations-in-endpoint-records`,
+  `2026-11-02-model-section-defaults-and-the-embedding-name` and `2026-11-02-temperature-and-keep-alive-in-model-sections`): `format` 2, an optional `default`, and an `endpoints` object of named
+  records with `scheme`, `host`, `port`, `location` (`this-machine`, `owner-network` or `vendor-cloud`), `authenticated` (false only),
+  the optional `default_model` and `embedding_model`, and a required `models` object with a section for each model that a call may
+  use. A section holds `kind` (`chat` or `embedding`), `context` (the largest window the owner declares for the model),
+  an optional `default_context` and `bytes_per_token` (2 when absent), and, for a chat model, `effort` or `thinking` (not both) and
+  an `output_limit` and a `temperature`, and for a model of either kind a `keep_alive` (how long the server keeps the model loaded
+  after a call). Both are JSON strings of an exact grammar, because the file's reader refuses a number with a fraction: a
+  `temperature` from `"0"` to `"2"` with at most two decimals (`"0.2"`), a `keep_alive` of `"0"` (unload at once), `"-1"` (keep
+  loaded) or a duration (`"30m"`). A file of format 1, or one under the old name `endpoints.json`, is not read. The agent never writes the file.
+  `wb run ask-ollama check` reads it and prints one line per record and per model; it contacts no server. `ask-ollama.md`, "The
+  endpoint file", has a worked example.
+- **Which model.** Only a configured model of the kind the command needs is used: `--model`, else the record's `default_model` (or
+  `embedding_model`). A model that is not configured, or is configured for the other kind, is refused before anything is sent. A
+  name with a `/` can be given when it is configured.
+- **The window and the size of a prompt.** The window of a call is `--context`, else the section's `default_context`, else its
+  `context`; a larger `--context` is refused. A prompt whose size in bytes is more than the window times the section's
+  `bytes_per_token` is not sent (`context_overflow`, "probably larger"); this is an estimate and a backstop, and a caller sizes its own
+  input to the window. Every `ask` also sends `truncate` `false`, so a server that honours it refuses a prompt that the window
+  cannot hold (`context_overflow` again, from the server's own count); a server that ignores the field may still cut a prompt without
+  an error (`ask-ollama.md`, "Known limits").
+- **Defaults and their options.** A chat section's `effort` or `thinking` and `output_limit` are used when a call passes nothing, so a
+  module that calls the bridge passes only the model name. `--effort`, `--thinking on|off` and `--max-output <tokens>` replace
+  them (the last is refused above the section's `output_limit`). `--temperature <value>` (for `ask`) and `--keep-alive <value>` (for
+  `ask` and `embed`) replace a section's `temperature` and `keep_alive`, so a module can run at 0.2 and retry at 0.5 with one
+  section. The values are sent as numbers where the server reads numbers (`0` and `-1` for a keep_alive are numbers on the wire,
+  a duration a string). These options belong to this bridge and not to the contract's common core; `embed` refuses all but
+  `--keep-alive`, and `models` refuses all of them. A temperature of 0 did not make replies differ in the run recorded (one model, one
+  prompt, five calls), but equal replies are not guaranteed, so a caller whose cache key is built from the prompt includes the model and the temperature.
+- **Server errors and retries.** A status 500, 502 or 503 from the server is `vendor_error` / `bad_exit` with `retryable` true, for
+  `ask`, `embed` and `models` (decision `2026-11-02-retryable-server-errors-in-bridges-to-a-server`); every other status stays not
+  retryable. The bridge never retries: a caller retries a few times with a wait of tens of seconds and then stops, because a 500
+  can be permanent (the figure is a report, and no 5xx was seen in the run that tried to reproduce it). A reply that closes before
+  its declared length is `unusable_reply` and not retryable. The unload by a `keep_alive` of `0` may finish a moment after the reply.
+- **`models`.** One read of the server's list: `present` (configured and on the server), `missing`, `unconfigured` and a count of names
+  set aside; names are compared as exact text, so configure the names as `ollama list` prints them.
+- **What a real call needs.** The module installed (`wb add`, run by the owner), the endpoint file under its name, and a server that
+  answers. A record that is not loopback and uses `http` sends the prompt in the clear; `check` warns of it. Installing the module
+  and writing the record are the owner's consent to send project content to that server.
+- **What the tests need.** Neither. They use a fake server on the loopback address, send nothing outside the machine and read no
+  real endpoint file.
+- **A hand run** starts with `wb run ask-ollama check` and `models`, then a short prompt, before anything larger. The bridge was run
+  twice against a real server on 2026-11-02 through an agent session's shell tool on the owner's word (the second from a scratch
+  home, with a file of format 2); `ask-ollama.md`, "The run against a real server", says what each run showed and what it did not
+  reach; a later check, after the upgrade, ran `ask` through `--provides model-bridge` and `embed` through `--provides
+  text-embedding` against the real server; a third run recorded the temperature, the keep_alive and sixteen pairs of a chat and an
+  embedding call (no 5xx).
+- **Calling it from a module.** A module that runs inside the workbench declares `requires` `model-bridge` (and `text-embedding` for
+  vectors, a name that the owner confirmed as vendor-neutral) and calls the bridge through `wbkit.call.run_command` with
+  `provides`, as the review engine does. It names no host: the file picks the server and `--server` picks the record.
 
 ## The action-review engine
 
@@ -191,7 +260,9 @@ and prints the install order. A harness module is required in a selection unless
 | 1 | refused; one `refused:` line per problem on stderr, naming the package or module and the rule |
 | 2 | usage error |
 
-`release-approvals` uses the same codes: 0 done (or nothing to do), 1 refused, 2 usage.
+`release-approvals` uses the same codes: 0 done (or nothing to do), 1 refused, 2 usage; and 4 when a write failed part way, so that
+some records were written (they are valid and a rerun is idempotent). A run that is logged (without a terminal, at `ask` or `none`) can
+also exit 3, when the records were written but the outcome could not be logged, and 130 when it was interrupted.
 
 ## Inert download
 
@@ -626,15 +697,16 @@ the records are read from the installed workbench, never copied into the guarded
   repository can add a package and run `release-approvals`, and the records it writes count
   as approval, so review what a release changes in `workbench/shipped_approvals/` (its git
   diff) before accepting it. The command does not need a terminal, because releases may run
-  unattended.
+  unattended. At the level `ask` the digest of `python3 -m workbench preview release-approvals`
+  binds the owner's confirmation to the hashes of the release, not to the content of the packages.
 - `python3 -m workbench release-approvals` is a release-time command, not one for users of a
   project. It verifies every package under `packages/` as first-party, writes nothing if
   any module fails verification (exit 1; a write that fails part way can leave the earlier
   records of that run, which are valid and a rerun is idempotent), and otherwise writes one record per module and per package with
   a fixed approver (`workbench-release`) and time, so a second run changes nothing. Records
   of an earlier release are left in place and reported with a warning, because deletion is
-  not provided; remove them by hand. With no packages it prints `no first-party packages`
-  and exits 0.
+  not provided; remove them by hand (`python3 -m workbench preview release-approvals` lists them first, and says when the shipped
+  tree cannot be listed). With no packages it prints `no first-party packages` and exits 0.
 - A first-party package changed since release has no shipped approval for its new hashes,
   so its modules are checked against the guarded store like any other package.
 
@@ -655,7 +727,7 @@ the records are read from the installed workbench, never copied into the guarded
   --package <source>` (each rendered file is current, stale, new, missing, applied or orphaned; an edited or linked file refuses
   the whole run, and you move an edited file aside to have it recreated), then `wb rerender --package <source>` from your
   terminal. `wb check` does not report a stale rendered file. `wb settings` prints a `level <key>:
-  <level>` line for every key. The default is `block`, except for an agent-safe action and a declared module argument that is not owner-run, which default to `none`. A `block` set on an agent-safe action or a declared module argument is rendered as a `deny` at the next attach or re-render; at its default `none` nothing is rendered. A damaged settings file blocks every owner-run key and leaves the agent-safe ones at `none`, so `wb settings` and `wb check` still run to report it; an explicit `block` on an agent-safe key is not honored until the file is repaired. The checkpoint `accept-decision` offers `block` (the default) and `none`: at `none`, `wb settings` prints `level accept-decision: none` and the `draft-decision` skill lets an agent mark a decision it drafted `Accepted`; otherwise only the owner accepts a decision (`AGENTS.md`). Not every key offers `none`: the owner-run arguments of module commands (except the review engine's `extend`, `reset`, `archive`, `amend` and `prune`, which offer `ask` and `none`), `push-shared-branch`, `submit-remote-job`, `fetch-remote-output`, `change-direction` and `wb rerender` offer `block` only (`docs/specs/command-permissions.md`, "Not built" and "Re-rendering an attached clone").
+  <level>` line for every key. The default is `block`, except for an agent-safe action and a declared module argument that is not owner-run, which default to `none`. A `block` set on an agent-safe action or a declared module argument is rendered as a `deny` at the next attach or re-render; at its default `none` nothing is rendered. A damaged settings file blocks every owner-run key and leaves the agent-safe ones at `none`, so `wb settings` and `wb check` still run to report it; an explicit `block` on an agent-safe key is not honored until the file is repaired. The checkpoint `accept-decision` offers `block` (the default), `ask` and `none`: at `ask`, `wb settings` prints `level accept-decision: ask` and the `draft-decision` skill has the agent show the preview of `wb run groundwork preview` and run `wb run groundwork accept` with its digest, which the owner confirms; at `none` the agent runs `accept` without a digest; otherwise only the owner accepts a decision (`AGENTS.md`). Not every key offers `none`: the owner-run arguments of module commands (except the review engine's `extend`, `reset`, `archive`, `amend` and `prune`, which offer `ask` and `none`), `push-shared-branch`, `submit-remote-job`, `fetch-remote-output`, `change-direction` and `wb rerender` offer `block` only (`docs/specs/command-permissions.md`, "Not built" and "Re-rendering an attached clone").
 - **What it asks of the agent.** The agent runs `wb plan-status <plan> --digest`, shows you the preview, and runs
   `wb approve-plan <plan> --digest <digest>` as one simple command on its own; the harness then prompts you. A command that wraps or
   rewrites it (`bash -c`, `env`, a quote splice, an escape, an expansion) is blocked by `wb gate-command`, and a command that only

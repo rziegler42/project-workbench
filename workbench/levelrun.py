@@ -43,6 +43,19 @@ def level_now(guarded, start, key):
     return rendering.effective_level(guarded, ident, root, table, key), ident, root
 
 
+def level_of_command(guarded, start, command_key):
+    """``(level, project id, project root, key)`` for the command `command_key` (``wb run <command> <argument>``) in the
+    project that holds `start`. The key is the checkpoint the command is the command of when a process module declares it
+    (``rendering.Table.command_of``), otherwise `command_key` itself; the level is that key's, as the rendering record allows
+    it now. ``Refusal`` as for ``level_now``."""
+    try:
+        table, root, ident = rendering.current_table(guarded, start)
+    except (approvalcmd.ApprovalError, levels.RegistryError) as exc:
+        raise Refusal(str(exc))
+    key = next((name for name, found in getattr(table, "command_of", {}).items() if found == command_key), command_key)
+    return rendering.effective_level(guarded, ident, root, table, key), ident, root, key
+
+
 def route(guarded, start, key, stdin, out, terminal_only):
     """A ``Route`` for the owner-run command `key`. At a terminal nothing is read. Otherwise the level is read and the
     command may go on only if the kit's ``may_run`` says so; if not, ``Refusal(terminal_only)``.
@@ -116,3 +129,17 @@ def optional(guarded, start, key, stdin, out):
     except (Refusal, OSError):
         return None
     return Route(False, level, ident, root) if level == levels.NONE else None
+
+
+def unattended(guarded, start, key, stdin, out):
+    """For ``release-approvals`` alone: the ``Route`` when it runs without a terminal at a verified ``ask`` or ``none`` for the
+    project that holds `start`; ``None`` otherwise (at a terminal, at ``block``, or where no level can be read), and the command
+    goes on as it always did there. ``optional`` stays the reading of ``attach``, which has no digest and so no use for ``ask``
+    (``docs/specs/command-permissions.md``, "`wb release-approvals` at `ask`")."""
+    if approve.is_terminal(stdin) and approve.is_terminal(out):
+        return None
+    try:
+        level, ident, root = level_now(guarded, start, key)
+    except (Refusal, OSError):
+        return None
+    return Route(False, level, ident, root) if level in (levels.ASK, levels.NONE) else None

@@ -30,6 +30,10 @@ Rules:
   believing it works is not a run. A report from someone else, including another agent, is a lead and not
   evidence; look at the result yourself.
 - Do not weaken a check, narrow it or choose another one in order to get a pass.
+- Scope each claim to what was run. When only the checks of one area ran, say that the checks of that area
+  pass and that the wider run was not made; do not say that the tests pass.
+- Do not run a check again to be safe when it already passed on inputs that have not changed since. Name the
+  earlier run you rely on.
 - `run-increment` says what the report of one increment holds; this skill is the rule beneath it and applies to
   any claim, in or out of a plan.
 - A skill in a domain module may extend this one, and in its domain its rules take precedence.

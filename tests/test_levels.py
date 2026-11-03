@@ -15,7 +15,7 @@ OWNER_RUN_KEYS = ("wb install", "wb adopt", "wb upgrade", "wb add", "wb attach",
                   "wb approve", "wb pin", "wb release-approvals", "approve-plan")
 # The keys the agent-safe actions give (plan 2026-10-27-a-level-for-every-command, increment A).
 AGENT_KEYS = ("wb verify", "wb preview install", "wb preview adopt", "wb preview upgrade", "wb preview add",
-              "wb preview rerender", "wb launch", "wb check", "wb plan-status", "wb settings")
+              "wb preview rerender", "wb preview release-approvals", "wb launch", "wb check", "wb plan-status", "wb settings")
 # Agent-safe words that are not a key: the hook entry points, the words that only dispatch to an action, and an
 # action that reaches another action's key.
 NOT_KEYS = ("gate", "agent-gate", "gate-command", "preview", "run", "delegate-approve-plan")
@@ -173,6 +173,11 @@ class AgentSafeKeysTest(unittest.TestCase):
                         accepted = tuple(item.value for item in part.comparators[0].elts)
         self.assertEqual(tuple(rules.PREVIEW_ACTIONS), accepted)
 
+    def test_the_release_preview_is_an_agent_safe_key_that_defaults_to_none(self):
+        key = levels.registry()["wb preview release-approvals"]
+        self.assertEqual((True, levels.NONE), (key.agent, key.default))
+        self.assertIn(levels.BLOCK, key.offers)
+
     def test_no_agent_safe_key_is_a_floor_action(self):
         for stop in floor.FLOOR:
             self.assertNotIn(stop.id, levels.registry())
@@ -206,12 +211,12 @@ class OfferedLevelsTest(unittest.TestCase):
                  "acknowledge-first-tier", "acknowledge-second-tier", "wb recover", "wb attach", "wb release-approvals",
                  "accept-decision")
 
-    def test_only_approve_plan_offers_ask_among_the_owner_run_keys(self):
+    def test_only_approve_plan_and_the_release_offer_ask_among_the_owner_run_keys(self):
         for name, key in self.keys().items():
             if name in AGENT_KEYS:
                 continue
             with self.subTest(key=name):
-                self.assertEqual(name == "approve-plan", "ask" in key.offers)
+                self.assertEqual(name in ("approve-plan", "wb release-approvals"), "ask" in key.offers)
 
     def test_the_owner_run_keys_that_offer_none_are_those_built_so_far(self):
         for name, key in self.keys().items():
@@ -220,10 +225,14 @@ class OfferedLevelsTest(unittest.TestCase):
             with self.subTest(key=name):
                 self.assertEqual(name in self.NONE_KEYS, "none" in key.offers)
 
-    def test_no_key_offers_ask_except_approve_plan(self):
+    def test_no_key_offers_ask_except_the_plan_key_and_the_release(self):
         for name, key in self.keys().items():
             with self.subTest(key=name):
-                self.assertEqual(name == "approve-plan", "ask" in key.offers)
+                self.assertEqual(name in ("approve-plan", "wb release-approvals"), "ask" in key.offers)
+
+    def test_the_release_offers_block_ask_and_none_and_defaults_to_block(self):
+        key = self.keys()["wb release-approvals"]
+        self.assertEqual((("block", "ask", "none"), "block"), (key.offers, key.default))
 
     def test_accept_decision_offers_block_and_none_and_defaults_to_block(self):
         key = self.keys()["accept-decision"]

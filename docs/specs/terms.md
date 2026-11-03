@@ -258,6 +258,14 @@ path or field.
   and options, asks the vendor's program one read-only question and prints one JSON object. It holds no state and
   no policy; it is run only through the launcher (`model-bridge.md`).
 
+**text embedding**
+: A capability, named `text-embedding`, for a module that takes a batch of texts and returns one vector of numbers for each,
+  from a model on a server. The first-party provider is `ask-ollama` (`ask-ollama.md`, "`embed`"), whose command takes the texts as
+  one JSON object on standard input. The name is confirmed by the owner (2026-11-02, decision
+  `2026-11-02-model-section-defaults-and-the-embedding-name`, item 7) as a name that mentions no vendor, so that a module may require
+  it and a cloud embedding bridge may provide it later; `model-bridge` is still unconfirmed. Like it, the name has no prefix, so only
+  the first-party package may provide it.
+
 **launcher**
 : The small workbench component, run as `wb`, that the installer places in the guarded
   store. It checks a shipped helper's hash against a pin and only then runs it. It is not
@@ -297,8 +305,8 @@ path or field.
 **owner-run command**
 : A command whose default level is `block`: by default only the owner runs it, and the harness denies it to an agent.
   The approver may set the level of its key to one the key offers (`command-permissions.md`, "Which levels a key offers"): `none`
-  for an installer command, `ask`, `delegated` or `none` for `approve-plan`, and `ask` or `none` for a module command that declares
-  `levels`. `delegated` exists only where a command declares a gate. An agent may then run the command at that level. A key that
+  for an installer command (and `ask` for `wb release-approvals`, with the digest of its preview), `ask`, `delegated` or `none` for
+  `approve-plan`, `ask` or `none` for `accept-decision`, and `ask` or `none` for a module command that declares `levels`. `delegated` exists only where a command declares a gate. An agent may then run the command at that level. A key that
   offers only `block`, such as `wb rerender`, stays with the owner. It does not mean that an agent can never run it.
 
 **agent-safe command**

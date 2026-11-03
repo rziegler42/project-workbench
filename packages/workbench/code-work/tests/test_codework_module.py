@@ -127,7 +127,7 @@ class Declaration(unittest.TestCase):
 
     def test_the_package_lists_it_between_the_other_two(self):
         with open(os.path.join(PACKAGE, "package.json"), encoding="utf-8") as handle:
-            self.assertEqual(["ask-codex", "claude", "code-work", "groundwork", "safe-git", "review-engine",
+            self.assertEqual(["ask-codex", "ask-ollama", "claude", "code-work", "groundwork", "safe-git", "review-engine",
                               "action-review", "mempalace", "remote-runner", "security-review", "verilog", "freecad"],
                              json.load(handle)["modules"])
 
@@ -203,18 +203,38 @@ class Blocks(unittest.TestCase):
         text = " ".join(block("policy").split())
         bullets = [bullet for bullet in text.split("- ") if "security-review" in bullet]
         self.assertEqual(1, len(bullets), bullets)
-        for rule in ("materially touches", "authentication", "authorization", "secrets", "untrusted input",
-                     "parsing", "the filesystem", "a subprocess", "a network boundary", "dependencies",
-                     "a build or deployment permission", "ask the owner whether to run a security review",
+        # Plan 2026-11-02-verification-effort-guidance, increment C: the trigger "materially touches" is replaced by a
+        # named exposure, and the listed areas are where to look (docs/specs/verification-effort.md, "Recommending a
+        # security review"); the capability name, the owner-only run and "say so" stay.
+        for rule in ("When you can name what a change exposes", "authentication", "authorization", "secrets",
+                     "untrusted input", "parsing", "the filesystem", "a subprocess", "a network boundary",
+                     "dependencies", "a build or deployment permission", "is a place to look, not a reason",
+                     "Ask once per surface", "ask the owner whether to run a security review",
                      "an installed module that provides `security-review`", "if none is installed, say so",
                      "only when the owner asks"):
             self.assertIn(rule, bullets[0])
+        self.assertNotIn("materially touches", text)
         self.assertNotIn("security-reviewer", text)
         self.assertNotIn("skill", bullets[0])
 
+    def test_the_policy_block_asks_for_the_minimum_testing_and_a_named_reason_before_a_wider_run(self):
+        # Plan 2026-11-02-verification-effort-guidance, increment C (docs/specs/verification-effort.md, "Behavior").
+        text = " ".join(block("policy").split())
+        bullets = [bullet for bullet in text.split("- ") if "tested area" in bullet]
+        self.assertEqual(1, len(bullets), bullets)
+        for rule in ("Test the minimum that shows a change did not break what it touched",
+                     "do not rerun a check that already passed on unchanged inputs",
+                     "Before any run wider than the plan names",
+                     "what specifically could break outside the tested area",
+                     "the owner decides whether it runs"):
+            self.assertIn(rule, bullets[0])
+        self.assertNotIn("full suite", text)
+
     def test_the_policy_block_is_short_and_names_no_tool(self):
         text = block("policy")
-        self.assertLessEqual(len(text.splitlines()), 28)  # 23 before the security-review bullet, which takes 5
+        # 23 before the testing and security-review bullets, which take 3 and 6 since plan
+        # 2026-11-02-verification-effort-guidance, increment C (the security-review bullet took 5 before)
+        self.assertLessEqual(len(text.splitlines()), 32)
         for word in ("Claude", "claude", "opencode", "Codex", "CLAUDE.md"):
             self.assertNotIn(word, text)
         self.assertEqual({"wb approve-plan", "wb plan-status", "wb settings"},
@@ -267,6 +287,27 @@ class Skill(unittest.TestCase):
                      "only the owner makes with the approve-plan command", "`## Review record` and `## Result`",
                      "Nothing tracked points to anything untracked", "`Proposed`"):
             self.assertIn(word, text, word)
+
+    def test_the_skill_and_the_template_ask_for_the_check_that_fits_and_never_default_to_the_whole_suite(self):
+        # Plan 2026-11-02-verification-effort-guidance, increment A (docs/specs/verification-effort.md, "Plans").
+        text = " ".join(skill_text().split())
+        for phrase in ("Write the verification as the check that fits the work",
+                       "Do not default it to the whole suite", "a specific risk calls for it",
+                       "is rerun because a later change invalidated it",
+                       "An approved plan's verification line is run as written"):
+            self.assertIn(phrase, text, phrase)
+        template = neutral_tree()["skills/draft-plan/template.md"].decode()
+        flat_template = " ".join(template.split())
+        for phrase in ("**Verification:** the check that fits this increment",
+                       "the specific risk that calls for it", "still stands unless a later increment changed its inputs",
+                       "only what that change invalidated is rerun"):
+            self.assertIn(phrase, flat_template, phrase)
+        for gone in ("the checks that must pass", "What is run when every increment is done."):
+            self.assertNotIn(gone, template, gone)
+        self.assertNotIn("the whole suite", template)
+        for word in ("unittest", "pytest", "python", "`make", "makefile", "npm", "cargo", "verilator", "sby", "tests/",
+                     "src/"):
+            self.assertNotIn(word, skill_text() + template, word)
 
     def test_the_template_is_proposed_and_has_one_candidate_the_header_before_any_section(self):
         lines = neutral_tree()["skills/draft-plan/template.md"].decode().splitlines()
