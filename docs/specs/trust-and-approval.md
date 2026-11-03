@@ -156,8 +156,8 @@ setting in the personal settings, with two values:
 
 A new teammate with no settings gets `stop` for every checkpoint.
 
-The personal settings also hold a `levels` table, and a key's level is its table entry, else its checkpoint reading, else its
-shipped default. A level is `block`, `ask`, `delegated` or `none`; `stop` reads as `block` and `delegate` as `delegated`, and a key
+The personal settings also hold a `levels` table, and a key's level is its table entry, else its checkpoint reading, else the
+level its risk profile sets (`command-permissions.md`), else its shipped default. A level is `block`, `ask`, `delegated` or `none`; `stop` reads as `block` and `delegate` as `delegated`, and a key
 offers only the levels its command or checkpoint supports (`command-permissions.md`, "A level for every command").
 
 ### Delegated approval
@@ -202,6 +202,9 @@ by a converged, sealed review. The decision adds, and nothing of it is built:
 - The restriction on a plan's content stands whoever confirms: a plan with more or fewer than one Risks section, or one whose Risks
   section lists a hard-stop action, is not approved by a bridge. Hard stops still stop at the time of the action whatever the plan
   says.
+- The `action-review` plan builds the hook that decides, after its shadow period; until then none of this paragraph is built. The
+  named risk profiles of the same record are built and are in `command-permissions.md`; a profile never sets `delegated` for the
+  plan approval, which is a `governs` key.
 
 ### Hard stops and the floor
 
@@ -373,12 +376,13 @@ prose above and this section differ in precision, this section is what the code 
 - **Initialization.** Every command makes sure the store exists, then seeds `settings` if it is
   missing, then makes sure `bin/wb` exists.
 - **Settings.** The file `settings` is strict JSON:
-  `{"floor": ["<id>", ...], "levels": {"<key>": "<level>"}, "version": 2}` when seeded (`command-permissions.md`). The reader
-  also accepts `"version": 1` with an object `"checkpoints": {"<name>": "stop" | "delegate"}`, which a file seeded earlier
+  `{"floor": ["<id>", ...], "levels": {"<key>": "<level>"}, "version": 3}` when seeded (`command-permissions.md`), with an
+  optional `"profile"` in a version 3 file ("Named risk profiles" there). The reader also accepts `"version": 2` and
+  `"version": 1` with an object `"checkpoints": {"<name>": "stop" | "delegate"}`, which a file seeded earlier
   holds; its words are read as levels for a key the table does not name. A
   checkpoint name is lowercase kebab-case, at most 64 characters; the names themselves are defined
   by a way of working. A checkpoint that is missing, malformed or not exactly `delegate` reads as
-  `stop`. A table entry in a version 2 file sets the level of its key and wins over the checkpoint in either direction;
+  `stop`. A table entry in a version 2 or 3 file sets the level of its key and wins over the checkpoint in either direction;
   `approve-plan` delegates only while its level reads `delegated` (`command-permissions.md`, "The table"). A damaged file, a wrong version, or a file that is not a regular file is reported on the
   command's output as a `settings:` note and is never overwritten; every checkpoint then stops. The
   `floor` list is a copy for the owner and for harnesses to read: nothing reads it to decide what

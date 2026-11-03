@@ -78,6 +78,8 @@ changes, when the hook is built and not before:
   the hook is built, and a record says what the owner sees and for how long if the prompt is held.
 - The cutover bound ("Accuracy and cutover") is a precondition, and the old approver's declines by failed check are the evidence that
   false declines are what to measure.
+- The `action-review` plans build all of this after the shadow period; none of it is built now. The named risk profiles of the same
+  record are built in the installer (`command-permissions.md`, "Named risk profiles") and do not change this module.
 
 ## The design
 

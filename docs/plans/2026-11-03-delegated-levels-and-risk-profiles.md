@@ -1,6 +1,6 @@
 # The level `delegated` for an action key, and named risk profiles
 
-Status: In Progress
+Status: Completed
 Created: 2026-11-03
 Candidate: none (the closest, `workbench-v1#checkpoint-levels-beyond-block`, leaves `delegated` for keys other than the plan approval out of its boundary; this plan decides what it means, on the owner's direction of 2026-11-03, without building the hook that carries it; it is the first of three plans that split `2026-11-02-permission-levels-for-every-command`)
 Specs: command-permissions, trust-and-approval, action-review
@@ -315,3 +315,26 @@ tested area.
   unsupported example (a search of `tests/` and `packages/` found none).
 - **For the owner:** a profile changes what the agent may run. A security review of the new reading of the settings (`profile_level`,
   the unknown-profile path, the `wb release-approvals` fallback) is yours to ask for; I have not run one.
+
+### Increment D (2026-11-03)
+
+- **Done:** `docs/specs/command-permissions.md`: "The table" now accepts versions 1, 2 and 3, seeds at 3 and says an older installer
+  reads a version 3 file as unsupported; a new paragraph "Named risk profiles" states what increment C built; the order of a key's
+  level and Reading rules 1 and 2 name the profile; the "Decided, not built" paragraph no longer covers the profiles, and says the
+  `action-review` plan builds the rest after its shadow period. `docs/specs/trust-and-approval.md` and `docs/development.md`: the
+  settings file at version 3 with an optional `profile`, the `profile:` and `profiled` lines of `wb settings`, and the order of a
+  level. `docs/specs/action-review.md`: a bullet saying none of the delegate is built and the profiles do not change the module.
+  Everything about `delegated` for an action key and the hook stays labelled "Decided, not built".
+- **Verification run:** `wb doctor` -> "doctor found no problems and 8 risks" (the eight are levels you set yourself at `ask`; no
+  profile is set, so no `wb rerender` is due); `wb check` and `wb run code-work check` -> no problems, rerun after the review fixes;
+  `tests/test_permissions_drift.py` 22 OK and `tests/test_gate_corpus.py` 15 OK.
+- **Review:** one round by the `reviewer` agent, no bridge, no blocking finding. It confirmed the profiles paragraph against the
+  code. Applied: the order of a key's level (profile step) in `command-permissions.md` and `trust-and-approval.md`, Reading rules 1
+  and 2. Not applied, outside this increment's affected areas: `docs/specs/terms.md` lines 329 and 330 still say the `levels` object is
+  "version 2" and give the order of a level without the profile; both are small fixes for you to allow.
+- **Not done:** step 1's "the profile is run once in this clone and recorded": no profile is set in your settings, and the settings
+  are yours; the profiles are verified by the tests of increment C only, not by a run here. The roadmap file is not edited. The
+  full suite was not run.
+- **For the owner:** to try a profile, add `"profile": "trusting"` to your settings file at `"version": 3` (a version 2 file needs its
+  version changed to 3), run `wb settings` and `wb doctor`, then `wb rerender` in a terminal. `delegated` for an action key, the
+  hook and the alongside test are the `action-review` plan's.

@@ -70,20 +70,38 @@ a harness renders it, and the command gate that protects the rendering.
 logged. `delegated` sits in the order by convention; it is a gate the command declares and not a step between `ask` and `none`.
 
 Strictness, from strictest to least strict: `block`, `ask`, `delegated`, `none`. It orders the levels and settles nothing between a
-checkpoint and the table: a key's level is its table entry, else its checkpoint reading, else its shipped default (see "The table").
+checkpoint and the table: a key's level is its table entry, else its checkpoint reading, else the level its risk profile sets, else its
+shipped default (see "The table").
 
 ### The table
 
-The personal settings accept `version` 1 and 2. Version 2 may hold an object `levels`, from a key to a level; in a version 1 file
-`levels` is an unknown entry and is ignored. A new file is seeded at version 2 with an empty `levels` object and no `checkpoints` object
-(`{"floor": [...], "levels": {}, "version": 2}`), so the owner adds an entry to `levels` and nothing else. A file seeded earlier, at
-version 1, is still read, and its `checkpoints` words are read as levels; migrating it is the owner's edit, and `wb settings`
-prints each word it read as a level. The table is the single source of a level: an entry wins over the key's checkpoint in either direction, so loosening
+The personal settings accept `version` 1, 2 and 3. Versions 2 and 3 may hold an object `levels`, from a key to a level; in a version 1
+file `levels` is an unknown entry and is ignored. A new file is seeded at version 3 with an empty `levels` object and no `checkpoints`
+object and no `profile` (`{"floor": [...], "levels": {}, "version": 3}`), so the owner adds an entry to `levels` and nothing else. A
+file seeded earlier, at version 1 or 2, is still read; an installer older than version 3 reads a version 3 file as an unsupported
+version and every key stops. In a version 1 file the `checkpoints` words are read as levels; migrating it is the owner's edit, and
+`wb settings` prints each word it read as a level. The table is the single source of a level: an entry wins over the key's checkpoint in either direction, so loosening
 a key is one edit. A `checkpoints` entry in the file is only a fallback for a key the table does not name, and its word is read as a
 level, `stop` as `block` and `delegate` as `delegated`; `wb settings` prints a `translated <key>: <word> read as <level>` line for
 each such reading (it is not a problem, so it is not a `settings:` line). When a key is in both and they differ, `wb settings`
 notes that the level applies. `delegate` still takes effect for `approve-plan` only; a `delegate` that cannot take effect has its own note
 and no `translated` line.
+
+**Named risk profiles** (built by increment C of the plan `2026-11-03-delegated-levels-and-risk-profiles`; accepted decision
+[2026-11-03-delegated-for-an-action-key-and-named-risk-profiles](../decisions/2026-11-03-delegated-for-an-action-key-and-named-risk-profiles.md),
+decision 10; `workbench/settings.py`, `profile_level`). A version 3 file may hold one `profile`: `cautious` (the default, and what no
+profile means), `balanced` or `trusting`. A profile sets a level for a key with no table entry and no checkpoint word, by danger
+class: `balanced` asks `ask` for a `project` key; `trusting` asks `delegated`, else `ask`, for a `project` key and `ask` for a
+`governs` key; none asks anything of a `reads` key. A profile sets the first level it asks for that the key offers, and only when that
+is less strict than the key's shipped default, so a key it cannot set reads as its default, and it never sets `none`, never sets
+`delegated` for a `governs` key, never touches the floor and never makes a key stricter. A table entry wins over it in either
+direction. A name that is not one of the three, or a value that is not text, reads every key as `block` as a damaged table does (the
+agent-run keys keep their default so the agent can report it), and `wb settings` and `wb doctor` report it. `wb settings` prints a
+`profile: <name>` line, and a `profiled <key>: <level>` line for each key the profile moved, only when a profile is named. `wb doctor`
+adds a note naming the profile and the keys it moved; the `governs` keys it relaxed are reported as risks, as any relaxed key of that
+class is. With the keys of this version `trusting` moves `approve-plan` and `wb release-approvals`, and any module key that offers
+`ask`, to `ask`; `balanced` moves nothing, because the six `project` keys offer only `block` and `none`. The fallback reading of
+`wb release-approvals` when its level cannot be verified also reads a profile-set `ask`.
 
 A module can also declare a prompt that is not a key: a command's `asks` (an argument that is asked and not owner-run) and a
 module's `ask_reads` (a read under the home directory) render as `ask` rules and are not levels, so the table does not carry them and
@@ -100,14 +118,15 @@ separated by single spaces, at most 96 characters.
 
 ### Reading rules
 
-1. A missing file is seeded as today. A damaged file, an unsupported version, a duplicated key or a `levels` that is not an object
-   reads as `block` for the whole table, except for the agent-safe keys and the declared module arguments that are not owner-run: they
+1. A missing file is seeded as today. A damaged file, an unsupported version, a duplicated key, a `levels` that is not an object or a
+   `profile` that is not one of the three names reads as `block` for the whole table, except for the agent-safe keys and the declared module arguments that are not owner-run: they
    keep their default `none`, so that the agent can still run `wb settings` and `wb check` to report the damage (the owner's decision,
    Increment C). An explicit `block` the owner wrote for such a key is therefore not honored while the file or the table is
    damaged, even when the damage is one mistyped key elsewhere; it applies again once the file is repaired and the harness is
    attached again or re-rendered (`wb rerender`), and a `deny` already rendered into an attached clone stays until then. A value that is not one of the four levels reads as `block` for that key. A key that is not a valid name blocks
    the whole table, because a mistyped key must never leave a default of `ask` in force. `wb settings` reports each.
-2. A key with no table entry reads as its checkpoint reading if the file sets one, and otherwise as its shipped default (below).
+2. A key with no table entry reads as its checkpoint reading if the file sets one, else as the level its profile sets ("Named risk
+   profiles", above), and otherwise as its shipped default (below).
 3. A level the key does not offer reads as `block` with a note.
 4. A key on the compiled floor is refused, with a problem, and ignored. A valid key that no installed module or the installer
    declares is noted and ignored.
@@ -143,7 +162,7 @@ with the exit code. If the attempt cannot be written the helper is not started; 
 the exit code is 3 (a helper that itself exits 3 gives the same code; the line on standard error tells them apart). A run at a terminal reads no level and writes no entry. `wb launch` stays terminal-only for an owner-run argument at
 every level, because the `ask` rule is rendered for the `wb run` spelling only.
 
-**Decided, not built: `delegated` for an action key, and named risk profiles** (accepted decision
+**Decided, not built: `delegated` for an action key** (accepted decision
 [2026-11-03-delegated-for-an-action-key-and-named-risk-profiles](../decisions/2026-11-03-delegated-for-an-action-key-and-named-risk-profiles.md);
 plan `2026-11-03-delegated-levels-and-risk-profiles`). Nothing in this paragraph is built, and every line of this spec that says that
 `approve-plan` alone offers `delegated`, or that `verify` refuses `delegated` in a module's `levels`, describes what is built now.
@@ -161,14 +180,9 @@ The decision is:
   offered. When built, "`approve-plan` only" above becomes "the keys whose declaration offers it", and `verify` stops refusing
   `delegated` for a command that gives a `describe` and a rule.
 - A plan is delegable only with exactly one Risks section that lists no hard-stop action, whoever confirms.
-- The owner may set one `profile` (`cautious`, the default and today's behaviour; `balanced`, which sets `project` keys to `ask`;
-  `trusting`, which sets `project` keys to `delegated` where offered and to `ask` where not, and `governs` keys to `ask`), and a
-  per-key entry overrides it. A profile only chooses among the levels a key offers, and a key it cannot set reads as its shipped
-  default (today the six `project` keys offer only `block` and `none`, so few keys are affected). It never sets `none`, never touches
-  the floor, and never sets `delegated` for a `governs` key, where `delegated` counts as beyond `ask`; for `project` keys it does not,
-  because `delegated` reads as `ask` without the modules. An unknown profile reads as `block` for the whole table. `wb settings` prints
-  the profile and what it set, `wb doctor` reports a relaxed key in a dangerous class, and the settings version is bumped with the old
-  version still read. Increment C of the plan builds the profiles and the owner may drop it.
+- The `action-review` plan builds all of this after its shadow period. The profiles are built and are described under "The table"
+  ("Named risk profiles"): a profile never sets `delegated` for a `governs` key, and sets it for a `project` key only where offered,
+  where it reads as `ask` until the hook exists.
 
 ### Shipped defaults
 
@@ -643,7 +657,7 @@ owner's remote channel (see "Assumptions and constraints"), so a key at `ask` do
 so does an edit of a file the owner makes themselves.
 
 **Preconditions of every "no terminal" row that is not at its shipped default.** `ask`, `delegated` and `none` hold only after the
-owner has set the level in the personal settings (version 2, `levels`) and the harness has been attached or re-rendered since
+owner has set the level in the personal settings (version 2 or later, `levels`) and the harness has been attached or re-rendered since
 (`wb rerender`, which is terminal-only at every level). While the rendering is stale or missing, a relaxed key reads `block` and the
 row falls back to the terminal command ("Rendering"). `wb check` says when the rendering is out of date.
 
