@@ -442,7 +442,8 @@ later on 2026-10-30, and they were removed in commit `71cd4fb`). No hook reads t
 **A departure from the plan's text, for the owner to accept.** The plan names the shipped file `hook/store.py`. The installer's
 boundary test (`test_the_installer_and_its_tests_name_no_module_helper_harness_or_path`) refuses a module file whose name is the
 name of a file of the installer, and `workbench/store.py` exists. The file is `hook/shadow_store.py`. The plan's later text that
-says `store.py` (Scope, the Increment C and D steps) means this file. Nothing else about the increment changes.
+says `store.py` (Scope, the Increment C and D steps) means this file. Nothing else about the increment changes. Accepted by the owner
+on 2026-11-03.
 
 Where the work is. Built in a scratch clone at `71cd4fb`, as for B; copied into the real tree and released by the owner afterwards
 (see the end of this section).

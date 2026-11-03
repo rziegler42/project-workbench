@@ -345,4 +345,5 @@ Verification of the plan as a whole, run in the real tree after the release at `
 `test_actionreview_pins.py` passes (17 tests). Completion criteria 1 to 6 are met by the increments A to D as recorded above.
 
 Not run by the agent: the hook against Claude Code, the real launcher with `action-review` installed, a real bridge and a real
-model. Medium 1 of the security review (diffs stored unredacted in `collected.jsonl`) stays deferred to the owner's decision.
+model. Medium 1 of the security review (diffs stored unredacted in `collected.jsonl`) stays deferred. Decided by the owner on 2026-11-03: redaction is wanted, as a small follow-up plan that is not drafted yet; until then
+the spec's owner's steps say not to share or back up that file. The tested security pass was postponed by the owner on the same day.

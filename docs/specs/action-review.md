@@ -853,6 +853,8 @@ of plan `2026-10-29-action-review-shadow-hook`, Increment H.
    **What leaves your machine from here on:** every prompted command that matches a rule is reviewed by the engine, which sends
    its facts, a commit's diff included, to the bridge's vendor (two model calls at most per command). `collected.jsonl` keeps the
    command text and those facts on your disk (mode 0600, outside every project) until you delete it, and a diff may hold a secret.
+   Do not copy, share or back up that file to anywhere you do not control: the stored diffs are not redacted yet (a follow-up plan
+   is to do it, "Decided by the owner (2026-10-29 to 2026-11-03)").
 4. **To collect commits as well as removals,** add a user-level `ask` rule for `wb run safe-git commit`, in the form your other rules
    use. Every commit then raises a prompt, which changes your workflow while the shadow runs; remove the rule when it ends. The
    module's `remove` already asks; the accepted decision `2026-10-29-workbench-asks-for-remove-submit-and-fetch` leaves `commit`
@@ -963,9 +965,14 @@ left open.
   reason for the order are under "The verdict, the output and the log". They are revisited with the shadow period's
   own durations.
 
-## Decided by the owner (2026-10-29 and 2026-10-30)
+## Decided by the owner (2026-10-29 to 2026-11-03)
 
 Decided in session while plan `2026-10-29-action-review-shadow-hook` was drafted and built; each is written where it applies.
+
+- **The store module is `hook/shadow_store.py`** (accepted 2026-11-03): the installer's boundary test forbids a module file named like
+  a file of the installer, so the plan's name `hook/store.py` could not stand.
+- **Redacting the diffs kept in `collected.jsonl` is wanted, as a small follow-up plan, and is not done** (2026-11-03). Until then
+  the file is not to be shared or backed up outside the owner's control (the owner's steps say so).
 
 - **The shadow's data directory is `~/.config/project-workbench/action-review/`**, a subdirectory of the guarded store, fixed (no
   environment variable moves it), mode 0700 ("The data files").
@@ -982,8 +989,6 @@ Decided in session while plan `2026-10-29-action-review-shadow-hook` was drafted
 - Is a separate `describe` subcommand the right shape, or should the interface be something else?
 - Decided: you label real commands and review a test set, with the bound above. Open: whether 10% stays after
   the shadow has counted real commands.
-- The plan names the store `hook/store.py`; it is `hook/shadow_store.py` because the installer's boundary test forbids a module file
-  named like a file of the installer. The plan's Result records the departure for the owner's acceptance.
 - Whether to run a security review over the hook, the store and the engine's `--collect` flag (they touch a subprocess, the
   filesystem, untrusted command text and, through the bridge, a network boundary). It runs only when the owner asks.
 - `safe-committer` (F-A7) and `amend-message`: decided, see "Decisions on the two leftovers".
