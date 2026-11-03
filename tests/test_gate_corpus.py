@@ -1,11 +1,11 @@
 """The command gate's regression corpus: what ``judge`` does with each command of ``fixtures/gate_corpus.json`` today.
 
-Plan ``2026-11-02-permission-system-consistency``, increment D (decision ``2026-11-02-command-gate-reads-gaps-and-data-positions``).
-Each case records the level the key runs under (``ask`` unless it says ``none`` or ``block``), the result the gate gives now
-(``today``, and for a refusal the rule that fired) and the result the decision wants (``intended``). A case whose two differ
-names the increment that ends the difference (``fixed_by``); increment I changes ``today`` for those cases and for no others.
-Increment I also puts the rule's name in each refusal, and then replaces ``classify``, which reads the refusal's prose today,
-with that name; the ``rule`` fields change with it and nothing else does. The commands are sanitised: no real path, host or digest.
+Plan ``2026-11-02-permission-system-consistency``, increments D and I (decision ``2026-11-02-command-gate-reads-gaps-and-data-positions``).
+Each case records the level the key runs under (``ask`` unless it says ``none`` or ``block``), the result the gate gives
+(``today``, and for a refusal the rule that fired: ``names``, ``gap`` or ``dollar-quote-limit``) and the result the decision wants
+(``intended``). Increment D recorded nine cases that differed (the false positives of the decision); increment I ended the
+difference, so ``today`` and ``intended`` now agree for every case. The rule is read from the gate's own verdict, which names it
+(``command_gate.verdict``), and not from the prose of the refusal. The commands are sanitised: no real path, host or digest.
 
 The relaxed keys are the ones the owner's settings relax at ``ask``: ``approve-plan``, ``wb release-approvals``, the command that
 implements the checkpoint ``accept-decision`` and the review engine's five. At ``block`` no key is relaxed, so the gate is not
@@ -27,25 +27,12 @@ CORPUS = os.path.join(HERE, "fixtures", "gate_corpus.json")
 PLAN = "2026-11-02-permission-system-consistency"
 GROUPS = ("ordinary", "exact", "attempt", "false-positive", "block-side", "none-side", "boundary")
 LEVELS = ("ask", "none", "block")
-RULES = ("names", "in-order", "dollar-quote-limit", "other")
+RULES = ("names", "gap", "dollar-quote-limit")
 
 
 def load():
     with open(CORPUS, encoding="utf-8") as handle:
         return json.load(handle)
-
-
-def classify(reason):
-    """The short name of the rule that produced a refusal reason, or ``None`` for an allow."""
-    if reason is None:
-        return None
-    if "holds the letters of" in reason:
-        return "in-order"
-    if "names " in reason:
-        return "names"
-    if "more than" in reason:
-        return "dollar-quote-limit"
-    return "other"
 
 
 def judged(case, corpus):
@@ -54,14 +41,21 @@ def judged(case, corpus):
     return command_gate.judge(case["command"], keys, corpus["store_bin"], {key: case["level"] for key in keys})
 
 
+def rule_of(case, corpus):
+    """The name of the rule the gate says fired for `case`, or ``None`` for an allow."""
+    keys = [] if case["level"] == "block" else corpus["relaxed_keys"]
+    found = command_gate.verdict(case["command"], keys, corpus["store_bin"], {key: case["level"] for key in keys})
+    return found.rule if found else None
+
+
 def mismatch(case, corpus):
     """``None`` when the gate gives the case's recorded result today, otherwise a sentence that says how it differs."""
     reason = judged(case, corpus)
     today = "pass" if reason is None else "refuse"
     if today != case["today"]:
         return "%s: the gate now says %s, the corpus records %s" % (case["id"], today, case["today"])
-    if classify(reason) != case["rule"]:
-        return "%s: the rule that fired is now %s, the corpus records %s" % (case["id"], classify(reason), case["rule"])
+    if rule_of(case, corpus) != case["rule"]:
+        return "%s: the rule that fired is now %s, the corpus records %s" % (case["id"], rule_of(case, corpus), case["rule"])
     return None
 
 
@@ -107,22 +101,22 @@ class Corpus(unittest.TestCase):
                 self.assertIsInstance(case["command"], str)
                 self.assertTrue(case["command"])
 
-    def test_a_case_that_differs_from_its_intent_names_the_increment_that_ends_it(self):
+    def test_no_case_differs_from_its_intent_any_more(self):
         for case in self.cases:
             with self.subTest(case=case["id"]):
-                differs = case["today"] != case["intended"]
-                self.assertEqual(differs, "fixed_by" in case)
-                if differs:
-                    found = re.fullmatch(r"%s#([A-Z]+)" % re.escape(PLAN), case["fixed_by"])
-                    self.assertIsNotNone(found, case["fixed_by"])
+                self.assertEqual(case["today"], case["intended"])
+                self.assertNotIn("fixed_by", case)
 
-    def test_the_cases_that_differ_are_the_false_positives_of_the_decision(self):
-        differing = sorted(case["id"] for case in self.cases if case["today"] != case["intended"])
-        self.assertEqual(["cat-file-name-holds-the-word", "commit-subject-names-the-word", "grep-for-the-word",
-                          "grep-globs-ls-heredoc", "grep-quoted-word-with-glob", "grep-two-globs",
-                          "none-cat-file-name-holds-the-word", "none-grep-two-globs", "printf-link"], differing)
-        for case in self.group("false-positive"):
-            self.assertEqual(("refuse", "pass"), (case["today"], case["intended"]), case["id"])
+    def test_the_false_positives_of_the_decision_pass(self):
+        """The nine commands the decision names (and the ones added for the data position) were refused and now pass."""
+        named = {"cat-file-name-holds-the-word", "commit-subject-names-the-word", "grep-for-the-word", "grep-globs-ls-heredoc",
+                 "grep-quoted-word-with-glob", "grep-two-globs", "printf-link", "none-cat-file-name-holds-the-word",
+                 "none-grep-two-globs"}
+        self.assertEqual(named, named & {case["id"] for case in self.cases})
+        for case in self.cases:
+            if case["id"] in named or case["group"] == "false-positive":
+                self.assertEqual(("pass", "pass", None), (case["today"], case["intended"], case["rule"]), case["id"])
+        self.assertGreaterEqual(len(self.group("false-positive")), 14)
 
     def test_every_attempt_is_refused_now_and_stays_refused(self):
         """No attempt is recorded as allowed, and none is meant to be allowed."""
@@ -184,6 +178,7 @@ class Corpus(unittest.TestCase):
             with self.subTest(case=case["id"]):
                 self.assertEqual(("ask", "refuse", "refuse"), (case["level"], case["today"], case["intended"]))
         self.assertIn("dollar-quote-limit", {case["rule"] for case in boundary})
+        self.assertGreaterEqual(len(boundary), 18)
         ids = {case["id"] for case in boundary}
         for wanted in ("boundary-git-log-grep-word", "boundary-sed-word", "boundary-find-exec-word", "boundary-env-word",
                        "boundary-tee-word", "boundary-sort-word", "boundary-grep-redirect", "boundary-grep-unquoted-glob",

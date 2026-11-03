@@ -11,8 +11,8 @@ import re
 import sys
 
 from . import (acknowledge, agent_gate, approvalcmd, approve, attach, check, command_gate, delegation, firstparty,
-               gate_hook, harnesses, install, launch, levelrun, levels, pins, planapprovals, preview, recover, rendering,
-               rerender, settings, settingscmd, sources, store, target, upgrade, verify)
+               gate_hook, gatelog, harnesses, install, launch, levelrun, levels, pins, planapprovals, preview, recover,
+               rendering, rerender, settings, settingscmd, sources, store, target, upgrade, verify)
 from . import commands as module_commands
 from .wbkit import display, safefs
 
@@ -590,7 +590,9 @@ def _gate_command(tokens, err, store_root, distribution, stdin):
             for key, rule in record["keys"].items():
                 if rule in command_gate.RELAXED and table.get(key) not in command_gate.RELAXED:
                     table[key] = rule
-        return gate[0], gate[1], table, os.path.join(os.path.realpath(opened[0].root), "bin", "wb")
+        # The fifth item appends each refusal to the refusal log of the guarded store (``gatelog``); it never changes a result.
+        return (gate[0], gate[1], table, os.path.join(os.path.realpath(opened[0].root), "bin", "wb"),
+                gatelog.writer(opened[0].root))
 
     return command_gate.run(stdin if stdin is not None else sys.stdin, err, prepare)
 

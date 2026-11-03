@@ -715,4 +715,83 @@ conformance check and author guide, and named risk profiles. Also deferred: `del
 - **Review:** the `reviewer` agent, one exchange: four findings, none blocking. Applied: the lock claim in the kit docstring and the
   spec; two kit tests were renamed because their names overclaimed, and a duplicate case was removed. Recorded above: the
   `digest:` line left in each helper. No security review was run; the plan has the author ask the owner once.
+- **Committed** as `5979b5f6cd900ce05d2ee3f089f100020bb36bb4`.
+
+### Increment I — The gate stops refusing by letters; refusals are named and logged
+
+- **Step 1 (tests first):** the nine corpus cases that differed from their intent were set to their intended result and failed
+  against the old gate; new cases were added (the data position for each listed program, a literal call that names the word, the
+  edges that stay refused, three padded-letter attempts, a preview with an expansion). The corpus is now 102 cases and no case
+  differs from its intent. `classify`, which read the prose of a refusal, is gone: the test reads the rule from the gate.
+- **Done, as decision B says:** (a) the in-order rule is replaced by the gap rule (`_spelled`, `_gap_match`): the letters of a key
+  match only where nothing but wildcards separates them, at least a third written out; an expansion, a brace group and a bare
+  parameter count as eight wildcard characters, a `*` as three, a `?`, a bracket class and an escape as one, and each wildcard
+  stands for one letter or none. (b) The data position (`reads_as_data`, `DATA_PROGRAMS`): one command or a pipeline of
+  `cat`, `diff`, `grep`, `head`, `ls`, `tail`, `wc`, every argument a plain token or a single-quoted string, only `2>/dev/null` and
+  `2>&1` as redirections, matched in full on the raw text; a test per program and a test of each way out of it. (c) A literal
+  `wb run <name> ...` call frees `approve-plan` (`literal and key == "approve-plan"`), and no other `wb run <command> <argument>` key.
+  (d) Every refusal names its rule and ends `(rule: names|gap|dollar-quote-limit|size-limit)`: `verdict()` returns the rule and
+  the reason, `judge()` the reason. (e) The refusal log (`workbench/gatelog.py`, `gate-log` in the guarded store): time, rule and
+  the first 12 hex characters of the SHA-256 of the command, never its text; appended through `safefs.append_line` (no-follow, one
+  link), capped at 1 MiB, written after the verdict is fixed, and every failure of it is swallowed. `prepare` may return the writer
+  as a fifth item (`cli._gate_command` does); a four-item `prepare` still works.
+- **Two additions the decision does not make, for the owner to accept or reject:**
+  1. `substituted()`: a simple assignment in the same command text (`a=approve b=plan; wb $a-$b x`) has its uses put in before the
+     name tests run; `${A//x/}` and the like put the value in as the content of an expansion. Two existing tests pin the refusal of
+     `a=approve b=plan; wb $a-$b x` and `a=appr b=oveplan; wb ${a}${b} x`, which the gap rule alone does not give (the assignment's
+     own letters are written between the word's letters). It only adds views to read, so it cannot turn a refusal into a pass.
+  2. `_free_match`: inside an expansion (`$(...)`, `${...}`, a backtick pair), other characters may sit between two letters of the
+     word, within a span of three times the word's length. The reviewer's blocking finding: `wb $(printf 'inst%s' all) x`,
+     `A=xaxp...; wb ${A//x/}` and `wb $(tr -d x <<< xaxp...)` pass the gap rule and were refused by the old gate (checked by running
+     both). Decision B says "the padding that can be run lives inside an expansion, and an expansion is already a wildcard"; that is
+     not so when the letters are written inside it. A literal letter written outside an expansion still breaks the match.
+- **Changes in results beyond the decision's five rows**, all found by a run of the old gate (extracted from `HEAD`) and this gate over
+  the 102 cases: passes now that the old gate refused: the nine named, the data-position and literal-call cases added, an
+  unrelated pair of globs, and `wb preview release-approvals --dir $PWD` (a literal `preview` sits between the letters; the
+  expansion stands for no letter of the word). Refused now that the old gate passed: `wb $A-plan x` (an expansion beside `-plan`
+  stands for `approve`; also `A=approve; : xxxxxxxx...; wb $A-plan x`, which the old test recorded as a known limit). No attempt of
+  the corpus passes that the old gate refused. Existing tests whose expectation changed, each because the decision frees it:
+  `grep approve-plan docs` and `grep -r approve-plan docs` (data position), `wb run x 'approve-plan'` and `wb run vault preview
+  'approve-plan'` (decision 4), `wb preview install --dir $PWD`, and the far-variable test (now refused).
+- **Not changed, as accepted limits:** a script file, a function or alias, a word built by a transformation whose input does not
+  hold the letters in order (`rev`, base64), a variable set by `read` or an expansion rather than a simple assignment, and an
+  all-wildcard spelling with fewer than a third of the letters written out (`wb $a$b` with `a` and `b` set elsewhere). The match is
+  not anchored to a word: the skeleton drops spaces, so `echo approve $(true) the plan` is refused as the old gate refused it.
+- **Verification as run:** `test_command_gate` 127, `test_gate_hook` 72, `test_gate_corpus` 15, `test_levelrun` 22,
+  `test_agent_gate` 58, `test_gatelog` 14, `test_gate` 27, `test_rendering` 84, `test_permissions_drift` 14, `test_levels_facts` 37 and
+  `test_settingscmd` 33, all OK (`-W error`); a probe of 40 attempts and ordinary commands against the live gate; the new gate was built
+  and tested in a scratch copy and swapped in. The full suite was not run. The refusal log was seen to be created in the store by the
+  first refusal after the swap (its size, not its content, was read).
+- **Review:** the `reviewer` agent, one exchange: seven findings, one blocking (above, fixed and rechecked by running the three
+  forms, not reviewed again). Not blocking and applied: the `gatelog` docstring said `wb doctor` reports the log, which increment L
+  builds; the gate's docstring said an expansion had to supply the rest. Not changed: the reviewer's note that GNU `diff -l` and
+  `--paginate` run `pr` from `PATH` (it cannot run an owner-run verb); the decision's own text that still reads "Proposed; the owner
+  decides" under an `Accepted` status line. The reviewer could not run anything, so its claims about the old gate were checked by
+  running the gate extracted from `HEAD`.
+- **The owner accepted both additions** (`substituted` and `_free_match`) in conversation on 2026-11-02. The security review followed (below). The spec text for the gate ("The command gate", "Limits") is updated in
+  increment M, as the plan says, and is to record both additions.
+- **Security review (the owner asked for it):** the `security-reviewer` agent, no Critical or High finding. Found sound and tested: the
+  data position (about 280 option forms of its seven programs launched nothing in a run with a fake `PATH`; the regexes are
+  linear), the refusal log (links, FIFOs, a directory in its place, the cap, eight concurrent writers, hostile text), the gap
+  and free-match dynamic programs (6,000 random cases each against brute force), and that no malformed `prepare` return leads
+  to an allow. Findings, and what was done (the owner said "fix 1 and 2"):
+  1. **Medium, fixed.** A value the text sets in a way the tracker does not follow (`eval 'x=…; wb ${x/Q/}'`, `for`, `+=`,
+     `printf -v`, `set --`, an array) and then pads, with the padding removed by a parameter operator, was refused by the old gate
+     and passed this one. The statement above that "padding lives inside an expansion" was wrong for assigned values. Fix: a
+     command that holds a parameter operator (`${name<operator>…}`) is also read by the old in-order rule (`_subsequence`, three
+     times the word's length, a third written out). Ordinary commands (`${HOME#/}`, `${DIR:-.}`) are not refused. Four corpus
+     cases and two tests added; the four forms passed before the fix and are refused after it (run on both trees).
+  2. **Low, fixed.** `substituted()` could build hundreds of megabytes from a 64 KiB command (a long value used thousands of
+     times; 24 MB for a 60 KB probe, more for worse). It now returns the text unchanged when the result would pass four times
+     `MAX_COMMAND`; the same probe gives 52 KB. A test added.
+  3. **Low, not changed, not a regression.** `wb approve-*`, `wb appro*` and, in bash with `extglob` or in zsh, `wb appr(ov|zz)e-plan`
+     run the command when a file of that name sits in the working directory; both gates allow them (a `*` counts as three
+     letters; the alternation forms hold no pattern character). Adding `(`, `|`, `@(`, `+(`, `!(` to `_PATTERN_CHARS` is the
+     option. It widens the gate and is left to the owner as its own item.
+  4. **Info, fixed.** The "no expansion form tested makes bash join them" text and the docstring are reworded as above.
+  Second look: the reviewer's fuzz (`probe3`, 30,000 generated spellings run in bash against the new gate with the old gate for
+  comparison) was run again on the fix: no spelling executes that the old gate refused; the brute-force comparisons of the
+  gap and free-match programs still agree (6,000 cases each). Reran after the fix: `test_command_gate` 130, `test_gate_corpus` 15,
+  `test_gatelog` 14, `test_gate_hook` 72, `test_levelrun` 22, `test_agent_gate` 58, all OK. An independent second look at the
+  fix by an agent has not been run.
 - **Not done:** the commit, which waits for the owner's word.

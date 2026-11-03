@@ -221,7 +221,7 @@
    "command": "A=approve; wb ${A}-plan docs/plans/x.md",
    "level": "ask",
    "today": "refuse",
-   "rule": "in-order",
+   "rule": "names",
    "intended": "refuse"
   },
   {
@@ -239,7 +239,7 @@
    "command": "wb appro*-plan docs/plans/x.md",
    "level": "ask",
    "today": "refuse",
-   "rule": "in-order",
+   "rule": "gap",
    "intended": "refuse"
   },
   {
@@ -286,7 +286,7 @@
    "command": "wb appr$1ove-plan docs/plans/x.md",
    "level": "ask",
    "today": "refuse",
-   "rule": "in-order",
+   "rule": "gap",
    "intended": "refuse",
    "note": "bare parameters must stay wildcards"
   },
@@ -296,7 +296,7 @@
    "command": "wb approve-$1plan p",
    "level": "ask",
    "today": "refuse",
-   "rule": "in-order",
+   "rule": "gap",
    "intended": "refuse",
    "note": "pinned by tests/test_command_gate.py"
   },
@@ -306,7 +306,7 @@
    "command": "wb a$zz'p'$zz'p'$zz'r'$zz'o'$zz'v'$zz'e'-plan docs/plans/x.md",
    "level": "ask",
    "today": "refuse",
-   "rule": "in-order",
+   "rule": "gap",
    "intended": "refuse",
    "note": "bare $zz expands to nothing"
   },
@@ -325,7 +325,7 @@
    "command": "W=w; Z=b; X=ove; $W$Z appr${X}-plan docs/plans/x.md",
    "level": "ask",
    "today": "refuse",
-   "rule": "in-order",
+   "rule": "names",
    "intended": "refuse",
    "note": "a literal launcher must not be required"
   },
@@ -335,7 +335,7 @@
    "command": "wb appr{ove-,junk}plan docs/plans/x.md",
    "level": "ask",
    "today": "refuse",
-   "rule": "in-order",
+   "rule": "gap",
    "intended": "refuse",
    "note": "brace groups must stay wildcards"
   },
@@ -345,7 +345,7 @@
    "command": "wb {approve-,x}plan docs/plans/x.md",
    "level": "ask",
    "today": "refuse",
-   "rule": "in-order",
+   "rule": "gap",
    "intended": "refuse"
   },
   {
@@ -354,7 +354,7 @@
    "command": "wb a{p,q}p{r,s}ove-plan docs/plans/x.md",
    "level": "ask",
    "today": "refuse",
-   "rule": "in-order",
+   "rule": "gap",
    "intended": "refuse"
   },
   {
@@ -363,7 +363,7 @@
    "command": "wb app$(echo r)ove-plan docs/plans/x.md",
    "level": "ask",
    "today": "refuse",
-   "rule": "in-order",
+   "rule": "gap",
    "intended": "refuse"
   },
   {
@@ -372,7 +372,7 @@
    "command": "wb a${X}p${Y}r${Z}ove-plan docs/plans/x.md",
    "level": "ask",
    "today": "refuse",
-   "rule": "in-order",
+   "rule": "gap",
    "intended": "refuse"
   },
   {
@@ -381,7 +381,7 @@
    "command": "wb app?ove-plan docs/plans/x.md",
    "level": "ask",
    "today": "refuse",
-   "rule": "in-order",
+   "rule": "gap",
    "intended": "refuse"
   },
   {
@@ -390,7 +390,7 @@
    "command": "wb ???rove-plan docs/plans/x.md",
    "level": "ask",
    "today": "refuse",
-   "rule": "in-order",
+   "rule": "gap",
    "intended": "refuse"
   },
   {
@@ -399,7 +399,7 @@
    "command": "wb appro${unset:+padding}ve-plan docs/plans/x.md",
    "level": "ask",
    "today": "refuse",
-   "rule": "in-order",
+   "rule": "gap",
    "intended": "refuse"
   },
   {
@@ -408,7 +408,7 @@
    "command": "wb release-appr${X} --digest 0123456789abcdef0123456789abcdef",
    "level": "ask",
    "today": "refuse",
-   "rule": "in-order",
+   "rule": "gap",
    "intended": "refuse"
   },
   {
@@ -426,7 +426,7 @@
    "command": "wb run review-engine ext${X} docs/plans/x.md 2",
    "level": "ask",
    "today": "refuse",
-   "rule": "in-order",
+   "rule": "gap",
    "intended": "refuse"
   },
   {
@@ -435,7 +435,7 @@
    "command": "wb run review-engine ext* docs/plans/x.md 2",
    "level": "ask",
    "today": "refuse",
-   "rule": "in-order",
+   "rule": "gap",
    "intended": "refuse"
   },
   {
@@ -444,7 +444,7 @@
    "command": "wb run groundwork acc${X} docs/decisions/x.md",
    "level": "ask",
    "today": "refuse",
-   "rule": "in-order",
+   "rule": "gap",
    "intended": "refuse"
   },
   {
@@ -453,7 +453,7 @@
    "command": "python3 -m workbench appr${X}-plan docs/plans/x.md",
    "level": "ask",
    "today": "refuse",
-   "rule": "in-order",
+   "rule": "gap",
    "intended": "refuse"
   },
   {
@@ -471,10 +471,9 @@
    "group": "false-positive",
    "command": "grep -rn \"checkpoint_of\" packages/workbench/*/module.json packages/workbench/*/*.json 2>/dev/null | head",
    "level": "ask",
-   "today": "refuse",
-   "rule": "in-order",
+   "today": "pass",
+   "rule": null,
    "intended": "pass",
-   "fixed_by": "2026-11-02-permission-system-consistency#I",
    "note": "the in-order rule reads letters of unrelated words (decision: the gap rule)"
   },
   {
@@ -482,10 +481,9 @@
    "group": "false-positive",
    "command": "grep -rn \"checkpoint_of\" packages/workbench/*/module.json packages/workbench/*/*.json 2>/dev/null | head; ls packages/workbench/remote-runner | head; python3 -B - <<'E'\nimport json,glob\nfor f in sorted(glob.glob('packages/workbench/*/module.json')):\n    d=json.load(open(f))\n    for c in d.get('commands',[]):\n        keys={k:c[k] for k in ('owner','levels','preview','checkpoint_of') if k in c}\n        if keys: print(f.split('/')[2], c.get('name'), keys)\nE",
    "level": "ask",
-   "today": "refuse",
-   "rule": "in-order",
+   "today": "pass",
+   "rule": null,
    "intended": "pass",
-   "fixed_by": "2026-11-02-permission-system-consistency#I",
    "note": "the full command as refused earlier"
   },
   {
@@ -493,10 +491,9 @@
    "group": "false-positive",
    "command": "printf '%s\\n' '- [Release approvals at ask](feedback_release_approvals_at_ask.md) -- preview then --digest; agent may run it at level ask' >> MEMORY.md",
    "level": "ask",
-   "today": "refuse",
-   "rule": "in-order",
+   "today": "pass",
+   "rule": null,
    "intended": "pass",
-   "fixed_by": "2026-11-02-permission-system-consistency#I",
    "note": "a bracket class in the text counts as a wildcard"
   },
   {
@@ -504,10 +501,9 @@
    "group": "false-positive",
    "command": "cat docs/decisions/2026-10-28-every-key-offers-the-approve-plan-levels.md",
    "level": "ask",
-   "today": "refuse",
-   "rule": "names",
+   "today": "pass",
+   "rule": null,
    "intended": "pass",
-   "fixed_by": "2026-11-02-permission-system-consistency#I",
    "note": "data position"
   },
   {
@@ -515,10 +511,9 @@
    "group": "false-positive",
    "command": "grep -n approve-plan docs/development.md",
    "level": "ask",
-   "today": "refuse",
-   "rule": "names",
+   "today": "pass",
+   "rule": null,
    "intended": "pass",
-   "fixed_by": "2026-11-02-permission-system-consistency#I",
    "note": "data position"
   },
   {
@@ -526,10 +521,9 @@
    "group": "false-positive",
    "command": "grep 'wb a?prove-plan' notes.md",
    "level": "ask",
-   "today": "refuse",
-   "rule": "in-order",
+   "today": "pass",
+   "rule": null,
    "intended": "pass",
-   "fixed_by": "2026-11-02-permission-system-consistency#I",
    "note": "single quotes: bash does not expand; data position skips the gap rule too"
   },
   {
@@ -537,10 +531,9 @@
    "group": "false-positive",
    "command": "wb run safe-git commit --subject 'Explain approve-plan in the guide' -- docs/development.md",
    "level": "ask",
-   "today": "refuse",
-   "rule": "names",
+   "today": "pass",
+   "rule": null,
    "intended": "pass",
-   "fixed_by": "2026-11-02-permission-system-consistency#I",
    "note": "decision 4: a literal wb run call frees approve-plan (the owner's choice)"
   },
   {
@@ -615,7 +608,7 @@
    "command": "A=approve; wb ${A}-plan docs/plans/x.md",
    "level": "none",
    "today": "refuse",
-   "rule": "in-order",
+   "rule": "names",
    "intended": "refuse"
   },
   {
@@ -623,10 +616,9 @@
    "group": "none-side",
    "command": "cat docs/decisions/2026-10-28-every-key-offers-the-approve-plan-levels.md",
    "level": "none",
-   "today": "refuse",
-   "rule": "names",
+   "today": "pass",
+   "rule": null,
    "intended": "pass",
-   "fixed_by": "2026-11-02-permission-system-consistency#I",
    "note": "data position"
   },
   {
@@ -634,10 +626,9 @@
    "group": "none-side",
    "command": "grep -rn \"checkpoint_of\" packages/workbench/*/module.json packages/workbench/*/*.json 2>/dev/null | head",
    "level": "none",
-   "today": "refuse",
-   "rule": "in-order",
+   "today": "pass",
+   "rule": null,
    "intended": "pass",
-   "fixed_by": "2026-11-02-permission-system-consistency#I",
    "note": "the gap rule"
   },
   {
@@ -769,6 +760,249 @@
    "rule": "dollar-quote-limit",
    "intended": "refuse",
    "note": "more than 64 $'...' strings: the stated limit stands"
+  },
+  {
+   "id": "head-pipeline-names-the-word",
+   "group": "false-positive",
+   "level": "ask",
+   "command": "cat docs/decisions/x-approve-plan-y.md | head -20",
+   "today": "pass",
+   "intended": "pass",
+   "rule": null
+  },
+  {
+   "id": "ls-names-the-word",
+   "group": "false-positive",
+   "level": "ask",
+   "command": "ls docs/decisions/x-approve-plan-y.md",
+   "today": "pass",
+   "intended": "pass",
+   "rule": null
+  },
+  {
+   "id": "wc-names-the-word",
+   "group": "false-positive",
+   "level": "ask",
+   "command": "wc -l docs/plans/approve-plan.md",
+   "today": "pass",
+   "intended": "pass",
+   "rule": null
+  },
+  {
+   "id": "diff-names-the-word",
+   "group": "false-positive",
+   "level": "ask",
+   "command": "diff -u docs/a-approve-plan.md docs/b-approve-plan.md",
+   "today": "pass",
+   "intended": "pass",
+   "rule": null
+  },
+  {
+   "id": "tail-stderr-to-null",
+   "group": "false-positive",
+   "level": "ask",
+   "command": "tail -n 5 docs/approve-plan.md 2>/dev/null",
+   "today": "pass",
+   "intended": "pass",
+   "rule": null
+  },
+  {
+   "id": "grep-single-quoted-key-with-spaces",
+   "group": "false-positive",
+   "level": "ask",
+   "command": "grep -n 'wb release-approvals' docs/development.md",
+   "today": "pass",
+   "intended": "pass",
+   "rule": null
+  },
+  {
+   "id": "literal-run-body-names-the-word",
+   "group": "false-positive",
+   "level": "ask",
+   "command": "wb run safe-git commit --subject 'Fix a thing' --body 'Say wb approve-plan docs/plans/x.md in the guide' -- docs/a.md",
+   "today": "pass",
+   "intended": "pass",
+   "rule": null
+  },
+  {
+   "id": "unrelated-letters-around-a-glob",
+   "group": "ordinary",
+   "level": "ask",
+   "command": "ls docs/*/groundnotes docs/*/workaccept-x",
+   "today": "pass",
+   "intended": "pass",
+   "rule": null
+  },
+  {
+   "id": "boundary-pipe-to-shell",
+   "group": "boundary",
+   "level": "ask",
+   "command": "grep -n approve-plan docs/development.md | sh",
+   "today": "refuse",
+   "intended": "refuse",
+   "rule": "names"
+  },
+  {
+   "id": "boundary-double-quoted-word",
+   "group": "boundary",
+   "level": "ask",
+   "command": "grep -n \"approve-plan\" docs/development.md",
+   "today": "refuse",
+   "intended": "refuse",
+   "rule": "names"
+  },
+  {
+   "id": "boundary-subshell",
+   "group": "boundary",
+   "level": "ask",
+   "command": "(grep -n approve-plan docs/development.md)",
+   "today": "refuse",
+   "intended": "refuse",
+   "rule": "names"
+  },
+  {
+   "id": "boundary-literal-run-double-quoted",
+   "group": "boundary",
+   "level": "ask",
+   "command": "wb run safe-git commit --subject \"x $(wb approve-plan y)\" -- docs/a.md",
+   "today": "refuse",
+   "intended": "refuse",
+   "rule": "names"
+  },
+  {
+   "id": "boundary-cat-then-run",
+   "group": "boundary",
+   "level": "ask",
+   "command": "cat docs/a.md; wb approve-plan docs/plans/x.md",
+   "today": "refuse",
+   "intended": "refuse",
+   "rule": "names"
+  },
+  {
+   "id": "boundary-grep-command-substitution",
+   "group": "boundary",
+   "level": "ask",
+   "command": "grep -n $(wb approve-plan docs/plans/x.md) docs/a.md",
+   "today": "refuse",
+   "intended": "refuse",
+   "rule": "names"
+  },
+  {
+   "id": "variable-set-elsewhere",
+   "group": "attempt",
+   "level": "ask",
+   "command": "wb ${A}-plan docs/plans/x.md",
+   "today": "refuse",
+   "intended": "refuse",
+   "rule": "gap"
+  },
+  {
+   "id": "bare-variable-set-elsewhere",
+   "group": "attempt",
+   "level": "ask",
+   "command": "wb $A-plan docs/plans/x.md",
+   "today": "refuse",
+   "intended": "refuse",
+   "rule": "gap"
+  },
+  {
+   "id": "two-variables-set-in-the-text",
+   "group": "attempt",
+   "level": "ask",
+   "command": "a=approve b=plan; wb $a-$b docs/plans/x.md",
+   "today": "refuse",
+   "intended": "refuse",
+   "rule": "names"
+  },
+  {
+   "id": "two-halves-set-in-the-text",
+   "group": "attempt",
+   "level": "ask",
+   "command": "a=appr b=oveplan; wb ${a}${b} x",
+   "today": "refuse",
+   "intended": "refuse",
+   "rule": "names"
+  },
+  {
+   "id": "brace-wrapped-word",
+   "group": "attempt",
+   "level": "ask",
+   "command": "wb {approve,x}-plan docs/plans/x.md",
+   "today": "refuse",
+   "intended": "refuse",
+   "rule": "gap"
+  },
+  {
+   "id": "preview-with-an-expansion",
+   "group": "ordinary",
+   "level": "ask",
+   "command": "wb preview release-approvals --dir $PWD",
+   "today": "pass",
+   "intended": "pass",
+   "rule": null
+  },
+  {
+   "id": "padded-letters-inside-printf",
+   "group": "attempt",
+   "level": "ask",
+   "command": "wb $(printf 'approv%s' e-plan) docs/plans/x.md",
+   "today": "refuse",
+   "intended": "refuse",
+   "rule": "gap"
+  },
+  {
+   "id": "padded-letters-stripped-by-expansion",
+   "group": "attempt",
+   "level": "ask",
+   "command": "A=xaxpxpxrxoxvxex-xpxlxaxn; wb ${A//x/} docs/plans/x.md",
+   "today": "refuse",
+   "intended": "refuse",
+   "rule": "gap"
+  },
+  {
+   "id": "padded-letters-stripped-by-tr",
+   "group": "attempt",
+   "level": "ask",
+   "command": "wb $(tr -d x <<< xaxpxpxrxoxvxex-xpxlxaxn) docs/plans/x.md",
+   "today": "refuse",
+   "intended": "refuse",
+   "rule": "gap"
+  },
+  {
+   "id": "padded-value-set-in-eval-then-stripped",
+   "group": "attempt",
+   "level": "ask",
+   "command": "eval 'x=approveQ-plan; wb ${x/Q/}' docs/plans/x.md",
+   "today": "refuse",
+   "intended": "refuse",
+   "rule": "gap"
+  },
+  {
+   "id": "padded-value-set-in-for-then-stripped",
+   "group": "attempt",
+   "level": "ask",
+   "command": "for x in approveQ-plan; do wb ${x/Q/} docs/plans/x.md; done",
+   "today": "refuse",
+   "intended": "refuse",
+   "rule": "gap"
+  },
+  {
+   "id": "padded-value-set-by-set-then-stripped",
+   "group": "attempt",
+   "level": "ask",
+   "command": "set -- approveQ-plan; wb ${1/Q/} docs/plans/x.md",
+   "today": "refuse",
+   "intended": "refuse",
+   "rule": "gap"
+  },
+  {
+   "id": "padded-value-in-array-then-stripped",
+   "group": "attempt",
+   "level": "ask",
+   "command": "a=(approveQ-plan); wb ${a[0]/Q/} docs/plans/x.md",
+   "today": "refuse",
+   "intended": "refuse",
+   "rule": "gap"
   }
  ]
 }
