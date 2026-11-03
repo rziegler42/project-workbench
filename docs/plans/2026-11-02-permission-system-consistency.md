@@ -567,5 +567,49 @@ conformance check and author guide, and named risk profiles. Also deferred: `del
   pure comparison; an unused name was removed. Two points were not changed: the `rule` field reads the refusal's prose, and
   increment I replaces that with the structured rule name; facts the drift test does not read are listed above. The fixes were not
   reviewed again.
-- **Not done:** the commit, which waits for the owner's word. A security review is not part of this increment (it changes no
+- **Committed** as `9b947b0286e097a2a602e5d5711c7011e9203576`. A security review was not part of this increment (it changed no
   production code).
+
+### Increment E — The registry
+
+- **Done:** `workbench/levels.py` is now the registry. `INSTALLER_KEYS` is the one table of the installer's own keys (its owner-run
+  commands and the checkpoints it names), each with its kind, danger class, offered levels, command word, the command that carries
+  it out, preview key and documentation anchor; `OWNER_RUN`, `PREVIEW_ACTIONS`, `CHECKPOINTED_COMMANDS`, `COMMAND_OF_CHECKPOINT`
+  and `_OFFERS` are derived from it, and the lists of agent-safe words and the spellings are defined there, with `rules.py`
+  re-exporting all of them so no call site or test changed. `Key` gained `kind`, `klass`, `carried_by`, `spellings`, `preview`,
+  `asks` and `anchor`, all with defaults. `levels.command_entry(command)` builds the seven facts the registry reads from a
+  declaration (the `asks` and the preview argument are new); `harnessstage.py`, `rendering.py` and `settingscmd.py` call it
+  instead of each building the five-item tuple, and a five-item tuple still works. The drift test's list fell from 13 to 10: a
+  module's `asks` is now recorded in the registry as a declared minimum, so it is no longer a disagreement.
+- **Beyond the plan's list of affected areas:** the three call sites above (the outcome says the registry's callers read it) and two
+  new or changed tests: `tests/test_levels_facts.py` (new, so `tests/test_levels.py` stays unchanged as the proof) and the D tests
+  (`test_permissions_drift.py`: the asks entries removed, the anchor reader added; `test_gate_corpus.py`: the file that defines the
+  spelling list is now `levels.py`).
+- **Verification as run:** 183 tests OK (`test_levels_facts`, `test_levels` unchanged, `test_permissions_drift`,
+  `test_gate_corpus`, `test_command_gate`). A broader run of 29 test modules that use the rules, the levels or the rendering: 1004
+  tests OK; three modules (`test_settings`, `test_gate`, `test_levellog`) do a bare `import support` and cannot load as
+  `tests.test_x`, and pass (135 tests) when loaded as `tests/run_all.py` loads them. The full suite was not run. The output of `wb
+  settings` is identical to its output before the change. A comparison of the committed tree (`HEAD`, extracted) with the working
+  tree, in separate processes: the seven lists, the derived tables, all 72 keys with their offers, default, agent flag and order,
+  the deny patterns of every key, the rendering plan for the default table (300 deny patterns) and its digest are identical.
+- **An incident, stated plainly:** renaming a constant in `levels.py` across several edits left the tree unimportable after the
+  first one. The two hooks import the workbench code from this working tree, both crashed, and every `Edit`, `Write` and `Bash` call
+  was refused until the owner ran a one-line `sed` in a terminal. No gate was worked around. The lesson is in memory: an edit to
+  installer code must leave the tree importable at each step. It is also a fact for the record of the lock decision: in this
+  self-hosted repository a change to `workbench/` can close the gates as well as a change to `packages/`.
+- **Review:** the `reviewer` agent, one exchange: five findings, none blocking. Applied: the module docstring was updated and no
+  longer names a module; the test that compared the new code with itself says so and points to the comparison above. Not changed,
+  and for the owner:
+- **A divergence from an accepted record, and the owner's decision.** Decision 4 of
+  `2026-11-02-one-permission-registry-and-key-model` puts the review engine's `extend`, `archive` and `amend` in the class of
+  `project`. The installer names no module and a declaration has no class field, so the registry derives a module argument's
+  class (owner-run or asks-bearing: `governs`; other: `reads`) and those three read as `governs`. The class changes no default
+  and no offered level, so nothing behaves differently. The owner chose, on 2026-11-02, to add a class a module can declare to
+  the module contract (option b). It lands in the follow-on plan `2026-11-02-permission-levels-for-every-command`, increment F,
+  step 0 (a package edit there). That plan starts after this one completes, so it comes **after** increment L, not before it as
+  the author first said. Until then **increment L does not report a risk for a module argument whose class is derived**; it
+  reports one for the installer's keys, the checkpoints and an argument that carries an `asks`, and for a module argument only
+  once a module declares its class. The divergence is pinned by a test (`tests/test_levels_facts.py`) so it cannot change unseen.
+- **Not done:** the commit, which waits for the owner's word; a security review of this increment (the code decides which commands
+  get a deny rule and which level a key may be set to, but the comparison above shows both unchanged); `anchor` is recorded only
+  for the installer's keys and checkpoints, and a module argument has none because its module documents it.

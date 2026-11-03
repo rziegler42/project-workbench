@@ -151,15 +151,16 @@ class Corpus(unittest.TestCase):
                 self.assertEqual(("block", "pass", "pass"), (case["level"], case["today"], case["intended"]))
 
     def test_the_block_side_does_not_depend_on_the_launcher_spelling(self):
-        """The spelling list is read by the gate and the rules and by nothing that decides whether a command may run, so the
-        command's own terminal test (``tests/test_approve_levels.py``) judges every spelling alike."""
+        """The spelling list is defined in the registry (``levels``), aliased by the rules and read by the gate, and by nothing
+        that decides whether a command may run, so the command's own terminal test (``tests/test_approve_levels.py``) judges
+        every spelling alike."""
         users = set()
         for name in sorted(os.listdir(os.path.join(REPO, "workbench"))):
             if name.endswith(".py"):
                 with open(os.path.join(REPO, "workbench", name), encoding="utf-8") as handle:
                     if "SPELLINGS" in handle.read():
                         users.add(name)
-        self.assertEqual({"command_gate.py", "rules.py"}, users)
+        self.assertEqual({"command_gate.py", "levels.py", "rules.py"}, users)
 
     def test_the_terminal_test_the_block_side_relies_on_exists(self):
         from tests import test_approve_levels

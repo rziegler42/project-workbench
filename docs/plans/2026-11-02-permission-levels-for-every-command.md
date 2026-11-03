@@ -41,7 +41,7 @@ In:
   preview-digest helper, the corpus and `wb doctor` that plan delivers; none exist before.
 - Every installer command here has a preview or needs one built. A digest that does not bind the preview's content makes `ask` a
   rubber stamp, so each preview is tested to change when the content changes and to be recomputed inside the command's own lock.
-- Increment E edits `packages/workbench/` (scripted pass, owner's release). The others edit the installer, tests and documents.
+- Increments E and F edit `packages/workbench/` (scripted pass, owner's release). The others edit the installer, tests and documents.
 - Any change to what a key offers changes the settings version and the rendering record; the owner runs `wb rerender` in a terminal
   after each increment that changes a rendered rule, and `wb doctor` says when it is due.
 - A decision record is written `Proposed`; accepting it is a checkpoint at level `ask`.
@@ -61,7 +61,8 @@ In:
    `block`.
 6. `wb verify` refuses a module whose declared preview does not print a `digest:` line of 32 lowercase hex or whose wrong digest is
    not refused, and warns on a shipped skill or agent that says to never run an argument whose declared levels include `ask` or
-   `none`; the author guide and a minimal example module exist.
+   `none`; a module can declare the danger class of an owner-run argument, and the review engine's `extend`, `archive` and `amend`
+   read as `project`; the author guide and a minimal example module exist.
 7. The owner can select a profile (cautious, balanced, trusting, as the record defines them) and override any key; `wb settings`
    prints the profile and what it set; `wb doctor` reports a relaxed key in a dangerous class as a risk.
 8. No setting an owner can write reads other than as written without `wb doctor` saying so.
@@ -153,9 +154,19 @@ names why they stay `block`.
 
 **Outcome:** a module author, first-party or external, is told when the module does not fit the permission system.
 **Dependencies:** E.
-**Affected areas:** `workbench/verify.py`, `workbench/wbkit/` (only if a check needs shared code), `tests/test_verify.py`,
-`docs/specs/module-contract.md`, a guide for module authors and a minimal example module in `docs/`.
+**Affected areas:** `workbench/verify.py`, `workbench/declarations.py`, `workbench/levels.py`, `workbench/wbkit/` (only if a check
+needs shared code), `tests/test_verify.py`, `tests/test_levels_facts.py`, `docs/specs/module-contract.md`, the `review-engine`
+declaration under `packages/workbench/` (a package edit: a scripted pass and the owner's release), a guide for module authors and
+a minimal example module in `docs/`.
 **Steps:**
+0. **A class a module can declare** (the owner's decision of 2026-11-02, from the result of increment E of
+   `2026-11-02-permission-system-consistency`). Add an optional field on a command's declaration, naming the danger class
+   (`project` or `governs`) of an owner-run argument; `reads` stays the class of an argument that only reads, and a class on an
+   argument that is not owner-run is refused. The registry uses a declared class and derives one only when none is declared. Write
+   the tests first (`wb verify` refuses an unknown class; the registry reads the declared class; the three review-engine
+   arguments `extend`, `archive` and `amend` read as `project`, which decision 4 of
+   `2026-11-02-one-permission-registry-and-key-model` requires, and `reset` and `prune` as `governs`), then declare it in the
+   `review-engine` module and update `tests/test_levels_facts.py`, whose pinned divergence changes on purpose.
 1. Write the tests first for `wb verify`: refuse a module whose declared preview does not print a `digest:` line of 32 lowercase
    hex, or whose wrong or missing digest is not refused; warn on a shipped skill or agent that says to never run an argument whose
    declared levels include `ask` or `none`; warn on a closed command list that leaves out `wb settings` while the skill depends on

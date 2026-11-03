@@ -33,13 +33,11 @@ INCREMENTS = tuple("ABCDEFGHIJKLM")
 # decision 5): each has a key of its own, and the two can carry different defaults.
 CHECKPOINT_PAIRS = {"submit-remote-job": "wb run remote-runner submit", "fetch-remote-output": "wb run remote-runner fetch"}
 
-# Every disagreement that exists today, and the increment of the plan that ends it. E: the registry records an ``asks`` as a
-# module's declared minimum, so it is no longer a disagreement; G: a checkpoint has one setting and a command that implements
-# one reads it, and the seed stops writing the version 1 object; K: the skills say what the registry says; M: the document.
+# Every disagreement that exists today, and the increment of the plan that ends it. (E ended three: the registry now records an
+# ``asks`` as a module's declared minimum, so it is no longer a disagreement.) G: a checkpoint has one setting and a command that
+# implements one reads it, and the seed stops writing the version 1 object; K: the skills say what the registry says; M: the
+# document.
 KNOWN = {
-    "asks-vs-level: wb run remote-runner fetch defaults to none and its module renders an ask": "E",
-    "asks-vs-level: wb run remote-runner submit defaults to none and its module renders an ask": "E",
-    "asks-vs-level: wb run safe-git remove defaults to none and its module renders an ask": "E",
     "checkpoint-pair: fetch-remote-output (block) and wb run remote-runner fetch (none) govern one act": "G",
     "checkpoint-pair: submit-remote-job (block) and wb run remote-runner submit (none) govern one act": "G",
     "development-table: release-approvals is an owner-run command but no Owner-run row of docs/development.md shows it": "M",
@@ -60,10 +58,12 @@ def modules():
     return loaded.modules
 
 
-def registry(found):
+def registry(found, entries=None):
+    """The registry as the installer builds it from the shipped declarations. `entries` replaces the command entries (a test
+    gives the five-item form that records no ``asks``)."""
     checkpoints = [name for module in found if module.type == "process" for name in module.checkpoints]
-    commands = [(command.name, command.owner, command.arguments, command.levels, command.checkpoint_of)
-                for module in found for command in module.commands]
+    commands = entries if entries is not None else [levels.command_entry(command)
+                                                   for module in found for command in module.commands]
     return levels.registry(checkpoints, commands)
 
 
@@ -73,14 +73,32 @@ def read(path):
 
 
 def asks_against_level(found, keys):
-    """A module renders an ask for an argument whose key defaults to ``none``: two mechanisms, and the registry does not
-    say which one governs."""
+    """A module renders an ask for an argument whose key defaults to ``none`` and the registry does not record the ask as the
+    module's declared minimum: two mechanisms, and nothing says which one governs. (A recorded ``asks`` is deliberate, under
+    ``2026-10-29-workbench-asks-for-remove-submit-and-fetch`` and decision 5 of ``2026-11-02-one-permission-registry-and-key-model``.)"""
     for module in found:
         for command in module.commands:
             for argument in command.asks:
                 key = "wb run %s %s" % (command.name, argument)
-                if key in keys and keys[key].default == levels.NONE:
+                if key in keys and keys[key].default == levels.NONE and not keys[key].asks:
                     yield "asks-vs-level: %s defaults to none and its module renders an ask" % key
+
+
+def anchors_against_documents(keys, texts=None):
+    """A key that names a document as its anchor must be named in it: a command as ``workbench <command>`` or ``wb <command>``,
+    a checkpoint by its name."""
+    texts = {} if texts is None else dict(texts)
+    for name, key in keys.items():
+        if not key.anchor:
+            continue
+        text = texts.setdefault(key.anchor, read(os.path.join(REPO, key.anchor)))
+        if key.kind == levels.CHECKPOINT:
+            found = name in text
+        else:
+            command = name[3:] if name.startswith("wb ") else name
+            found = ("workbench %s" % command) in text or ("wb %s" % command) in text
+        if not found:
+            yield "anchor: %s is not named in %s" % (name, key.anchor)
 
 
 def checkpoint_pairs(keys, pairs=None):
@@ -206,7 +224,8 @@ def disagreements():
     found = modules()
     keys = registry(found)
     result = []
-    for source in (asks_against_level(found, keys), checkpoint_pairs(keys), spec_against_registry(keys, read(SPEC)),
+    for source in (asks_against_level(found, keys), anchors_against_documents(keys), checkpoint_pairs(keys),
+                   spec_against_registry(keys, read(SPEC)),
                    development_against_rules(read(DEVELOPMENT)), skills_against_levels(keys, neutral_texts()),
                    seed_against_version_two()):
         result.extend(source)
@@ -262,8 +281,22 @@ class EachReaderFindsADisagreementItIsGiven(unittest.TestCase):
         cls.keys = registry(cls.found)
 
     def test_an_ask_against_a_level(self):
-        self.assertIn("asks-vs-level: wb run safe-git remove defaults to none and its module renders an ask",
-                      list(asks_against_level(self.found, self.keys)))
+        """With the five-item entries, which carry no ``asks``, the registry does not record the minimum and the reader reports
+        the three keys; with the entries the installer builds, it records them and the reader finds nothing."""
+        old = [(c.name, c.owner, c.arguments, c.levels, c.checkpoint_of) for m in self.found for c in m.commands]
+        unrecorded = registry(self.found, entries=old)
+        self.assertEqual(["asks-vs-level: wb run remote-runner fetch defaults to none and its module renders an ask",
+                          "asks-vs-level: wb run remote-runner submit defaults to none and its module renders an ask",
+                          "asks-vs-level: wb run safe-git remove defaults to none and its module renders an ask"],
+                         sorted(asks_against_level(self.found, unrecorded)))
+        self.assertEqual([], list(asks_against_level(self.found, self.keys)))
+
+    def test_an_anchor_that_does_not_name_its_key(self):
+        self.assertEqual([], list(anchors_against_documents(self.keys)))
+        empty = {key.anchor: "" for key in self.keys.values() if key.anchor}
+        reported = list(anchors_against_documents(self.keys, empty))
+        self.assertIn("anchor: wb install is not named in docs/development.md", reported)
+        self.assertIn("anchor: approve-plan is not named in docs/specs/command-permissions.md", reported)
 
     def test_a_pair_of_a_checkpoint_and_a_command(self):
         self.assertEqual(sorted("checkpoint-pair: %s" % name for name in CHECKPOINT_PAIRS),
