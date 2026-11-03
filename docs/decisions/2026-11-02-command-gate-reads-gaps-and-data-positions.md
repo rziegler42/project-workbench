@@ -1,6 +1,6 @@
 # The command gate reads a word only where it could run: a gap rule for the in-order test and a data position for plain reads
 
-Status: Proposed
+Status: Accepted by Robert Ziegler <25854477+rziegler42@users.noreply.github.com> on 2026-11-02
 Date: 2026-11-02
 
 ## Context
