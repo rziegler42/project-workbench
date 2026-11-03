@@ -650,4 +650,36 @@ conformance check and author guide, and named risk profiles. Also deferred: `del
   differential test covers the other gate readers too. Not changed: the guard test that the two readers no longer split a key is a text
   search (brittle, harmless), and the `key` loop skips a name the registry lacks (it cannot happen today). No security review was
   run: the gate's answers are proved unchanged by the differential tests, and the plan offers one at increment I.
+- **Committed** as `f09c62dd890e8f0470bb58f03b396db96295db4e`.
+
+### Increment G — Checkpoints as keys, one setting each
+
+- **Done:** (1) A new settings file is seeded as `{"floor": [...], "levels": {}, "version": 2}`: the table, with no `checkpoints`
+  object (`settings.VERSION` is 2, `_seed_document`). A version 1 file is still read, its words read as levels for a key the table
+  does not name, and `wb settings` prints each reading; nothing writes the old object. Migrating an existing file is the owner's edit.
+  (2) The registry's `Key` gained `paired_with` and `stated_by`. `levels.PAIRED_ACTS` records `submit-remote-job` with `wb run
+  remote-runner submit` and `fetch-remote-output` with `wb run remote-runner fetch` on both keys, and `levels.STATED_BY` records the
+  skill that states each checkpoint the agent follows: `push-shared-branch` in `push-changes`, the two remote checkpoints in
+  `run-remote-job`, `change-direction` in `draft-roadmap` and `draft-spec`. (3) The drift test no longer lists the two pairs or the
+  seed; `KNOWN` is down from 10 entries to 7 (1 for M, 6 for K). The spec, `trust-and-approval.md` and `development.md` describe the seed.
+- **What "resolved" means for the pairs: recorded, not merged.** Decision 5 of `2026-11-02-one-permission-registry-and-key-model`
+  does not map the remote commands to the checkpoints (the contract's `checkpoint_of` does not apply to them, and mapping them would
+  move their default from `none` to `block`) and leaves the question to the follow-on plan. So each pair still has two levels
+  (`block` for the checkpoint, `none` for the command, with the module's `asks` rendering a prompt either way). G makes the choice
+  visible: the drift reader reports a pair only when the registry does not record it. The reader cannot fire on the real registry by
+  design; its negative test feeds it an unrecorded pair. `wb doctor` (L) is to list the recorded pairs.
+- **A departure from step 3, for the owner:** the plan lists "the acknowledge wording" among the skill-stated rules. No shipped skill
+  states the acknowledge checkpoints; `wb acknowledge` carries them and their wording is the policy block of `AGENTS.md`. The registry
+  records no `stated_by` for them, and the spec says why. Increment K may find other skills that state `change-direction`.
+- **Step 1, as built:** the existing tests already covered "a key in both takes the table entry"; G added one that the word beside
+  an entry is not also translated, and the seed tests. A command that implements a checkpoint reading the checkpoint's key
+  (`accept-decision`) was already tested and is unchanged.
+- **Verification as run:** `test_levels_facts` 37, `test_levels` 35, `test_settings` 84, `test_settingscmd` 33,
+  `test_permissions_drift` 14, `test_checkpoint_command` 51, `test_checkpoint_command_run` 36, `test_rendering` 84 and
+  `test_gate_corpus` 15, all OK (`-W error`). The tests were written before the code, but I did not run them against the old code to
+  see them fail; they name attributes and a seed shape that did not exist. The full suite was not run.
+- **Review:** the `reviewer` agent, one exchange: five findings, none blocking. All were checks or notes: the pair is recorded and not
+  merged (above), no reader of the seed assumes version 1, `stated_by` matches the skills with the acknowledge omission (above), the
+  tests are sound. Nothing was changed after the review. No security review: nothing here widens a level, and the seed carries
+  the same values.
 - **Not done:** the commit, which waits for the owner's word.

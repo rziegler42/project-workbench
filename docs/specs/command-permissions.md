@@ -71,8 +71,10 @@ checkpoint and the table: a key's level is its table entry, else its checkpoint 
 ### The table
 
 The personal settings accept `version` 1 and 2. Version 2 may hold an object `levels`, from a key to a level; in a version 1 file
-`levels` is an unknown entry and is ignored. A new file is seeded at version 1, so the owner changes `version` to 2 by hand to
-use `levels`. The table is the single source of a level: an entry wins over the key's checkpoint in either direction, so loosening
+`levels` is an unknown entry and is ignored. A new file is seeded at version 2 with an empty `levels` object and no `checkpoints` object
+(`{"floor": [...], "levels": {}, "version": 2}`), so the owner adds an entry to `levels` and nothing else. A file seeded earlier, at
+version 1, is still read, and its `checkpoints` words are read as levels; migrating it is the owner's edit, and `wb settings`
+prints each word it read as a level. The table is the single source of a level: an entry wins over the key's checkpoint in either direction, so loosening
 a key is one edit. A `checkpoints` entry in the file is only a fallback for a key the table does not name, and its word is read as a
 level, `stop` as `block` and `delegate` as `delegated`; `wb settings` prints a `translated <key>: <word> read as <level>` line for
 each such reading (it is not a problem, so it is not a `settings:` line). When a key is in both and they differ, `wb settings`
@@ -724,6 +726,13 @@ that is not a boundary; the owner's review of the commit that holds the records 
   keys are not built: the `prune` digest does not bind each review's rounds, decisions or generation (a pruned review is sealed and
   closed, so it cannot change between the preview and the apply), and the plain `prune` list cannot run at `ask` without a terminal (an
   agent uses `preview prune`).
+- The checkpoints `submit-remote-job` and `fetch-remote-output` and the commands `wb run remote-runner submit` and `fetch` do the
+  same acts and keep a level each (`block` and `none`, with the module's `asks` rendering a prompt for the command either way). The
+  registry records each as a pair on both keys (`paired_with`), as decision `2026-11-02-one-permission-registry-and-key-model`
+  (decision 5) settles; merging them is for the plan `2026-11-02-permission-levels-for-every-command`. The registry also records,
+  for each checkpoint the agent follows as a rule, the skill that states it (`stated_by`: `push-shared-branch` in `push-changes`, the
+  two remote checkpoints in `run-remote-job`, `change-direction` in `draft-roadmap` and `draft-spec`). The acknowledge checkpoints
+  are carried by `wb acknowledge`, and no skill states them; their wording is the policy block of `AGENTS.md`.
 - The keys `submit-remote-job` and `push-shared-branch`: each needs its own preview digest for `ask` and offers `block` only. The checkpoints `fetch-remote-output` and `change-direction` also offer `block` only: the plan
   built `none` for the installer commands and for `accept-decision`, and these two are agent checkpoints that no command of the
   installer runs, so a `none` for them has nothing to change. The accepted decision says no key should be limited to `block`; this

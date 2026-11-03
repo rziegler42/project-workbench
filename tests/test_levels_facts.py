@@ -112,6 +112,40 @@ class ACheckpoint(unittest.TestCase):
     def test_acknowledge_is_carried_by_its_command(self):
         self.assertEqual("wb acknowledge", registry()["acknowledge-first-tier"].carried_by)
 
+    def test_a_checkpoint_the_agent_follows_names_the_skills_that_state_it(self):
+        keys = registry()
+        self.assertEqual({"push-shared-branch": ("push-changes",), "submit-remote-job": ("run-remote-job",),
+                          "fetch-remote-output": ("run-remote-job",), "change-direction": ("draft-roadmap", "draft-spec")},
+                         {name: key.stated_by for name, key in keys.items() if key.stated_by})
+        self.assertEqual(levels.STATED_BY, {name: key.stated_by for name, key in keys.items() if key.stated_by})
+
+    def test_a_checkpoint_a_command_carries_names_no_skill_here(self):
+        """Its skill is the one that runs the command (checked by increment K); the registry records the rules only."""
+        keys = registry(GROUNDWORK)
+        for name in ("approve-plan", "accept-decision", "acknowledge-first-tier", "acknowledge-second-tier", "wb install"):
+            self.assertEqual((), keys[name].stated_by, name)
+
+    def test_the_stated_skills_belong_to_declared_checkpoints_that_no_command_carries(self):
+        keys = registry()
+        for name in levels.STATED_BY:
+            self.assertEqual(("checkpoint", ""), (keys[name].kind, keys[name].carried_by), name)
+
+    def test_a_checkpoint_and_the_command_that_does_its_act_are_recorded_as_a_pair(self):
+        """Decision 5 of ``2026-11-02-one-permission-registry-and-key-model``: the two keep their own levels and say so."""
+        keys = registry(REMOTE)
+        # `registry` builds the argument keys from an owner-run argument or an `asks`.
+        self.assertEqual({"submit-remote-job": "wb run remote-runner submit", "fetch-remote-output": "wb run remote-runner fetch"},
+                         levels.PAIRED_ACTS)
+        for checkpoint, command in levels.PAIRED_ACTS.items():
+            self.assertEqual(command, keys[checkpoint].paired_with, checkpoint)
+            self.assertEqual(checkpoint, keys[command].paired_with, command)
+        self.assertEqual("", keys["approve-plan"].paired_with)
+        self.assertEqual("", keys["wb run remote-runner fetch-overwrite"].paired_with)
+
+    def test_a_pair_is_recorded_on_the_checkpoint_even_when_the_command_is_not_installed(self):
+        self.assertEqual("wb run remote-runner submit", registry()["submit-remote-job"].paired_with)
+        self.assertNotIn("wb run remote-runner submit", registry())
+
 
 class AModuleArgument(unittest.TestCase):
     def test_an_argument_with_an_asks_is_recorded_as_a_declared_minimum_and_is_in_the_class_that_governs(self):

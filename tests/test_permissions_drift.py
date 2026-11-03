@@ -35,13 +35,10 @@ CHECKPOINT_PAIRS = {"submit-remote-job": "wb run remote-runner submit", "fetch-r
 
 # Every disagreement that exists today, and the increment of the plan that ends it. (E ended three: the registry now records an
 # ``asks`` as a module's declared minimum, so it is no longer a disagreement.) G: a checkpoint has one setting and a command that
-# implements one reads it, and the seed stops writing the version 1 object; K: the skills say what the registry says; M: the
-# document.
+# document. (G ended three: the registry records the two pairs of a checkpoint and a command as deliberate, and the seed writes
+# the table and not the version 1 object.) K: the skills say what the registry says; M: the document.
 KNOWN = {
-    "checkpoint-pair: fetch-remote-output (block) and wb run remote-runner fetch (none) govern one act": "G",
-    "checkpoint-pair: submit-remote-job (block) and wb run remote-runner submit (none) govern one act": "G",
     "development-table: release-approvals is an owner-run command but no Owner-run row of docs/development.md shows it": "M",
-    "settings-seed: a new settings file is written with the version 1 checkpoints object": "G",
     "skill-vs-level: code-work/delegate-approval says never run `approve-plan`, which the registry offers at ask or none": "K",
     "skill-vs-level: review-engine/peer-review says never run `amend`, which the registry offers at ask or none": "K",
     "skill-vs-level: review-engine/peer-review says never run `archive`, which the registry offers at ask or none": "K",
@@ -103,7 +100,8 @@ def anchors_against_documents(keys, texts=None):
 
 def checkpoint_pairs(keys, pairs=None):
     for checkpoint, command in sorted((CHECKPOINT_PAIRS if pairs is None else pairs).items()):
-        if checkpoint in keys and command in keys and keys[checkpoint].default != keys[command].default:
+        if (checkpoint in keys and command in keys and keys[checkpoint].default != keys[command].default
+                and not (keys[checkpoint].paired_with == command and keys[command].paired_with == checkpoint)):
             yield "checkpoint-pair: %s (%s) and %s (%s) govern one act" % (
                 checkpoint, keys[checkpoint].default, command, keys[command].default)
 
@@ -253,7 +251,7 @@ class Drift(unittest.TestCase):
         self.assertEqual(["asks-vs-level: wb run nothing nowhere defaults to none and its module renders an ask"],
                          compare(now, stale)["listed but gone"])
         self.assertEqual([], compare(now, stale)["not listed"])
-        fewer = {key: value for key, value in KNOWN.items() if not key.startswith("settings-seed")}
+        fewer = {key: value for key, value in KNOWN.items() if not key.startswith("development-table")}
         self.assertEqual(1, len(compare(now, fewer)["not listed"]))
 
     def test_the_readers_are_not_empty(self):
@@ -299,9 +297,14 @@ class EachReaderFindsADisagreementItIsGiven(unittest.TestCase):
         self.assertIn("anchor: approve-plan is not named in docs/specs/command-permissions.md", reported)
 
     def test_a_pair_of_a_checkpoint_and_a_command(self):
+        self.assertEqual([], list(checkpoint_pairs(self.keys)))  # the registry records both pairs as deliberate
+        unrecorded = {name: key._replace(paired_with="") for name, key in self.keys.items()}
         self.assertEqual(sorted("checkpoint-pair: %s" % name for name in CHECKPOINT_PAIRS),
-                         sorted(line.split(" (")[0] for line in checkpoint_pairs(self.keys)))
-        same = dict(self.keys)
+                         sorted(line.split(" (")[0] for line in checkpoint_pairs(unrecorded)))
+        half = dict(self.keys)
+        half["wb run remote-runner submit"] = half["wb run remote-runner submit"]._replace(paired_with="")
+        self.assertEqual(1, len(list(checkpoint_pairs(half))))
+        same = dict(unrecorded)
         same["wb run remote-runner submit"] = same["submit-remote-job"]
         same["wb run remote-runner fetch"] = same["fetch-remote-output"]
         self.assertEqual([], list(checkpoint_pairs(same)))
@@ -354,9 +357,9 @@ class EachReaderFindsADisagreementItIsGiven(unittest.TestCase):
         self.assertEqual(1, len(list(skills_against_levels(self.keys, said))))
 
     def test_a_seed_with_the_version_one_object(self):
-        self.assertEqual(1, len(list(seed_against_version_two())))
-        with unittest.mock.patch.object(settings, "_seed_document", lambda: {"version": 2, "levels": {}}):
-            self.assertEqual([], list(seed_against_version_two()))
+        self.assertEqual([], list(seed_against_version_two()))
+        with unittest.mock.patch.object(settings, "_seed_document", lambda: {"version": 1, "checkpoints": {}}):
+            self.assertEqual(1, len(list(seed_against_version_two())))
 
 
 if __name__ == "__main__":
