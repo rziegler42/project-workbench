@@ -224,4 +224,25 @@ Empty until a review is asked for.
   newline, uppercase hex, non-ASCII digits, other lengths and non-text; the tests of `test_wbkit_digest.py` pin them), the kit's rules as
   holding, the fixture reason as accurate and in the form `test_self_hosting.py` expects, and the three files as matching the
   plan's steps. It could not run anything or read the helpers' code.
-- **Not done:** the commit.
+- **Committed as** `e18b4cb88beec6bd4f3ddc6cac4c2e082f2e1357`. Not pushed.
+
+### Increment B — Decision: the boundary list, module-owned pairing and module pins
+
+- **Done:** `docs/decisions/2026-11-03-conformance-tests-name-modules-and-module-pins-follow-the-levels.md`, written `Proposed`, then
+  accepted by the owner through `groundwork accept` at `ask` (digest `8df232b7f4f855f04f9944c45b2d64e8`). It decides three things:
+  (1) `tests/test_levels_facts.py` and `tests/test_permissions_drift.py` are exempt from the boundary scan by exact path, nothing under
+  `workbench/` is, and `test_doctor.py`, `test_command_gate.py` and `test_gate_corpus.py` are reworded to made-up module names;
+  (2) `PAIRED_ACTS`, `_PAIRED_BACK` and `paired_with` leave `levels.py`, the pairs stay in the drift test's `CHECKPOINT_PAIRS` and the
+  spec, and merging them is for the follow-on plan; (3) the nine module assertions change one at a time as the record's table says:
+  two texts are fixed and their pins kept, five pins are updated to the phrase that is now true, and three limits are raised with a
+  reason (the policy block from 32 to 40 lines, the plan-drafting skill's commands, the commands `peer-review` runs).
+- **A change from the plan's own recommendation, for the owner to know:** the plan's step 3 recommended that a module declare the pairing.
+  Reading the source showed that nothing in the installer reads `paired_with` while it runs (only one test does), and the follow-on
+  plan decides whether to merge the pairs, so the record recommends removing it and says it reverses the first recommendation. The
+  owner accepted it.
+- **Verification as run:** `wb check` and `wb run code-work check`: no problems. The facts in the record were read from the full run, the
+  extract of the base commit, a scan of the boundary test (97 places before increment A, 90 after, by file and word), a search for
+  `paired_with` and `PAIRED_ACTS`, and the nine assertions in the module tests.
+- **Review:** none run for this increment (it writes one record, which the owner reads and accepts at the checkpoint); the plan asks
+  for none at B.
+- **Not done:** the commit; nothing in this record is built (increments C and D).
