@@ -1,6 +1,6 @@
 # One permission subsystem: remove the drift, fix the refusals
 
-Status: Completed
+Status: In Progress
 Created: 2026-11-02
 Candidate: none (the closest, `workbench-v1#checkpoint-levels-beyond-block`, widens levels and leaves this cleanup out of its boundary; the follow-on plan `2026-11-02-permission-levels-for-every-command` takes the widening; the owner directed both on 2026-11-02)
 Specs: command-permissions, module-contract, trust-and-approval, harness-refresh, review-engine
@@ -1083,7 +1083,16 @@ conformance check and author guide, and named risk profiles. Also deferred: `del
   not offer (`acknowledge-first-tier`, `wb upgrade`, `wb attach`, `wb approve`, each set to `ask`, each reading `block`) and the
   version 1 `checkpoints` entry for `approve-plan` (its level `ask` already applied). `wb doctor` then printed "doctor found no problems
   and 8 risks" (the eight `governs` keys at `ask` that the owner chose), with no rendering drift, because no level that applies changed.
-- **Plan completed.** The completion criteria are met with the evidence recorded above, with these caveats, each recorded where it
+- **Reopened after the full suite (2026-11-03).** The owner asked for one full run before a push (`python3 -B -W error
+  tests/run_all.py`, 7,018 tests in 14 roots, the repository's `tests/` and each module's own tests). It found 15 failures in three
+  roots that no targeted run of the increments had shown, all passing on the base commit `76df744`, so all caused by this plan: six
+  in `tests/` (the kit's rules and naming in `wbkit/digest.py` from H, `levels.py` naming a module command from G, the boundary rule
+  against modules named in the installer's tests, and the self-hosting record for the edited `docs/plans/README.md`), seven in the
+  `code-work` module's own tests and two in the `review-engine` module's (the text of increment K against the pins those modules keep
+  on their skills and policy block). The status above is therefore `In Progress` again, and the fixes are the plan
+  `2026-11-03-full-suite-regressions-of-the-permission-plan`, which the owner approves before work starts. The note below stands
+  with that correction: the criteria were met by the targeted evidence recorded, and not by a full run.
+- **Plan completed (superseded by the note above).** The completion criteria are met with the evidence recorded above, with these caveats, each recorded where it
   arose: criterion 6, a heredoc whose docstrings hold double backticks is still refused by the gap rule (deferred, Increment M);
   criterion 7, a deliberate edit to a module's file is named by its module directory (Increment J); criterion 10, `wb doctor` has a
   third severity and reads neither a plan approval that changed since it was given nor the launcher spellings (Increment L).
