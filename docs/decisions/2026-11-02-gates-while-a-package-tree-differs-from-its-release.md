@@ -1,6 +1,6 @@
 # The gates stay closed while the harness cannot be shown to match its release, and say why; narrowing the lock is an option and not decided here
 
-Status: Proposed
+Status: Accepted by Robert Ziegler <25854477+rziegler42@users.noreply.github.com> on 2026-11-02
 Date: 2026-11-02
 
 ## Context
