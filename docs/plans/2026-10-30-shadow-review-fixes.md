@@ -1,6 +1,6 @@
 # Fix what the security review of the action-review shadow found
 
-Status: Proposed
+Status: Completed
 Created: 2026-10-30
 Candidate: workbench-v1#action-review-engine
 Specs: action-review
