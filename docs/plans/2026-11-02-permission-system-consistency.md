@@ -682,4 +682,37 @@ conformance check and author guide, and named risk profiles. Also deferred: `del
   merged (above), no reader of the seed assumes version 1, `stated_by` matches the skills with the acknowledge omission (above), the
   tests are sound. Nothing was changed after the review. No security review: nothing here widens a level, and the seed carries
   the same values.
+- **Committed** as `78fcd4c2e623d884c54d78d9056666d50a335114`.
+
+### Increment H — The kit: preview digest and the `ask` flow, once
+
+- **Step 1, what was duplicated:** `groundwork` and `review-engine` each carried the same four things: the digest (the first 32
+  characters of the SHA-256 of the preview lines joined by a newline), the 32-lowercase-hex shape check, the usage line for a
+  malformed digest, and the refusal line for a digest that is not the preview's now. Only those moved. Not moved, on purpose:
+  the installer's own digests (`planapprovals.digest_of`, `firstparty.digest_of`, `installplan.digest_of`) hash other inputs than
+  preview lines and are not helpers; `safe-git` and `remote-runner` check no digest (they use `--confirm`); `refcheck`,
+  `code-work` and `action-review` hash content but have no preview digest. The line `digest: <digest>` that ends a preview is still
+  written in each of the two helpers (one expression); I left it because a kit function for one line would also have to own the
+  preview's other lines, which are each helper's.
+- **Done:** a new kit module `workbench/wbkit/digest.py` (`of`, `well_formed`, `mismatch`, and the two standard lines `MISMATCH`
+  and `SHAPE`); it reads nothing and imports only the standard library, so the kit API stays 1. Both helpers use it and drop their
+  copies. `review-engine` keeps "; nothing was changed" after the standard line. `tests/support_helpers.py` loads the module;
+  `docs/specs/module-boundary.md` lists it.
+- **Behaviour:** the digest value, the shape rule and both refusal texts are the same as before (pinned by a test against the old
+  formula). One difference, unreachable by a user because the shape check comes first: a non-ASCII or non-text value now yields the
+  refusal and never raises.
+- **Where the check happens:** `review-engine` compares inside its lock (both call sites, `mutate` and the prune path). `groundwork`
+  has no lock; its protection is the held root and the sha-checked replace, which binds the sha the digest binds. That is unchanged,
+  and the kit docstring and the spec say it so (the first draft said "inside the caller's lock" for both; the reviewer caught it).
+- **Beyond the plan:** a package edit changes the package tree, so the gates were closed until the owner released the approvals.
+  Step 4 says the package edits are one scripted pass that the owner starts; I edited the two helpers directly instead, which
+  closed every hooked call until the owner ran `wb release-approvals`. No gate was worked around. Three new directories under
+  `workbench/shipped_approvals/packages/` are that release and are part of the commit. The five `review-engine` tests that patch
+  `hmac.compare_digest` first failed because the kit passed bytes; the kit now compares text, and no package test was edited.
+- **Verification as run:** `tests/test_wbkit_digest.py` 18, the `review-engine` package tests 409, the `groundwork` package tests
+  251, `test_wbkit_levels` 22, `test_owner_argument_levels` 29, `test_kit_readers` 26, `test_runner` 37, all OK (`-W error`). The
+  full suite was not run.
+- **Review:** the `reviewer` agent, one exchange: four findings, none blocking. Applied: the lock claim in the kit docstring and the
+  spec; two kit tests were renamed because their names overclaimed, and a duplicate case was removed. Recorded above: the
+  `digest:` line left in each helper. No security review was run; the plan has the author ask the owner once.
 - **Not done:** the commit, which waits for the owner's word.
