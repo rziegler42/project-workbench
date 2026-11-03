@@ -427,6 +427,17 @@ class Lookup(Guarded):
         self.refused(self.write(self.inside("x"), harness="nothing"), "not a known harness")
         self.refused(self.write(self.inside("x"), dist=self.dist), "not a known harness")
 
+    def test_a_package_edit_closes_the_agent_gate_and_the_line_names_the_cause(self):
+        packages = os.path.join(self.gdist, "packages")
+        stray = os.path.join(packages, sorted(os.listdir(packages))[0], "stray.txt")
+        with open(stray, "w") as handle:
+            handle.write("x")
+        self.addCleanup(os.remove, stray)
+        with self.assertRaises(agent_gate.Refusal) as caught:
+            agent_gate.known(self.gdist, NAME)
+        self.assertIn("stray.txt", str(caught.exception))
+        self.assertIn("wb release-approvals --digest", str(caught.exception))
+
     def test_the_shape_of_the_input_is_checked_before_the_project_is_looked_up(self):
         with unittest.mock.patch.object(agent_gate, "declared") as looked:
             for cwd, session in (("relative", SESSION), (self.real + "/..", SESSION), (self.real, "a/b"), ("", SESSION)):

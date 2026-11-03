@@ -19,9 +19,21 @@ CAPS = [{"name": "rounds", "default": 3, "ceiling": 5}, {"name": "tries", "defau
 CHECKPOINT_LINES = "checkpoint approve-plan: stop\ncheckpoint beta: stop\n"
 
 
+# The class and the offered levels of the keys the installer names, pinned here and not computed from the code under test
+# (plan ``2026-11-02-permission-system-consistency``, increment F: ``wb settings`` prints a `key` line for each key). A
+# checkpoint the installer does not name is in the class that governs and offers ``block`` only; an agent-safe key reads.
+KEY_FACTS = {
+    "approve-plan": ("governs", "block,delegated,ask,none"),
+    "wb install": ("project", "block,none"), "wb adopt": ("project", "block,none"), "wb upgrade": ("project", "block,none"),
+    "wb add": ("project", "block,none"), "wb attach": ("project", "block,none"), "wb recover": ("project", "block,none"),
+    "wb rerender": ("governs", "block"), "wb approve": ("governs", "block,none"), "wb pin": ("governs", "block,none"),
+    "wb release-approvals": ("governs", "block,ask,none"),
+}
+
+
 def level_lines(declared, **levels):
     """The `level` lines: the declared checkpoints, then each owner-run command of the installer, all `block` unless
-    `levels` (keyed with underscores for spaces and dashes) says otherwise."""
+    `levels` (keyed with underscores for spaces and dashes) says otherwise; then the `key` line of each of those keys."""
     names = list(declared)
     for command in rules.OWNER_RUN:
         if command == "acknowledge":
@@ -31,9 +43,13 @@ def level_lines(declared, **levels):
             names.append(name)
     from workbench import levels as keyset
     agent = list(keyset.agent_keys()) + ["wb run tool check", "wb run tool report"]  # the default module's arguments
-    return "".join("level %s: %s\n" % (name, levels.get(name.replace(" ", "_").replace("-", "_"),
-                                                         "none" if name in agent else "block"))
-                   for name in names + agent)
+    every = names + agent
+    return ("".join("level %s: %s\n" % (name, levels.get(name.replace(" ", "_").replace("-", "_"),
+                                                          "none" if name in agent else "block"))
+                    for name in every)
+            + "".join("key %s: class=%s offers=%s\n" % ((name,) + (("reads", "block,none") if name in agent
+                                                                    else KEY_FACTS.get(name, ("governs", "block"))))
+                      for name in every))
 
 
 def problem_lines(out):

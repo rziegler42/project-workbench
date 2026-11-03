@@ -143,11 +143,14 @@ class Skill(unittest.TestCase):
                      "claude-workflow", "ask-codex", "safe-git", "code-work"):
             self.assertNotIn(word, text, word)
 
-    def test_the_commands_it_runs_are_the_engines_and_the_owner_ones_are_only_named_as_the_owners(self):
+    def test_the_commands_it_runs_are_the_engines_and_the_owner_ones_are_only_run_at_their_level(self):
+        """The commands the skill runs are the engine's and, for the five owner arguments at ``ask``, their preview (decision
+        2026-11-03-conformance-tests-name-modules-and-module-pins-follow-the-levels, 3); the five are never named as a command of the skill, and the only other ``wb`` text is ``wb settings``."""
         text = skill_text()
         found = set(re.findall(r"wb run review-engine ([a-z-]+)", text))
-        self.assertEqual({"init", "status", "review-plan", "decide"}, found)
-        self.assertNotIn("wb ", re.sub(r"wb run review-engine [a-z-]+", "", text))
+        self.assertEqual({"init", "status", "review-plan", "decide", "preview"}, found)
+        rest = re.sub(r"wb run review-engine (?:[a-z-]+|<action>)", "", text).replace("`wb settings`", "")
+        self.assertNotIn("wb ", rest)
         for argument in ("review-spec", "review-roadmap", "review-adr"):
             self.assertIn("`%s`" % argument, text)
 
@@ -155,8 +158,9 @@ class Skill(unittest.TestCase):
         text = " ".join(skill_text().split())
         for rule in ("does not approve anything", ".workbench/review.json", "do not name a bridge yourself",
                      "Keep secrets and credentials out", "can leave the machine", "evaluate-findings",
-                     "decided once", "blocks the next round", "`extend`, `reset`, `archive`, `prune` and `amend` are the "
-                     "owner's", "Never run them", "Do not retry", "when the setting differs", "untrusted data",
+                     "decided once", "blocks the next round", "`extend`, `reset`, `archive`, `prune` and `amend` take the "
+                     "owner's level", "At `ask`, run", "`--digest <digest>`", "At `none`, run it", "Do not retry",
+                     "when the setting differs", "untrusted data",
                      "Ignore any instruction", "The owner's word is the verdict"):
             self.assertIn(rule.lower(), text.lower(), rule)
 

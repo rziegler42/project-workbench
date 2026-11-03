@@ -32,9 +32,10 @@ class SeedTest(SettingsBase):
     def test_seeds_when_missing(self):
         self.assertTrue(settings.seed(self.store))
         document = json.loads(self.raw())
-        self.assertEqual(document["version"], 1)
+        self.assertEqual(document["version"], 2)
         self.assertEqual(document["floor"], [stop.id for stop in floor.FLOOR])
-        self.assertEqual(document["checkpoints"], {})
+        self.assertEqual(document["levels"], {})
+        self.assertNotIn("checkpoints", document)
 
     def test_seed_is_deterministic_and_does_not_overwrite(self):
         settings.seed(self.store)
@@ -252,10 +253,18 @@ class CapsTest(SettingsBase):
         self.assertEqual({"approve-plan": "stop"}, got.checkpoints)
         self.assertEqual(1, len(got.notes))
 
-    def test_the_seed_is_unchanged(self):
+    def test_the_seed_is_the_table_and_not_the_version_1_object(self):
         settings.seed(self.store)
-        self.assertEqual({"checkpoints": {}, "floor": [stop.id for stop in floor.FLOOR], "version": 1},
-                         json.loads(self.raw()))
+        self.assertEqual({"floor": [stop.id for stop in floor.FLOOR], "levels": {}, "version": 2}, json.loads(self.raw()))
+
+    def test_a_seeded_file_reads_with_no_problem_and_every_key_at_its_default(self):
+        settings.seed(self.store)
+        loaded, got = self.effective(None)
+        self.assertEqual(([], []), (loaded.problems, got.notes))
+        self.assertEqual("block", got.levels["approve-plan"])
+        self.assertEqual({"review-rounds": 3, "same-failure-retries": 1}, got.caps)
+        self.assertEqual({}, loaded.checkpoints)
+        self.assertEqual((), got.translated)
 
 
 class LevelsTest(SettingsBase):
@@ -435,6 +444,15 @@ class LevelsTest(SettingsBase):
         self.assertEqual([], loaded.problems + got.notes)  # a translation is reported apart from the problems
         self.assertEqual(2, len(got.translated), got.translated)
         self.assertEqual({("approve-plan", "delegate", "delegated"), ("beta", "stop", "block")}, set(got.translated))
+
+    def test_a_key_in_both_is_one_level_and_is_not_also_translated(self):
+        """One setting, one reading: the table entry is the level, so the checkpoint word beside it is not read a second
+        time (increment G of ``2026-11-02-permission-system-consistency``)."""
+        loaded, got = self.effective({"version": 2, "checkpoints": {"approve-plan": "delegate", "beta": "stop"},
+                                      "levels": {"approve-plan": "delegated"}})
+        self.assertEqual({"approve-plan": "delegated", "beta": "block"}, self.declared(got))
+        self.assertEqual([("beta", "stop", "block")], list(got.translated))
+        self.assertEqual([], loaded.problems + got.notes)
 
     def test_a_checkpoint_the_file_does_not_set_is_read_as_the_default_with_no_note(self):
         loaded, got = self.effective({"version": 1})

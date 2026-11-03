@@ -59,7 +59,8 @@ class BlockedWhenTheWordIsContiguous(unittest.TestCase):
                 self.assertIsNotNone(judge(command))
 
     def test_a_word_that_only_appears_in_text_is_blocked_too(self):
-        for command in ("grep -r approve-plan docs", "git commit -m 'approve-plan the thing'", "echo approve-plan"):
+        for command in ("sed -n 1p docs/approve-plan.md", "git commit -m 'approve-plan the thing'", "echo approve-plan",
+                        "git log --grep approve-plan"):
             with self.subTest(command=command):
                 self.assertIsNotNone(judge(command))
 
@@ -190,9 +191,10 @@ class WhatTheTextCannotSee(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertIsNotNone(judge(command))
 
-    def test_a_variable_far_from_the_rest_of_the_word_passes(self):
-        """The window is cosmetic against a variable (review S3); the decision accepts a word built at run time."""
-        self.assertIsNone(judge("A=approve; : " + "x" * 40 + "; wb $A-plan docs/plans/x.md"))
+    def test_a_variable_set_in_the_text_is_put_in_whatever_the_distance(self):
+        """Before increment I the window was cosmetic against a variable (review S3) and this passed. The text sets ``A``, so the
+        name tests read it with the value in, and the gap rule reads ``$A`` as a wildcard beside ``-plan``."""
+        self.assertIsNotNone(judge("A=approve; : " + "x" * 40 + "; wb $A-plan docs/plans/x.md"))
 
     def test_a_script_file_passes_because_the_command_names_no_word(self):
         self.assertIsNone(judge("bash ./x.sh"))
@@ -285,8 +287,11 @@ class SingleWordKeys(unittest.TestCase):
 
     def test_a_preview_that_holds_an_expansion_or_a_glob_is_still_blocked(self):
         # The pattern rule reads the text as written (the decision accepts it): run such a preview with the path spelled out.
-        self.assertIsNotNone(self.judge("wb preview install --dir $PWD"))
+        # Before increment I the in-order rule counted the letters of `preview` as padding and refused this. The gap rule does
+        # not: the preview is agent-safe and the expansion stands for no letters of the word (a literal `preview` sits between).
+        self.assertIsNone(self.judge("wb preview install --dir $PWD"))
         self.assertIsNone(self.judge("wb preview install --dir /tmp/x"))
+        self.assertIsNotNone(self.judge("wb preview install --dir $(wb install)"))
 
     def test_a_module_command_named_like_a_preview_is_still_read_as_its_words(self):
         key = "wb run preview install"
@@ -303,7 +308,8 @@ class SingleWordKeys(unittest.TestCase):
 
     def test_approve_plan_is_still_read_as_the_word_alone(self):
         self.assertIsNotNone(self.judge("echo approve-plan", keys=("approve-plan",)))
-        self.assertIsNotNone(self.judge("grep approve-plan docs", keys=("approve-plan", "wb install")))
+        self.assertIsNone(self.judge("grep approve-plan docs", keys=("approve-plan", "wb install")))  # a data position
+        self.assertIsNotNone(self.judge("xargs approve-plan", keys=("approve-plan", "wb install")))
         self.assertIsNone(self.judge("npm install", keys=("approve-plan", "wb install")))
 
     def test_a_module_command_key_is_still_read_as_its_words(self):
@@ -434,7 +440,8 @@ class LiteralRunCommands(unittest.TestCase):
         self.assertIsNone(self.judge("wb run vault init x", keys=(key,)))
         self.assertIsNotNone(self.judge("wb run vault init 'x'", keys=(key,)))
         self.assertIsNotNone(self.judge("wb run helper commit --subject 'vault init'", keys=(key,)))
-        self.assertIsNotNone(self.judge("wb run x 'approve-plan'", keys=("approve-plan",)))
+        # approve-plan is freed too (decision 4 of 2026-11-02-command-gate-reads-gaps-and-data-positions): see ApprovePlanRun.
+        self.assertIsNone(self.judge("wb run x 'approve-plan'", keys=("approve-plan",)))
 
     def test_the_exemption_does_not_lift_the_other_relaxed_keys(self):
         keys = ("wb install", "wb run vault init")
@@ -636,9 +643,293 @@ class ModuleArgumentIsData(unittest.TestCase):
         self.assertLess(time.monotonic() - started, 5)
 
     def test_the_other_kinds_of_key_are_judged_as_before(self):
-        self.assertIsNotNone(judge("wb run vault preview 'approve-plan'", keys=("approve-plan",)))
+        self.assertIsNone(judge("wb run vault preview 'approve-plan'", keys=("approve-plan",)))  # freed by decision 4
         self.assertIsNone(judge("wb run helper commit --subject 'install'", keys=("wb install",)))
         self.assertIsNotNone(judge("bash -c 'wb install'", keys=("wb install",)))
+
+
+KEYS = ("approve-plan", "wb install", "wb release-approvals", "wb run notary accept", "wb run ledger extend")
+
+
+class DataPosition(unittest.TestCase):
+    """A word is data when the whole command is a plain read (decision ``2026-11-02-command-gate-reads-gaps-and-data-positions``, 3)."""
+
+    def test_the_closed_list_is_these_seven_programs(self):
+        self.assertEqual(("cat", "diff", "grep", "head", "ls", "tail", "wc"), command_gate.DATA_PROGRAMS)
+
+    def test_each_program_reads_a_word_as_data(self):
+        for program in command_gate.DATA_PROGRAMS:
+            for command in ("%s -n approve-plan docs/development.md" % program, "%s docs/x-approve-plan-y.md" % program,
+                            "%s 'wb approve-plan docs/plans/x.md' notes.md" % program):
+                with self.subTest(command=command):
+                    self.assertIsNone(judge(command, keys=KEYS))
+
+    def test_a_pipeline_of_them_is_data(self):
+        for command in ("cat docs/x-approve-plan.md | head -20", "grep -n approve-plan docs/a.md | wc -l",
+                        "grep -n wb docs/a.md 2>/dev/null | head -5 | tail -2", "ls docs 2>&1", "cat a.md | grep -n 'wb install' | head"):
+            with self.subTest(command=command):
+                self.assertIsNone(judge(command, keys=KEYS))
+
+    def test_a_single_quoted_string_may_hold_what_bash_would_expand(self):
+        for command in ("grep 'wb a?prove-plan' notes.md", "grep -n 'a$(wb install)b `wb install` ${X} *' notes.md",
+                        "grep 'one\ntwo wb install\nthree' notes.md".replace("\\n", chr(10))):
+            with self.subTest(command=command):
+                self.assertIsNone(judge(command, keys=KEYS))
+
+    def test_a_program_that_runs_its_arguments_is_not_on_the_list(self):
+        for program in ("sed", "awk", "find", "xargs", "env", "tee", "sort", "git", "bash", "sh", "python3", "wb", "nohup", "time",
+                        "exec", "eval", "command", "builtin", "xargs", "parallel", "less", "man", "watch", "timeout", "nice"):
+            command = "%s -n approve-plan docs/development.md" % program
+            with self.subTest(program=program):
+                self.assertFalse(command_gate.reads_as_data(command))
+                self.assertIsNotNone(judge(command, keys=KEYS))
+
+    def test_anything_that_expands_chains_or_redirects_is_not_data(self):
+        for command in ("grep -n approve-plan docs/*.md", "grep -n approve-plan docs/a?.md", "grep -n approve-plan docs/[ab].md",
+                        'grep -n "approve-plan" docs/a.md', "grep -n approve-plan $HOME/a.md", "grep -n approve-plan ${H}/a.md",
+                        "grep -n approve-plan `pwd`/a.md", "grep -n approve-plan $(pwd)/a.md", "grep -n approve-plan a.md; wb check",
+                        "grep -n approve-plan a.md && wb check", "grep -n approve-plan a.md || wb check",
+                        "grep -n approve-plan a.md\nwb check", "grep -n approve-plan a.md &", "grep -n approve-plan a.md > out.txt",
+                        "grep -n approve-plan a.md >> out.txt", "grep -n approve-plan < a.md", "grep -n approve-plan a.md 2>out.txt",
+                        "grep -n approve-plan a.md | sh", "grep -n approve-plan a.md | tee x", "(grep -n approve-plan a.md)",
+                        "{ grep -n approve-plan a.md; }", "grep -n approve-plan ~/a.md", "grep -n approve-plan a\\ b.md",
+                        "grep  -n approve-plan a.md", "grep -n approve-plan  a.md", " grep -n approve-plan a.md",
+                        "grep -n approve-plan a.md ", "grep -n approve-plan a.md |head", "grep -n approve-plan a.md| head",
+                        "grep -n app'rove-p'lan a.md", "grep -n 'approve-plan'a.md", "FOO=1 grep -n approve-plan a.md",
+                        "/bin/grep -n approve-plan a.md", "./grep -n approve-plan a.md", "grep -n approve-plan a.md #",
+                        "grep -n approve-plan <(wb check)", "grep $'approve-plan' a.md", "cat approve-plan.md |& head"):
+            with self.subTest(command=command):
+                self.assertFalse(command_gate.reads_as_data(command))
+                self.assertIsNotNone(judge(command, keys=KEYS))
+
+    def test_a_word_in_a_command_that_is_not_data_is_still_refused(self):
+        for command in ("grep -n approve-plan docs/a.md | head && wb approve-plan docs/plans/x.md --digest " + DIGEST,
+                        "cat docs/a.md; bash -c 'wb approve-plan x'"):
+            with self.subTest(command=command):
+                self.assertIsNotNone(judge(command, keys=KEYS))
+
+    def test_a_long_command_is_judged_quickly(self):
+        import time
+        started = time.monotonic()
+        command = "cat " + " ".join("'a b c'" for _ in range(8000)) + " | head -3"
+        self.assertTrue(command_gate.reads_as_data(command))
+        self.assertFalse(command_gate.reads_as_data(command + " 'x"))
+        self.assertFalse(command_gate.reads_as_data("cat " + "a " * 30000 + "$"))
+        self.assertLess(time.monotonic() - started, 5)
+
+
+class ApprovePlanRun(unittest.TestCase):
+    """A literal ``wb run <name> <arguments>`` frees ``approve-plan`` and no other ``wb run <command> <argument>`` key (decision 4)."""
+
+    def test_a_literal_call_that_mentions_the_word_is_data(self):
+        for command in ("wb run vault commit --subject 'Explain approve-plan in the guide' -- docs/development.md",
+                        "wb run vault commit --subject 'x' --body 'run wb approve-plan docs/plans/x.md' -- docs/a.md",
+                        "%s run vault commit --subject approve-plan -- a.md" % STORE_BIN):
+            with self.subTest(command=command):
+                self.assertIsNone(judge(command))
+
+    def test_it_is_not_freed_when_anything_is_expanded_chained_or_double_quoted(self):
+        for command in ('wb run vault commit --subject "approve-plan" -- a.md', "wb run vault commit --subject $X approve-plan",
+                        "wb run vault commit --subject 'x' -- a.md && wb approve-plan x --digest " + DIGEST,
+                        "wb run vault commit --subject 'x' -- a.md\nwb approve-plan x",
+                        "wb run approve-plan x", "wb run wb approve-plan x", "wb run vault commit --subject approve-plan -- a.md ; ls"):
+            with self.subTest(command=command):
+                self.assertIsNotNone(judge(command))
+
+    def test_an_argument_key_is_not_freed_by_it(self):
+        key = "wb run ledger extend"
+        self.assertIsNotNone(judge("wb run vault commit --subject 'x wb run ledger extend y' -- docs/a.md", keys=(key,)))
+
+
+class GapRule(unittest.TestCase):
+    """The letters of a key match only where nothing but wildcards separates them (decision 2)."""
+
+    def test_unrelated_letters_do_not_add_up_to_a_key(self):
+        for command in ("grep -rn \"checkpoint_of\" packages/workbench/*/module.json packages/workbench/*/*.json 2>/dev/null | head",
+                        "printf '%s\\n' '- [Release approvals at ask](notes.md) -- preview' >> MEMORY.md",
+                        "for f in docs/plans/2026-11-0*.md; do echo \"$f\"; head -3 \"$f\"; done",
+                        'echo "$HOME/projects/x" "$PWD/docs" "$1"', "ls docs/*/groundnotes docs/*/workaccept-x",
+                        "git log --format=%H -n 3", "find . -name '*.py' -exec grep -l 'approach plan' {} +"):
+            with self.subTest(command=command):
+                self.assertIsNone(judge(command, keys=KEYS))
+
+    def test_a_wildcard_in_place_of_letters_is_a_spelling(self):
+        for command in ("wb appr$1ove-plan docs/plans/x.md", "wb approve-$1plan p", "wb appro*-plan x", "wb app?ove-plan x",
+                        "wb ???rove-plan x", "wb appr{ove-,junk}plan x", "wb {approve-,x}plan x", "wb a{p,q}p{r,s}ove-plan x",
+                        "wb app$(echo r)ove-plan x", "wb a${X}p${Y}r${Z}ove-plan x", "wb appro${unset:+padding}ve-plan x",
+                        "wb a$zz'p'$zz'p'$zz'r'$zz'o'$zz'v'$zz'e'-plan x", "wb ${A}-plan x", "wb $A-plan x",
+                        "wb appr[a-z]ve-plan x", "wb app`echo r`ove-plan x", "W=w; Z=b; X=ove; $W$Z appr${X}-plan x"):
+            with self.subTest(command=command):
+                self.assertIsNotNone(judge(command))
+
+    def test_another_literal_letter_between_two_letters_of_the_word_breaks_the_match(self):
+        """The change decision B makes: letters of unrelated words do not count. No expansion here makes bash join them."""
+        for command in ("wb appr?zove-plan x", "wb ap$(true)pzrove-plan x", "wb appr*z*ove-plan x", "wb approv?z-plan x"):
+            with self.subTest(command=command):
+                self.assertIsNone(judge(command))
+        # A wildcard wide enough to stand for the rest of the word is a spelling, whatever follows it.
+        self.assertIsNotNone(judge("wb appr${X}zove-plan x"))
+
+    def test_padding_inside_an_expansion_is_still_a_spelling(self):
+        """The reviewer's finding: letters written inside an expansion with padding the expansion strips are caught, as the old
+        rule caught them. The padding that can be run lives inside the expansion."""
+        for command, keys in (("wb $(printf 'inst%s' all) x", ("wb install",)),
+                              ("A=xaxpxpxrxoxvxex-xpxlxaxn; wb ${A//x/} docs/plans/x.md", (APPROVE,)),
+                              ("wb $(tr -d x <<< xaxpxpxrxoxvxex-xpxlxaxn)", (APPROVE,)),
+                              ("wb `printf 'appr%s' ove-plan` x", (APPROVE,)),
+                              ("wb app${X:-r}ove-plan x", (APPROVE,))):
+            with self.subTest(command=command):
+                self.assertIsNotNone(judge(command, keys=keys))
+
+    def test_prose_inside_an_expansion_is_not_a_spelling_when_it_is_too_long(self):
+        long_message = ("git commit -m \"$(cat <<'EOF'\nRefactor the parser so that the settings are read once, keep the "
+                        "plan list in order, and move the loader into a helper, with no new dependency.\nEOF\n)\"")
+        for key in (APPROVE, "wb install", "wb run notary accept", "wb release-approvals"):
+            with self.subTest(key=key):
+                self.assertIsNone(judge(long_message, keys=(key,)))
+
+    def test_a_literal_letter_outside_an_expansion_still_breaks_the_match(self):
+        self.assertIsNone(judge("wb apprq?ove-plan x"))  # the `q` is written outside any expansion and cannot be skipped
+
+    def test_a_star_stands_for_at_most_three_letters(self):
+        self.assertIsNotNone(judge("wb appro*-plan x"))
+        self.assertIsNone(judge("wb appr* x"))
+
+    def test_the_match_needs_a_third_of_the_letters_written_out(self):
+        self.assertIsNone(judge("wb ${A}${B} x"))
+        self.assertIsNone(judge("wb $A$B$C x"))
+
+    def test_a_long_command_with_many_wildcards_is_judged_quickly(self):
+        import time
+        started = time.monotonic()
+        self.assertIsNone(judge("ls " + "$X " * 20000, keys=KEYS))
+        self.assertIsNone(judge("ls " + "*/a " * 15000, keys=KEYS))
+        self.assertIsNone(judge("echo " + "a${X}" * 12000, keys=KEYS))
+        self.assertLess(time.monotonic() - started, 8)
+
+    def test_the_unit_reads_wildcards_and_literals(self):
+        wild = command_gate._WILD
+        self.assertTrue(command_gate._gap_match("xxabc" + wild + "efxx", "abcdef"))
+        self.assertFalse(command_gate._gap_match("xxabcQ" + wild + "efxx", "abcdef"))
+        self.assertTrue(command_gate._gap_match("ab" + wild * 4 + "ef", "abcdef"))  # four wildcards: two letters, with room
+        self.assertFalse(command_gate._gap_match(wild * 6, "abcdef"))  # no letter written out
+        self.assertFalse(command_gate._gap_match("ab" + wild + "f", "abcdef"))  # one wildcard for two letters
+        self.assertTrue(command_gate._gap_match("zzabcdef", "abcdef"))
+
+
+class VariablesSetInTheText(unittest.TestCase):
+    def test_a_use_is_replaced_by_the_value_set_in_the_same_text(self):
+        for text, want in (("a=approve b=plan; wb $a-$b x", "a=approve b=plan; wb approve-plan x"),
+                           ("a=appr b=oveplan; wb ${a}${b} x", "a=appr b=oveplan; wb approveplan x"),
+                           ("A='approve'; wb ${A}-plan", "A='approve'; wb approve-plan"),
+                           ('A="approve"; wb $A-plan', 'A="approve"; wb approve-plan'),
+                           ("A=x A=approve; wb $A-plan", "A=x A=approve; wb approve-plan")):
+            with self.subTest(text=text):
+                self.assertEqual(want, command_gate.substituted(text))
+
+    def test_what_is_not_a_simple_assignment_is_left_alone(self):
+        for text in ("wb $A-plan", "A=$B; wb $A", "A=$(x); wb $A", "A=`x`; wb $A", "echo A=1", "A=1; wb $B", "A=b$C; wb $A"):
+            with self.subTest(text=text):
+                self.assertEqual(text, command_gate.substituted(text))
+
+    def test_it_is_bounded(self):
+        text = " ".join("v%d=a" % number for number in range(100)) + "; echo $v0 $v99"
+        self.assertTrue(command_gate.substituted(text).endswith("; echo a $v99"))
+
+    def test_a_value_used_many_times_does_not_grow_the_text_past_the_cap(self):
+        text = ("A=" + "x" * 4000 + "; " + "echo $A " * 6000)[:60000]
+        self.assertEqual(text, command_gate.substituted(text))
+        small = "A=" + "x" * 20 + "; echo $A $A"
+        self.assertEqual("A=" + "x" * 20 + "; echo " + "x" * 20 + " " + "x" * 20, command_gate.substituted(small))
+
+    def test_a_value_set_in_a_way_the_tracker_misses_is_still_read_through_a_parameter_operator(self):
+        for text in ("eval 'x=approveQ-plan; wb ${x/Q/}' docs/plans/x.md",
+                     "bash -c 'x=approveQ-plan;wb ${x/Q/}' docs/plans/x.md",
+                     "for x in approveQ-plan; do wb ${x/Q/} docs/plans/x.md; done",
+                     "x=approve; x+=Q-plan; wb ${x/Q/} docs/plans/x.md",
+                     "printf -v x approveQ-plan; wb ${x/Q/} docs/plans/x.md",
+                     "set -- approveQ-plan; wb ${1/Q/} docs/plans/x.md",
+                     "a=(approveQ-plan); wb ${a[0]/Q/} docs/plans/x.md"):
+            with self.subTest(text=text):
+                self.assertEqual("gap", command_gate.verdict(text, (APPROVE,), STORE_BIN).rule)
+
+    def test_a_parameter_operator_in_an_ordinary_command_is_not_read_as_a_spelling(self):
+        for text in ("echo ${HOME#/} done", "ls ${DIR:-.}/docs", "x=${y:-fallback}; echo $x",
+                     "git log --oneline -n 5 ${BRANCH:-main}"):
+            with self.subTest(text=text):
+                self.assertIsNone(command_gate.verdict(text, (APPROVE,), STORE_BIN))
+
+
+class TheRuleIsNamed(unittest.TestCase):
+    def verdict(self, command, **extra):
+        return command_gate.verdict(command, (APPROVE,), STORE_BIN, **extra)
+
+    def test_each_refusal_names_the_rule_that_fired(self):
+        self.assertEqual("names", self.verdict("bash -c 'wb approve-plan x'").rule)
+        self.assertEqual("gap", self.verdict("wb appr$1ove-plan x").rule)
+        self.assertEqual("dollar-quote-limit", self.verdict("wb check " + "$'a' " * 70).rule)
+        self.assertIsNone(self.verdict("wb check"))
+
+    def test_the_reason_ends_with_the_rule(self):
+        for command, rule in (("bash -c 'wb approve-plan x'", "names"), ("wb appr$1ove-plan x", "gap"),
+                              ("wb check " + "$'a' " * 70, "dollar-quote-limit")):
+            with self.subTest(rule=rule):
+                self.assertTrue(self.verdict(command).reason.endswith("(rule: %s)" % rule), self.verdict(command).reason)
+                self.assertEqual(self.verdict(command).reason, judge(command))
+
+    def test_the_reason_says_what_passes(self):
+        self.assertIn("run it as `wb approve-plan ...` on its own", self.verdict("bash -c 'wb approve-plan x'").reason)
+        self.assertIn("run it as `wb approve-plan ...` on its own", self.verdict("wb appr$1ove-plan x").reason)
+
+    def test_the_size_limit_names_its_rule_through_run(self):
+        code, err = run({"cwd": "/tmp", "tool_name": "Bash", "tool_input": {"command": "echo " + "x" * (command_gate.MAX_COMMAND + 1)}})
+        self.assertEqual(2, code)
+        self.assertTrue(err.rstrip().endswith("(rule: size-limit)"), err)
+
+
+class TheRefusalLog(unittest.TestCase):
+    PAYLOAD = {"cwd": "/tmp", "tool_name": "Bash", "tool_input": {"command": "bash -c 'wb approve-plan x'"}}
+
+    def run_with(self, payload, log):
+        def prepare(cwd):
+            return "Bash", "command", {"approve-plan": "ask"}, STORE_BIN, log
+        return run(payload, prepare)
+
+    def test_a_refusal_is_logged_with_its_rule_and_the_command(self):
+        seen = []
+        code, err = self.run_with(self.PAYLOAD, lambda rule, command: seen.append((rule, command)))
+        self.assertEqual(2, code)
+        self.assertEqual([("names", "bash -c 'wb approve-plan x'")], seen)
+
+    def test_an_allowed_command_is_not_logged(self):
+        seen = []
+        payload = {"cwd": "/tmp", "tool_name": "Bash", "tool_input": {"command": "wb check"}}
+        self.assertEqual((0, ""), self.run_with(payload, lambda rule, command: seen.append(rule)))
+        self.assertEqual([], seen)
+
+    def test_a_data_position_command_is_not_logged(self):
+        seen = []
+        payload = {"cwd": "/tmp", "tool_name": "Bash", "tool_input": {"command": "grep -n approve-plan docs/a.md"}}
+        self.assertEqual(0, self.run_with(payload, lambda rule, command: seen.append(rule))[0])
+        self.assertEqual([], seen)
+
+    def test_a_log_that_fails_changes_nothing(self):
+        def broken(rule, command):
+            raise OSError("the log is full")
+        code, err = self.run_with(self.PAYLOAD, broken)
+        self.assertEqual(2, code)
+        self.assertTrue(err.startswith("refused: "), err)
+        self.assertEqual(1, err.count("\n"))
+        self.assertEqual((2, err), self.run_with(self.PAYLOAD, None))
+
+    def test_the_size_limit_is_logged(self):
+        seen = []
+        payload = {"cwd": "/tmp", "tool_name": "Bash", "tool_input": {"command": "echo " + "x" * (command_gate.MAX_COMMAND + 1)}}
+        self.assertEqual(2, self.run_with(payload, lambda rule, command: seen.append(rule))[0])
+        self.assertEqual(["size-limit"], seen)
+
+    def test_a_prepare_of_four_items_still_works(self):
+        self.assertEqual(2, run(self.PAYLOAD)[0])
 
 
 def run(payload, prepare=None):

@@ -64,6 +64,10 @@ needs in order to read untrusted repository content safely and to report:
   paths git tracks read from `.git/index` (`wbkit/gitindex.py`) and strict JSON (`wbkit/jsonstrict.py`);
 - cleaning text for a terminal (`display.clean`) and decoding bytes with `replace`;
 - running another module's command through the launcher (`wbkit/call.py`, below);
+- the preview digest of an `ask` (`wbkit/digest.py`): the digest of the preview lines (`of`, 32 lowercase hexadecimal characters), its
+  shape check (`well_formed`), the one refusal line when a given digest is not the preview's now (`mismatch`) and the one usage line
+  for a malformed digest. The kit takes the lines and reads nothing, so a helper builds them inside the critical section that makes the change (`review-engine`'s
+  lock; `groundwork`'s held root and sha-checked replace) and the digest it compares is that of what it is about to change. `groundwork` and `review-engine` use it;
 - the permission level of a command and the level log's lines (`wbkit/levels.py`): whether a command whose level the caller
   has verified may run with or without a terminal (`may_run`), and the attempt and outcome lines of the log with their
   append (`begin`, `finish`). The caller reads and verifies the level; the kit does not, and no module helper uses these yet

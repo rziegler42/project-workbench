@@ -20,6 +20,7 @@ kind. The ``wb`` launcher is given a clean environment. Standard library only, a
 import hashlib
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -33,6 +34,7 @@ WAIT_SECONDS = 27
 SECOND_WAIT = 2  # after the group is killed, for the output of a program that left it; the two add up to under 30
 MAX_INPUT = 1 << 20
 MAX_COMMAND = 4096
+MAX_REASON = 300  # the store's limit for a stored reason
 MAX_STREAM = 2 << 20
 USAGE = "usage: shadow_hook.py [--wb <absolute path of the wb launcher>]"
 REASONS = ("reviewed", "no_rule", "unreviewable", "refused", "failed", "timeout")
@@ -47,6 +49,77 @@ def note(err, text):
         err.write(text + "\n")
     except (OSError, ValueError):
         pass
+
+
+# -- redaction ---------------------------------------------------------------------------------------------------------
+# What the hook stores is redacted by a fixed list of patterns (`docs/specs/action-review.md`, "The shadow hook"). It is best
+# effort: a secret in a shape the list does not name is kept as it was. There is no rule by entropy, because it would hide the git
+# hashes that the owner needs to judge a command. Every pattern is bounded or anchored so that its work is linear in the text, and
+# a test pins the time on the largest text the hook can hold.
+
+MAX_DEPTH = 64
+_NAMES = r"secret|token|passw(?:or)?d|passphrase|credential|[_-]key|(?:api|access|private|auth)key"
+_VALUE = r"""(?!\[redacted:)(?:"[^"\n]+"|'[^'\n]+'|["'][^\r\n]{4,}|[^\s"';]{4,})"""
+_PRIVATE_KEY = re.compile(r"-----BEGIN [A-Z0-9 ]{0,40}PRIVATE KEY(?: BLOCK)?-----.*?"
+                          r"(?:-----END [A-Z0-9 ]{0,40}PRIVATE KEY(?: BLOCK)?-----|\Z)", re.S)
+# Not \b: a hyphen is a character of the token, and \b before every "eyJ-" would start a scan to the end of the text each time.
+_JWT = re.compile(r"(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{4,}")
+_TOKEN = re.compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b|\bgh[pousr]_[A-Za-z0-9]{20,}|\bgithub_pat_[A-Za-z0-9_]{20,}"
+                    r"|\bsk-(?:ant-)?[A-Za-z0-9_-]{20,}|\bxox[abprs]-[A-Za-z0-9-]{10,}|\bAIza[0-9A-Za-z_-]{35}")
+_AUTHORIZATION = re.compile(r"""(\bAuthorization(?:\\?["'])?[ \t]{0,8}[:=][ \t]{0,8}(?:\\?["'])?)(?:(?:Basic|Bearer|Digest|Token)[ \t]+)?"""
+                            r"""(?!\[redacted:)[^\s"',;]{8,}""", re.I)
+_BEARER = re.compile(r"\b(Bearer[ \t]+)(?=[A-Za-z0-9._~+/=-]*[0-9._~+/=-])[A-Za-z0-9._~+/=-]{16,}", re.I)
+_CREDENTIALS = re.compile(r"(\b[A-Za-z][A-Za-z0-9+.-]{0,20}://)[^\s/:@]{1,200}:[^\s/]{1,200}@")
+# The name is found by its keyword, so that the work is a few steps per keyword and not per character; what comes before the
+# keyword in the name is left where it is.
+_ASSIGNMENT = re.compile(r"((?:%s)[A-Za-z0-9_.-]{0,32}(?:\\?[\"'])?[ \t]{0,8}[:=][ \t]{0,8}\\?)(%s)" % (_NAMES, _VALUE), re.I)
+_FLAG = re.compile(r"((?<![-A-Za-z0-9])-{1,2}[a-z-]{0,32}(?:%s)[a-z-]{0,32}[ \t]+)(?!-)(%s)" % (_NAMES, _VALUE), re.I)
+
+
+def _marker(kind):
+    return "[redacted:%s]" % kind
+
+
+def _quoted(match):
+    """The assignment with its value replaced; a quote that opened the value stays, and so does one that closed it."""
+    value = match.group(2)
+    if value[0] in "\"'":
+        return match.group(1) + value[0] + _marker("assignment") + (value[-1] if value[-1] == value[0] else "")
+    return match.group(1) + _marker("assignment")
+
+
+def redact_text(text):
+    """`text` with every secret the patterns find replaced by ``[redacted:<kind>]``; anything else, line breaks included, is kept."""
+    text = _PRIVATE_KEY.sub(_marker("private-key"), text)
+    text = _JWT.sub(_marker("jwt"), text)
+    text = _TOKEN.sub(_marker("token"), text)
+    text = _AUTHORIZATION.sub(lambda match: match.group(1) + _marker("bearer"), text)
+    text = _BEARER.sub(lambda match: match.group(1) + _marker("bearer"), text)
+    text = _CREDENTIALS.sub(lambda match: match.group(1) + _marker("url-credentials") + "@", text)
+    text = _FLAG.sub(_quoted, text)
+    return _ASSIGNMENT.sub(_quoted, text)
+
+
+def redact(value, depth=0):
+    """A copy of a text, list or object of JSON values with every string redacted; keys, numbers, booleans and nulls are kept. A
+    value of any other type, a key that is not a string, or a nesting deeper than MAX_DEPTH is refused with ValueError, so that a
+    row is never written from something this function did not see whole."""
+    if depth > MAX_DEPTH:
+        raise ValueError("nested too deeply")
+    if isinstance(value, str):
+        return redact_text(value)
+    if value is None or isinstance(value, (int, float)):  # a bool is an int
+        return value
+    if isinstance(value, list):
+        return [redact(item, depth + 1) for item in value]
+    if isinstance(value, dict):
+        out = {}
+        for key, item in value.items():
+            if not isinstance(key, str):
+                raise ValueError("a key that is not a string")
+            out[key] = redact(item, depth + 1)
+        return out
+    raise ValueError("a value of a type that is not JSON")
 
 
 # -- the input --------------------------------------------------------------------------------------------------------
@@ -199,23 +272,47 @@ def write(err, name, row, home, fallback=None):
     return False
 
 
+def redacted_text(err, command, verdict, facts):
+    """``(reason, command, facts)`` as they may be stored: the reason, the command and the facts with their secrets replaced. The
+    command and the facts are None when nothing is to be collected. If a redaction fails, or the redacted text no longer fits the
+    store's limits, everything comes back None: a row never holds text that this function did not redact, and the note is fixed
+    text that quotes nothing."""
+    reason = verdict[2] if verdict else None
+    try:
+        if reason is not None:
+            reason = redact_text(reason)
+            if len(reason) > MAX_REASON:
+                raise ValueError("the redacted reason is too long")
+        if facts is None:
+            return reason, None, None
+        shown = redact_text(command)
+        if len(shown) > MAX_COMMAND:
+            raise ValueError("the redacted command is too long")
+        return reason, shown, redact(facts)
+    except Exception:  # whatever went wrong, no raw text goes to a file
+        note(err, "the hook could not redact the text of a row; the reason and the collected row are left out")
+        return None, None, None
+
+
 def record(err, home, outcome, command, verdict=None, log_row=None, facts=None):
-    """Write the verdict row for one prompted command and, for a reviewed command with its facts, the collected row."""
+    """Write the verdict row for one prompted command and, for a reviewed command with its facts, the collected row. The reason,
+    the command and the facts are stored redacted ("redaction"); the command's hash is of the command as it was."""
     reviewed = outcome == "reviewed"
     digest = sha256(command) if command is not None else None
+    rule = log_row.get("rule") if log_row else None
+    collecting = reviewed and facts is not None and isinstance(rule, str)
+    reason, shown, facts = redacted_text(err, command, verdict, facts if collecting else None)
     row = {"ts": store.now(), "command_sha256": digest, "outcome": outcome,
            "verdict": verdict[0] if verdict else None, "failed_checks": list(verdict[1]) if verdict else [],
-           "reason": verdict[2] if verdict else None, "reviewed": reviewed,
-           "no_review_reason": None if reviewed else outcome}
+           "reason": reason, "reviewed": reviewed, "no_review_reason": None if reviewed else outcome}
     plain = dict(row)
     if reviewed and log_row:
         row.update({field: log_row[field] for field in ENGINE_FIELDS if field in log_row})
     write(err, "verdicts.jsonl", row, home, plain if row != plain else None)
-    rule = log_row.get("rule") if log_row else None
-    if reviewed and facts is not None and isinstance(rule, str):
+    if collecting and shown is not None:
         write(err, "collected.jsonl", {
-            "id": store.new_id(), "ts": row["ts"], "rule": rule, "command_sha256": digest, "command": command,
-            "facts": facts, "verdict": verdict[0], "failed_checks": list(verdict[1]), "reason": verdict[2]}, home)
+            "id": store.new_id(), "ts": row["ts"], "rule": rule, "command_sha256": digest, "command": shown,
+            "facts": facts, "verdict": verdict[0], "failed_checks": list(verdict[1]), "reason": reason}, home)
 
 
 def run(argv, stdin, err, home):

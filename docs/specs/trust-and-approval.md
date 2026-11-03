@@ -359,8 +359,9 @@ prose above and this section differ in precision, this section is what the code 
 - **Initialization.** Every command makes sure the store exists, then seeds `settings` if it is
   missing, then makes sure `bin/wb` exists.
 - **Settings.** The file `settings` is strict JSON:
-  `{"checkpoints": {"<name>": "stop" | "delegate"}, "floor": ["<id>", ...], "version": 1}`. The reader also accepts
-  `"version": 2` with an object `"levels"` (`command-permissions.md`); the file is seeded at version 1. A
+  `{"floor": ["<id>", ...], "levels": {"<key>": "<level>"}, "version": 2}` when seeded (`command-permissions.md`). The reader
+  also accepts `"version": 1` with an object `"checkpoints": {"<name>": "stop" | "delegate"}`, which a file seeded earlier
+  holds; its words are read as levels for a key the table does not name. A
   checkpoint name is lowercase kebab-case, at most 64 characters; the names themselves are defined
   by a way of working. A checkpoint that is missing, malformed or not exactly `delegate` reads as
   `stop`. A table entry in a version 2 file sets the level of its key and wins over the checkpoint in either direction;

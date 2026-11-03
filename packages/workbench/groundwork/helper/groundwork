@@ -37,9 +37,8 @@ import os
 import re
 import sys
 
-from wbkit import display, identity, project, safefs
+from wbkit import digest, display, identity, project, safefs
 
-DIGEST_CHARS = 32
 CONFIRM_CHARS = 12
 MAX_RECORD = 1024 * 1024
 MAX_REPLACE = MAX_RECORD + 1024
@@ -48,7 +47,7 @@ MAX_RESULT = 512
 RESULT_FORMAT = 1
 FOLDER = ("docs", "decisions")
 
-USAGE = "usage: groundwork preview <record> | groundwork accept <record> [--digest <%d lowercase hex>]" % DIGEST_CHARS
+USAGE = "usage: groundwork preview <record> | groundwork accept <record> [--digest <%d lowercase hex>]" % digest.CHARS
 
 _ITEM = r"(?:(?:[-*+]|[0-9]{1,9}[.)])[ \t]+)?"
 _FENCE = re.compile(r"\A[ ]{0,3}" + _ITEM + r"(`{3,}|~{3,})")
@@ -56,7 +55,6 @@ _QUOTE = re.compile(r"\A[ ]{0,3}>")
 _TWO = re.compile(r"\A[ ]{0,3}##[ \t]+(.*)")
 _STATUS = re.compile(r"\A[ ]{0,3}Status:[ \t]*([A-Za-z][A-Za-z0-9_-]*)?")
 _ENDS = re.compile(r"\r\n|\n|\r")
-_HEX = re.compile(r"\A[0-9a-f]{%d}\Z" % DIGEST_CHARS)
 _LINE = 2000
 
 
@@ -173,10 +171,6 @@ def preview_lines(project_id, rel, status_line, sha):
             "not covered: that you read the record; the index row of docs/decisions/README.md"]
 
 
-def digest_of(lines):
-    return hashlib.sha256("\n".join(lines).encode("utf-8")).hexdigest()[:DIGEST_CHARS]
-
-
 def same(left, right):
     return hmac.compare_digest(left.encode("utf-8", "replace"), right.encode("utf-8", "replace"))
 
@@ -203,17 +197,17 @@ def preview(argument, out, cwd):
         raise Refused(display.ascii_text(str(exc))[:200])
     _, start, stop = the_status(text, rel)
     lines = preview_lines(project_id, rel, text[start:stop], hashlib.sha256(data).hexdigest())
-    out.write("\n".join(lines + ["digest: %s" % digest_of(lines)]) + "\n")
+    out.write("\n".join(lines + ["digest: %s" % digest.of(lines)]) + "\n")
     return 0
 
 
 def confirmed(given, lines, sha, terminal, stdin, out):
     """The route of a run: ``ask`` (a digest that is the preview's now), ``terminal`` (the owner typed the start of the
     hash) or ``none``; ``Refused`` if a digest or what was typed is wrong."""
-    digest = digest_of(lines)
     if given is not None:
-        if not same(given, digest):
-            raise Refused("the digest does not match what the command would change now; preview it again with `preview`")
+        wrong = digest.mismatch(given, lines)
+        if wrong:
+            raise Refused(wrong)
         return "ask"
     if terminal:
         out.write("\n".join(lines) + "\n")
@@ -275,8 +269,8 @@ def arguments(argv):
     if len(argv) == 2 and argv[0] in ("preview", "accept") and not argv[1].startswith("-"):
         return argv[0], argv[1], None
     if len(argv) == 4 and argv[0] == "accept" and not argv[1].startswith("-") and argv[2] == "--digest":
-        if not _HEX.match(argv[3]):
-            raise Usage("the digest is %d lowercase hexadecimal characters, as `preview` prints it" % DIGEST_CHARS)
+        if not digest.well_formed(argv[3]):
+            raise Usage(digest.SHAPE)
         return "accept", argv[1], argv[3]
     raise Usage(USAGE)
 

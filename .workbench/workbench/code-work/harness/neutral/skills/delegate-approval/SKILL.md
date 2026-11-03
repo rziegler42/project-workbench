@@ -8,8 +8,8 @@ Use this only when the owner has asked for an independent review of a plan and t
 a review stand for the plan's approval. A plan, a roadmap, a review or this skill does not allow it. The approval
 is the installer's record. It is not yours and not the reviewer's.
 
-1. Run `wb settings`. Go on only if it prints `checkpoint approve-plan: delegate`. If it prints `stop`, or
-   does not print that checkpoint, stop: the owner approves the plan with the approve-plan command.
+1. Run `wb settings`. Go on only if it prints `level approve-plan: delegated`. On any other reading, or with no such
+   line, stop: the plan is approved by the route `draft-plan` gives for the owner's level.
 2. Review the plan with `peer-review`, judging each finding with `evaluate-findings`, until a round comes
    back with no meaningful finding. At the review's bound, stop and report what remains open.
 3. Ask right after the converging round and before you write anything to the plan, `## Review record`
@@ -23,10 +23,11 @@ is the installer's record. It is not yours and not the reviewer's.
 
 Rules:
 
-- Every other checkpoint still stops. `delegate` takes effect for plan approval only; never read it as leave to
+- Every other checkpoint still stops. `delegated` takes effect for plan approval only; never read it as leave to
   go on at any other checkpoint.
-- The owner's word and the approve-plan command remain the other way, and the owner may always use them.
-  Never run that command, and never set a plan's status to `Approved`.
+- The owner's word and the route `draft-plan` gives for their level remain the other way, and the owner may always
+  use them. This skill runs only the delegate command; it is not a way to reach another route past its level.
+  Never set a plan's status to `Approved`.
 - Never change the settings, the approval record or a review's files. Never change a plan to make it pass:
   a plan with a `Hard stop:` line is for the owner, and a plan with no Risks section is for the owner.
 - A review with no meaningful finding is not an approval. Only the `approved:` line is.

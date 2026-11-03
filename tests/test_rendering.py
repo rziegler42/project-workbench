@@ -680,6 +680,21 @@ class GateCommandTest(Rendered):
         self.assertEqual(2, self.gate("wb check", tool="Write")[0])
         self.assertEqual(2, self.gate("wb check", field="cmd")[0])
 
+    def test_a_stray_file_in_a_package_closes_the_gate_and_the_line_names_it_and_the_cure(self):
+        self.attached(wb_pin="ask")
+        self.assertEqual((0, ""), self.gate("wb check"))
+        stray = os.path.join(self.dist, "packages", support_harness.PACKAGE, "stray.txt")
+        with open(stray, "w") as handle:
+            handle.write("x")
+        code, err = self.gate("wb check")
+        self.assertEqual(2, code)
+        self.assertIn("packages/%s/stray.txt" % support_harness.PACKAGE, err)
+        self.assertIn("wb preview release-approvals", err)
+        self.assertIn("wb release-approvals --digest", err)
+        self.assertEqual(1, err.count("\n"))
+        os.remove(stray)
+        self.assertEqual((0, ""), self.gate("wb check"))
+
     def test_a_gate_that_could_not_be_recorded_still_guards_what_was_rendered(self):
         """The shared path was unreadable at attach, so the record says no gate; the file still holds the hook and the ask rule."""
         self.ready()

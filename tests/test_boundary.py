@@ -19,12 +19,20 @@ CACHE = "__pycache__"
 # is skipped by its exact path, so a directory of the same name elsewhere is.
 SCANNED = ("workbench", "tests")
 UNSCANNED = (os.path.join("tests", "fixtures"), os.path.join("workbench", "shipped_approvals"))
+# Two tests read the real shipped package against the registry, the documents and the skills, and so name its modules on purpose
+# (``docs/decisions/2026-11-03-conformance-tests-name-modules-and-module-pins-follow-the-levels.md``, decision 1). They are exempt by
+# exact path. No file of the installer (``workbench/``) is, and a new entry here is the owner's decision, not an edit.
+CONFORMANCE = (os.path.join("tests", "test_levels_facts.py"), os.path.join("tests", "test_permissions_drift.py"))
 
 
-def scan(root, sources, scanned=SCANNED, unscanned=UNSCANNED):
+def scan(root, sources, scanned=SCANNED, unscanned=UNSCANNED, exempt=CONFORMANCE):
     """A line for each place under `root/<scanned>` where a file's name or a line of its text names a word of
     `sources` (a mapping of each word to where it came from), for each file that cannot be read or is too
-    large, and for each symlink to a directory. An unreadable or oversized file is a failure, never a skip."""
+    large, and for each symlink to a directory. An unreadable or oversized file is a failure, never a skip.
+    A file named by its exact path in `exempt` is not scanned; a path under ``workbench/`` there is a ``ValueError``."""
+    for path in exempt:
+        if path.split(os.sep)[0] == "workbench":
+            raise ValueError("no file of the installer may be exempt from the boundary scan: %s" % path)
     found = []
 
     def names(rel, text, where):
@@ -49,6 +57,8 @@ def scan(root, sources, scanned=SCANNED, unscanned=UNSCANNED):
             for name in sorted(files):
                 path = os.path.join(folder, name)
                 rel = os.path.relpath(path, root)
+                if rel in exempt:
+                    continue
                 names(rel, name, ": the file name")
                 try:
                     if os.path.getsize(path) > MAXIMUM:
@@ -197,6 +207,22 @@ class Scanning(Synthetic):
         self.put("workbench/__pycache__/x.pyc", b"\xff\xfe")
         self.assertEqual([], self.scanned())
 
+    def test_an_exempt_file_is_not_scanned_and_the_file_beside_it_is(self):
+        self.put("tests/test_conformance.py", "x = 'zedharness'\n")
+        self.put("tests/test_other.py", "x = 'zedharness'\n")
+        found = [line.rsplit(" (", 1)[0] for line in scan(self.root, self.sources(), exempt=("tests/test_conformance.py",))]
+        self.assertEqual(["tests/test_other.py:1: zedharness"], found)
+
+    def test_an_exempt_file_is_matched_by_its_exact_path(self):
+        self.put("tests/sub/test_conformance.py", "x = 'zedharness'\n")
+        found = [line.rsplit(" (", 1)[0] for line in scan(self.root, self.sources(), exempt=("tests/test_conformance.py",))]
+        self.assertEqual(["tests/sub/test_conformance.py:1: zedharness"], found)
+
+    def test_no_file_of_the_installer_may_be_exempt(self):
+        self.put("workbench/a.py", "x = 'zedharness'\n")
+        with self.assertRaises(ValueError):
+            scan(self.root, self.sources(), exempt=("workbench/a.py",))
+
     def test_a_directory_of_the_same_name_elsewhere_is_scanned(self):
         self.put("tests/shipped_approvals/x.json", '{"zedharness": 1}\n')
         self.put("tests/sub/fixtures/y.json", '{"zedharness": 1}\n')
@@ -233,6 +259,14 @@ class Repository(unittest.TestCase):
 
     def test_the_installer_and_its_tests_name_no_module_helper_harness_or_path(self):
         self.assertEqual([], scan(ROOT, support_words.sources()))
+
+    def test_the_exempt_files_are_the_two_the_decision_names_and_each_one_needs_it(self):
+        """``2026-11-03-conformance-tests-name-modules-and-module-pins-follow-the-levels``, decision 1: two tests read the real package
+        on purpose. The list is those two paths and no more, and without it the scan finds hits in each of them and in no other file."""
+        self.assertEqual((os.path.join("tests", "test_levels_facts.py"), os.path.join("tests", "test_permissions_drift.py")),
+                         CONFORMANCE)
+        hits = {line.split(":")[0] for line in scan(ROOT, support_words.sources(), exempt=())}
+        self.assertEqual(set(CONFORMANCE), hits)
 
 
 if __name__ == "__main__":

@@ -243,6 +243,6 @@ def known(distribution, harness):
     """The ``agent_gate`` entry of the known harness `harness`, or ``Refusal``."""
     facts = harnesses.known(distribution).get(harness)
     if not facts or not facts.get("agent_gate"):
-        raise Refusal("%s is not a known harness whose layout declares a per-agent hook and scratch directory"
-                      % display.ascii_text(harness)[:64])
+        raise Refusal(harnesses.refusal_text(harness, distribution,
+                                             "whose layout declares a per-agent hook and scratch directory", bool(facts)))
     return facts["agent_gate"]

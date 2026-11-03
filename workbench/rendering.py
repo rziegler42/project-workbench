@@ -54,20 +54,17 @@ def key_patterns(key):
     A key is an owner-run command, an agent-safe action (``wb check``, ``wb preview install``) or an argument a module
     declares (``wb run <command> <argument>``). A hook entry point, a dispatcher word and a checkpoint that is not a
     command have no patterns."""
-    if key == levels.APPROVE_PLAN:
-        return rules.owner_run_command_patterns(key)
-    if key in levels.COMMAND_OF_CHECKPOINT:
-        return rules.owner_run_command_patterns(levels.COMMAND_OF_CHECKPOINT[key])
-    if key.startswith("wb run "):
-        parts = key.split(" ")
-        if len(parts) >= 4:
-            return rules.command_owner_patterns(parts[2], [" ".join(parts[3:])])
+    words = levels.command_words(key)
+    if not words:
         return []
-    if key.startswith("wb preview "):
-        action = key[len("wb preview "):]
-        return rules.owner_run_command_patterns("preview " + action) if action in rules.PREVIEW_ACTIONS else []
-    if key.startswith("wb ") and (key[3:] in rules.OWNER_RUN or key[3:] in _AGENT_WORDS):
-        return rules.owner_run_command_patterns(key[3:])
+    if key == levels.APPROVE_PLAN or key in levels.COMMAND_OF_CHECKPOINT:
+        return rules.owner_run_command_patterns(words[0])
+    if words[0] == "run" and len(words) >= 3:
+        return rules.command_owner_patterns(words[1], [" ".join(words[2:])])
+    if words[0] == "preview" and len(words) == 2:
+        return rules.owner_run_command_patterns("preview " + words[1]) if words[1] in rules.PREVIEW_ACTIONS else []
+    if len(words) == 1 and (words[0] in rules.OWNER_RUN or words[0] in _AGENT_WORDS):
+        return rules.owner_run_command_patterns(words[0])
     return []
 
 
@@ -135,8 +132,7 @@ def current_table(guarded, start):
     table = table_of(
         guarded,
         tuple(name for item in found if item.module.type == "process" for name in item.module.checkpoints),
-        [(command.name, command.owner, command.arguments, command.levels, command.checkpoint_of)
-         for item in found for command in item.module.commands])
+        [levels.command_entry(command) for item in found for command in item.module.commands])
     return table, root, ident
 
 

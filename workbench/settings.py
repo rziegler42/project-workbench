@@ -6,7 +6,9 @@ The document is strict JSON::
      "floor": ["<id>", ...], "levels": {"<key>": "block" | "ask" | "delegated" | "none"},
      "version": 1 | 2}
 
-``levels`` exists only in version 2 (``docs/specs/command-permissions.md``). The reader accepts versions 1 and 2.
+``levels`` exists only in version 2 (``docs/specs/command-permissions.md``). The reader accepts versions 1 and 2; a new file is
+seeded at version 2 as ``{"floor": [...], "levels": {}, "version": 2}``, with no ``checkpoints`` object. A ``checkpoints`` object
+is read for a file seeded earlier and is never written.
 
 * ``checkpoints`` names the checkpoints the owner has set. A checkpoint that is missing,
   malformed or set to anything but ``delegate`` reads as ``stop``, so with no settings
@@ -41,7 +43,7 @@ from . import declarations, floor, levels as keyset
 from .wbkit import safefs
 
 SETTINGS = "settings"
-VERSION = 1  # the version written at seeding
+VERSION = 2  # the version written at seeding: the table, not the version 1 checkpoints object
 VERSIONS = (1, 2)  # the versions the reader accepts
 STOP, DELEGATE = "stop", "delegate"
 BLOCK, ASK, DELEGATED, NONE = keyset.BLOCK, keyset.ASK, keyset.DELEGATED, keyset.NONE
@@ -69,7 +71,7 @@ class Settings(_Settings):
 
 
 def _seed_document():
-    return {"checkpoints": {}, "floor": [stop.id for stop in floor.FLOOR], "version": VERSION}
+    return {"floor": [stop.id for stop in floor.FLOOR], "levels": {}, "version": VERSION}
 
 
 def seed(store):

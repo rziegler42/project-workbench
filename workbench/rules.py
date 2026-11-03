@@ -1,6 +1,7 @@
 """The rules the workbench itself puts into every harness that provides ``permissions``.
 
-Two lists are compiled in, like the floor, so no file can shorten them:
+Two lists are compiled in, like the floor, so no file can shorten them. They are defined once, in the registry
+(``levels``, decision ``2026-11-02-one-permission-registry-and-key-model``), and named here for the code that reads them:
 
 * ``OWNER_RUN``: the commands only the owner runs, from a terminal. A harness denies each one in
   both spellings an agent could submit, so an agent cannot install, upgrade, approve or pin.
@@ -17,25 +18,21 @@ Two lists are compiled in, like the floor, so no file can shorten them:
 A rule is ``(action, tool, pattern)`` in the neutral vocabulary of ``neutral.py``.
 """
 
-OWNER_RUN = ("install", "adopt", "upgrade", "add", "attach", "rerender", "acknowledge", "recover", "approve", "pin",
-             "release-approvals", "approve-plan")
+from . import levels
+
+# The compiled lists live in the registry (``levels``), written once; the names stay here for the code and the tests that
+# read them as ``rules.OWNER_RUN`` and so on (decision ``2026-11-02-one-permission-registry-and-key-model``).
+OWNER_RUN = levels.OWNER_RUN
 # Commands an agent may run: they only read, or run a helper that checks its own pin.
-AGENT_SAFE = ("verify", "preview", "launch", "check", "run", "plan-status", "settings", "gate",
-              "agent-gate", "gate-command", "delegate-approve-plan")
-# Of the agent-safe words, those that are not a key of the owner's ``levels`` table
-# (``docs/specs/command-permissions.md``, "A level for every command"): the hook entry points, which the
-# harness runs and the owner does not; the words that only dispatch to an action; and the action that reaches another
-# action's key, so that no action reaches two keys.
-HOOK_ENTRY_POINTS = ("gate", "agent-gate", "gate-command")
-DISPATCHERS = ("preview", "run")
-REACHES_ANOTHER_KEY = {"delegate-approve-plan": "approve-plan"}
+AGENT_SAFE = levels.AGENT_SAFE
+# The hook entry points, the words that only dispatch, and the action that reaches another action's key: not keys.
+HOOK_ENTRY_POINTS = levels.HOOK_ENTRY_POINTS
+DISPATCHERS = levels.DISPATCHERS
+REACHES_ANOTHER_KEY = levels.REACHES_ANOTHER_KEY
 # The actions ``wb preview`` dispatches to; each has a key.
-PREVIEW_ACTIONS = ("install", "adopt", "upgrade", "add", "rerender", "release-approvals")
-# `python3 -B -m workbench` is how this repository's own checks are run; the flags a rule can name
-# are limited to this one. Other interpreter spellings, a path-qualified `wb`, `env` and `bash -c`
-# are not matched (a Bash deny is not a security boundary).
-SPELLINGS = ("wb", "python3 -m workbench", "python3 -B -m workbench", "python -m workbench",
-             "python -B -m workbench")
+PREVIEW_ACTIONS = levels.PREVIEW_ACTIONS
+# The launcher spellings a rule names; `python3 -B -m workbench` is how this repository's own checks are run.
+SPELLINGS = levels.SPELLINGS
 
 # Not yet routed by cli.py; the drift test allows exactly these until their increment lands.
 NOT_YET_ROUTED = ()

@@ -405,6 +405,11 @@ def _rendering_drift(guarded, writer, root):
     return problems, warnings
 
 
+def rendering_drift(guarded, writer, root):
+    """``(problems, warnings)`` of the harness's permissions file against the rendering record, for ``wb doctor`` as well."""
+    return _rendering_drift(guarded, writer, root)
+
+
 def run(guarded, command, out, err, distribution=None):
     """Report and return the exit code: 0 for no problem, 1 for a problem or a refusal."""
     try:
