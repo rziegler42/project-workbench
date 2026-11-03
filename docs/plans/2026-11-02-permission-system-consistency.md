@@ -493,3 +493,41 @@ conformance check and author guide, and named risk profiles. Also deferred: `del
   the record was `Proposed`; it is accepted or rejected with the record).
 - **Not done:** acceptance, the owner's checkpoint (the digest changes with every edit of the record, so it is taken from a fresh
   `wb run groundwork preview` at the time). No security review was run; the plan offers one at increment I.
+- **Accepted** by the owner on 2026-11-02 through `groundwork accept` at `ask` (digest `b8a55261affa7cc1c11347259e23fc05`) after
+  one Codex round with no findings, and the status line committed.
+
+### Increment C — Decision: what the gates do while a package tree differs from its release
+
+- **Done:** `docs/decisions/2026-11-02-gates-while-a-package-tree-differs-from-its-release.md`, `Proposed`. It decides that the
+  gates stay closed while the harness cannot be shown to match its release, and that the refusal names the cause and the first path
+  that differs and the command that clears it (built by increment J). It does **not** decide narrowing the lock to the harness
+  module; that is described as an option, with what it needs and the tamper path it opens, and left for a later record. The
+  author recommends waiting.
+- **Found while reading, corrected in the record, and affecting this plan's text:** (1) the lock refuses only the hooked tools
+  (`Edit`, `MultiEdit`, `NotebookEdit`, `Write`, `Bash`), not "every tool call" as Scope item 6 says; `Read`, `Grep`, `Glob`, the
+  agent tool and the owner's terminal are unaffected. (2) The lock does not guard a running command: `wb run` is governed by the
+  installed copy's manifest hash and the pin, not by the shipped records (`firstparty` is not imported by `commands.py` or
+  `launch.py`), so a package edit reaches a command only at the owner-run `wb upgrade`. (3) The tree hash covers every regular
+  file of the whole package, so an edit to any of 13 modules, a stray cache file, or a link anywhere closes the gates for the
+  harness; reproduced on a copy. (4) `verify_package` and `load_package` fail the whole package on one problem in any module, so
+  trusting the harness module alone needs new loading code. The plan's approved text is not edited; its increment J still fits
+  (the message and the first differing path), and increment J does not build narrowing.
+- **Verification as run:** `wb check` without problems. Two throwaway scripts on a copy of the distribution in a scratch directory
+  (the first reproduced the table of causes; the second showed the `claude` module's own record still matches when another module
+  changes); nothing was kept and this tree was not changed.
+- **Review:** the `reviewer` agent, one exchange: eleven findings, four blocking. Applied after checking the central one against the
+  code: the first draft's decision 4 (a changed module's commands refuse) was false, since `wb run` does not consult the shipped
+  records, and its decision 3 (narrowing) could not be built with the existing loaders and opened an unanalysed path in which an
+  agent releases its own edit through the `ask` prompt and can restore an older released `claude` module. The record was
+  rewritten: narrowing is an option left open with its needs and a per-option table of what an attacker who can edit a package gains
+  (the plan's step 3 asked for it), the false decision is replaced by a statement of what protects a running command, the
+  contradiction between narrowing and the stray-file decision is gone, and the lock is no longer presented as covering the gate
+  code or the shipped records. The rewritten text was then reviewed by the project's review bridge (`ask-codex`, model
+  `gpt-5.6-terra`, `review-adr`): round 1 of a bound of 3 returned two major findings, both applied. One said the record presented
+  the owner's conversational choice to wait as settled while it was `Proposed` (reworded: it becomes part of the decision on
+  acceptance). The other said the claim that Python loads a cache file found beside imported code was unsupported (removed; the
+  rationale is that the tree hash must cover everything below the package, and loadability was not checked). The two edits were
+  not reviewed again.
+- **Owner's choice, noted in the record:** wait on the narrowing (the owner said so on 2026-11-02, while the record was `Proposed`;
+  it becomes part of the decision when the record is accepted).
+- **Not done:** acceptance, the owner's checkpoint; a review of the rewritten text; no security review.
