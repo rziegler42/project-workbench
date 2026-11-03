@@ -92,9 +92,11 @@ class Relaxed(unittest.TestCase):
 
     def test_a_governing_agent_key_at_its_default_of_none_is_nothing(self):
         found = test_permissions_drift.registry(test_permissions_drift.modules())
-        self.assertEqual("governs", found["wb run safe-git remove"].klass)
-        self.assertEqual([], doctor.relaxed_findings(found, {"wb run safe-git remove": "none"}))
-        self.assertEqual([], doctor.relaxed_findings(found, {"wb run safe-git remove": "block"}))
+        governing = [name for name, key in found.items() if key.agent and key.klass == "governs"]
+        self.assertTrue(governing)  # a declared argument that acts outward or deletes and carries a prompt
+        for name in governing:
+            for level in ("none", "block"):
+                self.assertEqual([], doctor.relaxed_findings(found, {name: level}), (name, level))
 
     def test_a_level_that_is_not_a_known_key_is_ignored(self):
         self.assertEqual([], doctor.relaxed_findings(KEYS, {"wb nothing": "none"}))
@@ -104,9 +106,10 @@ class Minimums(unittest.TestCase):
     def test_every_declared_prompt_is_listed_as_a_project_minimum(self):
         found = test_permissions_drift.registry(test_permissions_drift.modules())
         got = lines(doctor.minimum_findings(found))
-        for key in ("wb run remote-runner fetch", "wb run remote-runner submit", "wb run safe-git remove"):
-            self.assertIn("note: %s carries a prompt that the project declares as a minimum; its level does not change it" % key, got)
-        self.assertEqual(3, len(got))
+        declared = sorted(name for name, key in found.items() if key.asks)
+        self.assertGreaterEqual(len(declared), 3)
+        self.assertEqual(["note: %s carries a prompt that the project declares as a minimum; its level does not change it" % name
+                          for name in declared], got)
 
 
 class Package(unittest.TestCase):
@@ -203,27 +206,27 @@ class Allow(unittest.TestCase):
 
 class Skills(unittest.TestCase):
     def test_a_skill_that_says_never_run_a_relaxed_key(self):
-        texts = [("code-work/harness/neutral/skills/x/SKILL.md", "- `extend` and `reset` are the owner's. Never run them.\n")]
+        texts = [("some-module/harness/neutral/skills/x/SKILL.md", "- `extend` and `reset` are the owner's. Never run them.\n")]
         found = test_permissions_drift.registry(test_permissions_drift.modules())
-        self.assertEqual(["problem: skill: 'code-work/x' says never run `extend`, which the registry offers at ask or none",
-                          "problem: skill: 'code-work/x' says never run `reset`, which the registry offers at ask or none"],
+        self.assertEqual(["problem: skill: 'some-module/x' says never run `extend`, which the registry offers at ask or none",
+                          "problem: skill: 'some-module/x' says never run `reset`, which the registry offers at ask or none"],
                          lines(doctor.skill_findings(found, texts)))
 
     def test_a_skill_that_gives_the_flow_is_nothing(self):
-        texts = [("code-work/harness/neutral/skills/x/SKILL.md", "- At `ask` run `extend` with `--digest`.\n")]
+        texts = [("some-module/harness/neutral/skills/x/SKILL.md", "- At `ask` run `extend` with `--digest`.\n")]
         found = test_permissions_drift.registry(test_permissions_drift.modules())
         self.assertEqual([], doctor.skill_findings(found, texts))
 
     def test_the_installed_texts_are_read_from_the_project(self):
         root = tempfile.mkdtemp(prefix="doctor-skills-")
         self.addCleanup(shutil.rmtree, root, True)
-        base = os.path.join(root, ".workbench", "workbench", "code-work", "harness", "neutral", "skills", "x")
+        base = os.path.join(root, ".workbench", "workbench", "some-module", "harness", "neutral", "skills", "x")
         os.makedirs(base)
         with open(os.path.join(base, "SKILL.md"), "w") as handle:
             handle.write("Never run `extend`.\n")
         os.symlink("/etc/hosts", os.path.join(base, "link.md"))
         found = doctor.installed_texts(root)
-        self.assertEqual(["code-work/harness/neutral/skills/x/SKILL.md"], [path for path, _ in found])
+        self.assertEqual(["some-module/harness/neutral/skills/x/SKILL.md"], [path for path, _ in found])
         self.assertEqual([], doctor.installed_texts(os.path.join(root, "missing")))
 
     def test_a_linked_directory_is_not_followed(self):
@@ -233,7 +236,7 @@ class Skills(unittest.TestCase):
         os.makedirs(outside)
         with open(os.path.join(outside, "SKILL.md"), "w") as handle:
             handle.write("Never run `extend`.\n")
-        harness = os.path.join(root, ".workbench", "workbench", "code-work", "harness")
+        harness = os.path.join(root, ".workbench", "workbench", "some-module", "harness")
         os.makedirs(harness)
         os.symlink(os.path.join(root, "outside"), os.path.join(harness, "neutral"))
         self.assertEqual([], doctor.installed_texts(root))
@@ -245,7 +248,7 @@ class Skills(unittest.TestCase):
     def test_a_fifo_is_not_opened(self):
         root = tempfile.mkdtemp(prefix="doctor-skills-")
         self.addCleanup(shutil.rmtree, root, True)
-        base = os.path.join(root, ".workbench", "workbench", "code-work", "harness", "neutral")
+        base = os.path.join(root, ".workbench", "workbench", "some-module", "harness", "neutral")
         os.makedirs(base)
         os.mkfifo(os.path.join(base, "pipe.md"))
         self.assertEqual([], doctor.installed_texts(root))
@@ -253,7 +256,7 @@ class Skills(unittest.TestCase):
     def test_many_directories_are_walked_only_so_far(self):
         root = tempfile.mkdtemp(prefix="doctor-skills-")
         self.addCleanup(shutil.rmtree, root, True)
-        base = os.path.join(root, ".workbench", "workbench", "code-work", "harness", "neutral")
+        base = os.path.join(root, ".workbench", "workbench", "some-module", "harness", "neutral")
         for number in range(40):
             os.makedirs(os.path.join(base, "d%02d" % number))
         with open(os.path.join(base, "d00", "SKILL.md"), "w") as handle:

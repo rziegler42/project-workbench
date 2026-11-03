@@ -195,9 +195,15 @@ class Corpus(unittest.TestCase):
             self.assertIn(wanted, ids)
 
     def test_the_relaxed_keys_are_the_ones_of_the_owners_ask_settings(self):
-        self.assertEqual(["approve-plan", "wb release-approvals", "wb run groundwork accept",
-                          "wb run review-engine amend", "wb run review-engine archive", "wb run review-engine extend",
-                          "wb run review-engine prune", "wb run review-engine reset"], self.corpus["relaxed_keys"])
+        """The eight keys that the owner's settings gave the level ``ask`` when the corpus was made: the plan approval, the release,
+        and six arguments of module commands (one that accepts a decision, five of a review engine). The fixture holds their names;
+        this file names no module (``tests/test_boundary.py``)."""
+        keys = self.corpus["relaxed_keys"]
+        self.assertEqual(8, len(keys))
+        self.assertEqual(["approve-plan", "wb release-approvals"], keys[:2])
+        for key in keys[2:]:
+            self.assertRegex(key, r"wb run [a-z-]+ [a-z-]+\Z")
+        self.assertEqual(len(keys), len(set(keys)))
 
     def test_a_command_is_not_a_secret_or_a_real_path(self):
         for case in self.cases:

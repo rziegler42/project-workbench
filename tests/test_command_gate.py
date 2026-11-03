@@ -648,7 +648,7 @@ class ModuleArgumentIsData(unittest.TestCase):
         self.assertIsNotNone(judge("bash -c 'wb install'", keys=("wb install",)))
 
 
-KEYS = ("approve-plan", "wb install", "wb release-approvals", "wb run groundwork accept", "wb run review-engine extend")
+KEYS = ("approve-plan", "wb install", "wb release-approvals", "wb run notary accept", "wb run ledger extend")
 
 
 class DataPosition(unittest.TestCase):
@@ -722,23 +722,23 @@ class ApprovePlanRun(unittest.TestCase):
     """A literal ``wb run <name> <arguments>`` frees ``approve-plan`` and no other ``wb run <command> <argument>`` key (decision 4)."""
 
     def test_a_literal_call_that_mentions_the_word_is_data(self):
-        for command in ("wb run safe-git commit --subject 'Explain approve-plan in the guide' -- docs/development.md",
-                        "wb run safe-git commit --subject 'x' --body 'run wb approve-plan docs/plans/x.md' -- docs/a.md",
-                        "%s run safe-git commit --subject approve-plan -- a.md" % STORE_BIN):
+        for command in ("wb run vault commit --subject 'Explain approve-plan in the guide' -- docs/development.md",
+                        "wb run vault commit --subject 'x' --body 'run wb approve-plan docs/plans/x.md' -- docs/a.md",
+                        "%s run vault commit --subject approve-plan -- a.md" % STORE_BIN):
             with self.subTest(command=command):
                 self.assertIsNone(judge(command))
 
     def test_it_is_not_freed_when_anything_is_expanded_chained_or_double_quoted(self):
-        for command in ('wb run safe-git commit --subject "approve-plan" -- a.md', "wb run safe-git commit --subject $X approve-plan",
-                        "wb run safe-git commit --subject 'x' -- a.md && wb approve-plan x --digest " + DIGEST,
-                        "wb run safe-git commit --subject 'x' -- a.md\nwb approve-plan x",
-                        "wb run approve-plan x", "wb run wb approve-plan x", "wb run safe-git commit --subject approve-plan -- a.md ; ls"):
+        for command in ('wb run vault commit --subject "approve-plan" -- a.md', "wb run vault commit --subject $X approve-plan",
+                        "wb run vault commit --subject 'x' -- a.md && wb approve-plan x --digest " + DIGEST,
+                        "wb run vault commit --subject 'x' -- a.md\nwb approve-plan x",
+                        "wb run approve-plan x", "wb run wb approve-plan x", "wb run vault commit --subject approve-plan -- a.md ; ls"):
             with self.subTest(command=command):
                 self.assertIsNotNone(judge(command))
 
-    def test_the_review_engines_keys_are_not_freed_by_it(self):
-        key = "wb run review-engine extend"
-        self.assertIsNotNone(judge("wb run safe-git commit --subject 'x wb run review-engine extend y' -- docs/a.md", keys=(key,)))
+    def test_an_argument_key_is_not_freed_by_it(self):
+        key = "wb run ledger extend"
+        self.assertIsNotNone(judge("wb run vault commit --subject 'x wb run ledger extend y' -- docs/a.md", keys=(key,)))
 
 
 class GapRule(unittest.TestCase):
@@ -784,7 +784,7 @@ class GapRule(unittest.TestCase):
     def test_prose_inside_an_expansion_is_not_a_spelling_when_it_is_too_long(self):
         long_message = ("git commit -m \"$(cat <<'EOF'\nRefactor the parser so that the settings are read once, keep the "
                         "plan list in order, and move the loader into a helper, with no new dependency.\nEOF\n)\"")
-        for key in (APPROVE, "wb install", "wb run groundwork accept", "wb release-approvals"):
+        for key in (APPROVE, "wb install", "wb run notary accept", "wb release-approvals"):
             with self.subTest(key=key):
                 self.assertIsNone(judge(long_message, keys=(key,)))
 

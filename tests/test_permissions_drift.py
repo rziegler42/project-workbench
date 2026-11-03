@@ -94,11 +94,14 @@ def anchors_against_documents(keys, texts=None):
             yield "anchor: %s is not named in %s" % (name, key.anchor)
 
 
-def checkpoint_pairs(keys, pairs=None):
+def checkpoint_pairs(keys, pairs=None, spec=""):
+    """A checkpoint and the command that does the same act, with different defaults, must be recorded as a pair on purpose: one
+    paragraph of the spec (`spec` is its text) names both."""
+    recorded = groups(spec)
     for checkpoint, command in sorted((CHECKPOINT_PAIRS if pairs is None else pairs).items()):
         if (checkpoint in keys and command in keys and keys[checkpoint].default != keys[command].default
-                and not (keys[checkpoint].paired_with == command and keys[command].paired_with == checkpoint)):
-            yield "checkpoint-pair: %s (%s) and %s (%s) govern one act" % (
+                and not any(checkpoint in group and command in group for group in recorded)):
+            yield "checkpoint-pair: %s (%s) and %s (%s) govern one act and the spec does not record the pair" % (
                 checkpoint, keys[checkpoint].default, command, keys[command].default)
 
 
@@ -270,7 +273,7 @@ def disagreements():
     found = modules()
     keys = registry(found)
     result = []
-    for source in (asks_against_level(found, keys), anchors_against_documents(keys), checkpoint_pairs(keys),
+    for source in (asks_against_level(found, keys), anchors_against_documents(keys), checkpoint_pairs(keys, spec=read(SPEC)),
                    spec_against_registry(keys, read(SPEC)),
                    development_against_rules(read(DEVELOPMENT)), skills_against_levels(keys, neutral_texts()),
                    skills_state_their_checkpoints(keys, neutral_texts()),
@@ -348,17 +351,20 @@ class EachReaderFindsADisagreementItIsGiven(unittest.TestCase):
         self.assertIn("anchor: approve-plan is not named in docs/specs/command-permissions.md", reported)
 
     def test_a_pair_of_a_checkpoint_and_a_command(self):
-        self.assertEqual([], list(checkpoint_pairs(self.keys)))  # the registry records both pairs as deliberate
-        unrecorded = {name: key._replace(paired_with="") for name, key in self.keys.items()}
+        """The pairing is recorded by the spec (decision 2 of ``2026-11-03-conformance-tests-name-modules-and-module-pins-follow-the-levels``),
+        not by the registry: a pair whose defaults differ is a disagreement unless one paragraph of the spec names both."""
+        spec = read(SPEC)
+        self.assertEqual([], list(checkpoint_pairs(self.keys, spec=spec)))
         self.assertEqual(sorted("checkpoint-pair: %s" % name for name in CHECKPOINT_PAIRS),
-                         sorted(line.split(" (")[0] for line in checkpoint_pairs(unrecorded)))
-        half = dict(self.keys)
-        half["wb run remote-runner submit"] = half["wb run remote-runner submit"]._replace(paired_with="")
-        self.assertEqual(1, len(list(checkpoint_pairs(half))))
-        same = dict(unrecorded)
+                         sorted(line.split(" (")[0] for line in checkpoint_pairs(self.keys, spec="no pair is named here\n")))
+        half = "\n\n".join(["The checkpoints `submit-remote-job` and `wb run remote-runner submit` keep a level each.",
+                            "Another paragraph names `fetch-remote-output`.", "And this one `wb run remote-runner fetch`."])
+        self.assertEqual(["checkpoint-pair: fetch-remote-output"],
+                         [line.split(" (")[0] for line in checkpoint_pairs(self.keys, spec=half)])
+        same = dict(self.keys)
         same["wb run remote-runner submit"] = same["submit-remote-job"]
         same["wb run remote-runner fetch"] = same["fetch-remote-output"]
-        self.assertEqual([], list(checkpoint_pairs(same)))
+        self.assertEqual([], list(checkpoint_pairs(same, spec="nothing")))  # one default for the pair: nothing to record
 
     def test_the_spec_names_a_key_that_does_not_exist_or_leaves_one_out(self):
         text = read(SPEC)

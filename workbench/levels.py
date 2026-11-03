@@ -50,8 +50,8 @@ _DEVELOPMENT = "docs/development.md"
 _PERMISSIONS = "docs/specs/command-permissions.md"
 
 Key = collections.namedtuple(
-    "Key", "name offers default agent kind klass carried_by spellings preview asks anchor paired_with stated_by",
-    defaults=(False, "", "", "", (), "", False, "", "", ()))
+    "Key", "name offers default agent kind klass carried_by spellings preview asks anchor stated_by",
+    defaults=(False, "", "", "", (), "", False, "", ()))
 
 Spec = collections.namedtuple("Spec", "kind klass offers word carried_by preview anchor")
 
@@ -79,11 +79,10 @@ INSTALLER_KEYS = collections.OrderedDict([
 
 
 # A checkpoint and the command that does the same act keep a level each, on purpose (decision 5 of
-# ``2026-11-02-one-permission-registry-and-key-model``): ``checkpoint_of`` applies only to an owner-run argument that offers
-# levels, so mapping these would change the module contract and move their default. The registry records the pair so that a
-# reader sees it is chosen; whether to merge them is for ``2026-11-02-permission-levels-for-every-command``.
-PAIRED_ACTS = {"submit-remote-job": "wb run remote-runner submit", "fetch-remote-output": "wb run remote-runner fetch"}
-_PAIRED_BACK = {command: checkpoint for checkpoint, command in PAIRED_ACTS.items()}
+# ``2026-11-02-one-permission-registry-and-key-model``). The registry does not record the pairing: it would name a module, and the
+# installer names none (``2026-11-03-conformance-tests-name-modules-and-module-pins-follow-the-levels``, decision 2). The spec records
+# it and the drift test checks that; whether to merge the pairs is for ``2026-11-02-permission-levels-for-every-command``.
+
 # The skills that state a checkpoint the agent follows as a rule (no command carries it), for increment K to check.
 STATED_BY = {"push-shared-branch": ("push-changes",), "submit-remote-job": ("run-remote-job",),
              "fetch-remote-output": ("run-remote-job",), "change-direction": ("draft-roadmap", "draft-spec")}
@@ -223,8 +222,7 @@ def _build(name, kind, agent, declared, arguments, carried):
         klass, anchor, carried_by = READS, _DEVELOPMENT, name
     spellings = SPELLINGS if carried_by else ()
     stated = STATED_BY.get(name, ()) if kind == CHECKPOINT and not carried_by else ()
-    paired = PAIRED_ACTS.get(name) or _PAIRED_BACK.get(name, "")
-    return Key(name, offers, default, agent, kind, klass, carried_by, spellings, preview, asked, anchor, paired, stated)
+    return Key(name, offers, default, agent, kind, klass, carried_by, spellings, preview, asked, anchor, stated)
 
 
 def checkpoint_commands(checkpoints, commands):

@@ -820,10 +820,13 @@ that is not a boundary; the owner's review of the commit that holds the records 
   keys are not built: the `prune` digest does not bind each review's rounds, decisions or generation (a pruned review is sealed and
   closed, so it cannot change between the preview and the apply), and the plain `prune` list cannot run at `ask` without a terminal (an
   agent uses `preview prune`).
-- The checkpoints `submit-remote-job` and `fetch-remote-output` and the commands `wb run remote-runner submit` and `fetch` do the
-  same acts and keep a level each (`block` and `none`, with the module's `asks` rendering a prompt for the command either way). The
-  registry records each as a pair on both keys (`paired_with`), as decision `2026-11-02-one-permission-registry-and-key-model`
-  (decision 5) settles; merging them is for the plan `2026-11-02-permission-levels-for-every-command`. The registry also records,
+- Two checkpoints and two commands do the same acts and keep a level each (`block` and `none`, with the module's `asks` rendering a
+  prompt for the command either way), as decision `2026-11-02-one-permission-registry-and-key-model` (decision 5) settles: the checkpoint
+  `submit-remote-job` and the command `wb run remote-runner submit`, and the checkpoint `fetch-remote-output` and the command
+  `wb run remote-runner fetch`. The installer's registry does not record the pairing, because it would have to name a module
+  (`2026-11-03-conformance-tests-name-modules-and-module-pins-follow-the-levels`, decision 2); this paragraph records it, and the drift
+  test (`tests/test_permissions_drift.py`, `checkpoint_pairs`) fails when a pair with different defaults is not named here. Merging
+  them is for the plan `2026-11-02-permission-levels-for-every-command`. The registry also records,
   for each checkpoint the agent follows as a rule, the skill that states it (`stated_by`: `push-shared-branch` in `push-changes`, the
   two remote checkpoints in `run-remote-job`, `change-direction` in `draft-roadmap` and `draft-spec`). The acknowledge checkpoints
   are carried by `wb acknowledge`, and no skill states them; their wording is the policy block of `AGENTS.md`.

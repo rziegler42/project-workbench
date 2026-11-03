@@ -130,21 +130,18 @@ class ACheckpoint(unittest.TestCase):
         for name in levels.STATED_BY:
             self.assertEqual(("checkpoint", ""), (keys[name].kind, keys[name].carried_by), name)
 
-    def test_a_checkpoint_and_the_command_that_does_its_act_are_recorded_as_a_pair(self):
-        """Decision 5 of ``2026-11-02-one-permission-registry-and-key-model``: the two keep their own levels and say so."""
+    def test_the_registry_keeps_no_pairing_of_a_checkpoint_with_a_command_of_a_module(self):
+        """``2026-11-03-conformance-tests-name-modules-and-module-pins-follow-the-levels``, decision 2: the installer's source names no
+        module, so the pairing that increment G recorded (``paired_with``, ``PAIRED_ACTS``) is gone. It is kept by the drift test
+        (``CHECKPOINT_PAIRS``) and the spec. The two keep a level each, as decision 5 of
+        ``2026-11-02-one-permission-registry-and-key-model`` settles: the checkpoint reads ``block``, the command ``none``."""
+        self.assertNotIn("paired_with", levels.Key._fields)
+        for name in ("PAIRED_ACTS", "_PAIRED_BACK"):
+            self.assertFalse(hasattr(levels, name), name)
         keys = registry(REMOTE)
-        # `registry` builds the argument keys from an owner-run argument or an `asks`.
-        self.assertEqual({"submit-remote-job": "wb run remote-runner submit", "fetch-remote-output": "wb run remote-runner fetch"},
-                         levels.PAIRED_ACTS)
-        for checkpoint, command in levels.PAIRED_ACTS.items():
-            self.assertEqual(command, keys[checkpoint].paired_with, checkpoint)
-            self.assertEqual(checkpoint, keys[command].paired_with, command)
-        self.assertEqual("", keys["approve-plan"].paired_with)
-        self.assertEqual("", keys["wb run remote-runner fetch-overwrite"].paired_with)
-
-    def test_a_pair_is_recorded_on_the_checkpoint_even_when_the_command_is_not_installed(self):
-        self.assertEqual("wb run remote-runner submit", registry()["submit-remote-job"].paired_with)
-        self.assertNotIn("wb run remote-runner submit", registry())
+        for checkpoint, command in (("submit-remote-job", "wb run remote-runner submit"),
+                                    ("fetch-remote-output", "wb run remote-runner fetch")):
+            self.assertEqual(("block", "none"), (keys[checkpoint].default, keys[command].default), checkpoint)
 
 
 class AModuleArgument(unittest.TestCase):

@@ -245,4 +245,33 @@ Empty until a review is asked for.
   `paired_with` and `PAIRED_ACTS`, and the nine assertions in the module tests.
 - **Review:** none run for this increment (it writes one record, which the owner reads and accepts at the checkpoint); the plan asks
   for none at B.
-- **Not done:** the commit; nothing in this record is built (increments C and D).
+- **Committed as** `3acf439d96ff5fbb510b6ea596a5b6dd51c274b7`. Not pushed. Nothing in the record is built until increments C and D.
+
+### Increment C — The installer side of the decision
+
+- **Done** (decisions 1 and 2 of the accepted record): `tests/test_boundary.py` has `CONFORMANCE`, the two exempt paths
+  (`tests/test_levels_facts.py`, `tests/test_permissions_drift.py`), and `scan(..., exempt=CONFORMANCE)` skips a file by its exact path
+  and raises `ValueError` for a path under `workbench/`; `workbench/levels.py` loses `PAIRED_ACTS`, `_PAIRED_BACK` and the `Key` field
+  `paired_with` (the one place that builds a `Key` is updated); `tests/test_levels_facts.py` now asserts that the registry keeps no
+  pairing and that the checkpoint and the command of each pair still read `block` and `none`; `tests/test_permissions_drift.py`:
+  `checkpoint_pairs` takes the spec text and fails a pair with different defaults that no paragraph of the spec names; the spec's
+  "Not built" bullet records the two pairs in full and says the registry does not; `tests/test_doctor.py`, `tests/test_command_gate.py`
+  and `tests/test_gate_corpus.py` name no module (made-up names `vault`, `ledger` and `notary`; the minimum and the governing-key tests
+  compute their keys from the registry; the corpus test checks the structure of the relaxed keys, whose names the fixture holds).
+- **Tests first:** the boundary tests for the exemption were written and failed on the missing parameter before `scan` changed; the
+  pair tests and the drift reader were changed before `levels.py`, and failed on the field still being there.
+- **Verification as run** (`-W error`): `test_boundary` 23, `test_run` 27, `test_levels_facts` 36, `test_permissions_drift` 22, `test_levels`
+  35, `test_doctor` 72, `test_command_gate` 130, `test_gate_corpus` 15, `test_kit` 13, `test_self_hosting` 3, `test_settingscmd` 33,
+  `test_declarations` 97, `test_verify` 69, and, because the registry's `Key` changed shape, the tests that read it: `test_settings` 84,
+  `test_rendering` 85, `test_check` 45, `test_cli` 33, `test_agent_gate` 59, `test_gate_hook` 73, `test_levelrun` 22,
+  `test_approve_levels` 39, `test_harnessplan` 68, `test_attach` 76, `test_rerender` 80, all OK; `test_boundary` and `test_run`, which
+  failed in the full run, pass; the document check: no problems; `wb doctor`: no problems and 8 risks.
+- **Review:** the `reviewer` agent, one exchange, no blocking finding. It confirmed that the exemption is by exact path and cannot hide a
+  hit elsewhere, that nothing else read the removed field or built a `Key`, that the drift reader still fails on an unrecorded pair, and
+  that the renamed tests mean what they meant (the gate treats `vault`, `ledger` and `notary` as plain tokens). Applied: a blank line
+  between two comments in `levels.py`. Not changed, as the reviewer notes: the minimum test now restates the registry's `asks` (its
+  independent guard is a count of at least three, and the drift test still pins the real ones), the corpus test checks structure only,
+  and one list item that names both strings of a pair satisfies the drift reader.
+- **Security review:** not asked for. Nothing in C reads a new input: it removes a table from the installer's source, adds a constant
+  list to a test and changes test text. The owner may still ask.
+- **Not done:** the commit; increment D (the package pass).
