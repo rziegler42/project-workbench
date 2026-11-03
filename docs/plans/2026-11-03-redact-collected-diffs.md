@@ -1,6 +1,6 @@
 # Redact secrets from what the action-review shadow stores
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-03
 Candidate: workbench-v1#action-review-engine
 Specs: action-review
