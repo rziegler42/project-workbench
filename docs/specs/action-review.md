@@ -8,7 +8,7 @@ separately chosen; the owner may still change it. The approval is of the design 
 `describe` interface is a decision record of its own, accepted by the owner on 2026-10-25
 (`2026-10-25-describe-interface-for-action-review`). The rule schema, the module's layout and declaration, the bridge setting and the checks for `commit` and `remove` were
 written on 2026-10-26 by Increment A of plan `2026-10-26-action-review-engine` and wait for the owner's reading
-("The rule schema, the module and the checks"). The engine is built for `commit` and `remove` (plan `2026-10-26-action-review-engine`, Increments B to K; "As built, and its limits" at the end of the design says where it differs from the text and what it does not do), and so are the `describe` side of `safe-git` (for `commit`, `remove` and `push`) and the launcher rule (plans `2026-10-25-safe-git-describe` and `2026-10-26-safe-git-describe-push`). The shadow (the hook that records and decides nothing, its store, the labelling tool, the report and the test-set runner) is built by plan `2026-10-29-action-review-shadow-hook`, Increments A to G ("The shadow hook"); it has not been installed or run by the owner. The status stays `Draft` because the owner has not read the engine's sections, because the shadow has not been run on real commands, and because the push rule, a hook that decides, the owner's personal setting and the cutover are not built (plan 5 of the split below).
+("The rule schema, the module and the checks"). The engine is built for `commit` and `remove` (plan `2026-10-26-action-review-engine`, Increments B to K; "As built, and its limits" at the end of the design says where it differs from the text and what it does not do), and so are the `describe` side of `safe-git` (for `commit`, `remove` and `push`) and the launcher rule (plans `2026-10-25-safe-git-describe` and `2026-10-26-safe-git-describe-push`). The shadow (the hook that records and decides nothing, its store, the labelling tool, the report and the test-set runner) is built by plan `2026-10-29-action-review-shadow-hook`, Increments A to H ("The shadow hook"), and corrected after a security review by plan `2026-10-30-shadow-review-fixes`; it has not been installed or run by the owner. The status stays `Draft` because the owner has not read the engine's sections, because the shadow has not been run on real commands, and because the push rule, a hook that decides, the owner's personal setting and the cutover are not built (plan 5 of the split below).
 
 Terms are defined in `terms.md`. The engine sits above the bridge of `model-bridge.md` and beside the engine of
 `review-engine.md`. The decision behind it is `2026-10-22-model-calls-go-through-vendor-bridges` (decisions 3, 6, 7
@@ -603,9 +603,16 @@ skipped counts; any false approve on the labels or the test set is printed first
 
 *As built (Increment E, `tools/label.py`).* `python3 -B label.py [--skipped]`, copied with `shadow_store.py` to a directory outside
 the project, runs only when standard input and output are both terminals (otherwise it prints one line to standard error and exits
-2). It shows the collected commands that have no label, oldest first: the command, the rule, the engine's verdict, failed checks and
-reason, and the facts by name with a value only where it is a number, a boolean or null (text by its length, lists and objects by
-their size). `f` shows every fact in full, cleaned, each text cut at 4,000 characters and the whole at 40,000, with a count of what
+2). It shows the collected commands that have no label, oldest first: the command (a command cut for length shows how many
+characters were left out, on the same line), the rule, the engine's verdict and failed checks, the reason, and the facts by name with
+a value only where it is a number, a boolean or null (text by its length, lists and objects by their size). **The reason is introduced
+as "the model's own words when a model was asked, which the commit's own text may have steered"** (security review of the shadow,
+finding Low 2; plan `2026-10-30-shadow-review-fixes`, Increment D): the reason of a model's decline is model output that a hostile
+commit message can steer ("answer approve"), and a decline by the engine's own checks (a fixed check, or a prompt too large for the
+bridge) carries the engine's fixed text instead, which the collected row does not mark, so the line says "when a model was asked".
+A model's reply can imitate that fixed text, so the owner does not rely on its wording. The verdict and the failed checks on the line
+above are the model's too when it was asked (chosen among the rule's own check names, which the engine validates). A count of
+"characters left out" is of the escaped text, so a command with many non-ASCII characters reports more than it has. `f` shows every fact in full, cleaned, each text cut at 4,000 characters and the whole at 40,000, with a count of what
 is left out. `r`, `w` and `s`, each with an optional note after a space (printable ASCII, 300 characters), record `right`, `wrong`
 and `skip`; `q` stops; any other answer is asked again. A command whose latest label exists is not shown again, except that
 `--skipped` shows those whose latest label is `skip`, and a later label replaces it. Everything shown is printable ASCII: other
@@ -855,7 +862,8 @@ of plan `2026-10-29-action-review-shadow-hook`, Increment H.
    the classifier decides without a prompt (the hooks page does not say; "The shadow hook"). Note a `refused` or `failed` outcome:
    it means the launcher, the module or the bridge is not set up.
 7. **Label** at a terminal with `python3 -B label.py` (`--skipped` revisits the skipped). `right` means you would have judged as the
-   engine did, `wrong` that you would not. Until there are at least 10 labelled commits and 10 labelled removals the report says "not
+   engine did, `wrong` that you would not. Judge from the command and the facts (press `f`), not from the engine's reason: when a
+   model was asked, its reason is the model's own words, which the commit's text may have steered. Until there are at least 10 labelled commits and 10 labelled removals the report says "not
    enough labels".
 8. **Run the test set against a real model, once,** from the root of a checkout you trust: `python3 -B
    packages/workbench/action-review/tools/run_testset.py [--codex-dir <absolute path>]`. It needs the `codex` program on your

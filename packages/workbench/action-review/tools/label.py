@@ -117,7 +117,11 @@ def show(stdout, row, number, total):
     stdout.write("command: %s\n" % visible(row["command"], MAX_COMMAND))
     checks = ", ".join(visible(name, 64) for name in row["failed_checks"]) or "none"
     stdout.write("the engine said: %s (failed checks: %s)\n" % (visible(row["verdict"], 16), checks))
-    stdout.write("because: %s\n" % visible(row["reason"], MAX_REASON))
+    # The reason is the model's own words when a model was asked, and a hostile commit message can steer them. A decline by the
+    # engine's own checks (a fixed check, or a prompt too large for the bridge) carries the engine's fixed text instead; the
+    # collected row does not mark which, so the line says "when". A model's reply can imitate that fixed text: do not rely on it.
+    stdout.write("the reason (the model's own words when a model was asked, which the commit's own text may have steered): %s\n"
+                 % visible(row["reason"], MAX_REASON))
     stdout.write("facts (ask for the rest with f):\n")
     for line in summary_lines(row["facts"]):
         stdout.write(line + "\n")

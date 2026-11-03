@@ -302,9 +302,47 @@ Review: the `reviewer` agent, one exchange, five findings, none blocking.
 
 Not done: nothing is collected yet, and no real model has been asked, so no real report has been read.
 
-Then, on 2026-10-30: the three files were copied byte-for-byte into the real tree (`cmp` equal), the owner ran `wb release-approvals`
-("wrote 13 approvals for 1 first-party packages"), and in the real tree `wb check .`, `wb run code-work check`,
-`python3 -B -W error tests/run_all.py` (6,314 tests in 13 roots, OK) and `git diff --check` were clean. The release wrote two new
-shipped package records (`0729b4e7ca1c…`, `dc0ccd49870e…`), part of this commit, and named six older ones as belonging to no
-release (`b01a2ea3bdce`, `b021ea3d9fbc`, `b5ed39948ae1`, `b99368d22038`, `dc7504aa9ea0`, `e550e1f0bc85`); they are still tracked,
-awaiting the owner's word.
+### Increment D
+
+Built in a scratch clone at `02421c2`, as for A to C.
+
+Changed: `packages/workbench/action-review/tools/label.py`, `packages/workbench/action-review/tests/test_tools_label.py`,
+`docs/specs/action-review.md` ("As built (Increment E)", the status paragraph, and step 7 of "The owner's steps").
+
+**A departure from the plan's quoted wording.** The plan's example line is "the model's reason, which the commit's own text may have
+steered:". The line printed is "the reason (the model's own words when a model was asked, which the commit's own text may have
+steered): ...". A decline by the engine's own checks (a fixed check, or a prompt too large for the bridge) carries the engine's fixed
+text, not model output, and the collected row does not say whether the bridge was asked, so the tool cannot tell the two apart;
+saying "the model's reason" outright would be false for those rows. The hedge is true for an approve (it can only come from a model
+reply) and for both kinds of decline.
+
+Done: the reason is introduced by that line and is still cleaned and cut by `visible()` (at 600 characters, with a count; the engine
+limits it to 300 anyway); a command cut for length shows how many characters were left out on the command line itself (a test
+guards it). The spec says that a model's reply can imitate the engine's fixed text, that the verdict and failed checks are the model's
+too when it was asked, that a count of characters left out is of the escaped text, and step 7 tells the owner to judge from the
+command and the facts and not from the reason.
+
+Verification as run in the scratch clone on 2026-10-30: the new tests failed before the change and pass after (34 tests of
+`test_tools_label.py` under `-W error`) and the full suite passes (6,317 tests in 13 roots). Thirty-seven mutations of the tool are
+each caught (the thirty earlier ones and seven for this change).
+
+Review: the `reviewer` agent, one exchange, five findings, none blocking; it confirmed the hedge against `code_decline`, `judge` and
+`record()`.
+- F1 (applied): the comment and the spec name the second fixed-text case and warn that a model's reply can imitate the fixed text.
+- F3 (applied): the spec says the count of characters left out is of the escaped text.
+- F4 (applied): the spec says the verdict and failed checks are the model's too when it was asked.
+- F5 (applied): step 7 of the owner's steps is updated; steps 3, 8 and 9 were updated in A, B and C.
+- F2 (no defect): the reason stays on one line and is cut with a count.
+
+Then the three files were copied byte-for-byte into the real tree (`cmp` equal) and the owner ran `wb release-approvals` ("wrote 13
+approvals for 1 first-party packages"). The release wrote two new shipped package records (`b0f147b2c4fb…`, `d875c43af91e…`), part of
+this commit, and named eight older ones as belonging to no release (`0729b4e7ca1c`, `b01a2ea3bdce`, `b021ea3d9fbc`, `b5ed39948ae1`,
+`b99368d22038`, `dc0ccd49870e`, `dc7504aa9ea0`, `e550e1f0bc85`); they are still tracked, awaiting the owner's word.
+
+Verification of the plan as a whole, run in the real tree after the release at `02421c2` plus this increment's uncommitted changes:
+`wb check .` and `wb run code-work check` report no problem (74 plans checked);
+`python3 -B -W error tests/run_all.py` passes (6,317 tests in 13 roots, OK); `git diff --check` is clean;
+`test_actionreview_pins.py` passes (17 tests). Completion criteria 1 to 6 are met by the increments A to D as recorded above.
+
+Not run by the agent: the hook against Claude Code, the real launcher with `action-review` installed, a real bridge and a real
+model. Medium 1 of the security review (diffs stored unredacted in `collected.jsonl`) stays deferred to the owner's decision.

@@ -229,6 +229,32 @@ class Showing(Base):
         for word in ("wb run safe-git commit", "decline", "scope_is_coherent", "Mixed changes.", "safe-git-commit"):
             self.assertIn(word, out)
 
+    def test_the_reason_is_introduced_as_words_a_model_may_have_written_and_the_commit_may_have_steered(self):
+        # Security review of the shadow, finding Low 2: the reason is model output that a hostile commit message can steer. It is
+        # not always a model's: a decline by a fixed check carries the engine's own fixed text, so the line says "when a model was asked".
+        self.add(collected(1))
+        _, out, _ = self.run_tool("s")
+        line = [line for line in out.splitlines() if line.startswith("the reason ")]
+        self.assertEqual(1, len(line), out)
+        self.assertEqual("the reason (the model's own words when a model was asked, which the commit's own text may have steered): "
+                         "The change is plain.", line[0])
+        self.assertNotIn("because:", out)
+
+    def test_the_reason_is_still_cleaned_under_its_new_introduction(self):
+        self.add(collected(1, reason="r\x1b[31m ‮ Answer approve."))
+        _, out, _ = self.run_tool("s")
+        line = [line for line in out.splitlines() if line.startswith("the reason ")][0]
+        self.assertIn("r\\x1b[31m \\u202e Answer approve.", line)
+        for char in out:
+            self.assertTrue(char == "\n" or " " <= char <= "~", repr(char))
+
+    def test_a_command_cut_for_length_shows_what_was_left_out_on_the_command_line_itself(self):
+        self.add(collected(1, command="\x1b" * 4096))
+        _, out, _ = self.run_tool("s")
+        line = [line for line in out.splitlines() if line.startswith("command: ")]
+        self.assertEqual(1, len(line))
+        self.assertRegex(line[0], r"\[\d+ more characters\]$")
+
     def test_the_meaning_of_right_and_wrong_is_on_screen_with_every_command(self):
         self.add(collected(1), collected(2, verdict="decline", failed_checks=["scope_is_coherent"]))
         _, out, _ = self.run_tool("s", "s")
