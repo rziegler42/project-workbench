@@ -461,5 +461,35 @@ conformance check and author guide, and named risk profiles. Also deferred: `del
   the third class and `reset` and `prune` moved there; the exceptions of the clarification note are named; the `checkpoints` wording
   is true for a version 2 file; the spec's rule on `asks` is cited; the spelling claim is marked provisional; the follow-on plan's
   additions are stated. The corrected text was not reviewed again.
-- **Not done:** acceptance, which is the owner's checkpoint (`accept-decision` is at `ask`); the digest the preview printed is
-  `55a716cf8a797b8f8ca0d790dbfd96b9`.
+- **Accepted** by the owner on 2026-11-02 through `groundwork accept` at `ask` (digest `55a716cf8a797b8f8ca0d790dbfd96b9`), and the
+  status line committed.
+
+### Increment B — Decision: the command gate reads where a launcher is, not the letters of a word
+
+- **Done:** `docs/decisions/2026-11-02-command-gate-reads-gaps-and-data-positions.md`, `Proposed`. It does not adopt the plan's
+  step 3 as worded ("the in-order test applies only to a command that holds a launcher"): a probe showed that rule would stop
+  catching `W=w; Z=b; X=ove; $W$Z appr${X}-plan x`, which the gate refuses today. It proposes instead (1) a gap rule for the
+  in-order test (a key's letters match only with wildcards between them: expansions, bare parameters, globs, brace groups and
+  escapes); (2) a data position that frees a plain read by `cat`, `head`, `tail`, `grep`, `ls`, `wc` or `diff` that names a word;
+  (3) a literal `wb run` call freed for `approve-plan` only; (4) a named rule on every refusal and a capped refusal log with a rule
+  and a hash and no text; and answers the plan's question: the owner-run commands cannot tell whether the harness showed the
+  prompt, so the text gate stays.
+- **Verification as run:** `wb check` without problems. The real gate (`wb gate-command claude`) was run on 42 sanitised commands
+  and a throwaway prototype of the gap rule on about 30; nothing was kept and no code changed. The in-order false positives
+  reproduced from the full text of commands refused earlier the same day; shortened copies did not.
+- **Review:** the `reviewer` agent, one exchange: ten findings, three blocking. Applied after checking each against the code:
+  (1) the first draft of the gap rule left out bare `$1`, `$name` and special parameters, so it stopped catching
+  `wb appr$1ove-plan` and the pinned `wb approve-$1plan p` (reproduced with the prototype, fixed by counting them as
+  wildcards); (2) decision 4 now frees `approve-plan` only and leaves the review engine's five keys on their narrower rule;
+  (4) `git` is removed from the data-position list because its options can run a program, and the rest of the list is
+  `cat`, `head`, `tail`, `grep`, `ls`, `wc`, `diff`. Also applied: the earlier record's reason for `approve-plan` is cited and
+  argued (3), the data position's interaction with the gap rule and the log's format, cap, write scope and hash are stated (5, 6),
+  expected results and the per-level effect are stated (7), and the spec text that changes is named (10). The corrected text was
+  then reviewed by the project's review bridge (`ask-codex`, model `gpt-5.6-terra`, through the review engine, `review-adr`):
+  round 1 of a bound of 3 returned no findings and `no_meaningful_changes`. That is not proof of soundness: the same reviewer
+  found nothing wrong with nothing that was run, and the record's own limits (a prototype on about 30 commands, no hostile
+  option run on the seven listed programs, no security review) still stand.
+- **Owner's choice, in the record:** a literal `wb run` call may be freed for `approve-plan` (the owner said yes on 2026-11-02, while
+  the record was `Proposed`; it is accepted or rejected with the record).
+- **Not done:** acceptance, the owner's checkpoint (the digest changes with every edit of the record, so it is taken from a fresh
+  `wb run groundwork preview` at the time). No security review was run; the plan offers one at increment I.
