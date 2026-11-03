@@ -555,8 +555,8 @@ def _gate(tokens, err, store_root, distribution, stdin):
         launch.install_wrapper(opened[0], distribution or firstparty.default_distribution())
         facts = harnesses.known(distribution).get(tokens[0])
         if not facts or not facts["hook_targets"]:
-            raise gate_hook.Refusal("%s is not a known harness whose layout declares the tools its hook covers"
-                                    % _clean(tokens[0]))
+            raise gate_hook.Refusal(harnesses.refusal_text(tokens[0], distribution,
+                                                           "whose layout declares the tools its hook covers", bool(facts)))
         return opened[0], dict(facts["hook_targets"])
 
     return gate_hook.run(stdin if stdin is not None else sys.stdin, err, prepare)
@@ -573,7 +573,8 @@ def _gate_command(tokens, err, store_root, distribution, stdin):
         facts = harnesses.known(distribution).get(tokens[0])
         gate = facts["command_gate"] if facts else ()
         if not gate:
-            raise gate_hook.Refusal("%s is not a known harness whose layout describes the command gate" % _clean(tokens[0]))
+            raise gate_hook.Refusal(harnesses.refusal_text(tokens[0], distribution, "whose layout describes the command gate",
+                                                           bool(facts)))
         said = io.StringIO()
         opened = _open_store(store_root, said)
         if opened is None:

@@ -794,4 +794,80 @@ conformance check and author guide, and named risk profiles. Also deferred: `del
   gap and free-match programs still agree (6,000 cases each). Reran after the fix: `test_command_gate` 130, `test_gate_corpus` 15,
   `test_gatelog` 14, `test_gate_hook` 72, `test_levelrun` 22, `test_agent_gate` 58, all OK. An independent second look at the
   fix by an agent has not been run.
-- **Not done:** the commit, which waits for the owner's word.
+- **Committed as** `f9a71d6924978caa1113ef558a8f085fc5886501`. Not pushed.
+
+### Increment J — A changed package tree is explained
+
+- **Done:** a gate that cannot find its harness now says why. `harnesses.refusal_text(harness, distribution, needs)` returns the line
+  and never raises; `cli._gate`, `cli._gate_command` and `agent_gate.known` print it instead of "is not a known harness whose layout
+  ...". While a package tree differs from its release it reads, for example: `claude is not available: the package tree differs from
+  its release: first at 'packages/workbench/ask-ollama'; the owner clears it in a terminal with `wb preview release-approvals` and
+  then `wb release-approvals --digest <digest>`, with the digest the preview prints`. When the harness is known, or no package
+  differs, the old plain line is printed (the tests that look for "not a known harness" still hold).
+  Causes named, each as a path and never a value: a package directory that is a link; a link, a special file or a refused name inside a
+  package (full path); a file no module accounts for (full path, found through `verify_package`); no release approval at all; a
+  module whose files differ from its release (the module directory); a change outside every module (the first file there, else
+  `package.json`). A cause the release itself refuses (the link, special-file, name and unaccounted-file causes, a module the
+  verifier refuses) adds "remove or restore it first". Paths are shown quoted and in ASCII, so a file name cannot read as part of the
+  sentence.
+- **Deviation from the decision's wording, for the owner to know:** decision 2 says "the first path that differs". The shipped
+  records hold only a hash for the package and one per module, so a deliberate edit to a file can be located to its module directory
+  and not to the file; a deleted file is the same. A stray file is named by its full path. Locating the file would need a
+  per-file manifest in the release records, which is not in this plan. `cli.py` was changed although the plan's affected areas do not
+  list it, because the two messages are raised there; `gate.py`, `gate_hook.py`, `command_gate.py` and `firstparty.py` were not
+  changed (the last is read, through its private `_package_hashes`).
+- **Tests first:** `tests/test_harness_lock.py` (20 tests), written before the code and seen to fail on the missing function: separate
+  cases for a deliberate edit (a module file, `module.json`, `package.json`) and for a stray untracked file (in a module, a cache file,
+  beside the modules), a link, a link as the package directory, a missing approval, a file value never printed, a hostile name (an
+  escape character; printable text that reads like advice, shown quoted), never raises, one bounded line, the tree not changed,
+  a stray file beside the packages not taken for a package. One CLI-level test each for the command gate (`test_rendering`), the edit
+  gate (`test_gate_hook`) and the agent gate (`test_agent_gate`).
+- **Verification as run** (`-W error`): `test_harness_lock` 20, `test_harnesses` 28, `test_gate` 27, `test_gate_hook` 73,
+  `test_agent_gate` 59, `test_command_gate` 130, `test_rendering` 85, `test_firstparty` 57, `test_check` 45, all OK. On a copy of the
+  real `packages/` and shipped records (a scratch directory): a released copy gives the plain line; a stray cache file and a comment
+  added to a helper give the lines above, each in about 0.1 s (the gate deadline is 10 s). The full suite was not run. No package
+  file was changed by this increment.
+- **Review:** the `reviewer` agent, one exchange, no blocking finding, six findings. Applied: printable text in a file name could read
+  as advice (paths are now quoted); the clearing commands were advised for causes the release refuses (now "remove or restore it
+  first" for those); the docstring claimed a pure sorted order (reworded to the walk's order); a stray file beside the packages
+  (`.DS_Store`) was taken for a package (skipped). Accepted as stated: the module-directory deviation (above). Not changed: the
+  cause names the first package that differs, not the one holding the harness (every package of this distribution is first-party by
+  design); a cache file is named as "no module accounts for it" only where the verifier says so. The reviewer could not run anything.
+- **Security review (the owner asked for it):** the `security-reviewer` agent, on copies; no Critical, High or Medium finding. Found
+  sound and tested: a quoted ASCII `repr` of every path (an advice-like name, quotes, backslashes, newline, ESC, a U+202E override,
+  a 250-character name stayed inside the quotes; no forged `refused:` line); a FIFO, a link loop, a mode-0 directory, a package that
+  is a link and a 20 MB file all returned in under 0.25 s without a blocking open; `refusal_text` returned a string for odd
+  arguments and every caller raises a refusal regardless, so no path turns a refusal into an allow; no file content, environment
+  value or path outside the distribution is printed. Findings, all Low, and what was done (the owner said "fix 1 to 4"):
+  1. **Fixed.** A non-directory entry in `packages/` (`.DS_Store`) with a stray file in the package: the line gave no "remove it
+     first" advice although the release refuses that tree. Now any such entry makes the cause fix-first and the line says
+     "packages/ also holds an entry that is not a package".
+  2. **Fixed.** The gate cuts the line at 600 characters; a 64-character harness name and a backslash-heavy path cut off the
+     clearing command (`repr` doubles backslashes). A quoted path is now capped at 120 characters; the same case gives a line under
+     600 with the command intact (a test).
+  3. **Fixed.** A file named `evil is not module.json tail` was shown as `evil`. The path is now cut only when the message ends with
+     the verifier's own fixed tail, and shown whole otherwise.
+  4. **Fixed.** Time: the extra `known` call is gone (the callers pass whether the harness was found, `declared`), `_first_trouble`
+     uses a deque and stops after 20,000 entries (it was quadratic in the number of directories), and the search for the cause stops
+     after 3 seconds with "the cause was not searched, because the tree is large" and the clearing commands. 30,000 small files in a
+     module now give that line in 3.3 s (the reviewer measured 7.7 s for the search alone before).
+  5. **Wording only.** A file over the 16 MB limit was reported as "cannot be read as a package (package.json)"; the line now adds
+     "or a file over the size limit". Not changed: with `packages/` itself a link the line shows a name from outside the
+     distribution (the old code read through the same link and printed nothing; the agent can list those names); the cause names the
+     first package that differs, not the one that holds the harness.
+  Reran after the fixes (`-W error`): `test_harness_lock` 26, `test_harnesses` 28, `test_gate` 27, `test_gate_hook` 73,
+  `test_agent_gate` 59, `test_command_gate` 130, `test_rendering` 85, `test_firstparty` 57, `test_check` 45, all OK. The six new
+  tests were run against the module before the fixes in a copy, and all of that file's tests errored there (the new `declared`
+  parameter), which shows they did not pass by accident but not that each fails for its own reason.
+- **Second look at the fixes (the owner asked for it):** the `reviewer` agent, one exchange, no blocking finding; it read and ran
+  nothing. Sound by its reading: the deque keeps the walk's order; the entry cap is safe because the hash raises for every kind the
+  walk finds (a link, a special file, a refused name, an unreadable entry); `declared=bool(facts)` is exactly "the harness is
+  known". Applied: a cut path is closed with the quote it opened with (it ended in `'` after a `"`); the rule name in the line is
+  cut at 24 characters and the "not searched" text shortened, so that the worst case of about 590 characters has room under the
+  gate's 600; tests added for the walk's order, a link past the entry cap (the hash finds it and the line says to fix it first),
+  the quote, an unaccounted-file message that is not the verifier's own, and the budget case saying nothing of removal; the
+  length test is now under 600. Not changed: when the time budget stops the search (or no release approval exists) the line
+  omits "remove it first" even if the release would refuse the tree; it says the cause was not searched and still gives the
+  commands, which is less advice and not a false one. After these edits: `test_harness_lock` 30, and the others as above, all OK.
+- **Not done:** the commit; narrowing the lock, which the decision leaves open; `wb doctor`'s report of the
+  same cause (increment L); the spec text (increment M).

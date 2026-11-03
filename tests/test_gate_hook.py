@@ -659,6 +659,17 @@ class FromTheCommandLine(Gated):
                 self.assertEqual((2, ""), (code, out))
                 self.assertIn("not a known harness", err)
 
+    def test_a_package_edit_closes_the_edit_gate_and_the_line_names_the_cause(self):
+        self.plan(status="Proposed")
+        stray = os.path.join(self.gate_dist, "packages", support_harness.PACKAGE, "stray.txt")
+        with open(stray, "w") as handle:
+            handle.write("x")
+        code, out, err = self.cli("gate", support_harness.MODULE, stdin=self.payload(file_path=self.path("x")))
+        self.assertEqual((2, ""), (code, out))
+        self.assertIn("packages/%s/stray.txt" % support_harness.PACKAGE, err)
+        self.assertIn("wb release-approvals --digest", err)
+        self.assertEqual(1, err.count("\n"))
+
     def test_the_arguments(self):
         for argv in (("gate",), ("gate", "a", "b"), ("gate", ""), ("gate", "--help"), ("gate", "-x"), ("gate", "A"),
                      ("gate", "../x"), ("gate", "a b")):
