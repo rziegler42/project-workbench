@@ -2,13 +2,13 @@
 
 A command that offers the level ``ask`` has a read-only preview that prints the lines of what the command would change and, last,
 ``digest: <digest>``. The run takes ``--digest <digest>`` and goes on only if the digest is that of the lines as they are now
-(``docs/specs/command-permissions.md``, "The levels"). Two helpers carried a copy of this (``groundwork`` and ``review-engine``);
-this module is the one place it is written.
+(``docs/specs/command-permissions.md``, "The levels"). Two helpers carried a copy of this; this module is the one place it is written.
 
 The kit takes the preview *lines*, never a path, and reads nothing: a caller builds the lines inside the critical section that makes
-the change, from the state it is about to change, so the digest compared is the one of that state (``review-engine``: its lock;
-``groundwork``: its held root and the sha-checked replace, which also binds the sha the digest binds). What the lines bind (the project, the path, a hash of the
-content) is the caller's; this module only makes the digest of them and compares it. It imports only the standard library.
+the change, from the state it is about to change, so the digest compared is the one of that state (a helper that holds a lock takes
+the lines under it; one that replaces a file takes them from its held root and the sha-checked replace, which also binds the sha the
+digest binds). What the lines bind (the project, the path, a hash of the content) is the caller's; this module only makes the digest
+of them and compares it. It imports only the standard library.
 """
 
 import hashlib
@@ -22,7 +22,7 @@ MISMATCH = "the digest does not match what the command would change now; preview
 # The one line a usage error prints when a digest is not 32 lowercase hexadecimal characters.
 SHAPE = "the digest is %d lowercase hexadecimal characters, as `preview` prints it" % CHARS
 
-_HEX = re.compile(r"[0-9a-f]{%d}\Z" % CHARS)
+_HEX = "[0-9a-f]{%d}" % CHARS  # matched whole, with re.fullmatch: the kit builds no compiled pattern (``test_kit``)
 
 
 def of(lines):
@@ -32,7 +32,7 @@ def of(lines):
 
 def well_formed(text):
     """Whether `text` is exactly 32 lowercase hexadecimal characters (a string that a digest may be)."""
-    return isinstance(text, str) and _HEX.match(text) is not None
+    return isinstance(text, str) and re.fullmatch(_HEX, text) is not None
 
 
 def mismatch(given, lines):

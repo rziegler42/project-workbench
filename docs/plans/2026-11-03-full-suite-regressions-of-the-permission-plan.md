@@ -1,6 +1,6 @@
 # Fix the 15 full-suite regressions of the permission consistency plan
 
-Status: Proposed
+Status: In Progress
 Created: 2026-11-03
 Candidate: none (this repairs work of the plan `2026-11-02-permission-system-consistency`, which the owner reopened; it adds no roadmap candidate)
 Specs: command-permissions, module-contract, module-boundary, code-work, review-engine
@@ -204,4 +204,24 @@ Empty until a review is asked for.
 
 ## Result
 
-Empty until work starts.
+### Increment A — The kit file and the self-hosting record
+
+- **Done:** `workbench/wbkit/digest.py`: the compiled pattern (`re.compile(r"[0-9a-f]{32}\Z")`, used with `match`) became a string used
+  with `re.fullmatch`, so the kit builds no compiled pattern; the module docstring and a comment no longer name the two helpers (the
+  parenthesis about how a caller builds its lines is generic: a helper that holds a lock takes them under it, one that replaces a file
+  takes them from its held root and the sha-checked replace). Behaviour and the kit API number (1) are unchanged. `tests/test_wbkit_digest.py`:
+  two docstrings no longer name a module. `tests/fixtures/self_hosting_dispositions.json`: `docs/plans/README.md` is recorded `diverged`
+  with its reason (the project's copy states how a plan is approved at each level; increment D brings the seed level and records it
+  `identical` again).
+- **Tests first:** the failing tests were the ones that exist: before the change `test_kit` (2 failures), `test_self_hosting` (2),
+  `test_run` (1) and `test_boundary` (1) failed, `test_wbkit_digest` (18) passed.
+- **Verification as run** (`-W error`): `test_kit` 13 OK, `test_self_hosting` 3 OK, `test_wbkit_digest` 18 OK; `test_run` 27 and
+  `test_boundary` 19 still fail with one failure each, as the plan says: `workbench/levels.py` naming a module command (increment C) and
+  90 places in the tests that name modules (increments B and C), down from 97 (the four of `digest.py` and the three of
+  `test_wbkit_digest.py` are gone); the `groundwork` helper test root 251 OK; the `review-engine` test root 409 with the two known
+  skill-text failures of increment D, none about the kit digest.
+- **Review:** the `reviewer` agent, one exchange, no blocking finding. It read `well_formed` as equivalent for every input (a trailing
+  newline, uppercase hex, non-ASCII digits, other lengths and non-text; the tests of `test_wbkit_digest.py` pin them), the kit's rules as
+  holding, the fixture reason as accurate and in the form `test_self_hosting.py` expects, and the three files as matching the
+  plan's steps. It could not run anything or read the helpers' code.
+- **Not done:** the commit.

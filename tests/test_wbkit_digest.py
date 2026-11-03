@@ -1,8 +1,8 @@
 """The kit's preview digest: what an ``ask`` is bound to, computed and checked once (``workbench/wbkit/digest.py``).
 
-Plan ``2026-11-02-permission-system-consistency``, increment H. The two helpers that carried their own copy
-(``groundwork`` and ``review-engine``) must give the answers they gave before; ``tests/test_wbkit_digest.py`` fixes the kit's side
-and the helpers' own tests fix theirs. The kit names no module and no installer file."""
+Plan ``2026-11-02-permission-system-consistency``, increment H. The two helpers that carried their own copy must give the answers
+they gave before; this file fixes the kit's side and the helpers' own tests fix theirs. The kit names no module and no installer
+file, and neither does this file (``tests/test_boundary.py``)."""
 
 import hashlib
 import re
@@ -36,7 +36,7 @@ class Of(unittest.TestCase):
 
     def test_a_line_break_inside_a_line_is_not_a_second_line_but_the_join_is_the_same(self):
         """The lines are joined by a newline, so ``["a\\nb"]`` and ``["a", "b"]`` are one digest: a preview builds each line
-        from one fact, and a caller that must tell them apart binds the fact itself (as ``groundwork`` binds the path whole)."""
+        from one fact, and a caller that must tell them apart binds the fact itself (as a helper that binds a path binds it whole)."""
         self.assertEqual(digest.of(["a\nb"]), digest.of(["a", "b"]))
 
 
