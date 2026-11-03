@@ -869,5 +869,62 @@ conformance check and author guide, and named risk profiles. Also deferred: `del
   length test is now under 600. Not changed: when the time budget stops the search (or no release approval exists) the line
   omits "remove it first" even if the release would refuse the tree; it says the cause was not searched and still gives the
   commands, which is less advice and not a false one. After these edits: `test_harness_lock` 30, and the others as above, all OK.
-- **Not done:** the commit; narrowing the lock, which the decision leaves open; `wb doctor`'s report of the
-  same cause (increment L); the spec text (increment M).
+- **Committed as** `cad9f18683fa516b64e81beb3a43ca9459a3152a`. Not pushed. Not done: narrowing the lock, which the decision leaves
+  open; `wb doctor`'s report of the same cause (increment L); the spec text (increment M).
+
+### Increment K — Skills and agents agree with the registry
+
+- **Step 1, the list.** Every shipped skill and agent was read (the FreeCAD and Verilog skills name no key). What depends on a level
+  or a checkpoint, and what it said:
+  - `delegate-approval`: "never run" `approve-plan`, which the registry offers at `ask` and `none`; a closed list without
+    `wb settings` was not the fault (it had it), but step 1 read the legacy `checkpoint approve-plan: delegate` line and not
+    `level approve-plan:`, which is what the delegate command honours (reviewer's reading of `settings.effective` and
+    `planapprovals.delegating`: the two lines agree today, the level is the authoritative one).
+  - `peer-review`: "never run" `extend`, `reset`, `archive`, `prune` and `amend`, the five that offer `ask` and `none`; no ask flow;
+    a closed list without `wb settings`.
+  - `draft-plan`: "only the owner makes" the approval record with the command, and a closed list of one command; no level read.
+  - The `code-work` policy block (rendered into `AGENTS.md`): the approval line and "Each checkpoint stops for the owner" gave no
+    level and no ask flow (the `groundwork` block and `draft-decision` already did, for `accept-decision`).
+  - Sound as they are: `draft-decision` (the model the plan names), `push-changes`, `run-remote-job`, `draft-roadmap`, `draft-spec`
+    (each states the rule of its `block`-only checkpoint, as `STATED_BY` says), `recall-memory` ("never" for `init` and `mine`,
+    which offer `block` only), `commit-changes`, `request-review`, `evaluate-findings`, `run-increment` (it names no key; one
+    sentence about who approves now points at `draft-plan`), `security-review`, `brainstorm`, the `reviewer` agent.
+- **Test first.** `tests/test_permissions_drift.py` gains three readers on the model of the existing "never run" reader:
+  `skills_state_their_checkpoints` (the skill the registry names for an agent-followed checkpoint exists and says its rule,
+  `STATED_RULES`), `ask_flow` (a skill, agent or policy block of the governing modules that names a key the owner may set to `ask`
+  must hold `wb settings`, `--digest` and the key's preview) and `closed_lists` (a closed command list in a text that names a relaxed
+  key holds `wb settings`); reading a level (`level approve-plan: delegated`) does not count as naming a key to use it. The six K
+  entries are removed from `KNOWN`, which now holds only the development-table entry of M. Each reader has negative tests. Run on
+  the unchanged text it fails and lists 17 disagreements besides the known one (the ask flow missing in `delegate-approval`,
+  `draft-plan`, the policy block and `peer-review`; three closed lists; the six "never run" lines).
+- **The text pass.** One script that rewrites five files atomically, each old text required to occur exactly once: the three
+  skills above and `run-increment` (one sentence), and `code-work/files/blocks/policy.md`. It writes the rule on the model of
+  `draft-decision`: at `block`, and at any other reading, the owner; at `ask` the preview, shown in full, then the command with
+  `--digest <digest>`, which the owner confirms; at `none` the agent runs it; `delegated` reads `block` except for `approve-plan`
+  (`delegate-approval`). `draft-plan` step 8 carries the approval flow and runs only once the owner has said to approve; its
+  closed list now holds `wb settings`, `wb plan-status`, `wb approve-plan` and the `delegated` commands. "Never" stays for the status
+  line and for `init` and `mine`. The pass was run on a copy of the repository: there the drift test (22), `test_verify` (69) and
+  `test_skill_names` (8) pass, and the drift list is the one development-table entry. The owner starts the pass on this tree.
+- **Review:** the `reviewer` agent, one exchange, no blocking finding; the flows were checked against the spec and the registry
+  and the readers against the shipped text. Applied: the policy block says the `ask` and `none` routes begin once the owner has said
+  to approve, and that `delegated` has its own skill; the `draft-plan` closed list adds the `delegated` commands; `peer-review`
+  keeps "show the preview when the owner asks" at every level; `delegate-approval` says `delegated`; a leftover fragment in the
+  test's comment is removed. Not changed: `code-work/files/docs/plans/README.md` (a seeded document, not read by the test) still
+  says the owner makes the approval with the command; it does not contradict a level, since the same file says a level can lower
+  the stop; the readers match a key named in the form the existing reader reads (a backticked argument or whole name), so a text
+  that names only the long form would not be read. The `security-reviewer` agent's pinned list (`python3 -I -B` on four probe
+  scripts in its scratch directory) fits the `security-review` skill, which names no command.
+- **The pass, the release and the rerender (the owner's steps).** The owner ran the pass on this tree; the gates closed at once and
+  the refusal line named the cause and its first place (`first at 'packages/workbench/code-work'`, from increment J); the owner
+  ran `wb release-approvals` (14 approvals for the package, three new directories under `workbench/shipped_approvals/packages/`,
+  six older shipped records reported as not part of the release, left for a later sweep by hand), then `wb upgrade` and
+  `wb rerender`. The rerender also refreshed the tracked copies under `.workbench/` and `AGENTS.md` (the new policy lines
+  above), and the two helpers of increment H (`groundwork`, `review-engine`), which the earlier upgrade had not pulled.
+- **Verification as run on the real tree** (`-W error`): `test_permissions_drift` 22, `test_verify` 69, `test_skill_names` 8,
+  `test_harnesses` 28, `test_firstparty` 57, `test_gate` 27, `test_agent_gate` 59, `test_rendering` 85, all OK; `wb run code-work
+  check`: 82 plans, no problems; `wb preview rerender --package <the local package>` lists the root file, the settings files and every
+  rendered skill and agent (two agents, twenty-one skill files) as "left as it is" and ends "nothing to change"; the rendered
+  `peer-review` skill holds the new sentence. `test_gate_hook` was not rerun (this increment changes skill text and a policy block,
+  not code it reads; it passed after J).
+- **Not done:** the commit; the six stale shipped records; `code-work/files/docs/plans/README.md` still says "the owner makes it"
+  (a seeded document the test does not read).

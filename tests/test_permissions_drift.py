@@ -10,10 +10,13 @@ registry is the one place the facts are written (completion criterion 4 of the p
 
 Not read here, and so not covered by an empty ``KNOWN``: the rendering plan and the lines of ``wb settings`` (increment F moves
 them onto the registry and its tests cover them), the launcher spellings against any text, a checkpoint that no command runs
-against the skill that states it (increment G, with K), a level that an owner's own settings file sets and the key does not
-offer (that is the owner's file, so ``wb doctor`` reads it, increment L), the skills' omission of the ``ask`` flow and the
-`push-shared-branch` rule against the ``git push`` ask rule (a floor action is not a key). Each reader below has a negative
-test that feeds it a disagreement, so it cannot pass by finding nothing."""
+against the skill that states it (increment K reads the agent-followed ones, ``STATED_RULES``), a level that an owner's own
+settings file sets and the key does not offer (that is the owner's file, so ``wb doctor`` reads it, increment L) and the
+`push-shared-branch` rule against the ``git push`` ask rule (a floor action is not a key). Increment K adds the readers of the
+skills against the registry: ``skills_against_levels`` (never run a relaxed key), ``skills_state_their_checkpoints``,
+``ask_flow`` (a text that names a key the owner may set to ask gives the flow) and ``closed_lists`` (a closed command list
+that depends on a level holds ``wb settings``). Each reader below has a negative test that feeds it a disagreement, so it
+cannot pass by finding nothing."""
 
 import os
 import re
@@ -34,17 +37,11 @@ INCREMENTS = tuple("ABCDEFGHIJKLM")
 CHECKPOINT_PAIRS = {"submit-remote-job": "wb run remote-runner submit", "fetch-remote-output": "wb run remote-runner fetch"}
 
 # Every disagreement that exists today, and the increment of the plan that ends it. (E ended three: the registry now records an
-# ``asks`` as a module's declared minimum, so it is no longer a disagreement.) G: a checkpoint has one setting and a command that
-# document. (G ended three: the registry records the two pairs of a checkpoint and a command as deliberate, and the seed writes
-# the table and not the version 1 object.) K: the skills say what the registry says; M: the document.
+# ``asks`` as a module's declared minimum, so it is no longer a disagreement.) (G ended three: the registry records the two pairs of a checkpoint and a command as deliberate, and the seed writes
+# the table and not the version 1 object. K ended the six where a skill said never run a key that the registry offers at ask or none.)
+# M: the document.
 KNOWN = {
     "development-table: release-approvals is an owner-run command but no Owner-run row of docs/development.md shows it": "M",
-    "skill-vs-level: code-work/delegate-approval says never run `approve-plan`, which the registry offers at ask or none": "K",
-    "skill-vs-level: review-engine/peer-review says never run `amend`, which the registry offers at ask or none": "K",
-    "skill-vs-level: review-engine/peer-review says never run `archive`, which the registry offers at ask or none": "K",
-    "skill-vs-level: review-engine/peer-review says never run `extend`, which the registry offers at ask or none": "K",
-    "skill-vs-level: review-engine/peer-review says never run `prune`, which the registry offers at ask or none": "K",
-    "skill-vs-level: review-engine/peer-review says never run `reset`, which the registry offers at ask or none": "K",
 }
 
 
@@ -213,6 +210,84 @@ def skills_against_levels(keys, texts):
                         parts[0], parts[-2], named_token(name))
 
 
+# The modules whose skills, agents and policy blocks speak of the checkpoints and the owner's levels. The FreeCAD and Verilog skills
+# do not, and a word such as `reset` in backticks there is not a key.
+GOVERNING = ("code-work", "groundwork", "review-engine", "remote-runner", "safe-git", "security-review", "mempalace")
+
+# How a skill that the registry names in ``stated_by`` states the rule of an agent-followed checkpoint (increment G records which
+# skill, and this says what the skill must say). The checkpoints that no command runs (``acknowledge-*``) are carried by
+# ``wb acknowledge`` and stated by the policy block in ``AGENTS.md``.
+STATED_RULES = {
+    "push-shared-branch": r"(?i)push only on the owner.s word",
+    "submit-remote-job": r"(?i)submit and fetch only on the owner.s word",
+    "fetch-remote-output": r"(?i)submit and fetch only on the owner.s word",
+    "change-direction": r"(?i)direction.{0,80}needs the owner",
+}
+
+
+def governing(texts):
+    return [(path, text) for path, text in texts if path.split(os.sep)[0] in GOVERNING]
+
+
+def block_texts():
+    """``(relative path, text)`` of the policy block that each shipped module renders into the root file."""
+    found = []
+    for module in sorted(os.listdir(PACKAGE)):
+        path = os.path.join(PACKAGE, module, "files", "blocks", "policy.md")
+        if os.path.exists(path):
+            found.append((os.path.relpath(path, PACKAGE), read(path)))
+    return found
+
+
+def label(path):
+    parts = path.split(os.sep)
+    return "%s/%s" % (parts[0], parts[-2] if parts[-1] == "SKILL.md" else os.path.splitext(parts[-1])[0])
+
+
+def names_to_use(group, key):
+    """Whether `group` names `key` to use it. Reading its level (``level approve-plan: delegated``, ``checkpoint approve-plan:
+    delegate``) is not using it."""
+    return names_key(re.sub(r"\b(?:level|checkpoint)\s+[a-z][a-z -]*?:", " ", group), key)
+
+
+def skills_state_their_checkpoints(keys, texts):
+    """The skill that the registry names for an agent-followed checkpoint exists and says the rule that checkpoint holds."""
+    for name, key in sorted(keys.items()):
+        for skill in key.stated_by:
+            found = [text for path, text in texts if path.split(os.sep)[-2:] == [skill, "SKILL.md"]]
+            if not found:
+                yield "stated-by: %s names the skill %s and no shipped skill has that name" % (name, skill)
+            elif name not in STATED_RULES or not re.search(STATED_RULES[name], " ".join(groups(found[0]))):
+                yield "stated-by: the skill %s does not state the rule of %s" % (skill, name)
+
+
+def ask_flow(keys, texts):
+    """A skill, agent or policy block that names a key the owner may set to ``ask`` gives the flow of that level: it reads
+    ``wb settings``, runs the key's preview, and runs the command with ``--digest``."""
+    asking = {name: key for name, key in keys.items() if not key.agent and levels.ASK in key.offers}
+    for path, text in texts:
+        for name in sorted(asking):
+            if any(names_to_use(group, name) for group in groups(text)):
+                missing = [part for part in ("wb settings", "--digest", asking[name].preview) if part and part not in text]
+                if missing:
+                    yield "ask-flow: %s names `%s` and does not state the ask flow (missing %s)" % (
+                        label(path), named_token(name), ", ".join(missing))
+
+
+def closed_lists(keys, texts):
+    """A closed list of commands ("Use only ... Run no other command") in a text that names a key the owner may relax holds
+    ``wb settings``, which is the command that reads the level."""
+    relaxed = {name for name, key in keys.items() if not key.agent and (levels.ASK in key.offers or levels.NONE in key.offers)}
+    closing = re.compile(r"(?i)\b(?:use only|run no other)\b")
+    for path, text in texts:
+        found = groups(text)
+        if not any(names_to_use(group, name) for group in found for name in relaxed):
+            continue
+        for group in found:
+            if closing.search(group) and "wb settings" not in group:
+                yield "closed-list: %s names a command list that leaves out `wb settings`" % label(path)
+
+
 def seed_against_version_two():
     if "checkpoints" in settings._seed_document():
         yield "settings-seed: a new settings file is written with the version 1 checkpoints object"
@@ -225,6 +300,9 @@ def disagreements():
     for source in (asks_against_level(found, keys), anchors_against_documents(keys), checkpoint_pairs(keys),
                    spec_against_registry(keys, read(SPEC)),
                    development_against_rules(read(DEVELOPMENT)), skills_against_levels(keys, neutral_texts()),
+                   skills_state_their_checkpoints(keys, neutral_texts()),
+                   ask_flow(keys, governing(neutral_texts()) + block_texts()),
+                   closed_lists(keys, governing(neutral_texts())),
                    seed_against_version_two()):
         result.extend(source)
     return sorted(set(result))
@@ -355,6 +433,65 @@ class EachReaderFindsADisagreementItIsGiven(unittest.TestCase):
         self.assertEqual([], list(skills_against_levels(self.keys, said)))
         said = [("some-module/harness/neutral/skills/x/SKILL.md", "- Never run approve-plan early.\n")]
         self.assertEqual(1, len(list(skills_against_levels(self.keys, said))))
+
+    def test_a_skill_that_is_missing_or_does_not_state_its_checkpoint(self):
+        self.assertEqual([], list(skills_state_their_checkpoints(self.keys, neutral_texts())))
+        self.assertIn("stated-by: push-shared-branch names the skill push-changes and no shipped skill has that name",
+                      list(skills_state_their_checkpoints(self.keys, [])))
+        silent = [("code-work/harness/neutral/skills/push-changes/SKILL.md", "# Push\n\nPush when it looks fine.\n")]
+        self.assertEqual(["stated-by: the skill push-changes does not state the rule of push-shared-branch"],
+                         [line for line in skills_state_their_checkpoints(self.keys, silent) if "push-changes" in line])
+
+    def test_the_rule_of_each_agent_followed_checkpoint_is_set(self):
+        stated = {name for name, key in self.keys.items() if key.stated_by}
+        self.assertEqual({"push-shared-branch", "submit-remote-job", "fetch-remote-output", "change-direction"}, stated)
+        self.assertEqual(stated, set(STATED_RULES))
+
+    def test_a_text_that_names_a_key_at_ask_without_the_ask_flow(self):
+        path = "some-module/harness/neutral/skills/x/SKILL.md"
+        self.assertEqual(["ask-flow: some-module/x names `extend` and does not state the ask flow "
+                          "(missing wb settings, --digest, wb run review-engine preview)"],
+                         list(ask_flow(self.keys, [(path, "- Run `extend` when the owner asks.\n")])))
+        whole = ("- Run `wb settings`. At ask run `wb run review-engine preview extend <document> <n>`, then `extend` "
+                 "with `--digest <digest>`.\n")
+        self.assertEqual([], list(ask_flow(self.keys, [(path, whole)])))
+        partial = "- Run `wb settings`, then `extend` after `wb run review-engine preview extend`.\n"
+        self.assertEqual(["ask-flow: some-module/x names `extend` and does not state the ask flow (missing --digest)"],
+                         list(ask_flow(self.keys, [(path, partial)])))
+
+    def test_reading_the_level_of_a_key_is_not_using_it(self):
+        path = "some-module/harness/neutral/skills/x/SKILL.md"
+        reads = "- Run `wb settings`. Go on only if it prints `level approve-plan: delegated`.\n- Use only reading.\n"
+        self.assertEqual([], list(ask_flow(self.keys, [(path, reads)])))
+        self.assertEqual([], list(closed_lists(self.keys, [(path, reads)])))
+        uses = "- Run `wb approve-plan docs/plans/x.md` when it reads delegated.\n"
+        self.assertEqual(1, len(list(ask_flow(self.keys, [(path, uses)]))))
+
+    def test_a_text_that_names_a_key_that_cannot_be_set_to_ask_needs_no_ask_flow(self):
+        path = "some-module/harness/neutral/skills/x/SKILL.md"
+        self.assertEqual([], list(ask_flow(self.keys, [(path, "- Never run `init` or `mine`.\n- Run `wb run safe-git commit`.\n")])))
+
+    def test_the_policy_blocks_are_read_by_the_ask_flow_reader(self):
+        found = block_texts()
+        self.assertGreaterEqual(len(found), 3)
+        gone = [(path, text.replace("--digest", "")) for path, text in found]
+        self.assertTrue(any(line.startswith("ask-flow: groundwork/policy names `accept-decision`")
+                            for line in ask_flow(self.keys, gone)))
+
+    def test_a_closed_command_list_that_leaves_out_the_command_that_reads_the_level(self):
+        path = "some-module/harness/neutral/skills/x/SKILL.md"
+        short = "- Run `extend` at the level.\n- Use only reading, searching and editing. Run no other command.\n"
+        self.assertEqual(["closed-list: some-module/x names a command list that leaves out `wb settings`"],
+                         list(closed_lists(self.keys, [(path, short)])))
+        fixed = short.replace("editing.", "editing and `wb settings`.")
+        self.assertEqual([], list(closed_lists(self.keys, [(path, fixed)])))
+        unrelated = "- Use only reading and searching. Run no other command.\n"
+        self.assertEqual([], list(closed_lists(self.keys, [(path, unrelated)])))
+
+    def test_the_governing_texts_are_found(self):
+        found = governing(neutral_texts())
+        self.assertTrue(any(path.endswith("draft-plan/SKILL.md") for path, _ in found))
+        self.assertFalse(any(path.startswith("freecad") for path, _ in found))
 
     def test_a_seed_with_the_version_one_object(self):
         self.assertEqual([], list(seed_against_version_two()))
