@@ -1,6 +1,6 @@
 # The permission system has one registry, three danger classes and one rule for which mechanism governs
 
-Status: Proposed
+Status: Accepted by Robert Ziegler <25854477+rziegler42@users.noreply.github.com> on 2026-11-02
 Date: 2026-11-02
 
 ## Context
