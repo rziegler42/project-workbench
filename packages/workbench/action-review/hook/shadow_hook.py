@@ -34,6 +34,7 @@ WAIT_SECONDS = 27
 SECOND_WAIT = 2  # after the group is killed, for the output of a program that left it; the two add up to under 30
 MAX_INPUT = 1 << 20
 MAX_COMMAND = 4096
+MAX_REASON = 300  # the store's limit for a stored reason
 MAX_STREAM = 2 << 20
 USAGE = "usage: shadow_hook.py [--wb <absolute path of the wb launcher>]"
 REASONS = ("reviewed", "no_rule", "unreviewable", "refused", "failed", "timeout")
@@ -271,23 +272,47 @@ def write(err, name, row, home, fallback=None):
     return False
 
 
+def redacted_text(err, command, verdict, facts):
+    """``(reason, command, facts)`` as they may be stored: the reason, the command and the facts with their secrets replaced. The
+    command and the facts are None when nothing is to be collected. If a redaction fails, or the redacted text no longer fits the
+    store's limits, everything comes back None: a row never holds text that this function did not redact, and the note is fixed
+    text that quotes nothing."""
+    reason = verdict[2] if verdict else None
+    try:
+        if reason is not None:
+            reason = redact_text(reason)
+            if len(reason) > MAX_REASON:
+                raise ValueError("the redacted reason is too long")
+        if facts is None:
+            return reason, None, None
+        shown = redact_text(command)
+        if len(shown) > MAX_COMMAND:
+            raise ValueError("the redacted command is too long")
+        return reason, shown, redact(facts)
+    except Exception:  # whatever went wrong, no raw text goes to a file
+        note(err, "the hook could not redact the text of a row; the reason and the collected row are left out")
+        return None, None, None
+
+
 def record(err, home, outcome, command, verdict=None, log_row=None, facts=None):
-    """Write the verdict row for one prompted command and, for a reviewed command with its facts, the collected row."""
+    """Write the verdict row for one prompted command and, for a reviewed command with its facts, the collected row. The reason,
+    the command and the facts are stored redacted ("redaction"); the command's hash is of the command as it was."""
     reviewed = outcome == "reviewed"
     digest = sha256(command) if command is not None else None
+    rule = log_row.get("rule") if log_row else None
+    collecting = reviewed and facts is not None and isinstance(rule, str)
+    reason, shown, facts = redacted_text(err, command, verdict, facts if collecting else None)
     row = {"ts": store.now(), "command_sha256": digest, "outcome": outcome,
            "verdict": verdict[0] if verdict else None, "failed_checks": list(verdict[1]) if verdict else [],
-           "reason": verdict[2] if verdict else None, "reviewed": reviewed,
-           "no_review_reason": None if reviewed else outcome}
+           "reason": reason, "reviewed": reviewed, "no_review_reason": None if reviewed else outcome}
     plain = dict(row)
     if reviewed and log_row:
         row.update({field: log_row[field] for field in ENGINE_FIELDS if field in log_row})
     write(err, "verdicts.jsonl", row, home, plain if row != plain else None)
-    rule = log_row.get("rule") if log_row else None
-    if reviewed and facts is not None and isinstance(rule, str):
+    if collecting and shown is not None:
         write(err, "collected.jsonl", {
-            "id": store.new_id(), "ts": row["ts"], "rule": rule, "command_sha256": digest, "command": command,
-            "facts": facts, "verdict": verdict[0], "failed_checks": list(verdict[1]), "reason": verdict[2]}, home)
+            "id": store.new_id(), "ts": row["ts"], "rule": rule, "command_sha256": digest, "command": shown,
+            "facts": facts, "verdict": verdict[0], "failed_checks": list(verdict[1]), "reason": reason}, home)
 
 
 def run(argv, stdin, err, home):

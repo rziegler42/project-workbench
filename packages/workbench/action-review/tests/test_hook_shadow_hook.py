@@ -19,7 +19,7 @@ import time
 import unittest
 import unittest.mock
 
-from test_actionreview_output import (Base as EngineBase, COMMAND, answered, bridge_failed, commit_doc, described, reply)
+from test_actionreview_output import (Base as EngineBase, COMMAND, HEAD, answered, bridge_failed, commit_doc, described, reply)
 from tests import support_install
 from workbench.wbkit import call
 
@@ -354,6 +354,176 @@ class Recording(Base):
         self.assertNotIn("safe-git", data.replace('"rule":"safe-git-commit"', ""))
         self.assertNotIn("a.txt", data)
         self.assertNotIn(COMMAND, data)
+
+
+LEAKY_COMMAND = COMMAND + " # token=abcdef123456"  # the fake engine does not read it: the hook passes the text on and stores it
+LEAKY_DIFF = "--- HEAD/.env\n+++ work/.env\n@@ -0,0 +1 @@\n+DB_PASSWORD=hunter22abc\n"
+LEAKY_REASON = "The change adds secret=s3cr3tvalue1 to a file."
+SECRETS = ("abcdef123456", "hunter22abc", "s3cr3tvalue1")
+
+
+class Redacting(Base):
+    """What the hook stores is redacted (plan `2026-11-03-redact-collected-diffs`, increment B). The engine's own bytes are used:
+    in `leaky` a model is asked and its reason holds a secret; in `leaky_diff` the diff holds one, and the diff stays in the facts
+    that the hook collects."""
+
+    def leaky(self, reason=LEAKY_REASON):
+        return self.engine(bridge=answered(reply("approve", [], reason)))
+
+    def leaky_diff(self):
+        return self.engine(describe=described(commit_doc(diff=LEAKY_DIFF)))
+
+    def stored(self, name):
+        with open(os.path.join(self.store.data_dir(self.home), name), "rb") as handle:
+            return handle.read().decode("utf-8")
+
+    def test_the_engine_runs_the_tests_use_really_carry_the_secrets(self):
+        replay = self.leaky()
+        self.assertIn("s3cr3tvalue1", (replay.out + replay.err).decode("ascii"))
+        self.assertIn("hunter22abc", self.leaky_diff().err.decode("ascii"))
+
+    def run_counting(self, replay, text):
+        """Run the hook and name the files it tried to append a row to."""
+        real, tried = self.mod.store.append, []
+
+        def counting(name, row, home=None):
+            tried.append(name)
+            return real(name, row, home)
+
+        with unittest.mock.patch.object(self.mod.store, "append", counting):
+            code, err = self.run_hook(replay, text=text)
+        return code, err, tried
+
+    def stored_text(self):
+        return self.stored("verdicts.jsonl") + self.stored("collected.jsonl")
+
+    def test_no_secret_reaches_either_file_and_a_marker_stands_in_its_place(self):
+        self.run_hook(self.leaky(), text=LEAKY_COMMAND)
+        data = self.stored_text()
+        for secret in SECRETS:
+            self.assertNotIn(secret, data, secret)
+        verdict = self.one_verdict()
+        self.assertEqual("The change adds secret=[redacted:assignment] to a file.", verdict["reason"])
+        collected, skipped = self.rows("collected.jsonl")
+        self.assertEqual((1, 0), (len(collected), skipped))
+        item = collected[0]
+        self.assertEqual("The change adds secret=[redacted:assignment] to a file.", item["reason"])
+        self.assertEqual(COMMAND + " # token=[redacted:assignment]", item["command"])
+        self.assertEqual(commit_doc(), item["facts"])
+
+    def test_a_diff_that_carries_a_secret_is_collected_with_the_secret_redacted(self):
+        self.run_hook(self.leaky_diff(), text=LEAKY_COMMAND)
+        self.assertEqual("reviewed", self.one_verdict()["outcome"])
+        data = self.stored_text()
+        for secret in SECRETS:
+            self.assertNotIn(secret, data, secret)
+        item = self.rows("collected.jsonl")[0][0]
+        self.assertIn("+DB_PASSWORD=[redacted:assignment]\n", item["facts"]["facts"]["diff"])
+        expected = commit_doc(diff=LEAKY_DIFF.replace("hunter22abc", "[redacted:assignment]"))
+        self.assertEqual(expected, item["facts"])
+
+    def test_the_hash_is_still_of_the_raw_command_and_the_rows_keep_their_fields(self):
+        self.run_hook(self.leaky(), text=LEAKY_COMMAND)
+        self.assertEqual(self.sha(LEAKY_COMMAND), self.one_verdict()["command_sha256"])
+        item = self.rows("collected.jsonl")[0][0]
+        self.assertEqual(self.sha(LEAKY_COMMAND), item["command_sha256"])
+        self.assertEqual({"id", "ts", "rule", "command_sha256", "command", "facts", "verdict", "failed_checks", "reason"}, set(item))
+        self.assertEqual(("approve", []), (item["verdict"], item["failed_checks"]))
+
+    def test_a_decline_keeps_its_failed_checks_and_redacts_its_reason(self):
+        replay = self.engine(bridge=answered(reply("decline", ["scope_is_coherent"], LEAKY_REASON)))
+        self.run_hook(replay, text=LEAKY_COMMAND)
+        row = self.one_verdict()
+        self.assertEqual(("decline", ["scope_is_coherent"], "The change adds secret=[redacted:assignment] to a file."),
+                         (row["verdict"], row["failed_checks"], row["reason"]))
+
+    def test_the_script_writes_no_secret_to_standard_output_or_error(self):
+        for replay in (self.leaky(), self.leaky_diff()):
+            os_remove_rows(self.home)
+            self.install_wb(replay)
+            run = subprocess.run([sys.executable, "-B", HOOK, "--wb", self.wb], input=json.dumps(self.event(LEAKY_COMMAND)).encode(),
+                                 env={"HOME": self.home, "PATH": "/usr/bin:/bin", "PYTHONDONTWRITEBYTECODE": "1"},
+                                 capture_output=True, timeout=60)
+            self.assertEqual((0, b""), (run.returncode, run.stdout))
+            for secret in SECRETS:
+                self.assertNotIn(secret.encode(), run.stderr)
+                self.assertNotIn(secret, self.stored_text())
+            self.assertEqual(1, len(self.rows("collected.jsonl")[0]))
+
+    def test_a_redaction_that_raises_leaves_the_verdict_row_without_its_reason_and_no_collected_row(self):
+        replay = self.leaky()
+        for name, error in (("redact_text", RuntimeError("boom")), ("redact", ValueError("too deep"))):
+            with self.subTest(name):
+                os_remove_rows(self.home)
+                with unittest.mock.patch.object(self.mod, name, side_effect=error):
+                    code, err, tried = self.run_counting(replay, LEAKY_COMMAND)
+                self.assertEqual((0, ["verdicts.jsonl"]), (code, tried), "no collected row is even tried")
+                row = self.one_verdict()
+                self.assertEqual(("reviewed", "approve", None), (row["outcome"], row["verdict"], row["reason"]))
+                self.assertEqual(([], 0), self.rows("collected.jsonl"))
+                self.assertTrue(err.strip(), "the failure is noted")
+                for secret in SECRETS + ("boom", "too deep"):
+                    self.assertNotIn(secret, err)
+                    self.assertNotIn(secret, self.stored("verdicts.jsonl"))
+
+    def test_a_redacted_reason_that_no_longer_fits_is_dropped_with_the_collected_row(self):
+        reason = ("password=abcd " * 22)[:300]
+        self.assertEqual(300, len(reason))
+        code, err, tried = self.run_counting(self.leaky(reason), LEAKY_COMMAND)
+        self.assertEqual((0, ["verdicts.jsonl"]), (code, tried))
+        row = self.one_verdict()
+        self.assertEqual(("reviewed", None), (row["outcome"], row["reason"]))
+        self.assertEqual(([], 0), self.rows("collected.jsonl"))
+        self.assertTrue(err.strip())
+
+    def test_a_reason_of_exactly_the_limit_that_needs_no_redaction_is_stored_whole(self):
+        reason = "a" * 300
+        self.run_hook(self.leaky(reason), text=LEAKY_COMMAND)
+        self.assertEqual(reason, self.one_verdict()["reason"])
+        self.assertEqual(reason, self.rows("collected.jsonl")[0][0]["reason"])
+
+    def test_a_redacted_command_that_no_longer_fits_costs_the_collected_row_and_the_reason_and_not_the_verdict_row(self):
+        text = LEAKY_COMMAND + " # " + "password=abcd " * 250
+        self.assertLessEqual(len(text), 4096)
+        code, err, tried = self.run_counting(self.leaky(), text)
+        self.assertEqual((0, ["verdicts.jsonl"]), (code, tried))
+        row = self.one_verdict()
+        self.assertEqual(("reviewed", self.sha(text), None), (row["outcome"], row["command_sha256"], row["reason"]))
+        self.assertEqual(([], 0), self.rows("collected.jsonl"))
+        self.assertTrue(err.strip())
+
+    def test_facts_whose_redacted_form_no_longer_fits_a_line_cost_the_collected_row_and_keep_the_redacted_reason(self):
+        diff = "password=abcd\n" * 28000  # 392,000 characters, a line that fits; redacted it is over the store's 512 KB
+        facts = commit_doc(diff=diff)
+        row = {"rule": "safe-git-commit"}
+        self.store.append("collected.jsonl", {"id": "0123456789abcdef0123456789abcdef", "ts": "2026-10-30T01:02:03Z",
+                          "rule": "safe-git-commit", "command_sha256": "a" * 64, "command": "x", "facts": facts,
+                          "verdict": "approve", "failed_checks": [], "reason": "ok"}, self.home)
+        os_remove_rows(self.home)
+        err = io.StringIO()
+        self.mod.record(err, self.home, "reviewed", COMMAND, ("approve", [], "Adds password=abcd to it."), row, facts)
+        verdict = self.one_verdict()
+        self.assertEqual("Adds password=[redacted:assignment] to it.", verdict["reason"])
+        self.assertEqual(([], 0), self.rows("collected.jsonl"))
+        self.assertTrue(err.getvalue().strip())
+        self.assertNotIn("abcd", err.getvalue() + self.stored("verdicts.jsonl"))
+
+    def test_a_row_that_was_not_reviewed_still_holds_no_reason_and_costs_no_note(self):
+        code, err = self.run_hook(self.engine(NO_RULE), text=NO_RULE)
+        row = self.one_verdict()
+        self.assertEqual((0, "", "no_rule", None), (code, err, row["outcome"], row["reason"]))
+
+    def test_a_malformed_event_costs_no_note(self):
+        code, err = self.run_hook(Replay(0), raw=b"not json")
+        self.assertEqual((0, ""), (code, err))
+        self.assertEqual("malformed_input", self.one_verdict()["outcome"])
+
+    def test_facts_that_come_with_an_outcome_that_was_not_reviewed_are_not_collected(self):
+        err = io.StringIO()
+        self.mod.record(err, self.home, "failed", LEAKY_COMMAND, None, {"rule": "safe-git-commit"}, commit_doc())
+        self.assertEqual("failed", self.one_verdict()["outcome"])
+        self.assertEqual(([], 0), self.rows("collected.jsonl"))
+        self.assertEqual("", err.getvalue())
 
 
 class Inputs(Base):

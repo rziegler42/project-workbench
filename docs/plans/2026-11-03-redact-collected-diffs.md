@@ -219,4 +219,49 @@ Then the three files were copied byte-for-byte into the real tree (`cmp` equal) 
 14 roots) and `git diff --check` is clean. Two older records belong to no release now (`5e4c352f0d5f…`, the package, and
 `dfbdef5b7b6f…`, the module); they are still tracked, awaiting the owner's word.
 
+Committed as `dfb44e7`; the two superseded shipped records were removed in `f366676`.
+
+### Increment B
+
+Built in a scratch clone at `f366676`.
+
+Changed: `packages/workbench/action-review/hook/shadow_hook.py` (`MAX_REASON`, `redacted_text`, and `record`),
+`packages/workbench/action-review/tests/test_hook_shadow_hook.py` (a `Redacting` class, 12 tests), and the `PINS` entry of
+`hook/shadow_hook.py` in `packages/workbench/action-review/helper/action-review` (the hash moved again).
+
+Done: `record` redacts the reason, the command and the facts before it writes a row. `command_sha256` is still the hash of the raw
+command, in both files. If a redaction raises, or the redacted reason is over 300 characters or the redacted command over 4,096, the
+verdict row is written without its reason, no collected row is tried, and a fixed note that quotes nothing goes to standard error. A
+row for a command that was not reviewed is as it was and costs no note.
+
+**Readings of the plan, for the owner.**
+- When only the command, or only the facts, cannot be redacted or no longer fit, the reason is dropped with the collected row. The
+  plan's wording ("the verdict row is written without the reason") says it, and it is one guard; the reason is at most 300 characters.
+- Facts that redact to a line the store refuses (more than 512 KB, from a large diff full of short secrets) cost the collected row,
+  and the verdict row keeps its redacted reason. The plan's criterion 3 says the reason goes too; it does not here, because the
+  reason is already redacted and the store refused only the other row. A test pins it.
+- Facts that nest deeper than 64, hold a key that is not a string, or hold a value that is not JSON used to be stored and are now not
+  collected. The engine's facts do none of these.
+- Keys of the facts, and the engine's own fields (`rule`, `failed_checks`, `bridge`, `model`, `effort`), are stored as they are; the
+  store limits the first three to a lowercase pattern. A key that carried user text would be stored as it was. Increment C says so.
+- `facts_sha256` in the verdict row is the engine's hash of the unredacted facts. No tool in this package compares it with the stored
+  facts.
+
+Verification as run in the scratch clone on 2026-11-03: the new tests failed first (8 of them); 62 tests of
+`test_hook_shadow_hook.py` pass under `-W error`; the full suite passed (7,054 tests in 14 roots before the last test was added, run
+again in the real tree below); 22 single-change mutations of `redacted_text` and `record` are each caught (seven survived at first
+and led to one guard instead of two and to tests that the store is never asked for a collected row after a failure).
+
+Review: the `reviewer` agent, one exchange, four findings, none blocking. It read the code and could not run it.
+- F1 (accepted, pinned by a test): see the second reading above.
+- F2 (accepted): see the first reading above.
+- F3 (accepted, goes to Increment C): see the fourth reading above.
+- F4 (no change): `except Exception` also catches `MemoryError` and `RecursionError`, as the hook's `main` already does for everything.
+
+Then the three files were copied byte-for-byte into the real tree (`cmp` equal) and the owner released the package. The release wrote
+two new shipped records (`f365ddd2a3d4…`, the package; `b7f550cd1b6d…`, the module). In the real tree `wb check .` and
+`wb run code-work check` (83 plans) report no problem, `python3 -B -W error tests/run_all.py` passes (7,055 tests in 14 roots) and
+`git diff --check` is clean. Two older records belong to no release now (`49f51831d166…`, the package, and `86669eeefa5c…`, the
+module); they are still tracked, awaiting the owner's word.
+
 Not done in this section yet: the commit.
