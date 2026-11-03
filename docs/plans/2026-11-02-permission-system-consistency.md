@@ -530,4 +530,42 @@ conformance check and author guide, and named risk profiles. Also deferred: `del
   not reviewed again.
 - **Owner's choice, noted in the record:** wait on the narrowing (the owner said so on 2026-11-02, while the record was `Proposed`;
   it becomes part of the decision when the record is accepted).
-- **Not done:** acceptance, the owner's checkpoint; a review of the rewritten text; no security review.
+- **Accepted** by the owner on 2026-11-02 through `groundwork accept` at `ask` (digest `4b43c679b67a5b478c9f0c3c6583e0ea`); the
+  status line is committed separately. No security review.
+
+### Increment D — Characterize today: the corpus and the drift test
+
+- **Done:** three new files and no production change: `tests/fixtures/gate_corpus.json` (79 cases), `tests/test_gate_corpus.py` and
+  `tests/test_permissions_drift.py`. The corpus records, for each command, the level it runs under (`ask`, `none` or `block`),
+  what the gate does today and the rule that fired, and the result the accepted gate decision wants; 9 cases differ (the false
+  positives of the decision, 7 at `ask` and 2 at `none`), each naming increment I as the one that ends the difference. The other
+  70 are 10 ordinary commands that pass, 9 exact forms the ask rule matches, 30 attempts that must stay refused (including the
+  forms found while testing the gap rule: brace groups, bare parameters, a built launcher), the 3 block and 5 none cases that do not
+  differ, and 13 boundary cases that keep the data position and the freed `wb run` form from widening. The drift test reads the registry built from
+  the shipped declarations, the spec's bullet of offered levels, the owner-run rows of the development table, the settings seed
+  and every shipped skill and agent, and lists 13 disagreements, each with the increment that ends it (E, G, K or M).
+- **Findings recorded in the tests, not fixed here:** the `remote-runner` `submit` and `fetch` and `safe-git remove` keys default to
+  `none` while their module renders an ask (E); a checkpoint and its command carry different defaults (G); the settings seed
+  still writes the version 1 `checkpoints` object (G); the `peer-review` skill says never run five review-engine arguments and the
+  `delegate-approval` skill says never run `approve-plan`, though all are at `ask` (K); the development table does not show
+  `release-approvals` as an owner-run row (M). The spec's offered-levels bullet agrees with the registry.
+- **Verification as run:** `python3 -B -W error -m unittest tests.test_permissions_drift tests.test_gate_corpus tests.test_levels
+  tests.test_command_gate`: 156 tests, OK (28 new; the two neighbours unchanged). `tests.test_approve_levels` (cited by the
+  corpus for the block side): 54 tests with the corpus, OK. With an empty known list the drift test failed and listed the
+  disagreements. Nothing wider was run: no production code changed.
+- **Not covered, stated in the test's docstring:** the rendering plan and the `wb settings` lines (increment F), the launcher spellings
+  against any text, the checkpoints that no command runs against the skill that states them (G with K), a level the owner's own
+  file sets that the key does not offer (`wb doctor`, increment L), the skills' omission of the `ask` flow, and the `git push` ask
+  rule against `push-shared-branch`. The size and NUL checks of `command_gate.run` sit outside `judge` and stay in
+  `tests/test_command_gate.py`.
+- **Review:** the `reviewer` agent, one exchange: eight findings, one blocking. Applied after checking each: the corpus had no
+  `block` and `none` side (it now carries a level on every case, with block cases that show the gate is not engaged and a test that
+  the launcher spelling is read only by the gate and the rules, so the command's own terminal test, tested in
+  `tests/test_approve_levels.py`, is spelling-independent); boundary attempts for the data position and the freed run form were
+  added; the mislabelled development-table disagreement was reworded; the spec reader no longer drops a name the registry lacks;
+  every reader has a negative test (one caught a mistake in my own test input); the test that edited the known list was replaced by a
+  pure comparison; an unused name was removed. Two points were not changed: the `rule` field reads the refusal's prose, and
+  increment I replaces that with the structured rule name; facts the drift test does not read are listed above. The fixes were not
+  reviewed again.
+- **Not done:** the commit, which waits for the owner's word. A security review is not part of this increment (it changes no
+  production code).
