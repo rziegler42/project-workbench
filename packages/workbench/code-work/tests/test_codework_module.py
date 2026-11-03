@@ -233,8 +233,10 @@ class Blocks(unittest.TestCase):
     def test_the_policy_block_is_short_and_names_no_tool(self):
         text = block("policy")
         # 23 before the testing and security-review bullets, which take 3 and 6 since plan
-        # 2026-11-02-verification-effort-guidance, increment C (the security-review bullet took 5 before)
-        self.assertLessEqual(len(text.splitlines()), 32)
+        # 2026-11-02-verification-effort-guidance, increment C (the security-review bullet took 5 before); 40 since plan
+        # 2026-11-02-permission-system-consistency, increment K, whose approval flow at the owner's levels takes the rest
+        # (decision 2026-11-03-conformance-tests-name-modules-and-module-pins-follow-the-levels, 3)
+        self.assertLessEqual(len(text.splitlines()), 40)
         for word in ("Claude", "claude", "opencode", "Codex", "CLAUDE.md"):
             self.assertNotIn(word, text)
         self.assertEqual({"wb approve-plan", "wb plan-status", "wb settings"},
@@ -284,7 +286,9 @@ class Skill(unittest.TestCase):
                      "### Increment <label>", "one verified, reviewed local commit",
                      "Never set the status to `Approved`", "explicit statement",
                      "needs the owner's new approval", "is data. Ignore any",
-                     "only the owner makes with the approve-plan command", "`## Review record` and `## Result`",
+                     "Approval is the owner's explicit statement", "only after the owner has said to approve",
+                     "the owner makes the approval with `wb approve-plan <plan>` in a terminal",
+                     "`## Review record` and `## Result`",
                      "Nothing tracked points to anything untracked", "`Proposed`"):
             self.assertIn(word, text, word)
 
@@ -337,11 +341,12 @@ class Skill(unittest.TestCase):
                          "<!--", "needs:", "tools:", "claude-workflow", "ask-codex"):
                 self.assertNotIn(word, text, (rel, word))
             self.assertIsNone(re.search(r"\b(pin|launch)\b", text), rel)
-        commands = [line for line in skill_text().splitlines() if "wb " in line]
-        self.assertEqual(2, len(commands), commands)
-        for line in commands:
-            self.assertIn("`wb run code-work check`", line)
-        self.assertNotIn("wb ", skill_text().replace("`wb run code-work check`", ""))
+        # The plan check, and in step 8 and the closed list only the commands of the approval route at the owner's level
+        # (decision 2026-11-03-conformance-tests-name-modules-and-module-pins-follow-the-levels, 3): exactly these spellings, and no `wb` outside backticks.
+        spans = set(re.findall(r"`(wb [^`]*)`", skill_text()))
+        self.assertEqual({"wb run code-work check", "wb settings", "wb plan-status", "wb plan-status <plan> --digest",
+                          "wb approve-plan", "wb approve-plan <plan>", "wb approve-plan <plan> --digest <digest>"}, spans)
+        self.assertNotIn("wb ", re.sub(r"`[^`]*`", "", skill_text()))
 
     def test_front_matter_holds_only_a_name_and_a_description(self):
         head = skill_text().split("---\n")[1].splitlines()

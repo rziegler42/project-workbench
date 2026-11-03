@@ -274,4 +274,70 @@ Empty until a review is asked for.
   and one list item that names both strings of a pair satisfies the drift reader.
 - **Security review:** not asked for. Nothing in C reads a new input: it removes a table from the installer's source, adds a constant
   list to a test and changes test text. The owner may still ask.
-- **Not done:** the commit; increment D (the package pass).
+- **Committed as** `018a02b459a47918341465c5226810f34d029b6e`. Not pushed.
+
+### Increment D — The module tests, skills and policy block (package pass)
+
+- **Step 1, the nine assertions** (listed before any edit; what each protects, and what changes under decision 3 of the accepted
+  record). Reading the tests showed that three of the nine hold more than one failing phrase.
+  1. `code-work`, `test_codework_delegateskill.Commands`, "only the two commands, each in backticks, each once": protects that the delegate
+     skill runs `wb settings` and `wb delegate-approve-plan <plan>` and names no other. K's rule named the command a third time,
+     without its argument. **Text fixed, pin kept:** the rule says "the delegate command", with no backticked command.
+  2. `code-work`, `test_codework_delegateskill.Skill`, "the text carries the phrases of the routine": three phrases changed under K:
+     `` `checkpoint approve-plan: delegate` `` (now `` `level approve-plan: delegated` ``, the line the delegate command honours),
+     "the owner approves the plan" (now "the plan is approved by the route", pointing at the route `draft-plan` gives) and "never run
+     that command" (now "is not a way to reach another route past its level": the skill must not claim that `wb approve-plan` is never
+     run, which at `ask` and `none` it is). **Pins updated** to those three phrases; each protects the same thing, that this skill
+     reads the delegated level and does not become a second route to approval.
+  3. `code-work`, `test_codework_delegateskill.Pointers`, "draft-plan and run-increment name it and still leave the approval to the owner":
+     the phrase "only the owner makes with the approve-plan command" in `draft-plan`. **Pin updated:** "Approval is the owner's explicit
+     statement", plus "only after the owner has said to approve", which is what keeps the approval the owner's at `ask` and `none`.
+  4. `code-work`, `test_codework_module.Skill`, "states the naming, the header, the labels and that only the owner approves": the same
+     phrase in a list of eleven others, all of which hold. **Pin updated** the same way.
+  5. `code-work`, `test_codework_module.Skill`, "no skill file runs a command beyond the plan check": the plan-drafting skill runs one
+     command, `wb run code-work check` (two lines name it). Under K step 8 also names `wb settings`, `wb plan-status` and
+     `wb approve-plan`. **Limit raised with its reason:** the test now requires that every command the skill names is one of those four
+     and that no other `wb` appears outside backticks; the forbidden words and the no-raw-git pins in the same test stand.
+  6. `code-work`, `test_codework_module.Blocks`, "the policy block is short and names no tool": at most 32 lines. K's block is 38.
+     **Limit raised:** 40 (it was raised before for the testing and security-review bullets); the no-harness, no-vendor pin stands.
+  7. `code-work`, `test_codework_module.Blocks`, "every checkpoint stops ... and where to read them": the block does not contain
+     "delegate". K's block names `delegated` and the `delegate-approval` skill. **Text fixed, pin kept:** the block drops both; the
+     delegate skill is where delegation is said.
+  8. `review-engine`, `test_review_module.Skill`, "states the rules": the five owner commands "are the owner's" and "Never run them".
+     Those words are what the owner's levels for the review workflow (`2026-10-27-levels-for-the-review-workflow`) replaced.
+     **Pin updated:** the skill says they take the owner's level, that at `ask` the agent runs the preview and then the action with
+     `--digest`, and that at `none` it runs it; the other rules in the list stand.
+  9. `review-engine`, `test_review_module.Skill`, "the commands it runs are the engine's": the commands the skill runs are `init`, `status`,
+     `review-plan` and `decide`, and no `wb ` remains outside them. **Limit raised:** `preview` joins the set, and `wb settings` and the
+     `<action>` form of the preview are the only other `wb` text; the owner's five are still never named as commands the skill runs.
+- **Also in the pass, from the decision and the plan:** the seeded `code-work/files/docs/plans/README.md` is made equal to the project's
+  `docs/plans/README.md`, and the self-hosting record is set back to `identical` for that path.
+- **The pass, built and tried on a copy.** One script writes the seven package files (the delegate skill, the policy block, the three
+  module test files, the seeded plans README), checking every old text for exactly one occurrence in all files before it writes any,
+  so the tree is either untouched or fully rewritten. On a copy of the repository the pass was run, and then the `code-work` test
+  root (346 tests OK, 2 skipped, as before; 7 failed before), the `review-engine` root (409 OK; 2 failed before), `test_permissions_drift`
+  22, `test_verify` 69, `test_boundary` 23 and `test_skill_names` 8 all pass. One slip of mine was found there and fixed before this
+  record: the first version of the plan-drafting command test compared the spans with backticks. The owner starts the pass on this tree.
+- **Review of the pass:** the `reviewer` agent, one exchange, no blocking finding; it read the nine assertions against the pass and
+  the staged texts and ran nothing. It found the staged block and skill true against the registry and the spec, the seeded README a
+  byte copy of the project's, and the drift readers still holding. Applied: the pass validates every file before writing any (a failure
+  in a later file left earlier files rewritten); the plan-drafting skill's command check is now the exact set of seven spellings
+  (it compared only the head of each), and one more pin keeps the `block` rule ("the owner makes the approval with `wb approve-plan
+  <plan>` in a terminal"). Noted and accepted: the decision's own wording for the delegate skill ("write the command with its
+  argument") would have added a second span and broken a pin that keeps it to one, so the rule says "the delegate command" and the
+  Result list above is the record of what was built; the pins that replaced "never run that command" and "only the owner makes ..."
+  say less, with the old protection held by pins that stand; the policy block says nothing of `delegated`, as decision 3 asks, so an
+  agent that reads only `AGENTS.md` at that level is not pointed to the delegate route and would stop and ask.
+- **The owner's steps and the real-tree checks (2026-11-03).** The pass wrote six files (five edited and the seeded README) and
+  closed the gates: the refusal line read `... differs from its release: first at 'packages/workbench/code-work'; the owner clears
+  it in a terminal with wb preview release-approvals and then wb release-approvals --digest <digest> ...`. The owner released the
+  approvals (14 approvals for the package; three older shipped records, those of increment K, reported as no longer part of the
+  release) and ran `wb upgrade` and `wb rerender`: `wb preview rerender --package <the local package>` then ends "nothing to change",
+  and `AGENTS.md` carries the policy block without the `delegated` sentences. The disposition of `docs/plans/README.md` is back to
+  `identical` in the self-hosting record.
+- **Verification as run on the real tree** (`-W error`): the `code-work` test root 346 OK (2 skipped, as before; 7 failed before), the
+  `review-engine` root 409 OK (2 failed before), `test_permissions_drift` 22, `test_verify` 69, `test_boundary` 23, `test_skill_names` 8,
+  `test_firstparty` 57, `test_harnesses` 28, `test_harness_lock` 30, `test_gate` 27, `test_self_hosting` 3, `test_rerender` 80,
+  `test_attach` 76, `test_check` 45, `test_rendering` 85, all OK; the document check: 83 plans, no problems; `wb check`: no
+  problems; `wb doctor`: no problems and 8 risks. The full run is increment E.
+- **Not done:** the three stale shipped records of increment K (removed only on the owner's word, as before); the commit; increment E.

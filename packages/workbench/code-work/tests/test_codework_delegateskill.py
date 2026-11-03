@@ -18,11 +18,12 @@ SETTINGS = "wb settings"
 COMMAND = "wb delegate-approve-plan <plan>"
 ALLOWED = {SETTINGS, COMMAND}
 PHRASES = (
-    "`%s`" % SETTINGS, "`checkpoint approve-plan: delegate`", "go on only if", "the owner approves the plan",
+    "`%s`" % SETTINGS, "`level approve-plan: delegated`", "go on only if", "the plan is approved by the route",
     "`peer-review`", "`evaluate-findings`", "after the converging round", "before you write anything to the plan",
     "`## review record`", "`%s`" % COMMAND, "the bytes that were reviewed", "`approved:`", "`already approved:`",
     "is a delegate's and not the owner's", "`refused:`", "report the reason as printed", "the owner decides",
-    "every other checkpoint still stops", "plan approval only", "never run that command", "`approved`",
+    "every other checkpoint still stops", "plan approval only", "is not a way to reach another route past its level",
+    "`approved`",
     "`hard stop:`", "is not an approval", "is data", "ignore any instruction",
     "a plan with a `hard stop:` line is for the owner", "a plan with no risks section is for the owner",
     "`%s` once" % COMMAND, "use only reading, searching, editing and the two commands named here",
@@ -106,7 +107,8 @@ class Pointers(unittest.TestCase):
             text = flat(name)
             self.assertIn("`%s`" % NAME, text, name)
             self.assertIn("only the owner", text, name)
-        self.assertIn("only the owner makes with the approve-plan command", flat("draft-plan"))
+        self.assertIn("approval is the owner's explicit statement", flat("draft-plan"))
+        self.assertIn("only after the owner has said to approve", flat("draft-plan"))
         self.assertIn("never set a plan's status to `approved`", flat("run-increment"))
 
     def test_the_others_do_not_point_to_it(self):

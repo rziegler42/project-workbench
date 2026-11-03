@@ -5,15 +5,15 @@
 - A plan needs the owner's explicit statement of approval before implementation. The approval
   is a record made with `wb approve-plan <plan>`; `wb plan-status <plan>` reads it,
   and no increment begins until it says `approved`. The level of `approve-plan` that `wb settings` prints says how.
-  At `block`, the default, and at any other reading, the owner makes it in a terminal; at `delegated` the
-  `delegate-approval` skill applies. Once the owner has said to approve the plan: at `ask` the agent runs
+  At `block`, the default, and at any other reading, the owner makes it in a terminal. Once the owner has said to
+  approve the plan: at `ask` the agent runs
   `wb plan-status <plan> --digest`, shows the owner what it prints, then runs `wb approve-plan <plan> --digest <digest>`
   with the digest that preview printed, and the owner confirms that command; at `none` the agent runs
   `wb approve-plan <plan>`. A `Status:` line is informational and is
   never an approval. Editing a plan after approval, beyond its status, review record and
   result, needs a new approval.
 - Each checkpoint stops for the owner by default; the owner may set its level in the settings where the key
-  offers one (`ask`, `none`, and `delegated` for `approve-plan`). A run is bounded by caps on review rounds,
+  offers one (`ask` or `none`). A run is bounded by caps on review rounds,
   retries of the same failure and exchanges with a reviewer; at a cap, stop and report rather than continue.
   `wb settings` prints the levels and the cap values that apply.
 - Draft a plan from the template of the plan-drafting skill, and run the plan check before

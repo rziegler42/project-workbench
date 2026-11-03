@@ -26,7 +26,7 @@ Rules:
 - Every other checkpoint still stops. `delegated` takes effect for plan approval only; never read it as leave to
   go on at any other checkpoint.
 - The owner's word and the route `draft-plan` gives for their level remain the other way, and the owner may always
-  use them. This skill runs only `wb delegate-approve-plan`; it is not a way to reach another route past its level.
+  use them. This skill runs only the delegate command; it is not a way to reach another route past its level.
   Never set a plan's status to `Approved`.
 - Never change the settings, the approval record or a review's files. Never change a plan to make it pass:
   a plan with a `Hard stop:` line is for the owner, and a plan with no Risks section is for the owner.
