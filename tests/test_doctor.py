@@ -74,6 +74,19 @@ class Floor(unittest.TestCase):
                          lines(doctor.floor_findings({"x": 1})))
 
 
+class ProfileNote(unittest.TestCase):
+    def test_a_profile_that_moved_keys_names_them(self):
+        got = lines(doctor.profile_findings("trusting", (("approve-plan", "ask"), ("wb release-approvals", "ask"))))
+        self.assertEqual(["note: profile: trusting set approve-plan to ask, wb release-approvals to ask"], got)
+
+    def test_a_profile_that_moved_nothing_says_so(self):
+        self.assertEqual(["note: profile: balanced is set and moves no key"], lines(doctor.profile_findings("balanced", ())))
+
+    def test_no_profile_and_cautious_say_nothing(self):
+        self.assertEqual([], doctor.profile_findings(None, ()))
+        self.assertEqual([], doctor.profile_findings("cautious", ()))
+
+
 class Relaxed(unittest.TestCase):
     def test_a_governing_key_looser_than_its_default_is_a_risk(self):
         got = lines(doctor.relaxed_findings(KEYS, {"approve-plan": "ask", "wb release-approvals": "none"}))
@@ -390,6 +403,24 @@ class InAProject(test_rendering.Rendered):
         code, out, err = self.doctor()
         self.assertEqual(1, code)
         self.assertIn("problem: settings: settings are damaged", out)
+
+    def test_a_profile_is_a_note_and_the_governing_keys_it_relaxed_are_risks(self):
+        self.attached()
+        self.guarded.write("settings", json.dumps({"version": 3, "floor": [], "levels": {}, "profile": "trusting"}).encode())
+        code, out, err = self.doctor()
+        note = [line for line in out.splitlines() if line.startswith("note: profile: trusting set ")]
+        self.assertEqual(1, len(note), out)
+        self.assertIn("approve-plan to ask", note[0])
+        self.assertIn("wb release-approvals to ask", note[0])
+        self.assertIn("risk: approve-plan is set to ask (class governs; shipped default block)", out)
+        self.assertIn("risk: wb release-approvals is set to ask (class governs; shipped default block)", out)
+
+    def test_an_unknown_profile_is_a_problem(self):
+        self.attached()
+        self.guarded.write("settings", json.dumps({"version": 3, "floor": [], "levels": {}, "profile": "reckless"}).encode())
+        code, out, err = self.doctor()
+        self.assertEqual(1, code)
+        self.assertIn("problem: settings: settings name a profile that is not one of", out)
 
     def test_a_changed_floor_is_a_risk(self):
         self.attached()

@@ -32,7 +32,7 @@ class SeedTest(SettingsBase):
     def test_seeds_when_missing(self):
         self.assertTrue(settings.seed(self.store))
         document = json.loads(self.raw())
-        self.assertEqual(document["version"], 2)
+        self.assertEqual(document["version"], 3)
         self.assertEqual(document["floor"], [stop.id for stop in floor.FLOOR])
         self.assertEqual(document["levels"], {})
         self.assertNotIn("checkpoints", document)
@@ -125,7 +125,7 @@ class CheckpointTest(SettingsBase):
 
     def test_the_wrong_shape_makes_everything_stop(self):
         for document in ({"version": 1, "checkpoints": []}, {"version": 1, "checkpoints": "delegate"},
-                         {"version": 3, "checkpoints": {"a": "delegate"}},
+                         {"version": 4, "checkpoints": {"a": "delegate"}},
                          {"checkpoints": {"a": "delegate"}},
                          {"version": True, "checkpoints": {"a": "delegate"}},
                          {"version": "1", "checkpoints": {"a": "delegate"}}):
@@ -234,7 +234,7 @@ class CapsTest(SettingsBase):
                 self.assertEqual(1, len(loaded.problems))
 
     def test_a_damaged_file_uses_every_default_and_the_existing_note(self):
-        for data in (b"{", b"[]", {"version": 3, "caps": {"review-rounds": 4}}):
+        for data in (b"{", b"[]", {"version": 4, "caps": {"review-rounds": 4}}):
             with self.subTest(data=data):
                 loaded, got = self.effective(data)
                 self.assertEqual({"review-rounds": 3, "same-failure-retries": 1}, got.caps)
@@ -255,7 +255,7 @@ class CapsTest(SettingsBase):
 
     def test_the_seed_is_the_table_and_not_the_version_1_object(self):
         settings.seed(self.store)
-        self.assertEqual({"floor": [stop.id for stop in floor.FLOOR], "levels": {}, "version": 2}, json.loads(self.raw()))
+        self.assertEqual({"floor": [stop.id for stop in floor.FLOOR], "levels": {}, "version": 3}, json.loads(self.raw()))
 
     def test_a_seeded_file_reads_with_no_problem_and_every_key_at_its_default(self):
         settings.seed(self.store)
@@ -377,7 +377,7 @@ class LevelsTest(SettingsBase):
                 agent = set(levels.agent_keys())
                 self.assertEqual({"none"}, {got.levels[name] for name in agent})
                 self.assertEqual({"block"}, self.owner_run_levels(got))
-        for data in (b"{", b"[]", b'{"version": 3}', b'{"version": 2, "levels": {"a": "block", "a": "block"}}'):
+        for data in (b"{", b"[]", b'{"version": 4}', b'{"version": 2, "levels": {"a": "block", "a": "block"}}'):
             with self.subTest(data=data):
                 self.put(data)
                 got = settings.effective(settings.load(self.store), ("approve-plan",), ())
@@ -401,7 +401,7 @@ class LevelsTest(SettingsBase):
                 self.assertIn("damaged", loaded.problems[0])
 
     def test_a_damaged_file_and_an_unsupported_version_read_every_key_as_block(self):
-        for data in (b"{ not json", {"version": 3, "levels": {"approve-plan": "delegated"}},
+        for data in (b"{ not json", {"version": 4, "levels": {"approve-plan": "delegated"}},
                      {"version": True, "levels": {"approve-plan": "delegated"}}):
             with self.subTest(data=data):
                 loaded, got = self.effective(data)
@@ -660,7 +660,7 @@ class FloorIsNotInTheFileTest(SettingsBase):
     def test_the_loaded_settings_expose_no_stops(self):
         settings.initialize(self.store)
         loaded = settings.load(self.store)
-        self.assertEqual(set(loaded._fields), {"checkpoints", "problems", "caps", "levels", "levels_blocked"})
+        self.assertEqual(set(loaded._fields), {"checkpoints", "problems", "caps", "levels", "levels_blocked", "profile"})
         self.assertFalse(any("stop" in name.lower() and name != "checkpoint"
                              for name in dir(loaded) if not name.startswith("_")))
         self.assertNotIn("floor", loaded.checkpoints)
@@ -680,6 +680,126 @@ class FloorIsNotInTheFileTest(SettingsBase):
         settings.initialize(self.store)
         os.unlink(os.path.join(self.root, "settings"))
         self.assertEqual(floor.effective_stops(), floor.FLOOR)
+
+
+class ProfileTest(SettingsBase):
+    """Named risk profiles (decision 10 of ``2026-11-03-delegated-for-an-action-key-and-named-risk-profiles``), version 3."""
+
+    def key(self, klass, offers, default="block", name="k", agent=False):
+        return types.SimpleNamespace(name=name, klass=klass, offers=("block",) + tuple(offers), default=default, agent=agent)
+
+    def effective(self, document, checkpoints=("approve-plan", "beta")):
+        self.put(document)
+        loaded = settings.load(self.store)
+        return loaded, settings.effective(loaded, checkpoints, ())
+
+    def test_the_profiles_are_three_and_cautious_changes_nothing(self):
+        self.assertEqual(("cautious", "balanced", "trusting"), settings.PROFILES)
+        for klass in (levels.READS, levels.PROJECT, levels.GOVERNS):
+            self.assertIsNone(settings.profile_level("cautious", self.key(klass, ("delegated", "ask", "none"))))
+
+    def test_balanced_sets_a_project_key_to_ask_only_where_it_offers_ask(self):
+        self.assertEqual("ask", settings.profile_level("balanced", self.key(levels.PROJECT, ("ask", "none"))))
+        self.assertIsNone(settings.profile_level("balanced", self.key(levels.PROJECT, ("none",))))
+        self.assertEqual("ask", settings.profile_level("balanced", self.key(levels.PROJECT, ("delegated", "ask"))))
+        self.assertIsNone(settings.profile_level("balanced", self.key(levels.GOVERNS, ("ask", "none"))))
+        self.assertIsNone(settings.profile_level("balanced", self.key(levels.READS, ("none",), default="none")))
+
+    def test_trusting_prefers_delegated_for_project_and_stops_at_ask_for_governs(self):
+        self.assertEqual("delegated", settings.profile_level("trusting", self.key(levels.PROJECT, ("delegated", "ask", "none"))))
+        self.assertEqual("ask", settings.profile_level("trusting", self.key(levels.PROJECT, ("ask", "none"))))
+        self.assertIsNone(settings.profile_level("trusting", self.key(levels.PROJECT, ("none",))))
+        self.assertEqual("ask", settings.profile_level("trusting", self.key(levels.GOVERNS, ("delegated", "ask", "none"))))
+        self.assertIsNone(settings.profile_level("trusting", self.key(levels.GOVERNS, ("none",))))
+        self.assertIsNone(settings.profile_level("trusting", self.key(levels.READS, ("none",), default="none")))
+
+    def test_no_profile_sets_none_or_a_level_stricter_than_the_keys_default(self):
+        for profile in settings.PROFILES:
+            for klass in (levels.READS, levels.PROJECT, levels.GOVERNS):
+                with self.subTest(profile=profile, klass=klass):
+                    got = settings.profile_level(profile, self.key(klass, ("delegated", "ask", "none")))
+                    self.assertNotEqual("none", got)
+                    self.assertIsNone(settings.profile_level(profile, self.key(klass, ("delegated", "ask", "none"),
+                                                                              default="none")))
+
+    def test_a_version_3_file_reads_its_profile_and_a_missing_one_is_none(self):
+        loaded, _ = self.effective({"version": 3, "levels": {}, "profile": "balanced"})
+        self.assertEqual("balanced", loaded.profile)
+        self.assertEqual([], loaded.problems)
+        loaded, _ = self.effective({"version": 3, "levels": {}})
+        self.assertIsNone(loaded.profile)
+
+    def test_the_older_versions_still_read_and_a_profile_in_them_is_an_unknown_entry(self):
+        for version in (1, 2):
+            with self.subTest(version=version):
+                loaded, got = self.effective({"version": version, "floor": [], "profile": "trusting"})
+                self.assertIsNone(loaded.profile)
+                self.assertTrue(any("unknown entry" in text for text in loaded.problems))
+                self.assertEqual("block", got.levels["approve-plan"])
+
+    def test_a_version_3_file_reads_levels_like_version_2(self):
+        loaded, got = self.effective({"version": 3, "levels": {"approve-plan": "delegated"}})
+        self.assertEqual("delegated", got.levels["approve-plan"])
+
+    def test_an_unknown_profile_reads_every_key_as_block_and_is_reported(self):
+        for value in ("reckless", "Trusting", "", None, 3, ["trusting"]):
+            with self.subTest(value=value):
+                loaded, got = self.effective({"version": 3, "levels": {"approve-plan": "ask"}, "profile": value})
+                self.assertIsNone(loaded.profile)
+                self.assertTrue(loaded.levels_blocked)
+                self.assertTrue(any("profile" in text for text in loaded.problems))
+                agent = set(levels.agent_keys())
+                self.assertEqual({"block"}, {level for name, level in got.levels.items() if name not in agent})
+                self.assertEqual((), got.profiled)
+
+    def test_trusting_sets_the_governs_keys_that_offer_ask_and_nothing_else(self):
+        _, got = self.effective({"version": 3, "levels": {}, "profile": "trusting"})
+        self.assertEqual("ask", got.levels["approve-plan"])
+        self.assertEqual("ask", got.levels["wb release-approvals"])
+        self.assertEqual("block", got.levels["wb install"])  # a project key that offers only block and none today
+        self.assertEqual("block", got.levels["wb rerender"])
+        self.assertIn(("approve-plan", "ask"), got.profiled)
+        self.assertNotIn("none", {level for _, level in got.profiled})
+        self.assertEqual([], got.notes)
+
+    def test_balanced_changes_no_key_with_todays_registry(self):
+        _, got = self.effective({"version": 3, "levels": {}, "profile": "balanced"})
+        _, plain = self.effective({"version": 3, "levels": {}})
+        self.assertEqual(plain.levels, got.levels)
+        self.assertEqual((), got.profiled)
+
+    def test_a_key_entry_overrides_the_profile_in_either_direction(self):
+        _, got = self.effective({"version": 3, "profile": "trusting",
+                                 "levels": {"approve-plan": "delegated", "wb release-approvals": "block"}})
+        self.assertEqual("delegated", got.levels["approve-plan"])
+        self.assertEqual("block", got.levels["wb release-approvals"])
+        self.assertNotIn("approve-plan", [name for name, _ in got.profiled])
+        self.assertNotIn("wb release-approvals", [name for name, _ in got.profiled])
+
+    def test_a_profile_does_not_touch_an_agent_safe_key_or_a_floor_action(self):
+        _, got = self.effective({"version": 3, "levels": {}, "profile": "trusting"})
+        for name in levels.agent_keys():
+            self.assertEqual("none", got.levels[name])
+        for stop in floor.FLOOR:
+            self.assertNotIn(stop.id, got.levels)
+
+    def test_a_profile_leaves_the_delegate_reading_of_a_checkpoint_at_stop_unless_the_level_is_delegated(self):
+        _, got = self.effective({"version": 3, "levels": {}, "profile": "trusting"})
+        self.assertEqual("stop", got.checkpoints["approve-plan"])
+
+    def test_a_checkpoint_reading_beats_the_profile(self):
+        """The order is table entry, then a version 1 style checkpoint word, then the profile, then the default."""
+        for word, level in (("stop", "block"), ("delegate", "delegated")):
+            with self.subTest(word=word):
+                _, got = self.effective({"version": 3, "levels": {}, "profile": "trusting",
+                                         "checkpoints": {"approve-plan": word}})
+                self.assertEqual(level, got.levels["approve-plan"])
+                self.assertNotIn("approve-plan", [name for name, _ in got.profiled])
+
+    def test_the_seed_names_no_profile(self):
+        settings.seed(self.store)
+        self.assertNotIn("profile", json.loads(self.raw()))
+        self.assertIsNone(settings.load(self.store).profile)
 
 
 class KindTest(SettingsBase):

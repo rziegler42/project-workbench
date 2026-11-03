@@ -403,6 +403,31 @@ class AtAskFromTheOwnersSettings(ReleaseAsk):
         self.fails_closed_with(json.dumps({"version": 2, "checkpoints": {}, "floor": [],
                                            "levels": {"wb release-approvals": "none", "Not A Key": "ask"}}))
 
+    def test_a_profile_that_sets_the_key_to_ask_requires_the_digest_from_a_directory_that_is_no_project(self):
+        self.owners("ask")
+        self.guarded.write("settings", json.dumps({"version": 3, "floor": [], "levels": {}, "profile": "trusting"}).encode())
+        with tempfile.TemporaryDirectory() as tmp:
+            code, out, err = self.go(["release-approvals"], cwd=tmp)
+            self.assertEqual(1, code, (out, err))
+            self.assertIn("wb preview release-approvals", err)
+            self.assertFalse(self.written())
+            code, out, err = self.go(["release-approvals", "--digest", self.digest()], cwd=tmp)
+        self.assertEqual(0, code, (out, err))
+        self.assertTrue(self.written())
+
+    def test_a_key_entry_or_a_profile_that_sets_nothing_for_the_key_overrides_the_profile_from_a_directory_that_is_no_project(self):
+        self.owners("ask")
+        for document in ({"version": 3, "floor": [], "profile": "trusting", "levels": {"wb release-approvals": "none"}},
+                         {"version": 3, "floor": [], "profile": "balanced", "levels": {}},
+                         {"version": 3, "floor": [], "profile": "cautious", "levels": {}}):
+            with self.subTest(document=document):
+                shutil.rmtree(self.shipped, ignore_errors=True)
+                self.guarded.write("settings", json.dumps(document).encode())
+                with tempfile.TemporaryDirectory() as tmp:
+                    code, out, err = self.go(["release-approvals"], cwd=tmp)
+                self.assertEqual(0, code, (out, err))
+                self.assertTrue(self.written())
+
     def test_settings_that_are_sound_and_say_none_still_go_on_as_before_from_a_directory_that_is_no_project(self):
         self.owners("none")
         with tempfile.TemporaryDirectory() as tmp:

@@ -4,11 +4,12 @@ The document is strict JSON::
 
     {"caps": {"<name>": <integer>}, "checkpoints": {"<name>": "stop" | "delegate"},
      "floor": ["<id>", ...], "levels": {"<key>": "block" | "ask" | "delegated" | "none"},
-     "version": 1 | 2}
+     "profile": "cautious" | "balanced" | "trusting", "version": 1 | 2 | 3}
 
-``levels`` exists only in version 2 (``docs/specs/command-permissions.md``). The reader accepts versions 1 and 2; a new file is
-seeded at version 2 as ``{"floor": [...], "levels": {}, "version": 2}``, with no ``checkpoints`` object. A ``checkpoints`` object
-is read for a file seeded earlier and is never written.
+``levels`` exists in versions 2 and 3 and ``profile`` only in version 3 (``docs/specs/command-permissions.md``). The reader accepts
+versions 1, 2 and 3; a new file is seeded at version 3 as ``{"floor": [...], "levels": {}, "version": 3}``, with no ``checkpoints``
+object and no ``profile`` (no profile reads as ``cautious``). A ``checkpoints`` object is read for a file seeded earlier and is never
+written.
 
 * ``checkpoints`` names the checkpoints the owner has set. A checkpoint that is missing,
   malformed or set to anything but ``delegate`` reads as ``stop``, so with no settings
@@ -20,6 +21,10 @@ is read for a file seeded earlier and is never written.
   by an agent-safe action and a declared module argument that is not owner-run (``levels``); an owner-run argument of a
   module's command offers the levels its declaration names in ``levels`` (``ask`` and ``none``); any other key reads a
   level it does not offer as ``block`` with a note.
+* ``profile`` is optional (version 3). It names a risk appetite for a class of keys (decision 10 of
+  ``2026-11-03-delegated-for-an-action-key-and-named-risk-profiles``): ``profile_level`` says what it sets for a key. A key's
+  entry in ``levels`` wins over it in either direction. A name that is not one of ``PROFILES`` reads every key as ``block``, like a
+  damaged table, and is reported.
 * ``caps`` is optional. It holds the owner's value for each loop cap a process module declares.
   The loader keeps a valid name with an integer value; ``effective`` judges the value against
   the module's ceiling and falls back to the module's default with a note.
@@ -43,8 +48,16 @@ from . import declarations, floor, levels as keyset
 from .wbkit import safefs
 
 SETTINGS = "settings"
-VERSION = 2  # the version written at seeding: the table, not the version 1 checkpoints object
-VERSIONS = (1, 2)  # the versions the reader accepts
+VERSION = 3  # the version written at seeding: the table and the profile, not the version 1 checkpoints object
+VERSIONS = (1, 2, 3)  # the versions the reader accepts
+LEVELS_VERSIONS = (2, 3)  # the versions that hold a ``levels`` table
+PROFILES = ("cautious", "balanced", "trusting")
+# What a profile asks for, by danger class, most relaxed offered level first. ``none`` is never asked for, ``delegated`` is never
+# asked for a ``governs`` key, and the floor is not a key (decision 10 of the record named above).
+_PROFILE_WANTS = {
+    "balanced": {keyset.PROJECT: (keyset.ASK,)},
+    "trusting": {keyset.PROJECT: (keyset.DELEGATED, keyset.ASK), keyset.GOVERNS: (keyset.ASK,)},
+}
 STOP, DELEGATE = "stop", "delegate"
 BLOCK, ASK, DELEGATED, NONE = keyset.BLOCK, keyset.ASK, keyset.DELEGATED, keyset.NONE
 LEVELS = keyset.LEVELS  # strictest first
@@ -55,8 +68,9 @@ _FLOOR_IDS = frozenset(stop.id for stop in floor.FLOOR)
 # The one checkpoint for which ``delegate`` has an effect (``wb delegate-approve-plan``); any other name stops.
 APPROVE_PLAN = keyset.APPROVE_PLAN
 
-_Settings = collections.namedtuple("_Settings", "checkpoints problems caps levels levels_blocked")
-Effective = collections.namedtuple("Effective", "checkpoints caps notes levels translated", defaults=((),))
+_Settings = collections.namedtuple("_Settings", "checkpoints problems caps levels levels_blocked profile", defaults=(None,))
+# `profiled` is ``(key, level)`` for each key the profile moved from its shipped default, in registry order.
+Effective = collections.namedtuple("Effective", "checkpoints caps notes levels translated profiled", defaults=((), ()))
 
 
 strictest = keyset.strictest
@@ -68,6 +82,15 @@ class Settings(_Settings):
         if not isinstance(name, str):
             return STOP
         return DELEGATE if self.checkpoints.get(name) == DELEGATE else STOP
+
+
+def profile_level(profile, key):
+    """The level `profile` sets for the registry `key`, or ``None`` when it sets nothing: the first level it asks for that the key
+    offers, and only when that is less strict than the key's shipped default (a profile never tightens a key or sets ``none``)."""
+    for level in _PROFILE_WANTS.get(profile, {}).get(key.klass, ()):
+        if level in key.offers:
+            return level if LEVELS.index(level) > LEVELS.index(key.default) else None
+    return None
 
 
 def _seed_document():
@@ -107,7 +130,8 @@ def load(store):
     version = document.get("version")
     if isinstance(version, bool) or version not in VERSIONS:
         return _default("settings have an unsupported version; every checkpoint stops")
-    known = ("caps", "checkpoints", "floor", "version") + (("levels",) if version == 2 else ())
+    known = ("caps", "checkpoints", "floor", "version") + (("levels",) if version in LEVELS_VERSIONS else ()) \
+        + (("profile",) if version == 3 else ())
     for key in sorted(document):
         if key not in known:
             problems.append("settings have an unknown entry %s, which is ignored"
@@ -140,7 +164,16 @@ def load(store):
         else:
             caps[name] = value
     levels, levels_blocked = {}, False
-    if "levels" in document and version == 2:
+    profile = None
+    if version == 3 and "profile" in document:
+        given = document["profile"]
+        if isinstance(given, str) and given in PROFILES:
+            profile = given
+        else:
+            problems.append("settings name a profile that is not one of %s: %s; every key reads as block"
+                            % (", ".join(PROFILES), declarations._shown(given) if isinstance(given, str) else "a value that is not text"))
+            levels_blocked = True
+    if "levels" in document and version in LEVELS_VERSIONS:
         given = document["levels"]
         if not isinstance(given, dict):
             problems.append("settings 'levels' is not an object; every key reads as block")
@@ -161,7 +194,7 @@ def load(store):
                 levels[key] = BLOCK
             else:
                 levels[key] = value
-    return Settings(checkpoints, problems, caps, levels, levels_blocked)
+    return Settings(checkpoints, problems, caps, levels, levels_blocked, profile)
 
 
 def effective(loaded, checkpoints, caps, commands=(), agent=True):
@@ -193,9 +226,9 @@ def effective(loaded, checkpoints, caps, commands=(), agent=True):
             notes.append("settings set the checkpoint %s to delegate; delegation has no effect for it, so it stops"
                          % declarations._shown(name))
     keys = keyset.registry(checkpoints, commands, agent)
-    levels, translated = {}, []
+    levels, translated, profiled = {}, [], []
     for name, key in keys.items():
-        levels[name] = _level(loaded, key, values, notes, translated)
+        levels[name] = _level(loaded, key, values, notes, translated, profiled)
         if name in values:
             values[name] = DELEGATE if levels[name] == DELEGATED else STOP
     for name in sorted(loaded.levels):
@@ -218,10 +251,10 @@ def effective(loaded, checkpoints, caps, commands=(), agent=True):
             numbers[cap.name] = cap.default
             notes.append("settings cap %s is %s; it must be from 1 to %d, so the default %d applies"
                          % (cap.name, given if abs(given) < 10 ** 12 else "out of range", cap.ceiling, cap.default))
-    return Effective(values, numbers, notes, levels, tuple(translated))
+    return Effective(values, numbers, notes, levels, tuple(translated), tuple(profiled))
 
 
-def _level(loaded, key, checkpoint_values, notes, translated):
+def _level(loaded, key, checkpoint_values, notes, translated, profiled):
     """The level of the registry `key`: its table entry if it has one, else its checkpoint reading, else its default.
 
     The table is the single source of a level (``docs/specs/command-permissions.md``): an entry wins in either direction,
@@ -231,6 +264,9 @@ def _level(loaded, key, checkpoint_values, notes, translated):
     A level the key does not offer reads as block with a note. A damaged file or table reads every key as block except the
     keys of what an agent may run today (``key.agent``), which keep their default: the agent must still be able to run
     ``wb settings`` and ``wb check`` to report the damage (the owner's decision for increment C of the plan).
+
+    A key with no entry and no checkpoint reading takes the level its profile sets (``profile_level``), which is added to
+    `profiled` as ``(key, level)``, else its default. The table entry wins over the profile in either direction.
     """
     name = key.name
     if key.agent and loaded.levels_blocked:
@@ -253,6 +289,10 @@ def _level(loaded, key, checkpoint_values, notes, translated):
         if not (word == DELEGATE and reading == BLOCK):  # a delegate that cannot take effect has its own note
             translated.append((name, word, reading))
         return reading
+    chosen = profile_level(loaded.profile, key)
+    if chosen is not None:
+        profiled.append((name, chosen))
+        return chosen
     return key.default
 
 

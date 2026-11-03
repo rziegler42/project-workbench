@@ -285,3 +285,33 @@ tested area.
 - **Not done / not checked:** the specs still describe what is built; they change in increment D. Not checked: whether `wb check`
   validates the relative link to the record. Increment C (profiles) is not started.
 - **For the owner:** nothing is decided here; whether to keep increment C (profiles) is still yours.
+
+### Increment C (2026-11-03)
+
+- **Done:** the owner kept increment C. `workbench/settings.py`: the settings version is 3 (new files are seeded at 3; versions 1 and 2
+  still read), `profile` is read only in a version 3 file, `PROFILES` is `cautious`, `balanced`, `trusting`, and `profile_level(profile,
+  key)` gives the level a profile sets: the first level it asks for that the key offers, only when less strict than the key's shipped
+  default (so never `none`, never `delegated` for a `governs` key, never a stricter level). `_level` applies it after a table entry
+  and a checkpoint word, so the owner's entry wins in either direction. An unknown or non-text profile reads every key as `block`,
+  as a damaged table does (agent-run keys keep their default), and is a problem. `Settings` gained `profile`, `Effective` gained
+  `profiled`. `workbench/settingscmd.py` prints `profile: <name>` and `profiled <key>: <level>` only when a profile is named.
+  `workbench/doctor.py` adds a note naming the profile and the keys it moved (the `governs` keys it relaxed are already risks through
+  `relaxed_findings`). `workbench/cli.py`: the fallback reading of `wb release-approvals` when its level cannot be verified now also
+  reads a profile-set `ask`. With today's registry `trusting` moves `approve-plan` and `wb release-approvals` to `ask` (and any
+  module checkpoint or owner-run argument that offers `ask`); `balanced` moves nothing, because the six `project` keys offer only
+  `block` and `none`.
+- **Verification run:** tests first, seen to fail (the `cli.py` test was also seen to fail with that change stashed). Then, each as
+  `python3 -B -W error -m unittest discover -s tests -p 'test_X.py'`: `test_settings` 99 OK (new class `ProfileTest`; the seed
+  tests now expect version 3; three tests that used 3 as the unsupported version use 4), `test_settingscmd` 38 OK, `test_doctor`
+  77 OK, `test_release_ask` 37 OK, `test_permissions_drift` 22 OK, `test_rendering` 85 OK. The full suite was not run.
+- **Review:** one round by the `reviewer` agent, no bridge. No blocking finding; it found nothing against decision 10. Applied: a
+  test that a checkpoint word beats a profile, and the stale docstring of `_owner_reading`. Noted, not changed: with a registry error
+  `wb doctor` reports only the loader's problems, so the profile note is absent (an unknown profile is still reported); a version 3
+  file read by an older installer fails closed (unsupported version), a cost of seeding at 3. The reviewer could not run the tests or
+  check that rendering agrees with a profile-set `ask`; I read `rendering.table_of`, which builds the table from `settings.effective`.
+- **Not done / not checked:** `docs/development.md` still says the file is seeded at version 2, and the specs still call the profiles
+  "decided, not built": both are increment D. No rerender was run; no profile is set in this clone, so no rendered rule changed. The
+  full suite was not run; what could break outside the tested area is any other test that writes a version 3 file as an
+  unsupported example (a search of `tests/` and `packages/` found none).
+- **For the owner:** a profile changes what the agent may run. A security review of the new reading of the settings (`profile_level`,
+  the unknown-profile path, the `wb release-approvals` fallback) is yours to ask for; I have not run one.

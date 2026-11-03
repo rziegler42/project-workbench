@@ -127,7 +127,8 @@ _RELEASE_DIGEST = re.compile(r"[0-9a-f]{32}\Z")
 def _owner_reading(guarded):
     """What the owner's own settings, in the guarded store, say of the key ``wb release-approvals``: ``"ask"`` when they give it the
     level ``ask``, ``"damaged"`` when they cannot be read (a file that is not JSON, a ``levels`` that is not an object, an invalid
-    key name, an unsupported version) and the key therefore reads as ``block`` and every checkpoint stops, ``None`` otherwise. The
+    key name, an unsupported version, a profile that is not one of ``settings.PROFILES``) and the key therefore reads as ``block`` and
+    every checkpoint stops, ``None`` otherwise. A key with no entry of its own takes the level its risk profile sets for it. The
     store is not written by an edit tool, and a project file, a harness file or the working directory cannot change it, unlike the
     verified level, which reads ``block`` when the rendering record, the local manifest or the harness file disagree and cannot be
     read from a directory that is no project (security review of Increments B to D). A damaged file is read as ``ask`` for this
@@ -135,7 +136,10 @@ def _owner_reading(guarded):
     loaded = settings.load(guarded)
     if loaded.levels_blocked:
         return "damaged"
-    return "ask" if loaded.levels.get(RELEASE_KEY) == levels.ASK else None
+    entry = loaded.levels.get(RELEASE_KEY)
+    if entry is None:  # no entry of its own: the level the owner's risk profile sets for the key, if any
+        entry = settings.profile_level(loaded.profile, levels.registry()[RELEASE_KEY])
+    return "ask" if entry == levels.ASK else None
 
 
 def _release(guarded, stdin, distribution, out, err, digests=None):

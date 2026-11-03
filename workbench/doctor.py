@@ -76,6 +76,17 @@ def settings_findings(loaded, effective):
     return [Finding(PROBLEM, "problem: settings: %s" % text) for text in list(loaded.problems) + list(effective.notes)]
 
 
+def profile_findings(profile, profiled):
+    """The risk profile the owner's settings name (``profiled`` is ``(key, level)`` for each key it moved). The keys of the
+    class that governs that it relaxed are also reported as risks by ``relaxed_findings``, which reads their levels."""
+    if profile is None or profile == "cautious":
+        return []
+    if not profiled:
+        return [Finding(NOTE, "note: profile: %s is set and moves no key" % _name(profile))]
+    return [Finding(NOTE, "note: profile: %s set %s" % (_name(profile), ", ".join("%s to %s" % (_name(name), level)
+                                                                                    for name, level in profiled)))]
+
+
 def floor_findings(raw):
     """The personal copy of the compiled floor (`raw` is the ``floor`` entry of the settings file, or ``None`` when the file
     has none) against the compiled one. The compiled floor applies whatever the copy says."""
@@ -475,6 +486,7 @@ def examine(guarded, writer, root, distribution=None, which=None):
     if effective is not None:
         found += settings_findings(loaded, effective)
         found += relaxed_findings(keys, effective.levels)
+        found += profile_findings(loaded.profile, effective.profiled)
     else:
         found += [Finding(PROBLEM, "problem: settings: %s" % text) for text in loaded.problems]
     found += floor_findings(_raw_floor(guarded))

@@ -172,7 +172,7 @@ class Printed(Settings):
         self.assertIn("settings: settings set a cap the process module does not declare: other", out)
 
     def test_a_damaged_file_prints_every_default_and_the_problem(self):
-        for data in (b"{", b'{"version": 1, "caps": 2.5}', b'{"version": 3}', b"[]"):
+        for data in (b"{", b'{"version": 1, "caps": 2.5}', b'{"version": 4}', b"[]"):
             with self.subTest(data):
                 self.guarded.write("settings", data)
                 code, out, err = self.settings()
@@ -207,6 +207,42 @@ class Printed(Settings):
         self.assertEqual((0, ""), (code, err))
         self.assertIn("level approve-plan: block\n", out)
         self.assertEqual(1, problem_lines(out), out)
+
+    def test_a_profile_is_printed_with_the_keys_it_set(self):
+        self.owner({"version": 3, "levels": {}, "profile": "trusting"})
+        code, out, err = self.settings()
+        self.assertEqual((0, ""), (code, err))
+        self.assertIn("level approve-plan: ask\n", out)
+        self.assertIn("level wb release-approvals: ask\n", out)
+        self.assertIn("profile: trusting\nprofiled approve-plan: ask\nprofiled wb release-approvals: ask\n", out)
+        self.assertEqual(0, problem_lines(out), out)
+
+    def test_a_profile_that_moves_no_key_prints_its_name_only(self):
+        self.owner({"version": 3, "levels": {}, "profile": "balanced"})
+        code, out, err = self.settings()
+        self.assertEqual((0, ""), (code, err))
+        self.assertIn("profile: balanced\n", out)
+        self.assertNotIn("profiled ", out)
+
+    def test_a_key_entry_that_overrides_the_profile_is_not_listed_as_profiled(self):
+        self.owner({"version": 3, "profile": "trusting", "levels": {"approve-plan": "block"}})
+        code, out, err = self.settings()
+        self.assertIn("level approve-plan: block\n", out)
+        self.assertNotIn("profiled approve-plan", out)
+        self.assertIn("profiled wb release-approvals: ask\n", out)
+
+    def test_no_profile_prints_no_profile_line(self):
+        self.owner({"version": 3, "levels": {}})
+        code, out, err = self.settings()
+        self.assertNotIn("profile", out)
+
+    def test_an_unknown_profile_reads_every_key_as_block_and_says_so(self):
+        self.owner({"version": 3, "levels": {}, "profile": "reckless"})
+        code, out, err = self.settings()
+        self.assertEqual((0, ""), (code, err))
+        self.assertNotIn("profile:", out)
+        self.assertIn("settings: settings name a profile that is not one of", out)
+        self.assertIn("level approve-plan: block\n", out)
 
     def test_a_level_that_is_not_offered_yet_reads_as_block_and_says_so(self):
         self.owner({"version": 2, "levels": {"beta": "ask"}})
