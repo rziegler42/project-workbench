@@ -312,7 +312,8 @@ reviewed. It protects against text changed by someone else.
   the paths. A file the command writes into must equal its baseline, so a baseline update never
   accepts an unreviewed edit.
 - **`wb acknowledge`** is the owner's way to accept the differences. It is owner-run and
-  terminal-only. It lists each difference (path, baseline hash, current hash, reason) and a
+  terminal-only, unless the owner has set `acknowledge-first-tier` to `ask` (the run then needs the digest of
+  `wb preview acknowledge`) or `none` (`command-permissions.md`, "`recover` and `acknowledge` at `ask`"). It lists each difference (path, baseline hash, current hash, reason) and a
   parsed summary of the manifest, asks for the first 12 characters of the digest of the list,
   and on a match replaces the baselines for exactly the listed paths. The store keeps hashes,
   not old bytes, so the listing is not a line diff. As built, the list covers the manifest, every

@@ -40,8 +40,12 @@ USAGE = ("usage: python3 -m workbench verify [<package> | --dir <path>] "
          "       python3 -m workbench preview add [<target> | --dir <path>] --package <source> [--ref <ref>] ...\n"
          "                                        --select <module> ...   (read-only; no download)\n"
          "       python3 -m workbench add <same arguments as preview add>   (owner-run, terminal only)\n"
-         "       python3 -m workbench acknowledge [<target> | --dir <path>]   (owner-run, terminal only)\n"
-         "       python3 -m workbench recover [<target> | --dir <path>]   (owner-run, terminal only)\n"
+         "       python3 -m workbench preview acknowledge [<target> | --dir <path>]   (read-only)\n"
+         "       python3 -m workbench acknowledge [<target> | --dir <path>] [--digest <32 hex>]   (owner-run, terminal only;\n"
+         "                                        at the level ask, without a terminal, with the digest of the preview)\n"
+         "       python3 -m workbench preview recover [<target> | --dir <path>]   (read-only)\n"
+         "       python3 -m workbench recover [<target> | --dir <path>] [--digest <32 hex>]   (owner-run, terminal only;\n"
+         "                                        at the level ask, without a terminal, with the digest of the preview)\n"
          "       python3 -m workbench attach [<target> | --dir <path>] --harness <package>/<module>\n"
          "                                   [--package <source> [--ref <ref>]] ...   (owner-run)\n"
          "       python3 -m workbench check [<target> | --dir <path>]   (read-only)\n"
@@ -230,22 +234,27 @@ def _release_approvals(distribution, out, err):
     return _release_report(done, out)
 
 
-def _levelled(guarded, key, terminal_only, stdin, out, err, project_id=None, root=None):
+def _levelled(guarded, key, terminal_only, stdin, out, err, project_id=None, root=None, ask=None, digest=None):
     """``(log, code)`` for an owner-run command whose level the owner may set to ``none`` (``levelrun.route``, read for the
     project the working directory is in). `log` is None at a terminal, and the command goes on as always; at a verified
     ``none`` it is ``log(digest, apply)``, which runs `apply` between the attempt and the outcome. `code` is an exit code
     when the command must stop here. `project_id` and `root` are the project the command acts on, which must be the one the
-    level was read for."""
+    level was read for. `ask` is the word of the preview (``recover``) of a command that offers the level ``ask``: it then goes
+    on at ``ask`` as well, with the `digest` it was given (``levelrun.digest_refusal``)."""
     def refuse(text):
         err.write("refused: %s\n" % _clean(text))
         return None, 1
 
     try:
-        route = levelrun.route(guarded, os.getcwd(), key, stdin, out, terminal_only)
+        route = (levelrun.route if ask is None else levelrun.route_ask)(guarded, os.getcwd(), key, stdin, out, terminal_only)
     except levelrun.Refusal as exc:
         return refuse(str(exc) if str(exc) == terminal_only else "%s (%s)" % (terminal_only, exc))
     except OSError as exc:
         return refuse("%s (the working directory cannot be read: %s)" % (terminal_only, exc.strerror or "unknown error"))
+    if ask is not None:
+        refusal = levelrun.digest_refusal(route, "wb " + ask, ask, digest)
+        if refusal:
+            return refuse(refusal)
     if route.terminal:
         return None, None
     if project_id is not None and project_id != route.project_id:
@@ -259,6 +268,7 @@ def _levelled(guarded, key, terminal_only, stdin, out, err, project_id=None, roo
         return levelrun.apply_logged(guarded, route, key, digest, apply, err, lambda stream, text: refuse(text)[1])
 
     log.project_id = route.project_id
+    log.level = route.level
     return log, None
 
 
@@ -380,10 +390,31 @@ def _preview_release(tokens, out, err, store_root, distribution):
     return 0
 
 
-def _preview(argv, out, err, store_root, distribution, home=None):
-    if len(argv) < 2 or argv[1] not in ("install", "adopt", "upgrade", "add", "rerender", "release-approvals"):
-        err.write("preview takes install, adopt, upgrade, add, rerender or release-approvals\n%s" % USAGE)
+def _preview_examination(verb, tokens, out, err, store_root, distribution):
+    """``preview acknowledge`` and ``preview recover``: the examination of the project the command would act on, read-only."""
+    try:
+        spelling = (acknowledge if verb == "acknowledge" else recover).parse(tokens)
+    except sources.UsageError as exc:
+        err.write("%s\n%s" % (_clean(str(exc)), USAGE))
         return 2
+    opened = _open_store(store_root, err)
+    if opened is None:
+        return 1
+    notes = opened[1] + launch.install_wrapper(opened[0], distribution or firstparty.default_distribution())
+    for note in notes:
+        err.write("warning: %s\n" % _clean(note))
+    if verb == "acknowledge":
+        return acknowledge.run_preview(opened[0], spelling, out, err)
+    return recover.run_preview(opened[0], spelling, out, err)
+
+
+def _preview(argv, out, err, store_root, distribution, home=None):
+    if len(argv) < 2 or argv[1] not in ("install", "adopt", "upgrade", "add", "rerender", "acknowledge", "recover",
+                                        "release-approvals"):
+        err.write("preview takes install, adopt, upgrade, add, rerender, acknowledge, recover or release-approvals\n%s" % USAGE)
+        return 2
+    if argv[1] in ("acknowledge", "recover"):
+        return _preview_examination(argv[1], argv[2:], out, err, store_root, distribution)
     if argv[1] == "release-approvals":
         return _preview_release(argv[2:], out, err, store_root, distribution)
     if argv[1] == "rerender":
@@ -427,7 +458,7 @@ def _adopt(tokens, out, err, store_root, distribution, stdin):
 
 def _acknowledge(tokens, err, out, store_root, stdin):
     try:
-        spelling = acknowledge.parse(tokens)
+        spelling, digest = acknowledge.parse_args(tokens, digest_ok=True)
     except sources.UsageError as exc:
         err.write("%s\n%s" % (_clean(str(exc)), USAGE))
         return 2
@@ -437,18 +468,19 @@ def _acknowledge(tokens, err, out, store_root, stdin):
     opened = _open_store(store_root, err)
     if opened is None:
         return 1
-    log, code = _levelled(opened[0], levels.CHECKPOINT_ACKNOWLEDGE, acknowledge.TERMINAL_ONLY, stdin, out, err)
+    log, code = _levelled(opened[0], levels.CHECKPOINT_ACKNOWLEDGE, acknowledge.TERMINAL_ONLY, stdin, out, err,
+                          ask="acknowledge", digest=digest)
     if code is not None:
         return code
     notes = opened[1] + launch.install_wrapper(opened[0], firstparty.default_distribution())
     for note in notes:
         err.write("warning: %s\n" % _clean(note))
-    return acknowledge.run(opened[0], spelling, stdin, out, err, log=log)
+    return acknowledge.run(opened[0], spelling, stdin, out, err, log=log, digest=digest)
 
 
 def _recover(tokens, err, out, store_root, stdin):
     try:
-        spelling = recover.parse(tokens)
+        spelling, digest = recover.parse_args(tokens, digest_ok=True)
     except sources.UsageError as exc:
         err.write("%s\n%s" % (_clean(str(exc)), USAGE))
         return 2
@@ -458,13 +490,13 @@ def _recover(tokens, err, out, store_root, stdin):
     opened = _open_store(store_root, err)
     if opened is None:
         return 1
-    log, code = _levelled(opened[0], "wb recover", recover.TERMINAL_ONLY, stdin, out, err)
+    log, code = _levelled(opened[0], "wb recover", recover.TERMINAL_ONLY, stdin, out, err, ask="recover", digest=digest)
     if code is not None:
         return code
     notes = opened[1] + launch.install_wrapper(opened[0], firstparty.default_distribution())
     for note in notes:
         err.write("warning: %s\n" % _clean(note))
-    return recover.run(opened[0], spelling, stdin, out, err, log=log)
+    return recover.run(opened[0], spelling, stdin, out, err, log=log, digest=digest)
 
 
 def _attach(tokens, out, err, store_root, distribution, home, stdin=None):

@@ -156,4 +156,39 @@ only if the owner decides after the author states what could break outside the t
 
 ## Result
 
-Empty until work starts.
+### Increment A — `ask` for recover and the acknowledge tiers (2026-11-04)
+
+- **Done (uncommitted until the owner says):** `wb recover` and the checkpoint `acknowledge-first-tier` (the key of `wb acknowledge`) offer
+  `block`, `ask` and `none`. Two read-only previews, `wb preview recover` and `wb preview acknowledge`, print the examination the typed flow
+  shows, a note that its own 64-character digest is the one a terminal run types, then `digest: <32 hex>`, which is
+  `kitdigest.of(["wb <command>", <the examination's digest>])`, and `preview only: nothing was written`. A run without a terminal at `ask`
+  takes it as `--digest`; `levelrun.route_ask` and `levelrun.digest_refusal` (increment B of the predecessor) read the level and refuse a
+  missing, malformed, repeated or stale digest; the command compares it after its examination and before it prints or writes anything, also
+  when there is nothing to change (`recover` binds the absence of a marker, `nothing_digest`). The project check (acknowledge: the project
+  listed; recover: a marker that names a project) comes before the comparison. The attempt is logged with level `ask` and evidence
+  `digest:<32>`. The second acknowledge tier, `attach`, `approve` and `pin` are unchanged.
+- **Digest inputs** (listed before building, as the plan requires): acknowledge binds the target identity, project, workbench version,
+  manifest hash, baselines before and after, each difference, the pins file hash and each pin that moves; it leaves out the time a moved pin
+  records, which no field holds. Recover binds the target identity, the marker's fingerprint, the outcome, the files and store states, every
+  item and every removal in order. The rechecks are the two examinations the command already makes (neither has a lock). Nothing a run draws is
+  in a digest, so no fixed seed or time is needed.
+- **Files:** `workbench/levels.py`, `acknowledge.py`, `recover.py`, `preview.py` (`EXAMINATION_NOTE`), `cli.py`; new `tests/test_ack_recover_ask.py`
+  (the shared matrix for both commands, 42 tests); updated `test_ack_recover_levels`, `test_levels`, `test_permissions_drift`, `test_settings`,
+  `test_settingscmd`; specs `command-permissions.md` (new section "`recover` and `acknowledge` at `ask`" and its neighbours),
+  `installer-interface.md`, `trust-and-approval.md`, `code-work.md`, and `docs/development.md`.
+- **Verification as run:** the new tests failed before the code (42 of 42), then passed; with the digest comparison disabled exactly the six
+  stale-digest tests failed. Then, all passing: `test_ack_recover_ask`, `test_ack_recover_levels`, `test_levels`, `test_levels_facts`,
+  `test_levelrun`, `test_permissions_drift`, `test_preview`, `test_doctor`, `test_rendering`, `test_gate_corpus`, `test_command_gate`,
+  `test_approve_pin_levels`, `test_harness_lock`, `test_refresh`, `test_rerender`, `test_release_ask`, `test_upgrade`, and by discovery
+  `test_settings`, `test_settingscmd`, `test_cli`, `test_firstparty`. `wb check` and `wb doctor` found no problems; the plan check found none.
+  The full suite was not run.
+- **Review:** one `reviewer` round, no blocking finding. Two not-blocking findings were applied: `code-work.md` still said the first tier offers
+  `none`; and the previews printed two `digest:` lines, so a note now says which one a run takes (test added). Not checked by the reviewer
+  and not by me: a run against a real harness's rendered `ask` rule (the drift tests and the corpus pass); the preview's use of
+  `_open_store`, which seeds settings as every preview does.
+- **A slip, recorded:** an edit script left `workbench/recover.py` with a syntax error, which locked every tool through the guard hooks until
+  the owner repaired it with one command; no tracked change was lost.
+- **Consequences for the owner:** the profile `balanced` now sets `wb recover` to `ask`, and `trusting` also sets `acknowledge-first-tier`
+  wherever a module declares it; a `wb rerender` in a terminal is due for an owner who uses either. At `ask` an owner who confirms a digest lets
+  the agent accept changes to instruction-bearing and executable files and move pins (written in the spec).
+- **Left for the owner:** the verdict, and the word to commit.

@@ -137,7 +137,7 @@ separated by single spaces, at most 96 characters.
 - `block`: every key.
 - `delegated`: `approve-plan` only, whose gate is a converged, sealed review of the exact bytes (`delegation.py`). The gate must
   pass at the moment of the run, and the run counts only while the table still reads `delegated`.
-- `ask`: `approve-plan`, `accept-decision` (a checkpoint of a command that declares it), `wb release-approvals` (a digest of the preview of its release, "`wb release-approvals` at `ask`"), `wb install`, `wb adopt`, `wb upgrade` and `wb add` (the digest of `wb preview <command>`, taken over the plan with the seed and the time of its pins fixed; "The installer commands at `ask`"), and an owner-run argument of a module's command whose declaration names it in `levels` (below). `none`: `approve-plan`, `wb install`, `wb adopt` (built by Increment F), `wb upgrade` and `wb add` (built by Increment G), `wb approve` and `wb pin` (built by Increment H), `acknowledge-first-tier`, `acknowledge-second-tier`, `wb recover`, `wb attach` and `wb release-approvals` (built by Increment J), `accept-decision` (built by Increment K), every agent-safe action and
+- `ask`: `approve-plan`, `accept-decision` (a checkpoint of a command that declares it), `wb release-approvals` (a digest of the preview of its release, "`wb release-approvals` at `ask`"), `wb install`, `wb adopt`, `wb upgrade` and `wb add` (the digest of `wb preview <command>`, taken over the plan with the seed and the time of its pins fixed; "The installer commands at `ask`"), `wb recover` and `acknowledge-first-tier` (the digest of `wb preview recover` and `wb preview acknowledge`, taken over the examination each shows; "`recover` and `acknowledge` at `ask`"), and an owner-run argument of a module's command whose declaration names it in `levels` (below). `none`: `approve-plan`, `wb install`, `wb adopt` (built by Increment F), `wb upgrade` and `wb add` (built by Increment G), `wb approve` and `wb pin` (built by Increment H), `acknowledge-first-tier`, `acknowledge-second-tier`, `wb recover`, `wb attach` and `wb release-approvals` (built by Increment J), `accept-decision` (built by Increment K), every agent-safe action and
   every declared module argument that is not owner-run; the keys under "Not built" offer `block` only, and so does `wb rerender`. A key offers a level only
   from the version that builds it for that command.
 
@@ -542,8 +542,8 @@ read once, before the fetch and the second verification, so a harness edit made 
 `--root` as spelled and refuses one that names the project only through a link or `..`.
 
 **`acknowledge`, `recover`, `attach` and `release-approvals` at `none`** (built by Increment J). The keys `acknowledge-first-tier`,
-`acknowledge-second-tier`, `wb recover`, `wb attach` and `wb release-approvals` offer `block` and `none`, and `wb release-approvals` also offers `ask`
-("`wb release-approvals` at `ask`", built by the plan `2026-10-30-release-approvals-at-ask`); the shipped defaults stay
+`acknowledge-second-tier`, `wb recover`, `wb attach` and `wb release-approvals` offer `block` and `none`, and `wb release-approvals`, `wb recover` and `acknowledge-first-tier` also offer `ask`
+("`wb release-approvals` at `ask`", built by the plan `2026-10-30-release-approvals-at-ask`, and "`recover` and `acknowledge` at `ask`"); the shipped defaults stay
 `block`. The command line reads the level for the project the working directory is in (`levelrun.route`), as for the commands above.
 *`acknowledge`* is governed by the checkpoint `acknowledge-first-tier` (the owner's choice): every path the command can list has a
 baseline, so it is the manifest, a file under `.workbench/`, `AGENTS.md` or a seeded file, which are first-tier material, and the
@@ -854,8 +854,9 @@ that is not a boundary; the owner's review of the commit that holds the records 
 Built by the plan `2026-11-02-permission-levels-for-every-command`, increment B, as the accepted decision
 [2026-11-03-installer-commands-read-their-level-and-take-an-ask-digest](../decisions/2026-11-03-installer-commands-read-their-level-and-take-an-ask-digest.md)
 decides. `wb install`, `wb adopt`, `wb upgrade` and `wb add` offer `block`, `ask` and `none` and default to `block`; they do not offer
-`delegated`. The other installer commands do not offer `ask` yet (`wb attach`, `wb recover`, `wb approve`, `wb pin` and the acknowledge
-tiers are increment C of the plan; `wb rerender` is increments D and E).
+`delegated`. `wb recover` and the first acknowledge tier offer it too ("`recover` and `acknowledge` at `ask`"). The other installer commands do not offer `ask` yet (`wb attach`,
+`wb approve`, `wb pin` and the second acknowledge tier are increments B and C of the plan `2026-11-03-levels-for-recover-pin-approve-attach`; `wb rerender` is
+increments D and E of the plan above).
 
 **How the level is read.** These four commands have a terminal test, so they read the verified level only, as they do at `none`
 (`levelrun.route_ask`, beside `levelrun.route`; the kit's `may_run` is unchanged and is true without a terminal only at `none`). `ask` and
@@ -903,9 +904,73 @@ the previewed hashes: the digest binds hashes and not the behavior of the packag
 it reads `block` and the owner runs them at a terminal.
 
 **Profiles.** The profiles `balanced` and `trusting` set a `project` key that offers `ask` to `ask`, so an owner who named one reads these
-four commands at `ask` from the day this is built, with no edit of the table. `wb settings` prints a `profiled <key>: ask` line for
+four commands, and `wb recover`, at `ask` from the day this is built, with no edit of the table. `wb settings` prints a `profiled <key>: ask` line for
 each, `wb doctor` names the profile and the keys it moved, and the rendered rules change at the next `wb rerender`, which the owner runs
 in a terminal.
+
+## `recover` and `acknowledge` at `ask`
+
+Built by the plan `2026-11-03-levels-for-recover-pin-approve-attach`, increment A, on the rules of the accepted decision
+[2026-11-03-installer-commands-read-their-level-and-take-an-ask-digest](../decisions/2026-11-03-installer-commands-read-their-level-and-take-an-ask-digest.md)
+and its note of 2026-11-04. `wb recover` and the checkpoint `acknowledge-first-tier` (the key of `wb acknowledge`) offer `block`, `ask` and
+`none` and default to `block`; they do not offer `delegated`. `acknowledge-second-tier` still offers `none` only, and `wb attach`, `wb approve` and
+`wb pin` do not offer `ask` yet: they are increments B and C of the same plan.
+
+**How the level is read.** Both commands have a terminal test, so they read the verified level only (`levelrun.route_ask`), exactly as
+`install` does in "The installer commands at `ask`": `ask` and `none` hold only while the rendering record, the local manifest and the
+harness files agree, and in any other state the key reads `block` and the command refuses without a terminal with the text it always
+gave. The level is read for the project the working directory is in. `acknowledge` reads `acknowledge-first-tier`, which exists only
+where an installed process module declares it; where none does, there is no key and the command reads `block`. The project
+`acknowledge` lists must be the one the level was read for; a marker that `recover` finds and that names a project must name that one.
+
+| Form | Level | Result |
+|---|---|---|
+| `wb <command> …`, standard input and output terminals | not read | as always: the examination and its digest are shown and the owner types the first 12 characters. A `--digest` here is refused |
+| `wb <command> … --digest <32 hex>`, no terminal | `ask` | the project is examined now and the command goes on when the digest equals the one `wb preview <command> …` printed for the same target |
+| `wb <command> …`, no terminal, no digest, a stale digest or one for another state | `ask` | refused with nothing written; the refusal names `wb preview <command>` |
+| `--digest` that is not 32 lowercase hexadecimal characters, given twice, or with no value | any | a usage error (exit 2) when the arguments are parsed |
+| `wb <command> … --digest …`, no terminal | `none` | refused before the run: a digest needs the level `ask`; nothing is written |
+| `wb <command> …`, no terminal | `none` | as at `none` before: it runs and is logged with the examination's own digest |
+| `wb <command> …`, no terminal, the level reads `block` or cannot be verified | `block` | refused with the terminal-only text; `--digest` makes no difference |
+| `wb preview <command> … --digest …` | | a usage error: the previews do not take a digest |
+
+**The previews.** `wb preview acknowledge [<target> | --dir <path>]` and `wb preview recover [<target> | --dir <path>]` are read-only
+agent-safe actions (the keys `wb preview acknowledge` and `wb preview recover` read `none` by default, as every preview does). Each prints
+the examination the command shows before its typed confirmation, then `digest: <32 lowercase hex>` and `preview only: nothing was written`.
+The examination's own 64-character digest stays in the text, followed by a line that says it is the one a terminal run types and that a run at the level `ask` takes the 32-character one below it. `wb preview recover` on a project with no marker prints `no unfinished write
+here; nothing to recover` and a digest, so that a run with nothing to clear can be told from one whose digest is stale. A project that
+`wb acknowledge` or `wb recover` would refuse (a path that cannot be acknowledged, a marker in a state that cannot be cleared, a target that
+is not an existing project) is refused by the preview too, with the run's own text, and prints no digest.
+
+**The digest.** It is `wbkit.digest.of` of two lines, `wb <command>` and the 64-character digest of the examination, which both commands
+already compute for their typed confirmation. Nothing in it is drawn by a run, so, unlike the plan of `install`, it needs no fixed seed or
+time. It binds, for `acknowledge`: the target's identity (device and inode), the project, the workbench version, the manifest's hash, the
+hash of the baselines before and the baselines after, each difference (path, kind, baseline hash, current hash), the hash of the pins
+file and each pin that would move (name, path, hash before and after, kit); it leaves out the time a moved pin records, which the run
+draws and the fields do not hold. For `recover` it binds the target's identity, the marker's fingerprint, the outcome the examination
+reaches, the state of the files and the store, every item the examination found (kind, path, state, detail) and every removal in order;
+with no marker it binds the command, the target's identity and the absence of a marker. A change to any of these changes the digest
+(`tests/test_ack_recover_ask.py`).
+
+**What the run does at `ask`.** It examines the project, checks the project against the one the level was read for, takes the `ask` digest
+and compares it with the one given before it prints anything or writes anything; a mismatch is refused, also when there is nothing to
+change. It then prints the examination, says that the level is `ask` and the digest is that of this examination, asks nothing, examines
+the project a second time and refuses a different digest (the check the terminal flow makes after the typed answer; neither command has
+a lock), and writes. A run with nothing to acknowledge or to recover says so, exits 0 and writes and logs nothing. The attempt is written
+to the level log just before the first write and the outcome after, with the level `ask` and the evidence `digest:<the 32 characters>`.
+An attempt that cannot be written refuses the run and nothing is written.
+
+**What it does not prove.** The owner sees the command and a digest at the harness's prompt, not the examination; the agent shows the
+preview in the conversation before it asks and no code enforces that. **At `ask` an owner who confirms a digest lets the agent accept
+changes someone else made to the files that instruct and run it, and move the pin of a helper whose file was edited, so that the launcher
+runs the new bytes (`acknowledge`), or clear a marker (`recover`);** the digest binds the list the preview showed and not the behavior of the
+edited bytes, and the owner reads the list before confirming. The two examinations of a run are two reads a moment apart, as at a terminal.
+The marker of `recover` is unauthenticated text, so the project check stops a mistake and not a forged marker, as at `none`. A project that
+is not rendered cannot use `ask`: it reads `block`.
+
+**Profiles.** The profile `balanced` sets `wb recover`, a `project` key that offers `ask`, to `ask`, and `trusting` also sets
+`acknowledge-first-tier`, a `governs` key that offers it, wherever an installed module declares it. `wb settings` prints a `profiled <key>: ask`
+line for each, `wb doctor` names them, and the rendered rules change at the next `wb rerender`, which the owner runs in a terminal.
 
 ## Not built
 

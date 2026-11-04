@@ -780,7 +780,7 @@ class ProfileTest(SettingsBase):
         _, got = self.effective({"version": 3, "levels": {}, "profile": "balanced"})
         _, plain = self.effective({"version": 3, "levels": {}})
         changed = {name for name in got.levels if got.levels[name] != plain.levels[name]}
-        self.assertEqual({"wb install", "wb adopt", "wb upgrade", "wb add"}, changed)
+        self.assertEqual({"wb install", "wb adopt", "wb upgrade", "wb add", "wb recover"}, changed)
         self.assertEqual({"ask"}, {got.levels[name] for name in changed})
         self.assertEqual({(name, "ask") for name in changed}, set(got.profiled))
 

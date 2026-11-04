@@ -133,7 +133,7 @@ class AcknowledgeAtNone(Base):
     def test_a_plan_for_another_project_than_the_level_was_read_for_is_refused(self):
         before = self.snapshot()
         elsewhere = levelrun.Route(False, "none", "0" * 64, self.real)
-        with unittest.mock.patch.object(levelrun, "route", lambda *a, **k: elsewhere):
+        with unittest.mock.patch.object(levelrun, "route_ask", lambda *a, **k: elsewhere):
             code, out, err = self.go(["acknowledge", self.real])
         self.assertEqual(1, code, (out, err))
         self.assertIn("not the project", err)
@@ -446,9 +446,16 @@ class ReleaseApprovalsAtNone(NoTerminalTest):
 class Offers(unittest.TestCase):
     def test_the_keys_offer_block_and_none(self):
         registry = levels.registry(checkpoints=(FIRST, SECOND))
-        for key in (FIRST, SECOND, "wb recover", "wb attach"):
+        for key in (SECOND, "wb attach"):
             with self.subTest(key=key):
                 self.assertEqual(("block", "none"), registry[key].offers)
+                self.assertEqual("block", registry[key].default)
+
+    def test_recover_and_the_first_tier_also_offer_ask(self):
+        registry = levels.registry(checkpoints=(FIRST, SECOND))
+        for key in (FIRST, "wb recover"):
+            with self.subTest(key=key):
+                self.assertEqual(("block", "ask", "none"), registry[key].offers)
                 self.assertEqual("block", registry[key].default)
 
     def test_the_release_offers_block_ask_and_none_and_defaults_to_block(self):

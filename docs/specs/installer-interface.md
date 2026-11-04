@@ -162,15 +162,15 @@ says so.
 | command | kind | takes | writes | terminal only | state |
 |---|---|---|---|---|---|
 | `install` | project | target, a module selection | committed content, manifest, the project's store directory, then per-clone harness files | yes, owner-run; the owner may set `wb install` to `ask` (with the digest of the preview) or `none` | built |
-| `preview` | project | `install`, `adopt`, `upgrade`, `add`, `rerender` or `release-approvals` and their arguments (`release-approvals` takes none) | nothing; no network, it reads only the approved cache (`release-approvals` reads the packages and the shipped records and ends with a digest) | no | built |
+| `preview` | project | `install`, `adopt`, `upgrade`, `add`, `rerender`, `acknowledge`, `recover` or `release-approvals` and their arguments (`release-approvals` takes none) | nothing; no network, it reads only the approved cache (`release-approvals` reads the packages and the shipped records and ends with a digest) | no | built |
 | `adopt` | project | target, a module selection (as `install`) | committed content for the paths that are missing, manifest, the project's store directory; never an existing file and no harness file | yes, owner-run; the owner may set `wb adopt` to `ask` (with the digest of the preview) or `none` | built (`adopt-existing-repository`) |
 | `attach` | project | target, `--harness` | per-clone harness files, `.git/info/exclude`, the local manifest | no, but owner-run (harness deny rule) | built |
 | `rerender` | project | target, `--package` | the stale, new and missing rendered files, the harness's permissions file, the local manifest's hashes, then the rendering record in the guarded store | yes, owner-run at every level; the key offers `block` only | built (`rerender-attached-harness`, `refresh-rendered-harness`) |
 | `check` | project | target | nothing | no | built |
 | `upgrade` | project | target | after an approved preview, new content, left uncommitted | yes, owner-run; the owner may set it to `ask` (with the digest of the preview) or `none` | built |
 | add a module | project | target, a module | the same as `upgrade`, new files and blocks only | yes, owner-run; the owner may set `wb add` to `ask` (with the digest of the preview) or `none` | built |
-| `acknowledge` | project | target | the guarded store: the project's acknowledgement baselines | yes, owner-run; the owner may set `acknowledge-first-tier` to `none` | built |
-| `recover` | project | target | removes the unfinished-write marker and the empty directories the plan created, nothing else | yes, owner-run; the owner may set `wb recover` to `none` | built |
+| `acknowledge` | project | target | the guarded store: the project's acknowledgement baselines | yes, owner-run; the owner may set `acknowledge-first-tier` to `ask` (with the digest of `wb preview acknowledge`) or `none` | built |
+| `recover` | project | target | removes the unfinished-write marker and the empty directories the plan created, nothing else | yes, owner-run; the owner may set `wb recover` to `ask` (with the digest of `wb preview recover`) or `none` | built |
 | `verify` | package | a package directory (`<package>` or `--dir`), `--select`, `--no-harness-required` | nothing | no | built |
 | `approve` | package | a package directory, or `--source` with an optional `--ref`; `--module` | the guarded store: approval records, the cache | yes | built; `--dir` proposed |
 | `pin` | package | a project id, a name, a helper, `--root` | the guarded store: a pin (the installer pins declared helpers itself; this is for any other) | yes | built |
@@ -574,7 +574,7 @@ plan made and the owner may still change.
   the preview approval. On a match it replaces the baselines for exactly the listed paths, then the moved pins. Any
   other answer writes nothing and exits 1; no differences says `nothing to acknowledge` and
   exits 0.
-- **Agent may run it:** by default no; the approver may set `acknowledge-first-tier` or `acknowledge-second-tier` to `none`. It is denied to an agent by the harness as `approve` is.
+- **Agent may run it:** by default no; the approver may set `acknowledge-first-tier` to `ask` or `none`, and `acknowledge-second-tier` to `none`. At `ask` it runs without a terminal only with `--digest <32 hex>`, the digest that `wb preview acknowledge` printed. It is denied to an agent by the harness as `approve` is.
 - **As built.** A link, a directory or another non-regular file where a file is expected, and a
   name under `.workbench/` that fails the path rules (control character, non-UTF-8, colon,
   backslash), cannot be acknowledged: it is listed as a difference with its reason, never
@@ -627,7 +627,7 @@ plan made and the owner may still change.
 - **Exit codes:** 0 cleared or nothing to recover; 1 refused or cancelled; 2 usage; 3 a removal
   failed or was interrupted (the message says whether the marker remains); 130 interrupted at the
   prompt.
-- **Agent may run it:** by default no; the approver may set `wb recover` to `none`. It is owner-run and terminal-only by default; a harness's deny rule is the
+- **Agent may run it:** by default no; the approver may set `wb recover` to `ask` or `none`; at `ask` it runs without a terminal only with `--digest <32 hex>`, the digest that `wb preview recover` printed. It is owner-run and terminal-only by default; a harness's deny rule is the
   barrier, as for `acknowledge`.
 - **Limits.** The marker is unlinked by name after the second examination, so a marker swapped in
   that window is removed instead of the one shown. A forged record can make `recover` remove empty

@@ -24,16 +24,17 @@ not authentication; what stops an agent is the deny rule a harness renders for t
 for the guarded store.
 
 When the owner has set the checkpoint ``acknowledge-first-tier`` to ``none`` and the rendering holds (the command line reads it,
-``levelrun.route``), the command also runs without a terminal and asks nothing: it prints the same list and digest, examines
+``levelrun.route_ask``), the command also runs without a terminal and asks nothing: it prints the same list and digest, examines
 the project again, and writes the level log's attempt just before the baselines and its outcome after. The project listed must
-be the one the level was read for.
+be the one the level was read for. At ``ask`` it does the same with the digest ``wb preview acknowledge`` printed given as
+``--digest``, which it compares with its own examination before it prints or writes anything (``run_preview``).
 """
 
 import hashlib
 
-from . import (__version__, acknowledgement, approvals, approve, confirm, installed, installplan, manifest,
-               pins, projectfs, sources, target)
-from .wbkit import display, safefs
+from . import (__version__, acknowledgement, approvals, approve, confirm, installed, installplan, levels, manifest,
+               pins, preview, projectfs, sources, target)
+from .wbkit import digest as kitdigest, display, safefs
 
 MANIFEST = acknowledgement.MANIFEST
 MAX_LISTED = 500          # a longer list cannot be reviewed; it is refused, not truncated
@@ -53,7 +54,13 @@ class Refused(Exception):
 
 def parse(tokens):
     """The target spelling from ``[<target> | --dir <path>]``; a ``sources.UsageError`` otherwise."""
-    positional = dir_option = None
+    return parse_args(tokens)[0]
+
+
+def parse_args(tokens, digest_ok=False):
+    """``(target spelling, digest)`` from ``[<target> | --dir <path>] [--digest <32 hex>]``; a ``sources.UsageError`` otherwise.
+    ``--digest`` is accepted once, and only with `digest_ok`: it is the digest of the preview, for a run at the level ``ask``."""
+    positional = dir_option = digest = None
     index = 0
     while index < len(tokens):
         token = tokens[index]
@@ -66,6 +73,15 @@ def parse(tokens):
                 raise sources.UsageError("--dir needs a value")
             dir_option = tokens[index + 1]
             index += 2
+        elif token == "--digest" and digest_ok:
+            if digest is not None:
+                raise sources.UsageError("--digest was given twice")
+            if index + 1 >= len(tokens) or tokens[index + 1].startswith("-"):
+                raise sources.UsageError("--digest needs a value")
+            digest = tokens[index + 1]
+            if not kitdigest.well_formed(digest):
+                raise sources.UsageError(kitdigest.SHAPE)
+            index += 2
         elif token.startswith("-"):
             raise sources.UsageError("unknown option %s" % token)
         else:
@@ -74,7 +90,7 @@ def parse(tokens):
             positional = token
             index += 1
     try:
-        return target.choose(positional, dir_option)
+        return target.choose(positional, dir_option), digest
     except target.TargetUsage as exc:
         raise sources.UsageError(str(exc))
 
@@ -246,11 +262,47 @@ def _pins_hash(guarded, project):
     return None if guarded.kind(rel) is None else _sha(guarded.read(rel))
 
 
-def _run(guarded, spelling, stdin, out, err, version, log=None):
+def run_preview(guarded, spelling, out, err, version=None):
+    """``wb preview acknowledge``: what an acknowledgement would accept, read-only, ending with the digest a run at the level
+    ``ask`` takes. The digest binds the command and the digest of the list shown, which holds the target's identity, the
+    baselines, the differences and the pins that would move; nothing in it is drawn by a run."""
+    try:
+        with target.open_target(spelling, guarded.root) as held:
+            review = examine(guarded, held, version or __version__)
+            text = render(review, held.path)
+    except Refused as exc:
+        for index, line in enumerate(exc.lines):
+            err.write(("refused: %s\n" if not line.startswith("  ") or not index else "%s\n")
+                      % display.clean(line))
+        return 1
+    except target.TargetError as exc:
+        return target.write_refusal(err, exc)
+    except safefs.SafeFsError as exc:
+        return _refuse(err, str(exc))
+    out.write(text)
+    if not review.found:
+        out.write("nothing to acknowledge\n")
+    out.write("%s\n" % preview.EXAMINATION_NOTE)
+    out.write("digest: %s\n" % preview.ask_digest("acknowledge", review.digest))
+    out.write(preview.ENDING + "\n")
+    return 0
+
+
+def _run(guarded, spelling, stdin, out, err, version, log=None, digest=None):
     try:
         with target.open_target(spelling, guarded.root) as held:
             now = approvals.utc_now()
             review = examine(guarded, held, version, now)
+            asking = log is not None and getattr(log, "level", None) == levels.ASK
+            evidence = review.digest
+            if asking:
+                if review.project != log.project_id:
+                    return _refuse(err, "the project the level was read for is not the project being acknowledged; nothing was "
+                                        "written")
+                if preview.ask_mismatch("acknowledge", review.digest, digest):
+                    return _refuse(err, "the digest is not the one of the list built now; nothing was written; run `wb preview "
+                                        "acknowledge` again, read it, and give the digest it prints")
+                evidence = preview.ask_digest("acknowledge", review.digest)
             if not review.found:
                 out.write("nothing to acknowledge\n")
                 return 0
@@ -258,7 +310,11 @@ def _run(guarded, spelling, stdin, out, err, version, log=None):
                 return _refuse(err, "the project the level was read for is not the project being acknowledged; nothing was "
                                     "written")
             out.write(render(review, held.path))
-            if log is not None:
+            if asking:
+                out.write("\nThe level of acknowledge-first-tier is ask here and the digest you gave is the one of this list, so "
+                          "nothing is asked: it is acknowledged now.\n")
+                out.flush()
+            elif log is not None:
                 out.write("\nThe level of acknowledge-first-tier is none here, so nothing is asked: it is acknowledged now.\n")
                 out.flush()
             else:
@@ -293,7 +349,7 @@ def _run(guarded, spelling, stdin, out, err, version, log=None):
                     if review.moved else ""))
                 return 0
 
-            return apply() if log is None else log(review.digest, apply)
+            return apply() if log is None else log(evidence, apply)
     except Refused as exc:
         for index, line in enumerate(exc.lines):
             err.write(("refused: %s\n" if not line.startswith("  ") or not index else "%s\n")
@@ -313,16 +369,17 @@ def require_terminal(stdin, out, err):
     return False
 
 
-def run(guarded, spelling, stdin, out, err, version=None, log=None):
+def run(guarded, spelling, stdin, out, err, version=None, log=None, digest=None):
     """Acknowledge the differences after the owner types the digest. Returns the exit code:
     0 done or nothing to do, 1 refused or cancelled, 3 failed while writing, 130 interrupted.
 
-    `log`, given by the command line when the level of ``acknowledge-first-tier`` is ``none`` here, is ``log(digest, apply)``
-    with a ``project_id``: the command then runs without a terminal and asks nothing."""
+    `log`, given by the command line when the level of ``acknowledge-first-tier`` is ``ask`` or ``none`` here, is
+    ``log(digest, apply)`` with a ``project_id`` and a ``level``: the command then runs without a terminal and asks nothing. At
+    ``ask`` it needs `digest`, the one ``wb preview acknowledge`` printed, and refuses a stale one before it writes."""
     if log is None and not require_terminal(stdin, out, err):
         return 1
     try:
-        return _run(guarded, spelling, stdin, out, err, version or __version__, log)
+        return _run(guarded, spelling, stdin, out, err, version or __version__, log, digest)
     except KeyboardInterrupt:
         try:
             out.write("\ncancelled: nothing was written\n")

@@ -317,7 +317,7 @@ class Drift(unittest.TestCase):
         self.assertGreaterEqual(len(keys), 40)
         ask, none = spec_offers(read(SPEC))
         self.assertEqual({"approve-plan", "accept-decision", "wb release-approvals", "wb install", "wb adopt", "wb upgrade",
-                          "wb add"}, ask)
+                          "wb add", "wb recover", "acknowledge-first-tier"}, ask)
         self.assertGreaterEqual(len(none), 12)
         self.assertGreaterEqual(len(development_owner_run_rows(read(DEVELOPMENT))), 10)
         texts = neutral_texts()

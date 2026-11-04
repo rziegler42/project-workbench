@@ -25,7 +25,7 @@ CHECKPOINT_LINES = "checkpoint approve-plan: stop\ncheckpoint beta: stop\n"
 KEY_FACTS = {
     "approve-plan": ("governs", "block,delegated,ask,none"),
     "wb install": ("project", "block,ask,none"), "wb adopt": ("project", "block,ask,none"),
-    "wb upgrade": ("project", "block,ask,none"), "wb add": ("project", "block,ask,none"), "wb attach": ("project", "block,none"), "wb recover": ("project", "block,none"),
+    "wb upgrade": ("project", "block,ask,none"), "wb add": ("project", "block,ask,none"), "wb attach": ("project", "block,none"), "wb recover": ("project", "block,ask,none"),
     "wb rerender": ("governs", "block"), "wb approve": ("governs", "block,none"), "wb pin": ("governs", "block,none"),
     "wb release-approvals": ("governs", "block,ask,none"),
 }
@@ -215,7 +215,7 @@ class Printed(Settings):
         self.assertIn("level approve-plan: ask\n", out)
         self.assertIn("level wb release-approvals: ask\n", out)
         self.assertIn("profile: trusting\nprofiled approve-plan: ask\nprofiled wb install: ask\nprofiled wb adopt: ask\n"
-                      "profiled wb upgrade: ask\nprofiled wb add: ask\nprofiled wb release-approvals: ask\n", out)
+                      "profiled wb upgrade: ask\nprofiled wb add: ask\nprofiled wb recover: ask\nprofiled wb release-approvals: ask\n", out)
         self.assertEqual(0, problem_lines(out), out)
 
     def test_the_profile_cautious_moves_no_key_and_prints_its_name_only(self):
@@ -225,12 +225,12 @@ class Printed(Settings):
         self.assertIn("profile: cautious\n", out)
         self.assertNotIn("profiled ", out)
 
-    def test_balanced_sets_the_four_installer_commands_that_offer_ask(self):
+    def test_balanced_sets_the_project_commands_that_offer_ask(self):
         self.owner({"version": 3, "levels": {}, "profile": "balanced"})
         code, out, err = self.settings()
         self.assertEqual((0, ""), (code, err))
         self.assertIn("profile: balanced\nprofiled wb install: ask\nprofiled wb adopt: ask\nprofiled wb upgrade: ask\n"
-                      "profiled wb add: ask\n", out)
+                      "profiled wb add: ask\nprofiled wb recover: ask\n", out)
         self.assertNotIn("profiled approve-plan", out)
 
     def test_a_key_entry_that_overrides_the_profile_is_not_listed_as_profiled(self):

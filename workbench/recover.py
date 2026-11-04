@@ -33,15 +33,16 @@ directory that holds anything is removed and the target directory itself is neve
 typed text is friction, not authentication; what stops an agent is the deny rule a harness renders
 for this command and for the guarded store.
 
-When the owner has set the key ``wb recover`` to ``none`` and the rendering holds (the command line reads it,
-``levelrun.route``), the command also runs without a terminal and asks nothing: it prints the same examination and digest,
+When the owner has set the key ``wb recover`` to ``ask`` or ``none`` and the rendering holds (the command line reads it,
+``levelrun.route_ask``), the command also runs without a terminal and asks nothing; at ``ask`` it needs the digest
+``wb preview recover`` printed, given as ``--digest`` and compared before anything is removed (``run_preview``). At ``none``: it prints the same examination and digest,
 examines again, and writes the level log's attempt just before the first removal and its outcome after. The level is the
 owner's setting for the project the command is run from. A marker that names a project (an unfinished ``upgrade`` or ``add``)
 must name that one; the marker of a failed ``install`` or ``adopt`` names none and is in a new directory, so the target is not
 compared. The record is unauthenticated text, so this stops a mistake and not a forged marker. A run with no marker writes no entry.
 """
 
-from . import acknowledge, approve, confirm, installplan, projectfs, target, unfinished
+from . import acknowledge, approve, confirm, installplan, levels, preview, projectfs, target, unfinished
 from .wbkit import display, safefs
 
 MAX_LISTED = 500
@@ -52,6 +53,7 @@ _LOCAL = ".workbench/local"
 _BEFORE, _AFTER, _UNSTORED, _PARTIAL = "before", "after", "unstored", "partial"
 
 parse = acknowledge.parse
+parse_args = acknowledge.parse_args
 
 
 class Refused(Exception):
@@ -241,10 +243,51 @@ def _clear(writer, review, out, err):
     return 0
 
 
-def _run(guarded, spelling, stdin, out, err, log=None):
+def nothing_digest(identity):
+    """The digest of the state with no marker: what ``wb preview recover`` binds there, so that a run at the level ``ask`` with
+    nothing to clear can be told from one whose digest is stale."""
+    return installplan.digest_of({"command": "recover", "target": {"device": identity[0], "inode": identity[1]},
+                                  "marker": None})
+
+
+def run_preview(guarded, spelling, out, err):
+    """``wb preview recover``: what clearing the marker would remove, read-only, ending with the digest a run at the level
+    ``ask`` takes. The digest binds the command and the digest of the examination shown, which holds the marker's bytes, the
+    items found, the steps that would clear it and the target's identity."""
     try:
         with target.open_target(spelling, guarded.root, marked=True) as held:
             if not held.has_incomplete_marker():
+                text = "no unfinished write here; nothing to recover\n"
+                inner = nothing_digest(held.identity)
+            else:
+                review = examine(guarded, held)
+                text = render(review, held.path)
+                inner = review.digest
+    except Refused as exc:
+        for index, line in enumerate(exc.lines):
+            err.write(("refused: %s\n" if not line.startswith("  ") or not index else "%s\n")
+                      % display.clean(line))
+        return 1
+    except target.TargetError as exc:
+        return target.write_refusal(err, exc)
+    except safefs.SafeFsError as exc:
+        return _refuse(err, str(exc))
+    out.write(text)
+    if "\ndigest: " in text:
+        out.write("%s\n" % preview.EXAMINATION_NOTE)
+    out.write("digest: %s\n" % preview.ask_digest("recover", inner))
+    out.write(preview.ENDING + "\n")
+    return 0
+
+
+def _run(guarded, spelling, stdin, out, err, log=None, digest=None):
+    try:
+        with target.open_target(spelling, guarded.root, marked=True) as held:
+            asking = log is not None and getattr(log, "level", None) == levels.ASK
+            if not held.has_incomplete_marker():
+                if asking and preview.ask_mismatch("recover", nothing_digest(held.identity), digest):
+                    return _refuse(err, "the digest is not the one of the examination built now; nothing was removed; run "
+                                        "`wb preview recover` again, read it, and give the digest it prints")
                 out.write("no unfinished write here; nothing to recover\n")
                 return 0
             review = examine(guarded, held)
@@ -252,8 +295,18 @@ def _run(guarded, spelling, stdin, out, err, log=None):
             if log is not None and named is not None and named != log.project_id:
                 return _refuse(err, "the marker names another project than the one the level was read for; nothing was "
                                     "removed")
+            evidence = review.digest
+            if asking:
+                if preview.ask_mismatch("recover", review.digest, digest):
+                    return _refuse(err, "the digest is not the one of the examination built now; nothing was removed; run "
+                                        "`wb preview recover` again, read it, and give the digest it prints")
+                evidence = preview.ask_digest("recover", review.digest)
             out.write(render(review, held.path))
-            if log is not None:
+            if asking:
+                out.write("\nThe level of wb recover is ask here and the digest you gave is the one of this examination, so "
+                          "nothing is asked: the marker is cleared now.\n")
+                out.flush()
+            elif log is not None:
                 out.write("\nThe level of wb recover is none here, so nothing is asked: the marker is cleared now.\n")
                 out.flush()
             else:
@@ -273,7 +326,7 @@ def _run(guarded, spelling, stdin, out, err, log=None):
             def apply():
                 return _clear(projectfs.Writer(held), again, out, err)
 
-            return apply() if log is None else log(again.digest, apply)
+            return apply() if log is None else log(evidence if asking else again.digest, apply)
     except Refused as exc:
         for index, line in enumerate(exc.lines):
             err.write(("refused: %s\n" if not line.startswith("  ") or not index else "%s\n")
@@ -293,16 +346,17 @@ def require_terminal(stdin, out, err):
     return False
 
 
-def run(guarded, spelling, stdin, out, err, log=None):
+def run(guarded, spelling, stdin, out, err, log=None, digest=None):
     """Clear the marker after the owner types the digest. Returns the exit code: 0 done or
     nothing to recover, 1 refused or cancelled, 3 removal failed, 130 interrupted.
 
-    `log`, given by the command line when the level of ``wb recover`` is ``none`` here, is ``log(digest, apply)``: the command
-    then runs without a terminal and asks nothing."""
+    `log`, given by the command line when the level of ``wb recover`` is ``ask`` or ``none`` here, is ``log(digest, apply)``
+    with a ``level``: the command then runs without a terminal and asks nothing. At ``ask`` it needs `digest`, the one
+    ``wb preview recover`` printed, and refuses a stale one before it removes anything."""
     if log is None and not require_terminal(stdin, out, err):
         return 1
     try:
-        return _run(guarded, spelling, stdin, out, err, log)
+        return _run(guarded, spelling, stdin, out, err, log, digest)
     except KeyboardInterrupt:
         try:
             out.write("\ncancelled: nothing was removed\n")

@@ -22,6 +22,8 @@ ENDING = "preview only: nothing was written"
 # place: everything that derives from the seed or the time is then the same in both, and every other change of the plan changes it.
 ASK_SEED = "ask-digest-fixed-seed"
 ASK_NOW = "1970-01-01T00:00:00Z"
+EXAMINATION_NOTE = ("the digest above is the examination's own, which a terminal run types; a run at the level ask "
+                    "takes the one below")
 ASK_NOTE = ("the seed, the project identifier, the time of the pins and the hashes made from them are drawn by each run; the "
             "digest below is taken over the plan with those fixed, and covers the rest")
 
