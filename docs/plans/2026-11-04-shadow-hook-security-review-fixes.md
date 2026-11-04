@@ -1,6 +1,6 @@
 # Fix what the second security review of the action-review shadow hook found
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-04
 Candidate: workbench-v1#action-review-engine
 Specs: action-review

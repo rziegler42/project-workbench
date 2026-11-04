@@ -1,6 +1,6 @@
 # Installer commands offer the levels they can make safe, and the owner chooses
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-02
 Candidate: none (the closest, `workbench-v1#checkpoint-levels-beyond-block`, leaves the owner-run installer commands out of its boundary; this plan takes them, on the owner's direction of 2026-11-02; it is the second of three plans that split the first version of this plan, on the owner's direction of 2026-11-03: the others are `2026-11-03-delegated-levels-and-risk-profiles` and `2026-11-03-module-conformance-levels-and-hooks`)
 Specs: command-permissions, harness-rerender, harness-refresh, installer-interface, trust-and-approval

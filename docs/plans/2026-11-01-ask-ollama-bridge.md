@@ -1,6 +1,6 @@
 # A bridge for a local Ollama server, and an embedding command
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-01
 Candidate: workbench-v1#ask-ollama-bridge
 Specs: model-bridge, module-contract, terms

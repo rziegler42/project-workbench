@@ -1,6 +1,6 @@
 # Levels for recover, acknowledge, pin, approve and attach
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-03
 Candidate: none (the closest, `workbench-v1#checkpoint-levels-beyond-block`, leaves the owner-run installer commands out of its boundary; this plan takes increment C of `2026-11-02-permission-levels-for-every-command`, which stopped at its step 4 because it did not fit one reviewable commit and was deferred there, on the owner's direction of 2026-11-03)
 Specs: command-permissions, installer-interface, trust-and-approval
