@@ -129,12 +129,14 @@ verdict against the rubric. It prints one verdict object: `verdict` (`approve` o
   logic.
 - **Fail closed, and loudly.** A rule file that does not load makes `review` refuse that rule with a message the
   hook can show. It never disables the review of other commands. This is a change from the approver.
-- **The prompt holds the facts and the rubric; the vendor can still read the project.** Content from a hostile
+- **The prompt holds the facts and the rubric; the call is confined, which is a tripwire and not a boundary.** Content from a hostile
   repository (a diff, a message) is quoted as data and the rubric keeps the check that refuses text addressed to the
-  reviewer (`no_reviewer_directed_text`). That is not an isolation boundary. The bridge starts the vendor program in
-  the project, and `model-bridge.md` ("What the vendor program can read") says it can open any file there, including
-  untracked scratch and the repository's own instruction files, so repository text can reach the model by that
-  route as well. The spec therefore claims only this: the engine puts nothing sensitive in the project for the
+  reviewer (`no_reviewer_directed_text`). That is not an isolation boundary. The engine always passes `--confine` to the bridge
+  (plan `2026-11-04-shadow-hook-security-review-fixes`, increment C; "The bridge call is confined" below), so the vendor program
+  starts with its tools that read files, run commands or reach a network switched off. Without that, `model-bridge.md` ("What the
+  vendor program can read") says it can open any file in the project, including untracked scratch and the repository's own
+  instruction files, so repository text could reach the model by that route as well; what a confined program can still do is
+  listed in "Confinement" there. The spec therefore claims only this: the engine puts nothing sensitive in the project for the
   vendor to find (the labelled set is stored outside any project, see below), and it does not rely on the model
   ignoring what it reads. A bridge option for a scratch root with no project content would be a change to
   `model-bridge.md`, which the engine's plan may propose; none exists today.
@@ -325,6 +327,21 @@ may use up to 5 of them and the bridge call gets the rest; the bridge is always 
 time limit on the call is the deadline's remainder, so the two add to no more than 25. A `describe` that is not done in
 5 seconds is a refusal (exit 1, as for any failed `describe` run in the plan). The 5 seconds are a guess and are
 revisited with the other figures once the shadow period has logged the engine's own durations.
+
+**The bridge call is confined** (plan `2026-11-04-shadow-hook-security-review-fixes`, increment C; found by the second security review of
+the shadow, 2026-11-04). The prompt holds captured text that an agent can write (a commit's diff and message), and `model-bridge.md`
+("Confinement") says a caller that sends captured text through a bridge to a program always passes `--confine`. The engine therefore
+asks exactly `<bridge> ask --timeout 20 --schema <the shipped reply schema> --confine [--model <m>] [--effort <e>]`. A bridge that
+refuses the option, with no output object, is a refusal (exit 1); a bridge that prints a failure object or fails some other way is a
+failure (exit 2); either way the call is not repeated without the option. What is and is not shown: the bridge's own confinement
+evidence stands (the probes of 2026-11-01 in `model-bridge.md`, which used no reply schema); the engine's confined call with its reply
+schema has not been run against a real Codex, so the owner's test-set run is its first use. A case that fails there is reported by the
+runner as not run, with the engine's exit code; the cause is in the engine's own `refused:` or `failed:` line, which the runner does not
+show (a runner that showed it would be a change of its own). **Nothing in the engine checks that the installed `codex` is a release that
+passed the release check** ("Release check for untrusted text" in `model-bridge.md`; `codex-cli` 0.163.0 passed it on 2026-11-01, and the
+owner runs the check again for every release they install): the confinement arguments name the program's feature list as of that
+release, and a renamed feature fails closed, but only the owner's check says the combination still holds. The owner's steps say so. A bridge that
+cannot switch off any tool (a bridge to a server) meets the rule by construction, and one that cannot honour the option refuses it.
 
 **A fact that is absent or of the wrong type.** A check reads only the facts named in its row. If an `ok: true` object
 lacks one of them, or it has the wrong type, that check fails (it never passes by default), and `facts_complete` fails
@@ -904,8 +921,11 @@ was reviewed by the approver and declines under `describe` (`safe-git.md`).
   characters of `a-z0-9_`), the one piece of vendor text in a reason. Neither reaches standard output or the row.
 - An empty `credential_names` list is accepted by the loader and then matches nothing (only an absent list fails the check);
   an `ok: true` removal object with empty path lists passes the two removal comparisons, which the real command cannot print.
-- The vendor program can read any file in the project, including the rules and the rubric (pinned, so a change is caught
-  before a review, but readable).
+- The vendor program is started confined, but the confinement is a tripwire: `model-bridge.md` ("Confinement", "What remains")
+  lists what a confined program can still reach (an image viewer, MCP resource readers, functions that start agents and an exec
+  function whose limits are not shown), and the protection depends on the program's version, so a release of `codex` is accepted for
+  this text only after the release check there passes for it. Files in the project, the rules and the rubric (pinned, so a change is
+  caught before a review) can still be read by anything the confinement does not cover.
 - `ignore_unknown_targets` has no test on a real object, because the one cause the spec names (a colon or backslash target)
   is refused earlier as `path_refused`, as observed in Increment G; the 5-second `describe` budget is a guess; `find_root` takes the nearest project, so a nested project
   under the working directory would supply its own rules (pinned, so a changed rule is refused); the hook must start `review`

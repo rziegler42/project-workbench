@@ -295,5 +295,36 @@ runs only if the owner decides after the author states what could break outside 
 - **Review:** one `reviewer` exchange, no blocking finding; applied: a control test (finding 1), the claim about `PYTHONSTARTUP` and the
   coverage of `env -i` (finding 2), two stale spec lines (finding 3), the store's docstrings (finding 4), `Exception` in the two places
   and an orphan fragment of the hook's docstring (finding 5).
-- **Not done yet:** copy the six files into the real tree, the owner's `wb release-approvals`, the checks in the real tree, the commit
+- **Afterwards (2026-11-04):** the six files were copied into the real tree and the owner ran `wb release-approvals`; `wb check`, the plan
+  check, `wb doctor`, `git diff --check` and the drift test were clean, and the module's 762 tests had one failure, the macOS environment
+  test. Committed as 23302cd with the two new shipped approval records.
+
+### Increment C — The bridge call is confined (built in a scratch clone, 2026-11-04)
+
+- **Step 1, the decision.** `docs/specs/model-bridge.md` ("Confinement") says a caller that sends captured text through a bridge to a
+  program always passes `--confine`; the engine's prompt holds a commit's diff and message, which an agent can write. `ask-codex` adds the
+  confinement arguments independently of `--output-schema` (it reads the schema host-side and writes it to a scratch file), and `ask-ollama`
+  recognises the flag for `ask`; nothing in the contract makes `--schema` and `--confine` conflict. So the work goes on and the code changes.
+  **Not shown:** the 2026-11-01 probes used no reply schema, so the combination of `--confine`, `--strict-config` and `--output-schema` has
+  not been run against a real Codex; a feature name unknown to the installed release would fail closed at the owner's step 8.
+- **Where the work is.** A scratch clone at `23302cd` (`wb-sc/`); the real tree holds nothing of it. Three files differ:
+  `helper/action-review` (one argument), `tests/test_actionreview_bridge.py`, `docs/specs/action-review.md`.
+- **Done.** `ask_bridge` asks exactly `<bridge> ask --timeout 20 --schema <file> --confine [--model m] [--effort e]`. A bridge that refuses the
+  option is a refusal (exit 1) or, if it prints a failure object, a failure (exit 2), and the single call site means it is never repeated
+  without it. The test-set runner reaches the bridge through the same function, so it is confined too and its 3 synthetic prompts are
+  unchanged. The spec has a new paragraph, "The bridge call is confined", and two lines that said the vendor program can read the project now
+  say the call is confined and what remains (`model-bridge.md`, "What remains").
+- **Verification as run in the clone** (scratch `HOME`): the updated and new tests failed before the change (5 failures) and pass after; the
+  engine's bridge, pins, module, output and collect tests (195) pass except one that reads the real project's untracked
+  `.workbench/review.json`; the whole module set (764) shows that, a second test of that kind and the macOS environment test.
+- **Recorded, not built.** (1) The test-set runner discards the engine's standard error, so a case that fails because the bridge refused
+  `--confine` is reported as not run with an exit code, not with the cause (the spec says so; changing the runner is a plan of its own).
+  (2) **Nothing checks that the installed `codex` is a release that passed the release check** ("Release check for untrusted text" in
+  `model-bridge.md`; 0.163.0 passed on 2026-11-01; the owner runs the check for every release they install). Building a check would mean
+  the engine or `ask-codex` learning the program's version, which this plan excludes. Increment D puts it in the owner's steps (compare
+  `codex --version` with 0.163.0 and run the check for any other release before relying on the confined call).
+- **Review:** one `reviewer` exchange, no blocking finding; applied: the spec's wording on refusal versus failure, on the runner not showing
+  the cause, and on the unchecked codex release. The review-engine's own bridge call is unconfined by design (`model-bridge.md`: it needs the
+  program's file access to read the plans) and is not covered by this plan.
+- **Not done yet:** copy the three files into the real tree, the owner's `wb release-approvals`, the checks in the real tree, the commit
   with the new shipped approval records.

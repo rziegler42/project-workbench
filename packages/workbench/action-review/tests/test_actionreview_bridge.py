@@ -572,17 +572,37 @@ class Asking(Base):
         fake, got = self.ask()
         (root, command, arguments, kwargs), = fake.calls
         self.assertEqual((self.ROOT, "ask-codex"), (root, command))
-        self.assertEqual(["ask", "--timeout", "20", "--schema", SECTION + "/reply-schema.json"], arguments)
+        self.assertEqual(["ask", "--timeout", "20", "--schema", SECTION + "/reply-schema.json", "--confine"], arguments)
         self.assertEqual(reply(), got.reply)
 
     def test_the_model_and_then_the_effort_follow_only_when_the_setting_has_them(self):
         fake, _ = self.ask(setting=self.helper.Setting("b", "gpt-5.6-terra", "medium"))
-        self.assertEqual(["ask", "--timeout", "20", "--schema", SECTION + "/reply-schema.json", "--model",
+        self.assertEqual(["ask", "--timeout", "20", "--schema", SECTION + "/reply-schema.json", "--confine", "--model",
                           "gpt-5.6-terra", "--effort", "medium"], fake.calls[0][2])
         fake, _ = self.ask(setting=self.helper.Setting("b", "m", None))
-        self.assertEqual(["--model", "m"], fake.calls[0][2][5:])
+        self.assertEqual(["--model", "m"], fake.calls[0][2][6:])
         fake, _ = self.ask(setting=self.helper.Setting("b", None, "high"))
-        self.assertEqual(["--effort", "high"], fake.calls[0][2][5:])
+        self.assertEqual(["--effort", "high"], fake.calls[0][2][6:])
+
+    def test_every_bridge_call_is_confined_so_a_model_steered_by_the_commit_text_has_no_tool(self):
+        # Plan `2026-11-04-shadow-hook-security-review-fixes`, increment C. The engine sends captured text (the facts of a command,
+        # a commit's diff and message included, which an agent can write), and `docs/specs/model-bridge.md` ("Confinement") says
+        # a caller that does that always passes `--confine`.
+        for setting in (self.helper.Setting("b", None, None), self.helper.Setting("b", "m", "high")):
+            fake, _ = self.ask(setting=setting)
+            self.assertEqual(1, fake.calls[0][2].count("--confine"), fake.calls[0][2])
+            self.assertEqual(1, len(fake.calls))
+
+    def test_a_bridge_that_refuses_the_confinement_is_a_refusal_and_is_never_asked_again_without_it(self):
+        refused = call.Result(1, b"", b"refused: --confine is not an option of this bridge", False, False)
+        fake, got = self.ask(answer=refused)
+        self.assertIsInstance(got, self.helper.BridgeRefused)
+        self.assertEqual(1, len(fake.calls), "the bridge was asked again")
+        self.assertIn("--confine", fake.calls[0][2])
+        failed = result(failure(), code=1)
+        fake, got = self.ask(answer=failed)
+        self.assertIsInstance(got, self.helper.BridgeFailed)
+        self.assertEqual(1, len(fake.calls))
 
     def test_the_prompt_is_the_standard_input_and_the_capability_the_bounds_and_the_time_left_are_passed(self):
         fake, _ = self.ask(prompt=b"hello", seconds=17.5)
@@ -805,8 +825,8 @@ class RealLauncher(support_project.Project):
         got = self.go()
         self.assertEqual("approve", got.verdict)
         with open(self.argv) as handle:
-            self.assertEqual(["ask", "--timeout", "20", "--schema", SECTION + "/reply-schema.json", "--model", "m1",
-                              "--effort", "low"], handle.read().split("\n")[:-1])
+            self.assertEqual(["ask", "--timeout", "20", "--schema", SECTION + "/reply-schema.json", "--confine", "--model",
+                              "m1", "--effort", "low"], handle.read().split("\n")[:-1])
         with open(self.stdin, "rb") as handle:
             prompt = handle.read().decode("utf-8")
         self.assertTrue(prompt.startswith("# Action-review rubric"))
