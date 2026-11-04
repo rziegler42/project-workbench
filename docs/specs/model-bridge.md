@@ -88,7 +88,8 @@ bridge that cannot honour `--server` (a bridge to a program has no endpoint) or 
 kinds of tool) refuses it with a `refused:` line before anything runs, the same refusal as any other bad option, and never as an
 unknown option.
 
-**Options a review passes** *(decided, not built; plan `2026-11-04-review-profiles`, increment C)*. A bridge module's command
+**Options a review passes** *(the declaration is built by plan `2026-11-04-review-profiles`, increment C; the engine's use is
+increment D)*. A bridge module's command
 declaration may list the options beyond this core (as the bridge-specific options of `ask-ollama.md` already are) that a review may pass from an owner profile, each with a grammar from a closed
 list (`module-contract.md`, `commands[].review_options`). The review engine passes those, `--model` and `--effort`, and nothing else
 from a profile. The contract itself does not change.

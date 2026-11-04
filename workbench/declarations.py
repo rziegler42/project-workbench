@@ -41,7 +41,11 @@ commands    an object of at most ``MAX_COMMANDS`` entries, each a command name i
             provides permissions asks the owner (``2026-10-29-workbench-asks-for-remove-submit-and-fetch``).
             ``checkpoint_of`` is an object that maps an ``owner`` argument that appears in ``levels`` to the name of a
             checkpoint, the key that argument then uses when a process module declares it; no two arguments claim one
-            name (``2026-10-29-accept-decision-at-ask``).
+            name (``2026-10-29-accept-decision-at-ask``). ``review_options`` is an object of at most
+            ``MAX_REVIEW_OPTIONS`` options that a review may pass from an owner profile, each ``{"grammar", "excludes"}``:
+            the grammar one word of ``REVIEW_GRAMMARS``, and ``excludes`` an optional list of ``effort`` or other options of
+            the same command; the names of a profile's fixed fields and of the engine are refused
+            (``2026-11-04-review-profiles-in-the-guarded-store``).
 checks     a list of at most ``MAX_CHECKS`` objects ``{"helper", "kit"}``, both required. The
             helper is an item of ``ships`` or a file below one, and its last path segment, the
             check's pin name, is in the helper-name form (``module-boundary.md``).
@@ -83,7 +87,7 @@ import collections
 import re
 import unicodedata
 
-from .wbkit import jsonstrict, safefs
+from .wbkit import jsonstrict, profiles, safefs
 
 SUPPORTED_CONTRACT = 1
 MAX_DECLARATION_BYTES = 1024 * 1024
@@ -118,6 +122,8 @@ MAX_CHECKPOINTS = 16
 MAX_CAPS = 16
 MAX_CEILING = 100
 MAX_ARGUMENT_CHARS = 32
+MAX_REVIEW_OPTIONS = 8
+REVIEW_GRAMMARS = tuple(profiles.GRAMMARS)
 MAX_KIT = 999999
 RUNTIMES = ("python", "exec")
 
@@ -127,8 +133,8 @@ Module = collections.namedtuple(
               "writes ships commands checks layout declaration approval checkpoints caps convergence ask_reads",
     defaults=(None, (), (), None, ()))
 Command = collections.namedtuple("Command", "name helper runtime kit arguments owner describes levels preview asks "
-                                             "checkpoint_of",
-                                 defaults=((), (), (), None, (), ()))
+                                             "checkpoint_of review_options",
+                                 defaults=((), (), (), None, (), (), ()))
 # The levels, beyond ``block``, that a declaration may give an owner-run argument (``module-contract.md``).
 ARGUMENT_LEVELS = ("ask", "none")
 Cap = collections.namedtuple("Cap", "name default ceiling")
@@ -309,7 +315,7 @@ def _commands(check, value, ships):
                                    "with a letter or digit, at most %d characters"
                        % (_shown(name), MAX_NAME_CHARS))
         check.exact_keys(entry, "commands", ("helper",), ("runtime", "kit", "arguments", "owner", "describes", "levels", "preview",
-                                                           "asks", "checkpoint_of"))
+                                                           "asks", "checkpoint_of", "review_options"))
         helper = check.path(entry["helper"], "commands")
         helper = "/".join(helper)
         if not any("/".join(helper.split("/")[:n]) in ships
@@ -368,8 +374,9 @@ def _commands(check, value, ships):
         offered, preview = _argument_levels(check, name, entry, arguments, owner)
         asks = _asks(check, name, entry, arguments, owner)
         mapped = _checkpoint_of(check, name, entry, offered)
+        review = _review_options(check, name, entry)
         commands.append(Command(name, helper, runtime, kit, tuple(arguments), tuple(owner), tuple(describes), offered,
-                                preview, asks, mapped))
+                                preview, asks, mapped, review))
     return tuple(commands)
 
 
@@ -396,6 +403,48 @@ def _checkpoint_of(check, name, entry, offered):
         mapped.append((argument, checkpoint))
     check.unique([checkpoint for _, checkpoint in mapped], "commands")
     return tuple(mapped)
+
+
+def _review_options(check, name, entry):
+    """The ``review_options`` field of a command entry as ``((option, grammar, (excluded, ...)), ...)`` in the order
+    written: at most ``MAX_REVIEW_OPTIONS`` options a review may pass from an owner profile. An option has the form of an
+    argument and is not a name that belongs to a profile's fixed fields or to the engine; its grammar is one word of the
+    closed list ``REVIEW_GRAMMARS``, so a declaration cannot supply an expression; ``excludes`` is an optional list of
+    different names, each ``effort`` or another option of this command, never the option itself
+    (``2026-11-04-review-profiles-in-the-guarded-store``)."""
+    if "review_options" not in entry:
+        return ()
+    given = entry["review_options"]
+    if not isinstance(given, dict):
+        check.fail("commands", "command %s: 'review_options' must be an object of options" % name)
+    if len(given) > MAX_REVIEW_OPTIONS:
+        check.fail("commands", "command %s: 'review_options' holds at most %d options" % (name, MAX_REVIEW_OPTIONS))
+    found = []
+    for option, body in given.items():
+        if len(option) > MAX_ARGUMENT_CHARS or not _ARGUMENT.match(option):
+            check.fail("commands", "command %s: the review option %s must be lowercase letters, digits and dashes, starting "
+                                   "with a letter, at most %d characters" % (name, _shown(option), MAX_ARGUMENT_CHARS))
+        if option in profiles.RESERVED:
+            check.fail("commands", "command %s: the review option %s is a fixed field of a profile or an option the engine "
+                                   "sets, and cannot be declared" % (name, _shown(option)))
+        check.exact_keys(body, "commands", ("grammar",), ("excludes",))
+        grammar = body["grammar"]
+        if not isinstance(grammar, str) or grammar not in REVIEW_GRAMMARS:
+            check.fail("commands", "command %s: the grammar of the review option %s must be one of %s"
+                       % (name, _shown(option), ", ".join(REVIEW_GRAMMARS)))
+        excludes = body.get("excludes", [])
+        if not isinstance(excludes, list):
+            check.fail("commands", "command %s: 'excludes' of the review option %s must be a list of names"
+                       % (name, _shown(option)))
+        check.unique(excludes, "commands")
+        found.append((option, grammar, tuple(excludes)))
+    declared = {option for option, _, _ in found}
+    for option, _, excludes in found:
+        for other in excludes:
+            if other == option or (other != "effort" and other not in declared):
+                check.fail("commands", "command %s: the review option %s excludes %s, which is neither 'effort' nor another "
+                                       "review option of the command" % (name, _shown(option), _shown(other)))
+    return tuple(found)
 
 
 def _asks(check, name, entry, arguments, owner):

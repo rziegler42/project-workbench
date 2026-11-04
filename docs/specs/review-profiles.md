@@ -87,20 +87,29 @@ the owner's approval of this spec and is refined by the increment that builds it
 
 ### The options a module declares for a review
 
-*(Decided; built by increment C.)* A module's command declaration may carry `review_options`, an object from an option name to
+*(Built by increment C: the declaration reader, `wb verify` and the Ollama module's declaration. The engine's use of it is
+increment D.)* A module's command declaration may carry `review_options`, an object from an option name to
 `{"grammar": <name>, "excludes": [<name>, ...]}`.
 
-- A name is `^[a-z][a-z0-9-]*$`, at most 32 characters. The reserved names above are refused by the reader of the declaration, and
-  `wb verify` refuses the declaration.
+- A name is `^[a-z][a-z0-9-]*$`, at most 32 characters. The reserved names above are refused by the reader of the declaration, and `wb verify` refuses the declaration
+  because it reads declarations through that same reader.
 - `grammar` is one word of a **closed list**, so a module cannot supply an expression of its own: `word` (1 to 64 characters of
   `A-Za-z0-9._:-`, starting with a letter or digit), `name` (1 to 32 characters of `a-z0-9_-`, starting with a letter or digit), `count`
   (1 to 8 ASCII digits, no leading zero, no sign) and `onoff` (`on` or `off`). None of them allows a leading `-`.
-- `excludes` lists options, or `effort`, that may not appear in one profile with this option.
+- `excludes` lists options, or `effort`, that may not appear in one profile with this option. Each name is `effort` or another option
+  of the same command, never the option itself, and the names are different from each other.
 - The Ollama bridge declares `server` (`name`), `thinking` (`onoff`, excludes `effort`), `context` (`count`) and `max-output` (`count`).
   `context` and `max-output` are per-call overrides that the bridge already bounds by the model's section, so they can only lower the
   section's values. `ask-codex` declares none.
 - The engine passes `--model`, `--effort` and each option of the profile as `--<name> <value>`, beside its own `ask`, `--timeout` and
   `--schema`, and nothing else from a profile.
+- The grammars are defined once, in the kit (`wbkit/profiles.py`, `GRAMMARS` and `fits`), and the declaration reader takes its closed
+  list from there. The Ollama helper's own patterns for `--server`, `--context` and `--max-output` are the same text, which its
+  module test compares.
+- **Open point for increment D.** The engine must learn which options an installed bridge declares, from a source an agent cannot
+  write. The installed copy of a declaration is a project file, so it is not that source by itself; the declaration hash that the
+  owner pinned is. Increment D reads the kit's `run_command` and the launcher first and stops and reports if the answer needs the
+  launcher to supply the declared options, which is a larger change than the plan names.
 
 ### The ladder
 

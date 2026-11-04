@@ -401,3 +401,49 @@ the second came back with no meaningful finding.
 - **Left for the owner:** the verdict and the word to commit. A security review: this increment reads an owner file by a fixed path
   and parses it as untrusted text; the agent asks once whether to run a security review with an installed module that provides
   `security-review`, and runs it only if the owner says so. Releases: none needed, since nothing under `packages/` changed.
+- **Committed** as d212882 (the owner's word to commit, 2026-11-04) and pushed.
+
+### Increment C — The options a module declares for a review (2026-11-04)
+
+- **Done, in the live tree (core, uncommitted):** `workbench/declarations.py` reads `commands[].review_options`: at most 8 options, each
+  `{"grammar", "excludes"}`. The option name has the form of an argument and is refused if it is a fixed field of a profile or an
+  option the engine sets (`profiles.RESERVED`); the grammar is one word of the kit's closed list; `excludes` is a list of different
+  names, each `effort` or another option of the command, never the option itself. The `Command` record gains a last field with a
+  default, so no consumer changes. `workbench/wbkit/profiles.py` gains `GRAMMARS` (`word`, `name`, `count`, `onoff`) and `fits`; the
+  declaration reader takes its closed list from the kit, so there is one definition. `wb verify` refuses what the reader refuses
+  because it reads declarations through it.
+- **Done, in a scratch clone only (package):** `packages/workbench/ask-ollama/module.json` declares `server` (`name`), `thinking`
+  (`onoff`, excludes `effort`), `context` and `max-output` (`count`), and the module's test is updated. The live copies of these two
+  files are unchanged, so the live package hashes and approvals are untouched until the owner copies them.
+- **Tests first:** `tests/test_review_options.py` (new, 24 tests), a `Grammars` class in `tests/test_kit_profiles.py`, and three new
+  tests and one changed one in the Ollama module's test. The new refusal tests first passed for the wrong reason (the field was
+  still an unknown one), so four deliberate weakenings of the reader were tried (reserved names allowed, extra grammars allowed, more
+  than 8 options allowed, any option name allowed); each made a test fail. The module's declaration test failed against the unchanged
+  `module.json`.
+- **Verification as run:** live tree, `tests.test_review_options`, `test_kit_profiles`, `test_declarations`, `test_verify`, `test_kit`:
+  269 tests OK; the levels, permissions-drift, first-party, commands and checkpoint-command tests OK. Scratch clone: the Ollama module's
+  tests, 439 OK, and `verify_package('packages/workbench', first_party=True)` accepted. `wb check` and `wb run code-work check` report no
+  problems; `git diff --check` is clean. The full suite was not run; the owner decides any wider run.
+- **Review:** one `reviewer` agent pass (read-only; it ran nothing). No blocking finding. It found the code true to the spec and the
+  decision, the Ollama declaration true to the helper (its `_NAME` and `_CONTEXT` patterns are the kit's `name` and `count` text), no
+  input that raises anything but a `DeclarationError`, and no consumer of `Command` that unpacks it by position. Applied: tests for an
+  `excludes` entry that is not text, for a reserved name other than `effort` in `excludes`, for two options that exclude each other and
+  for a declared grammar the kit can check; a wording fix in the spec; the near-tautological Ollama test was dropped. Noted: the spec
+  says "built" for the Ollama declaration while the live `module.json` still lacks it, until the owner copies the package files.
+- **Open point for increment D (written into the spec):** the engine must learn a bridge's declared options from a source an agent
+  cannot write. The installed copy of a declaration is a project file; the pinned declaration hash is the owner's. D reads the kit's
+  `run_command` and the launcher first and stops and reports if the answer needs the launcher to supply the declared options.
+- **The owner's steps, as done (2026-11-04):** (1) the owner copied the two package files from the scratch clone to the live tree and
+  the hashes matched (`66e3ad8d...040c41`, `94bf729c...d69f4`); (2) the agent's release preview was refused by the command gate, which
+  is closed while a package differs from its release, so (3) the owner ran `wb release-approvals` in a terminal, which wrote 14
+  approvals for the 1 first-party package; (4) it warned of **eight** stale shipped records, not the two the agent had said to expect
+  (two come from this change and six are leftovers of earlier increments; the records hold hashes only, so the agent cannot say which),
+  and the owner approved the dry-run list and the agent removed the eight through `wb run safe-git remove --recursive --confirm`;
+  (5) the agent reran the checks below.
+- **Verification after the release, as run:** `wb preview release-approvals` reads `record recorded` for the package and all 13
+  modules and `stale records: 0`; the Ollama module's tests in the live tree, 439 OK; `tests.test_review_options`, `test_kit_profiles`,
+  `test_declarations`, `test_verify` and `test_kit`, 269 OK; the first-party, permissions-drift, levels and commands tests OK; `wb check`
+  and `wb run code-work check` report no problems; `git diff --check` is clean.
+- **Not done:** the commit and the push. The commit holds the core files and tests, the specs, the plan, the two package files, the two
+  new shipped records and the deletion of the eight stale ones.
+- **Left for the owner:** the verdict and the word to commit.

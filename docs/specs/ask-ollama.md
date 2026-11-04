@@ -85,7 +85,7 @@ conformance checklist.
 | provides | `model-bridge` and `text-embedding` |
 | requires, fills, writes | nothing |
 | ships | one helper, `helper/ask-ollama` |
-| commands | `ask-ollama` (`helper` `helper/ask-ollama`, `runtime` `python`, `kit` 1, `arguments` `["ask", "check", "embed", "models"]`) |
+| commands | `ask-ollama` (`helper` `helper/ask-ollama`, `runtime` `python`, `kit` 1, `arguments` `["ask", "check", "embed", "models"]`, `review_options` `server` (grammar `name`), `thinking` (`onoff`, excludes `effort`), `context` and `max-output` (`count`)) |
 | `ask_reads` | `~/.config/project-workbench/bridge-endpoints.json`, so that a harness which provides `permissions` asks before the agent reads it |
 
 The capability name `text-embedding` is confirmed by the owner (2026-11-02; decision `2026-11-02-model-section-defaults-and-the-embedding-name`,

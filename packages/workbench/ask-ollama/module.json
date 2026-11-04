@@ -23,7 +23,24 @@
         "check",
         "embed",
         "models"
-      ]
+      ],
+      "review_options": {
+        "server": {
+          "grammar": "name"
+        },
+        "thinking": {
+          "grammar": "onoff",
+          "excludes": [
+            "effort"
+          ]
+        },
+        "context": {
+          "grammar": "count"
+        },
+        "max-output": {
+          "grammar": "count"
+        }
+      }
     }
   }
 }

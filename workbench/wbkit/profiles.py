@@ -35,6 +35,14 @@ _PROFILE_NAME = r"[a-z0-9][a-z0-9_-]{0,31}"
 _OPTION_NAME = r"[a-z][a-z0-9-]{0,31}"
 # Printable ASCII with no space and no leading "-", 1 to 128 characters: text that can never read as an option.
 _TEXT = r"[!-,.-~][!-~]{0,127}"
+# The closed list of grammars a module's declaration may give an option that a review passes. None allows a leading "-", and a
+# module cannot supply an expression of its own (docs/specs/review-profiles.md, "The options a module declares for a review").
+GRAMMARS = {
+    "word": r"[A-Za-z0-9][A-Za-z0-9._:-]{0,63}",
+    "name": _PROFILE_NAME,
+    "count": r"[1-9][0-9]{0,7}",
+    "onoff": r"on|off",
+}
 _FIELDS = {"format", "profiles", "ladders"}
 _PROFILE_FIELDS = {"bridge", "model", "effort", "options"}
 
@@ -52,6 +60,12 @@ def fail(why):
 
 def _text(value):
     return type(value) is str and re.fullmatch(_TEXT, value) is not None
+
+
+def fits(grammar, value):
+    """Whether `value` is text of the grammar named `grammar`. A grammar outside ``GRAMMARS`` fits nothing."""
+    return (type(grammar) is str and grammar in GRAMMARS and type(value) is str
+            and re.fullmatch(GRAMMARS[grammar], value) is not None)
 
 
 def _profile(record):

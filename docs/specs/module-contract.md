@@ -323,11 +323,12 @@ the directory name and `name` in `module.json` must be equal. No list holds a du
   when an installed process module declares the checkpoint; otherwise the argument keeps its own key `wb run <command> <argument>`. It is
   covered by the declaration hash as written, so a declaration without it hashes as before, and a workbench that predates it refuses a
   package that has it. An argument that is mapped prints, after its work, the one result line that `command-permissions.md` describes.
-- `commands[].review_options` *(decided, not built; plan `2026-11-04-review-profiles`, increment C; decision
+- `commands[].review_options` *(built by plan `2026-11-04-review-profiles`, increment C; decision
   `2026-11-04-review-profiles-in-the-guarded-store`)*: optional. An object of at most 8 entries from an option name
   (`^[a-z][a-z0-9-]*$`, at most 32 characters) to `{"grammar": <word>, "excludes": [<name>, ...]}`. `grammar` is one of `word`,
   `name`, `count` and `onoff` (`review-profiles.md`, "The options a module declares for a review"); `excludes` lists options, or
-  `effort`, that may not share a profile with it. The names `model`, `effort`, `timeout`, `schema`, `root` and `confine` are
+  `effort`, that may not share a profile with it (each name is `effort` or another option of the same command, never the option
+  itself). The reader refuses these with a message that names the command and the option. The names `model`, `effort`, `timeout`, `schema`, `root` and `confine` are
   refused, and so are an unknown field and a grammar outside the list. It is covered by the declaration hash as written, so a
   declaration without it hashes as before, and a workbench that predates it refuses a package that has it.
 

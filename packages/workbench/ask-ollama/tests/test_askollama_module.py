@@ -11,11 +11,21 @@ import unittest
 
 from tests import support_install
 from workbench import verify
+from workbench.wbkit import profiles
 
 ROOT = support_install.ROOT
 PACKAGE = os.path.join(ROOT, "packages", "workbench")
 MODULE = os.path.join(PACKAGE, "ask-ollama")
 HELPER = "helper/ask-ollama"
+
+
+# The options a review may pass from an owner profile (plan `2026-11-04-review-profiles`, increment C).
+OPTIONS = {
+    "server": {"grammar": "name"},
+    "thinking": {"grammar": "onoff", "excludes": ["effort"]},
+    "context": {"grammar": "count"},
+    "max-output": {"grammar": "count"},
+}
 
 
 def declaration():
@@ -35,8 +45,26 @@ class Declaration(unittest.TestCase):
                          (fields["name"], fields["type"], fields["provides"], fields["ships"]))
         for absent in ("requires", "fills", "writes", "slots", "checks"):
             self.assertNotIn(absent, fields)
-        self.assertEqual({"ask-ollama": {"helper": HELPER, "runtime": "python", "kit": 1,
-                                         "arguments": ["ask", "check", "embed", "models"]}}, fields["commands"])
+        command = dict(fields["commands"]["ask-ollama"])
+        self.assertEqual(OPTIONS, command.pop("review_options"))
+        self.assertEqual({"helper": HELPER, "runtime": "python", "kit": 1, "arguments": ["ask", "check", "embed", "models"]}, command)
+        self.assertEqual(["ask-ollama"], list(fields["commands"]))
+
+    def test_each_declared_option_is_one_the_helper_accepts_for_ask(self):
+        text = helper_text()
+        for option in OPTIONS:
+            self.assertIn('"--%s"' % option, text, option)
+        self.assertNotIn("--effort", ["--" + name for name in OPTIONS], "effort is a fixed field, not a declared option")
+
+    def test_each_declared_grammar_is_the_one_the_helper_enforces(self):
+        text = helper_text()
+        self.assertIn('_NAME = r"%s"' % profiles.GRAMMARS["name"], text)
+        self.assertIn('_CONTEXT = r"%s"' % profiles.GRAMMARS["count"], text)
+        self.assertIn('found["--thinking"] not in ("on", "off")', text)
+        self.assertEqual("on|off", profiles.GRAMMARS["onoff"])
+        # --context and --max-output share the helper's one pattern, and --thinking excludes --effort as the helper refuses the pair.
+        self.assertEqual(text.count("_CONTEXT, found["), 2)
+        self.assertIn('"--effort" in found and "--thinking" in found', text)
 
     def test_it_asks_before_the_agent_reads_the_endpoint_file(self):
         self.assertEqual(["~/.config/project-workbench/bridge-endpoints.json"], declaration()["ask_reads"])

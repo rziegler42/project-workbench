@@ -387,6 +387,46 @@ class Hostile(unittest.TestCase):
         self.assertNotIn("12345.678", shown)
 
 
+class Grammars(unittest.TestCase):
+    """The closed list of grammars a module's declaration may give an option, and what each accepts."""
+
+    def test_the_list_is_closed(self):
+        self.assertEqual(["count", "name", "onoff", "word"], sorted(profiles.GRAMMARS))
+
+    def test_word(self):
+        for value in ("a", "gpt-5.6", "phi4:latest", "A_b", "9x", "a" * 64):
+            self.assertTrue(profiles.fits("word", value), value)
+        for value in ("", "-a", ".a", "a b", "a" * 65, "a/b", "caf\u00e9", "a\n", 1, None):
+            self.assertFalse(profiles.fits("word", value), repr(value))
+
+    def test_name(self):
+        for value in ("home", "a", "my-box_1", "9", "a" * 32):
+            self.assertTrue(profiles.fits("name", value), value)
+        for value in ("", "Home", "-a", "_a", "a" * 33, "a b", "a.b", "a\n", 1):
+            self.assertFalse(profiles.fits("name", value), repr(value))
+
+    def test_count(self):
+        for value in ("1", "10", "12345678", "9"):
+            self.assertTrue(profiles.fits("count", value), value)
+        for value in ("0", "01", "123456789", "-1", "+1", "1.5", "", " 1", "1\n", "\u0661", "1e3", 1, True):
+            self.assertFalse(profiles.fits("count", value), repr(value))
+
+    def test_onoff(self):
+        for value in ("on", "off"):
+            self.assertTrue(profiles.fits("onoff", value), value)
+        for value in ("", "On", "ON", "true", "1", "on\n", " on", "of", True):
+            self.assertFalse(profiles.fits("onoff", value), repr(value))
+
+    def test_no_grammar_allows_a_leading_dash(self):
+        for grammar in profiles.GRAMMARS:
+            for value in ("-1", "-a", "-on", "--x"):
+                self.assertFalse(profiles.fits(grammar, value), (grammar, value))
+
+    def test_a_grammar_outside_the_list_fits_nothing(self):
+        for grammar in ("any", "", None, ".*", ["word"]):
+            self.assertFalse(profiles.fits(grammar, "x"), repr(grammar))
+
+
 class Required(unittest.TestCase):
     def test_the_caller_must_say_which_ladders_hold_one_rung(self):
         # A default of "none" would silently drop the rule for a caller that forgot it.
