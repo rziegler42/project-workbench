@@ -324,8 +324,9 @@ class OfferedLevels(Ask):
         offers `block` only until the increment that builds it (`wb install` and `wb adopt` by increment F, `wb upgrade` and `wb add` by increment G, `wb approve` and `wb pin` by increment H, the acknowledge checkpoints, `wb recover`, `wb attach` and
         `wb release-approvals` by increment J)."""
         agent = set(levels.agent_keys())
-        built = {"approve-plan": ("block", "delegated", "ask", "none"), "wb install": ("block", "none"),
-                 "wb adopt": ("block", "none"), "wb upgrade": ("block", "none"), "wb add": ("block", "none"),
+        built = {"approve-plan": ("block", "delegated", "ask", "none"), "wb install": ("block", "ask", "none"),
+                 "wb adopt": ("block", "ask", "none"), "wb upgrade": ("block", "ask", "none"),
+                 "wb add": ("block", "ask", "none"),
                  "wb approve": ("block", "none"), "wb pin": ("block", "none"),
                  "acknowledge-first-tier": ("block", "none"), "acknowledge-second-tier": ("block", "none"),
                  "wb recover": ("block", "none"), "wb attach": ("block", "none"),

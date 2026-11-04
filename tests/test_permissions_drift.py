@@ -316,7 +316,8 @@ class Drift(unittest.TestCase):
         self.assertIn("approve-plan", keys)
         self.assertGreaterEqual(len(keys), 40)
         ask, none = spec_offers(read(SPEC))
-        self.assertEqual({"approve-plan", "accept-decision", "wb release-approvals"}, ask)
+        self.assertEqual({"approve-plan", "accept-decision", "wb release-approvals", "wb install", "wb adopt", "wb upgrade",
+                          "wb add"}, ask)
         self.assertGreaterEqual(len(none), 12)
         self.assertGreaterEqual(len(development_owner_run_rows(read(DEVELOPMENT))), 10)
         texts = neutral_texts()
@@ -379,8 +380,8 @@ class EachReaderFindsADisagreementItIsGiven(unittest.TestCase):
         self.assertNotEqual(text, left_out)
         self.assertIn("spec-offers: the registry offers wb release-approvals at ask and the spec does not say so",
                       list(spec_against_registry(self.keys, left_out)))
-        extra = text.replace("`ask`: `approve-plan`,", "`ask`: `approve-plan`, `wb install`,", 1)
-        self.assertIn("spec-offers: the spec says wb install offers ask and the registry does not",
+        extra = text.replace("`ask`: `approve-plan`,", "`ask`: `approve-plan`, `wb attach`,", 1)
+        self.assertIn("spec-offers: the spec says wb attach offers ask and the registry does not",
                       list(spec_against_registry(self.keys, extra)))
 
     def test_the_development_table_without_a_row(self):

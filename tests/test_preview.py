@@ -103,7 +103,7 @@ class PreviewTest(unittest.TestCase):
         self.assertTrue(out.startswith("target: " + place + "\n"))
         self.assertTrue(out.endswith("preview only: nothing was written\n"))
         self.assertIn("create-file docs/notes.md [seeded]", out)
-        self.assertNotIn("digest:", out)
+        self.assertRegex(out, r"(?m)^digest: [0-9a-f]{32}\n(?=preview only: nothing was written\n\Z)")  # the digest of an ask
         self.assertEqual(before, (self.tree(place), self.tree(self.store_root)))
         with open(os.path.join(place, ".git", "index"), "rb") as handle:
             self.assertEqual(b"index", handle.read())
@@ -253,6 +253,20 @@ class PreviewTest(unittest.TestCase):
             ["--package", "a", "--ref", "r1", "--select", "m"]))
         again = sources.parse_install(["dir", "--package", "a", "--select", "m"])
         self.assertEqual("dir", again.positional)
+
+    def test_digest_is_read_once_where_the_command_takes_it(self):
+        digest = "0123456789abcdef" * 2
+        base = ["dir", "--package", "a", "--select", "m"]
+        self.assertEqual(digest, sources.parse_install(base + ["--digest", digest], digest_ok=True).digest)
+        self.assertIsNone(sources.parse_install(base, digest_ok=True).digest)
+        self.assertEqual(digest, sources.parse_install(["dir", "--package", "a", "--digest", digest], upgrade=True,
+                                                       digest_ok=True).digest)
+        for tokens in (base + ["--digest", digest, "--digest", digest], base + ["--digest"],
+                       base + ["--digest", "ABC"], base + ["--digest", digest[:-1]], base + ["--digest", "--select"]):
+            with self.assertRaises(sources.UsageError, msg=tokens):
+                sources.parse_install(tokens, digest_ok=True)
+        with self.assertRaises(sources.UsageError):  # the previews and every other caller do not take it
+            sources.parse_install(base + ["--digest", digest])
 
     def test_same_directory_by_two_spellings_is_accepted(self):
         path = self.good()

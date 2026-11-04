@@ -12,9 +12,32 @@ import shutil
 
 from . import (__version__, adoptplan, base, declarations, firstparty, gate, harnessstage, installplan, manifest,
                projectfs, refusal, snapshot, sources, target, verify)
-from .wbkit import display, safefs
+from .wbkit import digest as kitdigest, display, safefs
 
 ENDING = "preview only: nothing was written"
+
+# The digest of an ``ask`` (``docs/decisions/2026-11-03-installer-commands-read-their-level-and-take-an-ask-digest.md``, decision 3).
+# A plan holds a seed, the identifier made from it and the time of its pins, which each run draws for itself, so the plan's own
+# digest differs between the preview and the run. The ``ask`` digest is taken over the plan built with these two values in their
+# place: everything that derives from the seed or the time is then the same in both, and every other change of the plan changes it.
+ASK_SEED = "ask-digest-fixed-seed"
+ASK_NOW = "1970-01-01T00:00:00Z"
+ASK_NOTE = ("the seed, the project identifier, the time of the pins and the hashes made from them are drawn by each run; the "
+            "digest below is taken over the plan with those fixed, and covers the rest")
+
+
+def ask_lines(verb, plan_digest):
+    """The lines an ``ask`` digest is taken over: the command and the digest of its plan built with ``ASK_SEED`` and ``ASK_NOW``."""
+    return ["wb " + verb, plan_digest]
+
+
+def ask_digest(verb, plan_digest):
+    return kitdigest.of(ask_lines(verb, plan_digest))
+
+
+def ask_mismatch(verb, plan_digest, given):
+    """``None`` when `given` is the ``ask`` digest of the plan, else the kit's refusal text."""
+    return kitdigest.mismatch(given, ask_lines(verb, plan_digest))
 
 
 Refused = refusal.Refused
@@ -127,11 +150,16 @@ def run(guarded, parsed, out, err, distribution=None, seed=None, version=None,
                 plan, warnings = prepare_adopt(guarded, held, resolved, parsed.select, distribution,
                                                seed or manifest.new_seed(), version or __version__,
                                                which)
+                fixed, _ = prepare_adopt(guarded, held, resolved, parsed.select, distribution, ASK_SEED,
+                                         version or __version__, which, ASK_NOW)
             else:
                 plan, warnings = prepare(guarded, held, resolved, parsed.select, distribution,
                                          seed or manifest.new_seed(), version or __version__,
                                          which, home)
+                fixed, _ = prepare(guarded, held, resolved, parsed.select, distribution, ASK_SEED,
+                                   version or __version__, which, home, ASK_NOW)
             text = installplan.render(plan, held.path)
+            digest = ask_digest(plan.command, fixed.digest)
     except target.TargetError as exc:
         return target.write_refusal(err, exc)
     except Refused as exc:
@@ -144,5 +172,7 @@ def run(guarded, parsed, out, err, distribution=None, seed=None, version=None,
     for warning in warnings:
         err.write("warning: %s\n" % display.clean(warning))
     out.write(text)
+    out.write(ASK_NOTE + "\n")
+    out.write("digest: %s\n" % digest)
     out.write(ENDING + "\n")
     return 0

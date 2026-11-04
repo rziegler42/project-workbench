@@ -212,12 +212,22 @@ class OfferedLevelsTest(unittest.TestCase):
                  "acknowledge-first-tier", "acknowledge-second-tier", "wb recover", "wb attach", "wb release-approvals",
                  "accept-decision")
 
-    def test_only_approve_plan_and_the_release_offer_ask_among_the_owner_run_keys(self):
+    # The keys that offer ``ask`` in this version: the plan approval, the release, and (plan
+    # ``2026-11-02-permission-levels-for-every-command``, increment B) the four installer commands that have a preview.
+    ASK_KEYS = ("approve-plan", "wb release-approvals", "wb install", "wb adopt", "wb upgrade", "wb add")
+
+    def test_only_the_keys_with_a_preview_offer_ask_among_the_owner_run_keys(self):
         for name, key in self.keys().items():
             if name in AGENT_KEYS:
                 continue
             with self.subTest(key=name):
-                self.assertEqual(name in ("approve-plan", "wb release-approvals"), "ask" in key.offers)
+                self.assertEqual(name in self.ASK_KEYS, "ask" in key.offers)
+
+    def test_the_four_installer_commands_offer_block_ask_and_none_and_default_to_block(self):
+        for name in ("wb install", "wb adopt", "wb upgrade", "wb add"):
+            key = self.keys()[name]
+            with self.subTest(key=name):
+                self.assertEqual((("block", "ask", "none"), "block"), (key.offers, key.default))
 
     def test_the_owner_run_keys_that_offer_none_are_those_built_so_far(self):
         for name, key in self.keys().items():
@@ -226,10 +236,10 @@ class OfferedLevelsTest(unittest.TestCase):
             with self.subTest(key=name):
                 self.assertEqual(name in self.NONE_KEYS, "none" in key.offers)
 
-    def test_no_key_offers_ask_except_the_plan_key_and_the_release(self):
+    def test_no_key_offers_ask_except_those_with_a_digest_of_a_preview(self):
         for name, key in self.keys().items():
             with self.subTest(key=name):
-                self.assertEqual(name in ("approve-plan", "wb release-approvals"), "ask" in key.offers)
+                self.assertEqual(name in self.ASK_KEYS, "ask" in key.offers)
 
     def test_the_release_offers_block_ask_and_none_and_defaults_to_block(self):
         key = self.keys()["wb release-approvals"]

@@ -306,13 +306,13 @@ def _open_store(store_root, err):
         return None
 
 
-def _project_command(tokens, out, err, store_root, distribution, upgrading=False):
+def _project_command(tokens, out, err, store_root, distribution, upgrading=False, digest_ok=False):
     """Parse and open for ``preview install``, ``preview upgrade`` and ``install``:
     ``(command, guarded)`` or an exit code."""
     try:
-        parsed = sources.parse_install(tokens, upgrade=upgrading)
+        parsed = sources.parse_install(tokens, upgrade=upgrading, digest_ok=digest_ok)
         command = sources.Command(target.choose(parsed.positional, parsed.dir_option),
-                                  parsed.packages, parsed.select)
+                                  parsed.packages, parsed.select, parsed.digest)
     except (sources.UsageError, target.TargetUsage) as exc:
         err.write("%s\n%s" % (_clean(str(exc)), USAGE))
         return 2
@@ -403,14 +403,14 @@ def _upgrade(tokens, out, err, store_root, distribution, stdin, mode="upgrade"):
     if _refuse_without_store(store_root, stdin, out, err, upgrade.terminal_only(mode)):
         return 1
     opened = _project_command(tokens, out, err, store_root, distribution,
-                              upgrading=mode == "upgrade")
+                              upgrading=mode == "upgrade", digest_ok=True)
     if isinstance(opened, int):
         return opened
     return upgrade.run(opened[1], opened[0], stdin, out, err, distribution, mode=mode)
 
 
 def _install(tokens, out, err, store_root, distribution, stdin, home=None):
-    opened = _project_command(tokens, out, err, store_root, distribution)
+    opened = _project_command(tokens, out, err, store_root, distribution, digest_ok=True)
     if isinstance(opened, int):
         return opened
     return install.run(opened[1], opened[0], stdin if stdin is not None else sys.stdin, out, err,
@@ -418,7 +418,7 @@ def _install(tokens, out, err, store_root, distribution, stdin, home=None):
 
 
 def _adopt(tokens, out, err, store_root, distribution, stdin):
-    opened = _project_command(tokens, out, err, store_root, distribution)
+    opened = _project_command(tokens, out, err, store_root, distribution, digest_ok=True)
     if isinstance(opened, int):
         return opened
     return install.run(opened[1], opened[0], stdin if stdin is not None else sys.stdin, out, err,

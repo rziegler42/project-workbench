@@ -6,6 +6,7 @@ the command acts on the project it is run from, so the level is read for that pr
 
 import io
 import os
+import re
 import tempfile
 import unittest
 import unittest.mock
@@ -13,7 +14,7 @@ import unittest.mock
 from tests.test_approve_levels import Ask
 from tests.test_delegation import provider_module
 from tests.test_preview import NOTES
-from workbench import acknowledgement, approve, cli, levellog, levelrun, rendering, store, upgrade, verify
+from workbench import acknowledgement, approvals, approve, cli, levellog, levelrun, rendering, store, upgrade, verify
 
 # The packages are approved and cached with the checks of an owner's machine; the project's fixture treats them as
 # first-party so that attach and the commands accept the synthetic provider.
@@ -181,7 +182,7 @@ class AtNone(Base):
         arguments = self.arguments()
         elsewhere = levelrun.Route(False, "none", "0" * 16, self.real)
         before = self.snapshot()
-        with unittest.mock.patch.object(upgrade.levelrun, "route", lambda *a, **k: elsewhere):
+        with unittest.mock.patch.object(upgrade.levelrun, "route_ask", lambda *a, **k: elsewhere):
             code, out, err = self.run_it(arguments)
         self.assertEqual(1, code, (out, err))
         self.assertIn("not the project", err)
@@ -274,6 +275,183 @@ class AtBlock(Base):
 class AtBlockForAdd(AtBlock):
     KEY = "wb add"
     MODE = "add"
+
+
+class AtAsk(Base):
+    """``ask`` for ``upgrade`` and ``add`` (plan ``2026-11-02-permission-levels-for-every-command``, increment B): the digest of
+    ``wb preview <command>`` is what the run is bound to, and it leaves out the time the pins record."""
+
+    DIGEST = re.compile(r"^digest: ([0-9a-f]{32})$", re.M)
+
+    def setUp(self):
+        super().setUp()
+        self.attach_at("ask")
+        self.argv = self.arguments()
+
+    def preview_digest(self, argv=None):
+        out, err = io.StringIO(), io.StringIO()
+        previous = os.getcwd()
+        os.chdir(self.real)
+        try:
+            code = cli.main(["preview", self.MODE, self.real] + list(argv or self.argv), out, err,
+                            store_root=self.store_root, distribution=self.dist)
+        finally:
+            os.chdir(previous)
+        self.assertEqual(0, code, (out.getvalue(), err.getvalue()))
+        found = self.DIGEST.findall(out.getvalue())
+        self.assertEqual(1, len(found), out.getvalue())
+        return found[0]
+
+    def flipped(self, digest):
+        return digest[:-1] + ("0" if digest[-1] != "0" else "1")
+
+    def other_arguments(self):
+        if self.MODE == "upgrade":
+            module, files = provider_module()
+            files = dict(files)
+            files["helper/tool"] = files["helper/tool"] + b"# another version\n"
+            return ["--package", self.package_for(dict(self.MODULES, review=(module, files)))]
+        return ["--package", self.package_for(dict(self.MODULES, more=NOTES)), "--select", "more"]
+
+    def test_the_preview_prints_a_32_character_digest(self):
+        self.assertRegex(self.preview_digest(), r"\A[0-9a-f]{32}\Z")
+
+    def test_two_previews_at_another_time_give_one_digest(self):
+        first = self.preview_digest()
+        with unittest.mock.patch.object(approvals, "utc_now", lambda: "2031-01-02T03:04:05Z"):
+            second = self.preview_digest()
+        self.assertEqual(first, second)
+
+    def test_the_digest_changes_with_the_content(self):
+        self.assertNotEqual(self.preview_digest(), self.preview_digest(self.other_arguments()))
+
+    def test_the_preview_takes_no_digest(self):
+        out, err = io.StringIO(), io.StringIO()
+        code = cli.main(["preview", self.MODE, self.real] + self.argv + ["--digest", "0" * 32], out, err,
+                        store_root=self.store_root, distribution=self.dist)
+        self.assertEqual(2, code)
+        self.assertIn("--digest", err.getvalue())
+
+    def test_it_runs_with_the_digest_of_the_preview_and_asks_nothing(self):
+        digest = self.preview_digest()
+        code, out, err = self.run_it(self.argv + ["--digest", digest])
+        self.assertEqual((0, ""), (code, err), out)
+        self.assertTrue(self.present())
+        self.assertIn("nothing is asked", out)
+        attempt, outcome = self.log()
+        self.assertEqual([self.KEY, "ask", "digest:" + digest], attempt.split("\t")[3:6])
+        self.assertEqual(["done", "written"], outcome.split("\t")[3:])
+
+    def test_a_run_without_a_digest_is_refused_and_names_the_preview(self):
+        self.refused(self.argv, contains="preview %s" % self.MODE)
+
+    def test_a_stale_digest_is_refused_and_nothing_is_written(self):
+        digest = self.preview_digest()
+        self.refused(self.argv + ["--digest", self.flipped(digest)], contains="preview %s" % self.MODE)
+
+    def test_the_digest_of_another_plan_is_refused(self):
+        digest = self.preview_digest(self.other_arguments())
+        self.refused(self.argv + ["--digest", digest], contains="preview %s" % self.MODE)
+
+    def test_a_malformed_digest_or_a_digest_given_twice_is_a_usage_error(self):
+        digest = self.preview_digest()
+        before = self.snapshot()
+        for extra in (["--digest", "not-a-digest"], ["--digest", digest, "--digest", digest], ["--digest"]):
+            code, out, err = self.run_it(self.argv + extra)
+            self.assertEqual(2, code, (out, err))
+        self.assertEqual(before, self.snapshot())
+
+    def test_a_digest_at_a_terminal_is_refused_before_anything_is_read(self):
+        digest = self.preview_digest()
+        before = self.snapshot()
+        with unittest.mock.patch.object(approve, "is_terminal", lambda stream: True):
+            code, out, err = self.run_it(self.argv + ["--digest", digest])
+        self.assertEqual(1, code)
+        self.assertIn("without a terminal", err)
+        self.assertEqual(before, self.snapshot())
+
+    def test_a_table_edited_after_attach_reads_block_even_with_the_right_digest(self):
+        digest = self.preview_digest()
+        self.table(**{self.KEY: "ask", ("wb add" if self.MODE == "upgrade" else "wb upgrade"): "none"})
+        self.refused(self.argv + ["--digest", digest])
+
+    def test_a_missing_rendering_record_reads_block_even_with_the_right_digest(self):
+        digest = self.preview_digest()
+        os.unlink(os.path.join(self.store_root, *(rendering.RECORD % self.project_id).split("/")))
+        self.refused(self.argv + ["--digest", digest])
+
+
+class AtAskForAdd(AtAsk):
+    KEY = "wb add"
+    MODE = "add"
+
+
+class AskForAnotherProject(Base):
+    def test_a_plan_for_another_project_than_the_level_was_read_for_is_refused_at_ask_too(self):
+        self.attach_at("ask")
+        arguments = self.arguments()
+        elsewhere = levelrun.Route(False, "ask", "0" * 16, self.real)
+        before = self.snapshot()
+        with unittest.mock.patch.object(upgrade.levelrun, "route_ask", lambda *a, **k: elsewhere):
+            code, out, err = self.run_it(arguments + ["--digest", "0" * 32])
+        self.assertEqual(1, code, (out, err))
+        self.assertIn("not the project", err)
+        self.assertEqual(before, self.snapshot())
+
+
+class DigestAtOtherLevels(Base):
+    def test_a_digest_at_none_is_refused_before_the_run(self):
+        self.attach_at("none")
+        self.refused(self.arguments() + ["--digest", "0" * 32], contains="level ask")
+
+    def test_a_digest_at_block_is_refused(self):
+        self.attach_at(None)
+        self.refused(self.arguments() + ["--digest", "0" * 32])
+
+
+class UpgradeAskNothingToChange(Base):
+    def test_a_stale_digest_with_nothing_to_change_is_refused(self):
+        self.attach_at("ask")
+        argv = self.arguments()
+        out, err = io.StringIO(), io.StringIO()
+        previous = os.getcwd()
+        os.chdir(self.real)
+        try:
+            self.assertEqual(0, cli.main(["preview", "upgrade", self.real] + argv, out, err, store_root=self.store_root,
+                                         distribution=self.dist))
+        finally:
+            os.chdir(previous)
+        digest = re.search(r"^digest: ([0-9a-f]{32})$", out.getvalue(), re.M).group(1)
+        self.assertEqual(0, self.run_it(argv + ["--digest", digest])[0])
+        before = self.snapshot()
+        code, text, error = self.run_it(argv + ["--digest", digest[:-1] + ("0" if digest[-1] != "0" else "1")])
+        self.assertEqual(1, code, (text, error))
+        self.assertIn("preview upgrade", error)
+        self.assertEqual(before, self.snapshot())
+
+    def test_a_valid_digest_with_nothing_to_change_says_so_and_logs_nothing(self):
+        self.attach_at("ask")
+        argv = self.arguments()
+        out, err = io.StringIO(), io.StringIO()
+
+        def digest():
+            out.seek(0), out.truncate()
+            previous = os.getcwd()
+            os.chdir(self.real)
+            try:
+                self.assertEqual(0, cli.main(["preview", "upgrade", self.real] + argv, out, err,
+                                             store_root=self.store_root, distribution=self.dist))
+            finally:
+                os.chdir(previous)
+            return re.search(r"^digest: ([0-9a-f]{32})$", out.getvalue(), re.M).group(1)
+
+        self.assertEqual(0, self.run_it(argv + ["--digest", digest()])[0])
+        entries = self.log()
+        again = digest()
+        code, text, error = self.run_it(argv + ["--digest", again])
+        self.assertEqual((0, ""), (code, error), text)
+        self.assertIn("nothing to change", text)
+        self.assertEqual(entries, self.log())
 
 
 if __name__ == "__main__":

@@ -20,7 +20,7 @@ for an agent-safe key from here: it reads ``block`` for a key the table leaves o
 import collections
 
 from . import approvalcmd, approve, levellog, levels, rendering
-from .wbkit import display, levels as kit
+from .wbkit import digest as kit_digest, display, levels as kit
 
 
 class Refusal(Exception):
@@ -68,6 +68,36 @@ def route(guarded, start, key, stdin, out, terminal_only):
     if not kit.may_run(level, False):
         raise Refusal(terminal_only)
     return Route(False, level, ident, root)
+
+
+def route_ask(guarded, start, key, stdin, out, terminal_only):
+    """``route`` for a command that offers ``ask`` (``install``, ``adopt``, ``upgrade``, ``add``): a ``Route`` at a terminal
+    without reading anything, and otherwise the verified level, which lets the command go on at ``ask`` and at ``none`` and
+    refuses with ``Refusal(terminal_only)`` at any other. The kit's ``may_run`` is unchanged: it stays true without a terminal
+    only at ``none``. At ``ask`` the command checks the digest of its preview before it writes
+    (``docs/decisions/2026-11-03-installer-commands-read-their-level-and-take-an-ask-digest.md``)."""
+    if approve.is_terminal(stdin) and approve.is_terminal(out):
+        return Route(True, None, None, None)
+    level, ident, root = level_now(guarded, start, key)
+    if level not in (levels.ASK, levels.NONE):
+        raise Refusal(terminal_only)
+    return Route(False, level, ident, root)
+
+
+def digest_refusal(route, key, verb, digest):
+    """The text of the refusal for a ``--digest`` that does not fit the level `route` was read at, or ``None``. A digest is for a
+    run without a terminal at ``ask`` (``docs/specs/command-permissions.md``, "`wb release-approvals` at `ask`"): at a terminal the
+    owner types it, at ``none`` there is none, and at ``ask`` it must be given and be 32 lowercase hexadecimal characters."""
+    if route.terminal:
+        return None if digest is None else ("a digest is for a run without a terminal at the level ask; at a terminal run %s "
+                                            "without --digest" % key)
+    if route.level == levels.NONE:
+        return None if digest is None else ("%s is at the level none, which takes no digest: a digest needs the level ask; run "
+                                            "it without --digest" % key)
+    if digest is None or not kit_digest.well_formed(digest):
+        return ("%s is at the level ask: run `wb preview %s`, read what it prints, and give the digest it prints as --digest "
+                "followed by 32 lowercase hexadecimal characters" % (key, verb))
+    return None
 
 
 def logged(guarded, key, level, change, evidence="", needed=True):

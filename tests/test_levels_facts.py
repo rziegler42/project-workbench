@@ -54,7 +54,7 @@ class AnInstallerCommand(unittest.TestCase):
         key = levels.registry()["wb install"]
         self.assertEqual(("command", "project", "wb preview install", rules.SPELLINGS, "wb install", False),
                          (key.kind, key.klass, key.preview, key.spellings, key.carried_by, key.asks))
-        self.assertEqual((levels.BLOCK, levels.NONE), key.offers)
+        self.assertEqual((levels.BLOCK, levels.ASK, levels.NONE), key.offers)  # ask since increment B of the installer plan
         self.assertEqual(levels.BLOCK, key.default)
         self.assertEqual("docs/development.md", key.anchor)
 

@@ -81,7 +81,7 @@ class AdoptPreviewTest(AdoptPreviewBase):
         self.assertIn("command: adopt\n", out)
         self.assertIn("state: adoptable\n", out)
         self.assertTrue(out.endswith("preview only: nothing was written\n"))
-        self.assertNotIn("digest:", out)
+        self.assertRegex(out, r"(?m)^digest: [0-9a-f]{32}\n(?=preview only: nothing was written\n\Z)")  # the digest of an ask
         self.assertEqual(before, (self.snapshot(place), self.tree(self.store_root)))
 
     def test_a_seeded_file_that_exists_is_kept_with_its_own_hash(self):

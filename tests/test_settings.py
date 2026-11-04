@@ -607,14 +607,26 @@ class LevelsTest(SettingsBase):
                 self.assertEqual(1, len(got.notes))
                 self.assertIn("wb rerender", got.notes[0])
 
-    def test_the_installer_commands_and_approve_and_pin_offer_none_and_nothing_else(self):
-        for key in ("wb install", "wb adopt", "wb upgrade", "wb add", "wb approve", "wb pin"):
+    def test_approve_and_pin_offer_none_and_nothing_else(self):
+        for key in ("wb approve", "wb pin"):
             with self.subTest(key=key):
                 self.assertEqual("none", self.effective({"version": 2, "levels": {key: "none"}})[1].levels[key])
                 for level in ("ask", "delegated"):
                     got = self.effective({"version": 2, "levels": {key: level}})[1]
                     self.assertEqual("block", got.levels[key])
                     self.assertEqual(1, len(got.notes))
+
+    def test_the_four_installer_commands_with_a_preview_offer_ask_and_none_but_not_delegated(self):
+        # Plan 2026-11-02-permission-levels-for-every-command, increment B.
+        for key in ("wb install", "wb adopt", "wb upgrade", "wb add"):
+            with self.subTest(key=key):
+                for level in ("ask", "none"):
+                    got = self.effective({"version": 2, "levels": {key: level}})[1]
+                    self.assertEqual(level, got.levels[key])
+                    self.assertEqual([], got.notes)
+                got = self.effective({"version": 2, "levels": {key: "delegated"}})[1]
+                self.assertEqual("block", got.levels[key])
+                self.assertEqual(1, len(got.notes))
 
     def test_an_invalid_key_is_reported_and_escaped(self):
         loaded, got = self.effective({"version": 2, "levels": {"Bad Key\x1b[31m": "block", "x" * 200: "block"}})
@@ -756,17 +768,21 @@ class ProfileTest(SettingsBase):
         _, got = self.effective({"version": 3, "levels": {}, "profile": "trusting"})
         self.assertEqual("ask", got.levels["approve-plan"])
         self.assertEqual("ask", got.levels["wb release-approvals"])
-        self.assertEqual("block", got.levels["wb install"])  # a project key that offers only block and none today
+        self.assertEqual("ask", got.levels["wb install"])  # a project key that offers ask since increment B
+        self.assertEqual("block", got.levels["wb attach"])  # a project key that offers block and none only today
         self.assertEqual("block", got.levels["wb rerender"])
         self.assertIn(("approve-plan", "ask"), got.profiled)
+        self.assertIn(("wb install", "ask"), got.profiled)
         self.assertNotIn("none", {level for _, level in got.profiled})
         self.assertEqual([], got.notes)
 
-    def test_balanced_changes_no_key_with_todays_registry(self):
+    def test_balanced_sets_the_project_keys_that_offer_ask_and_changes_nothing_else(self):
         _, got = self.effective({"version": 3, "levels": {}, "profile": "balanced"})
         _, plain = self.effective({"version": 3, "levels": {}})
-        self.assertEqual(plain.levels, got.levels)
-        self.assertEqual((), got.profiled)
+        changed = {name for name in got.levels if got.levels[name] != plain.levels[name]}
+        self.assertEqual({"wb install", "wb adopt", "wb upgrade", "wb add"}, changed)
+        self.assertEqual({"ask"}, {got.levels[name] for name in changed})
+        self.assertEqual({(name, "ask") for name in changed}, set(got.profiled))
 
     def test_a_key_entry_overrides_the_profile_in_either_direction(self):
         _, got = self.effective({"version": 3, "profile": "trusting",

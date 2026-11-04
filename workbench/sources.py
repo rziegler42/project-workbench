@@ -16,11 +16,11 @@ import re
 import stat
 
 from . import declarations, fetch
-from .wbkit import safefs
+from .wbkit import digest as kitdigest, safefs
 
-Parsed = collections.namedtuple("Parsed", "positional dir_option packages select")
+Parsed = collections.namedtuple("Parsed", "positional dir_option packages select digest", defaults=(None,))
 # What a project command works from once its target has been chosen.
-Command = collections.namedtuple("Command", "target packages select")
+Command = collections.namedtuple("Command", "target packages select digest", defaults=(None,))
 Resolved = collections.namedtuple("Resolved", "path source ref commit local")
 
 _CACHE_ID = re.compile(r"^[0-9a-f]{20}\Z")
@@ -40,16 +40,18 @@ def _value(tokens, index, option):
     return tokens[index + 1]
 
 
-def parse_install(tokens, upgrade=False):
+def parse_install(tokens, upgrade=False, digest_ok=False):
     """Read the arguments of ``install`` or ``preview install`` into a ``Parsed``.
 
     With `upgrade`, the arguments of ``upgrade``: ``--package`` is optional, since the project
     records its own, and ``--select`` is not accepted, since the project records its modules.
+    With `digest_ok`, ``--digest <32 lowercase hex>`` is accepted once: the digest of the preview, for a run at the level
+    ``ask``. The previews do not take it.
 
     The target goes before ``--select`` (which takes every name up to the next option), or
     is given with ``--dir``. Anything unknown, empty or out of place is a ``UsageError``.
     """
-    positional = dir_option = None
+    positional = dir_option = digest = None
     packages = []          # [source, ref or None], in order
     select = None
     index = 0
@@ -71,6 +73,13 @@ def parse_install(tokens, upgrade=False):
             if dir_option is not None:
                 raise UsageError("--dir was given twice")
             dir_option = _value(tokens, index, token)
+            index += 2
+        elif token == "--digest" and digest_ok:
+            if digest is not None:
+                raise UsageError("--digest was given twice")
+            digest = _value(tokens, index, token)
+            if not kitdigest.well_formed(digest):
+                raise UsageError(kitdigest.SHAPE)
             index += 2
         elif token == "--select":
             if upgrade:
@@ -94,12 +103,12 @@ def parse_install(tokens, upgrade=False):
             positional = token
             index += 1
     if upgrade:
-        return Parsed(positional, dir_option, [tuple(item) for item in packages], None)
+        return Parsed(positional, dir_option, [tuple(item) for item in packages], None, digest)
     if not packages:
         raise UsageError("at least one --package is required")
     if select is None:
         raise UsageError("--select is required")
-    return Parsed(positional, dir_option, [tuple(item) for item in packages], select)
+    return Parsed(positional, dir_option, [tuple(item) for item in packages], select, digest)
 
 
 def parse_packages(tokens):

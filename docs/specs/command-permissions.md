@@ -14,7 +14,7 @@ which made `levels.py` the one registry of keys and their facts, gave each check
 positions and gaps, not letters in order), named and logged its refusals, explained the lock of a changed package tree, brought the
 skills and the policy block into line with the levels and built `wb doctor` (each is described where it is built, below).
 `approve-plan` alone offers `delegated`, and it, those
-five, `accept-decision` and `wb release-approvals` offer `ask`. The keys that still offer
+five, `accept-decision`, `wb release-approvals`, `wb install`, `wb adopt`, `wb upgrade` and `wb add` offer `ask`. The keys that still offer
 `block` only are listed under "Not built"; `wb rerender` offers it by design and is described in its own section. The design is `docs/decisions/2026-10-26-per-command-permission-levels.md`, as refined by
 `docs/decisions/2026-10-26-permission-levels-as-built.md` and `docs/decisions/2026-10-26-a-level-for-every-command.md` (all accepted),
 which state what stands, what changed and what was not built; where they differ on the defaults or the offered levels, this spec
@@ -99,8 +99,9 @@ direction. A name that is not one of the three, or a value that is not text, rea
 agent-run keys keep their default so the agent can report it), and `wb settings` and `wb doctor` report it. `wb settings` prints a
 `profile: <name>` line, and a `profiled <key>: <level>` line for each key the profile moved, only when a profile is named. `wb doctor`
 adds a note naming the profile and the keys it moved; the `governs` keys it relaxed are reported as risks, as any relaxed key of that
-class is. With the keys of this version `trusting` moves `approve-plan` and `wb release-approvals`, and any module key that offers
-`ask`, to `ask`; `balanced` moves nothing, because the six `project` keys offer only `block` and `none`. The fallback reading of
+class is. With the keys of this version `trusting` moves `approve-plan`, `wb release-approvals`, `wb install`, `wb adopt`, `wb upgrade`
+and `wb add`, and any module key that offers `ask`, to `ask`; `balanced` moves `wb install`, `wb adopt`, `wb upgrade` and `wb add` to
+`ask` and nothing else, because they are the `project` keys that offer `ask` (the other `project` keys offer `block` and `none` only). The fallback reading of
 `wb release-approvals` when its level cannot be verified also reads a profile-set `ask`.
 
 A module can also declare a prompt that is not a key: a command's `asks` (an argument that is asked and not owner-run) and a
@@ -136,7 +137,7 @@ separated by single spaces, at most 96 characters.
 - `block`: every key.
 - `delegated`: `approve-plan` only, whose gate is a converged, sealed review of the exact bytes (`delegation.py`). The gate must
   pass at the moment of the run, and the run counts only while the table still reads `delegated`.
-- `ask`: `approve-plan`, `accept-decision` (a checkpoint of a command that declares it), `wb release-approvals` (a digest of the preview of its release, "`wb release-approvals` at `ask`"), and an owner-run argument of a module's command whose declaration names it in `levels` (below). `none`: `approve-plan`, `wb install`, `wb adopt` (built by Increment F), `wb upgrade` and `wb add` (built by Increment G), `wb approve` and `wb pin` (built by Increment H), `acknowledge-first-tier`, `acknowledge-second-tier`, `wb recover`, `wb attach` and `wb release-approvals` (built by Increment J), `accept-decision` (built by Increment K), every agent-safe action and
+- `ask`: `approve-plan`, `accept-decision` (a checkpoint of a command that declares it), `wb release-approvals` (a digest of the preview of its release, "`wb release-approvals` at `ask`"), `wb install`, `wb adopt`, `wb upgrade` and `wb add` (the digest of `wb preview <command>`, taken over the plan with the seed and the time of its pins fixed; "The installer commands at `ask`"), and an owner-run argument of a module's command whose declaration names it in `levels` (below). `none`: `approve-plan`, `wb install`, `wb adopt` (built by Increment F), `wb upgrade` and `wb add` (built by Increment G), `wb approve` and `wb pin` (built by Increment H), `acknowledge-first-tier`, `acknowledge-second-tier`, `wb recover`, `wb attach` and `wb release-approvals` (built by Increment J), `accept-decision` (built by Increment K), every agent-safe action and
   every declared module argument that is not owner-run; the keys under "Not built" offer `block` only, and so does `wb rerender`. A key offers a level only
   from the version that builds it for that command.
 
@@ -462,13 +463,13 @@ contract has no read-only declaration, so none is used. An undeclared command or
 checks its own pin, defaults to `none`. The owner-run commands, the checkpoints and the owner-run module arguments keep their
 default of `block`. `approve-plan` stays `block`; the default is not raised to `ask` (see "Shipped defaults").
 
-**Levels offered.** Every key offers `block` and `none` (and `wb release-approvals` and `accept-decision` also offer `ask`, below), except `wb rerender`, which offers `block` only for good (see "Re-rendering an
+**Levels offered.** Every key offers `block` and `none` (and `wb release-approvals`, `accept-decision`, `wb install`, `wb adopt`, `wb upgrade` and `wb add` also offer `ask`, below), except `wb rerender`, which offers `block` only for good (see "Re-rendering an
 attached clone"), and the owner-run arguments of module commands (`wb run <command>
 <argument>` where the argument is owner-run), which offer `block` only unless the command's declaration gives `levels` (built by
 Increment C of the plan `2026-10-27-levels-for-the-review-workflow`; "Which levels a key offers"; only the review engine declares it).
 `delegated` stays `approve-plan` only, and `ask` is offered by a key once
 that key has a preview digest of its own, built as `approve-plan`'s is (for an owner-run argument of a module's command, once its
-declaration names a `preview` argument; `verify` checks the name, and the digest the argument prints is the module's to build). Every key built by the plan offers `none`; the keys that still offer `block` only are listed under "Not built". Besides `approve-plan`, `ask` is offered by the review engine's five owner-run arguments (built by Increments E and F of the plan `2026-10-27-levels-for-the-review-workflow`), by `accept-decision` through the command `groundwork accept` (the plan `2026-10-29-accept-decision-at-ask`) and by `wb release-approvals`, whose preview `wb preview release-approvals` prints its digest (the plan `2026-10-30-release-approvals-at-ask`). At `none` an owner-run command runs without a terminal
+declaration names a `preview` argument; `verify` checks the name, and the digest the argument prints is the module's to build). Every key built by the plan offers `none`; the keys that still offer `block` only are listed under "Not built". Besides `approve-plan`, `ask` is offered by the review engine's five owner-run arguments (built by Increments E and F of the plan `2026-10-27-levels-for-the-review-workflow`), by `accept-decision` through the command `groundwork accept` (the plan `2026-10-29-accept-decision-at-ask`) by `wb release-approvals`, whose preview `wb preview release-approvals` prints its digest (the plan `2026-10-30-release-approvals-at-ask`), and by `wb install`, `wb adopt`, `wb upgrade` and `wb add`, whose previews print the digest ("The installer commands at `ask`"). At `none` an owner-run command runs without a terminal
 and without a harness `deny`; the command's own checks of its input and its log entry apply, and the terminal prompt does not.
 `accept-decision` offers `block`, `ask` and `none` (built by the plan `2026-10-29-accept-decision-at-ask`; "Accepting a decision through a command"). Since 2026-10-29 the groundwork policy block in `AGENTS.md` says that accepting a
 decision is a checkpoint that stops by default and that the level `wb settings` prints for it says whether the agent may accept; the
@@ -491,7 +492,7 @@ hold) and refuses with the caller's text unless `may_run` says the command may g
 every check and just before the change and the outcome after it, and write nothing for a run that changes nothing. `approve-plan`
 uses `level_now`, `logged` and `done`, and its behavior is unchanged.
 
-**`install` and `adopt` at `none`** (built by Increment F). The keys `wb install` and `wb adopt` offer `block` and `none`. The level is read
+**`install` and `adopt` at `none`** (built by Increment F). The keys `wb install` and `wb adopt` offer `block`, `ask` and `none` (`ask`: "The installer commands at `ask`"). The level is read
 for the project the command is run from (the directory the agent works in, not the target, which is a new or adoptable directory), as
 `levelrun.route` reads it: at a terminal nothing is read and the command asks for the digest as before; without one, `none` holds only
 while the rendering record, the live hashes and the gate hold, and any other state refuses with the terminal-only message (and, when the
@@ -504,10 +505,10 @@ exits 3 and says so. The level is read once, before the sources are fetched and 
 during those steps is not seen until the next run. The target is never the project the level was read for (a directory that holds
 `.workbench` is refused), so there is no second project to compare it with, but a new directory inside that project, or a repository
 that contains it, is accepted: the level is the owner's setting for the project the agent works in. An interrupt after the writes
-exits 3 and says so. The command takes the same arguments and no flag; a run at a terminal is not logged. The harness's `deny` for
+exits 3 and says so. The command takes the same arguments and, at `ask` only, `--digest`; a run at a terminal is not logged. The harness's `deny` for
 the command is removed only for the `wb` spelling, so `python3 -m workbench install` stays denied.
 
-**`upgrade` and `add` at `none`** (built by Increment G). The keys `wb upgrade` and `wb add` offer `block` and `none`, and the level is read
+**`upgrade` and `add` at `none`** (built by Increment G). The keys `wb upgrade` and `wb add` offer `block`, `ask` and `none` (`ask`: "The installer commands at `ask`"), and the level is read
 as for `install`. Unlike `install`, these commands act on the project the level was read for, so the plan's project (the seed of its
 manifest) must be that project: if it is not, the command refuses and writes nothing. At `none` and with no terminal, the command prints
 the plan and its digest, runs every check it runs at a terminal (the acknowledgement of changed files, the approval of every module, a
@@ -516,7 +517,7 @@ written, and the log has no entry; `wb acknowledge` stays owner-run. The attempt
 written just before the first write and the outcome after the last: `done` with `written` for exit 0, `refused` for any other exit
 (`refused before writing`, or `stopped after writing (exit 3)`). A run that has nothing to change writes no entry. If the attempt cannot
 be written, nothing is written; an outcome that cannot be written after the writes exits 3 and says so. The command takes the same
-arguments and no flag, and the `deny` is removed only for the `wb` spelling, as for `install`. `levelrun.apply_logged` is the one place
+arguments and, at `ask` only, `--digest`, and the `deny` is removed only for the `wb` spelling, as for `install`. `levelrun.apply_logged` is the one place
 that writes the attempt and the outcome for these four commands.
 
 **`approve` and `pin` at `none`** (built by Increment H). The keys `wb approve` and `wb pin` offer `block` and `none`. **At `none` an agent can
@@ -847,6 +848,64 @@ as for the keys that already offer `none`; refusing there would refuse the owner
 `block`. What remains: a write by an agent to the owner's settings in the guarded store, to a harness file that removes the `ask` rule,
 and to the shipped records themselves, none of which an edit tool is allowed to do and a shell write can, which is the limit of a hook
 that is not a boundary; the owner's review of the commit that holds the records is what the specs rely on.
+
+## The installer commands at `ask`
+
+Built by the plan `2026-11-02-permission-levels-for-every-command`, increment B, as the accepted decision
+[2026-11-03-installer-commands-read-their-level-and-take-an-ask-digest](../decisions/2026-11-03-installer-commands-read-their-level-and-take-an-ask-digest.md)
+decides. `wb install`, `wb adopt`, `wb upgrade` and `wb add` offer `block`, `ask` and `none` and default to `block`; they do not offer
+`delegated`. The other installer commands do not offer `ask` yet (`wb attach`, `wb recover`, `wb approve`, `wb pin` and the acknowledge
+tiers are increment C of the plan; `wb rerender` is increments D and E).
+
+**How the level is read.** These four commands have a terminal test, so they read the verified level only, as they do at `none`
+(`levelrun.route_ask`, beside `levelrun.route`; the kit's `may_run` is unchanged and is true without a terminal only at `none`). `ask` and
+`none` hold only while the rendering record, the local manifest and the harness files agree ("Rendering"); in any other state, a
+directory that is no project included, the key reads `block` and the command refuses without a terminal with the text it always gave.
+The owner's own settings in the guarded store are not read for them: the refusal is the barrier, and an agent that makes the record
+disagree gains a refusal and not a way past the digest (the decision, 1). The level is read for the project the command is run from;
+for `install` and `adopt` that is not the target, and for `upgrade` and `add` the plan's project must be that project, as at `none`.
+
+| Form | Level | Result |
+|---|---|---|
+| `wb <command> …`, standard input and output terminals | not read | as always: the plan and its digest are shown and the owner types the first 12 characters. A `--digest` here is refused: a digest is for a run without a terminal at the level `ask` |
+| `wb <command> … --digest <32 hex>`, no terminal | `ask` | the plan is built now and the command goes on when the digest equals the one `wb preview <command> …` printed for the same arguments |
+| `wb <command> …`, no terminal, no digest, a stale digest or one for another plan | `ask` | refused with nothing written; the refusal names `wb preview <command>` |
+| `--digest` that is not 32 lowercase hexadecimal characters, given twice, or with no value | any | a usage error (exit 2) when the arguments are parsed; a run with no terminal and no store is refused first, with the terminal-only text |
+| `wb <command> … --digest …`, no terminal | `none` | refused before the run: a digest needs the level `ask`; nothing is written |
+| `wb <command> …`, no terminal | `none` | as at `none` before: it runs and is logged with the plan's own digest |
+| `wb <command> …`, no terminal, the level reads `block` or cannot be verified | `block` | refused with the terminal-only text; `--digest` makes no difference |
+| `wb preview <command> … --digest …` | | a usage error: the previews do not take a digest |
+
+**The digest.** The preview prints the plan as before and then, last but for its closing line, `digest: <32 lowercase hex>`, preceded by
+a line that says what the digest leaves out. The plan of `install` and `adopt` holds a seed, the project identifier made from it and the
+time of its pins, and a plan of `upgrade` or `add` holds the time of its pins; each run draws these for itself, so the plan's own digest
+(shown at a terminal and logged at `none`) differs between the preview and the run. The `ask` digest is taken over the plan built
+with a fixed seed (`ask-digest-fixed-seed`) and a fixed time (`1970-01-01T00:00:00Z`) (`preview.ASK_SEED`, `preview.ASK_NOW`): it is
+`wbkit.digest.of` of two lines, `wb <command>` and the digest of that plan. Everything the plan derives from the seed or the time is
+then the same in the preview and the run, and every other change of the plan changes the digest (the target and its identity, the
+modules and their hashes, every action, the store writes, the harness, the pins). The shown plan is the one built with the
+preview's own random seed, so a hash in it that derives from the seed differs from the one in the fixed plan and from the one the run
+will write; the run draws its own seed and writes the plan built with it. A test builds the plan with other seeds and times and
+checks the digest is the same, and changes the modules and the target and checks that it is not.
+
+**What the run does at `ask`.** It builds the plan, builds it again with the fixed seed and time, takes that plan's `ask` digest and
+compares it with the one given before it prints anything or writes anything (a `--source` of `install` or `adopt` is fetched into the cache before, as at `none`); a mismatch is refused. It then prints the plan, says that
+the level is `ask` and the digest is that of this plan, asks nothing, builds the plan a second time with its own values and compares it
+with the first (the check the terminal flow makes after the typed answer), and writes. A run of `upgrade` or `add` with nothing to
+change says `nothing to change`, exits 0 and writes and logs nothing; its digest is checked first. The attempt is written to the
+level log just before the first write and the outcome after, with the level `ask` and the evidence `digest:<the 32 characters>`
+(at `none` the evidence is the plan's 64 characters). An attempt that cannot be written refuses the run and nothing is written.
+
+**What it does not prove.** The plan that is written and the plan the digest was taken over are two builds a moment apart, as the plan shown and the plan written are at a terminal; the run checks that the written plan equals the one it built first, and not that it equals the fixed one. A package source that an agent can rewrite during the run, to a tree that is itself approved, could be written under another tree's digest; the window is the length of the run, the tree must pass the gate, and the owner reads a `--source` in the prompt. The owner sees the command and a digest at the harness's prompt, not the plan; the agent shows the
+preview in the conversation before it asks and no code enforces that. A confirmed run writes whatever the previewed modules hold at
+the previewed hashes: the digest binds hashes and not the behavior of the packages. A source fetched into the cache for `install` or
+`adopt` is fetched before the attempt is logged, as at `none`. A project that is not rendered cannot use `ask` for these commands:
+it reads `block` and the owner runs them at a terminal.
+
+**Profiles.** The profiles `balanced` and `trusting` set a `project` key that offers `ask` to `ask`, so an owner who named one reads these
+four commands at `ask` from the day this is built, with no edit of the table. `wb settings` prints a `profiled <key>: ask` line for
+each, `wb doctor` names the profile and the keys it moved, and the rendered rules change at the next `wb rerender`, which the owner runs
+in a terminal.
 
 ## Not built
 

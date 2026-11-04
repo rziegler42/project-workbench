@@ -32,7 +32,7 @@ import os
 import shutil
 import stat
 
-from . import (__version__, approvals, approve, attach, confirm, fetch, installplan, levelrun, manifest,
+from . import (__version__, approvals, approve, attach, confirm, fetch, installplan, levelrun, levels, manifest,
                preview, projectfs, sources, target, unfinished)
 from .wbkit import display, safefs
 
@@ -210,6 +210,7 @@ def _run(guarded, command, stdin, out, err, distribution, seed, version, which, 
          adopt=False, route=None):
     verb = "adopt" if adopt else "install"
     unattended = route is not None and not route.terminal
+    asking = unattended and route.level == levels.ASK
 
     def plan_of(held, resolved, seed, version, now):
         if adopt:
@@ -233,13 +234,25 @@ def _run(guarded, command, stdin, out, err, distribution, seed, version, which, 
                 for path in fetched:
                     out.write("The downloaded copy is kept at %s\n" % _text(path))
                 raise
+            if asking:
+                # The digest the owner confirmed is the one of the plan with the seed and the time fixed (`preview.ASK_SEED`);
+                # this run draws its own, and writes the plan built with them.
+                fixed, _ = plan_of(held, resolved, preview.ASK_SEED, version, preview.ASK_NOW)
+                if preview.ask_mismatch(verb, fixed.digest, command.digest):
+                    return _refuse(err, "the digest is not the one of the plan built now; nothing was written; run `wb preview "
+                                        "%s` again, read it, and give the digest it prints" % verb)
+                evidence = preview.ask_digest(verb, fixed.digest)
             progress.plan = plan
             for warning in warnings:
                 err.write("warning: %s\n" % _text(warning))
             if held.state in ("new-git", "adoptable"):
                 err.write("warning: the existing .git is used as it is; no remote is recorded\n")
             out.write(installplan.render(plan, held.path, show_digest=True))
-            if unattended:
+            if asking:
+                out.write("\nThe level of wb %s is ask here and the digest you gave is the one of this plan, so nothing is "
+                          "asked: it is applied now.\n" % verb)
+                out.flush()
+            elif unattended:
                 out.write("\nThe level of wb %s is none here, so nothing is asked: it is applied now.\n" % verb)
                 out.flush()
             else:
@@ -280,7 +293,8 @@ def _run(guarded, command, stdin, out, err, distribution, seed, version, which, 
 
             if not unattended:
                 return apply()
-            return levelrun.apply_logged(guarded, route, "wb " + verb, plan.digest, apply, err, _refuse)
+            return levelrun.apply_logged(guarded, route, "wb " + verb, evidence if asking else plan.digest, apply, err,
+                                         _refuse)
     except target.TargetError as exc:
         return target.write_refusal(err, exc)
     except preview.Refused as exc:
@@ -302,12 +316,15 @@ def run(guarded, command, stdin, out, err, distribution=None, seed=None, version
     terminal_only = ("%s is owner-run: standard input and output must both be terminals. Run this command yourself, "
                      "from your own terminal; `preview %s` shows the same plan without writing." % (verb, verb))
     try:
-        route = levelrun.route(guarded, cwd if cwd is not None else os.getcwd(), "wb " + verb, stdin, out, terminal_only)
+        route = levelrun.route_ask(guarded, cwd if cwd is not None else os.getcwd(), "wb " + verb, stdin, out, terminal_only)
     except levelrun.Refusal as exc:
         text = str(exc)
         return _refuse(err, text if text == terminal_only else "%s (%s)" % (terminal_only, text))
     except OSError as exc:
         return _refuse(err, "%s (the working directory cannot be read: %s)" % (terminal_only, exc.strerror or "unknown error"))
+    refusal = levelrun.digest_refusal(route, "wb " + verb, verb, command.digest)
+    if refusal:
+        return _refuse(err, refusal)
     progress = confirm.Progress()
     try:
         return _run(guarded, command, stdin, out, err, distribution, seed, version, which,

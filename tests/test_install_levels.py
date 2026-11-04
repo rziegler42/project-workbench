@@ -7,6 +7,7 @@ the target is a new directory (or, for adopt, a repository with content) and the
 import io
 import json
 import os
+import re
 import shutil
 import tempfile
 import unittest
@@ -17,7 +18,7 @@ from tests.test_adopt_preview import AdoptPreviewBase
 from tests.test_approve_levels import Ask
 from tests.test_install import InstallBase, MARKER, Typist, correct
 from tests.test_preview import HARNESS, NOTES
-from workbench import approve, install, levellog, levelrun, preview, rendering, sources, verify
+from workbench import approvals, approve, cli, install, levellog, levelrun, preview, rendering, sources, verify
 
 # The fixture of the project treats its own packages as first-party so that attach accepts them; the packages installed
 # here are verified as an owner's would be, so the originals are put back once the project is attached.
@@ -84,9 +85,9 @@ class Base(Ask):
             return []
         return self.guarded.read(levellog.LOG).decode("ascii").splitlines()
 
-    def run_install(self, place, path, adopt=False, stdin=None, select=("hq", "notesq"), seed=None):
+    def run_install(self, place, path, adopt=False, stdin=None, select=("hq", "notesq"), seed=None, digest=None):
         out, err = io.StringIO(), io.StringIO()
-        command = sources.Command(place, [(path, None)], list(select))
+        command = sources.Command(place, [(path, None)], list(select), digest)
         code = install.run(self.guarded, command, stdin if stdin is not None else NoInput(), out, err, seed=seed,
                            adopt=adopt, cwd=self.real)
         return code, out.getvalue(), err.getvalue()
@@ -293,9 +294,9 @@ class InstallOtherLevels(Base):
         self.attach_with(**{KEY_ADOPT: "none"})
         self.refused(self.target(), self.good())
 
-    def test_the_level_ask_is_not_offered_and_reads_block(self):
+    def test_the_level_ask_without_a_digest_is_refused_and_names_the_preview(self):
         self.attach_with(**{KEY_INSTALL: "ask"})
-        self.refused(self.target(), self.good())
+        self.refused(self.target(), self.good(), contains="preview install")
 
 
 class AdoptAtNone(Base, AdoptPreviewBase):
@@ -340,6 +341,178 @@ class AdoptOtherLevels(Base, AdoptPreviewBase):
     def test_the_default_level_refuses_without_a_terminal(self):
         self.attach_with()
         self.refused(self.repo_target(), self.good(), adopt=True, contains="preview adopt")
+
+
+class AskBase(Base):
+    """``ask`` for ``install`` and ``adopt`` (plan ``2026-11-02-permission-levels-for-every-command``, increment B): the digest of
+    ``wb preview`` is what the run is bound to, and it leaves out what a run draws for itself."""
+
+    DIGEST = re.compile(r"^digest: ([0-9a-f]{32})$", re.M)
+
+    def preview_of(self, place, path, adopt=False, select=("hq", "notesq"), seed=None, home=None):
+        out, err = io.StringIO(), io.StringIO()
+        code = preview.run(self.guarded, sources.Command(place, [(path, None)], list(select)), out, err, seed=seed,
+                           adopt=adopt, home=home)
+        self.assertEqual(0, code, (out.getvalue(), err.getvalue()))
+        found = self.DIGEST.findall(out.getvalue())
+        self.assertEqual(1, len(found), out.getvalue())
+        return found[0], out.getvalue()
+
+    def flipped(self, digest):
+        return digest[:-1] + ("0" if digest[-1] != "0" else "1")
+
+
+class InstallAtAsk(AskBase):
+    def setUp(self):
+        super().setUp()
+        self.attach_with(**{KEY_INSTALL: "ask"})
+
+    def test_the_preview_prints_a_32_character_digest_and_says_what_is_left_out(self):
+        digest, out = self.preview_of(self.target(), self.good())
+        self.assertRegex(digest, r"\A[0-9a-f]{32}\Z")
+        self.assertIn("drawn", out)
+        self.assertTrue(out.rstrip().splitlines()[-1].startswith("preview only"), out)
+
+    def test_two_previews_with_another_seed_and_another_time_give_one_digest(self):
+        place, path = self.target(), self.good()
+        first, text = self.preview_of(place, path, seed="first-seed")
+        with unittest.mock.patch.object(approvals, "utc_now", lambda: "2031-01-02T03:04:05Z"):
+            second, other = self.preview_of(place, path, seed="second-seed")
+        self.assertEqual(first, second)
+        self.assertNotEqual(text.replace(first, ""), other.replace(second, ""))  # the seed does reach the shown plan
+
+    def test_a_digest_given_twice_on_the_command_line_is_a_usage_error(self):
+        place, path = self.target(), self.good()
+        digest, _ = self.preview_of(place, path)
+        previous = os.getcwd()
+        os.chdir(self.real)
+        try:
+            out, err = io.StringIO(), io.StringIO()
+            code = cli.main(["install", place, "--package", path, "--select", "hq", "notesq", "--digest", digest,
+                             "--digest", digest], out, err, store_root=self.store_root, stdin=NoInput())
+        finally:
+            os.chdir(previous)
+        self.assertEqual(2, code, (out.getvalue(), err.getvalue()))
+        self.assertEqual({}, self.tree(self.target_root))
+
+    def test_the_digest_changes_with_the_modules_and_with_the_target(self):
+        path = self.good()
+        both, _ = self.preview_of(self.target(), path)
+        one, _ = self.preview_of(self.target(), path, select=("hq",))
+        elsewhere, _ = self.preview_of(self.target("other"), path)
+        self.assertEqual(3, len({both, one, elsewhere}))
+
+    def test_it_installs_with_the_digest_of_the_preview_and_asks_nothing(self):
+        place, path = self.target(), self.good()
+        digest, _ = self.preview_of(place, path)
+        code, out, err = self.run_install(place, path, digest=digest)
+        self.assertEqual((0, ""), (code, err), out)
+        self.assertTrue(os.path.isfile(os.path.join(place, ".workbench", "manifest.json")))
+        self.assertIn("nothing is asked", out)
+        attempt, outcome = self.log()
+        fields = attempt.split("\t")
+        self.assertEqual(["wb install", "ask", "digest:" + digest], fields[3:6])
+        self.assertEqual(["done", "written"], outcome.split("\t")[3:])
+
+    def test_a_run_draws_its_own_seed(self):
+        path = self.good()
+        one, other = self.target("a"), self.target("b")
+        digest, _ = self.preview_of(one, path, seed="fixed")
+        self.assertEqual(0, self.run_install(one, path, digest=digest)[0])
+        digest_b, _ = self.preview_of(other, path)
+        self.assertEqual(0, self.run_install(other, path, digest=digest_b)[0])
+        seeds = [json.loads(self.read(place, ".workbench", "manifest.json"))["seed"] for place in (one, other)]
+        self.assertNotEqual(seeds[0], seeds[1])
+        self.assertNotEqual("fixed", seeds[0])
+
+    def test_a_run_without_a_digest_is_refused_and_names_the_preview(self):
+        self.refused(self.target(), self.good(), contains="preview install")
+
+    def test_the_command_line_takes_the_digest_of_the_preview_and_the_preview_takes_none(self):
+        place, path = self.target(), self.good()
+        argv = [place, "--package", path, "--select", "hq", "notesq"]
+        previous = os.getcwd()
+        os.chdir(self.real)
+        try:
+            out, err = io.StringIO(), io.StringIO()
+            self.assertEqual(0, cli.main(["preview", "install"] + argv, out, err, store_root=self.store_root), err.getvalue())
+            digest = self.DIGEST.search(out.getvalue()).group(1)
+            out, err = io.StringIO(), io.StringIO()
+            self.assertEqual(2, cli.main(["preview", "install"] + argv + ["--digest", digest], out, err,
+                                         store_root=self.store_root))
+            out, err = io.StringIO(), io.StringIO()
+            code = cli.main(["install"] + argv + ["--digest", digest], out, err, store_root=self.store_root,
+                            stdin=NoInput())
+        finally:
+            os.chdir(previous)
+        self.assertEqual((0, ""), (code, err.getvalue()), out.getvalue())
+        self.assertTrue(os.path.isfile(os.path.join(place, ".workbench", "manifest.json")))
+
+    def test_a_stale_digest_is_refused_and_nothing_is_written(self):
+        place, path = self.target(), self.good()
+        digest, _ = self.preview_of(place, path)
+        self.refused(place, path, digest=self.flipped(digest), contains="preview install")
+
+    def test_the_digest_of_another_target_is_refused(self):
+        path = self.good()
+        digest, _ = self.preview_of(self.target("other"), path)
+        self.refused(self.target(), path, digest=digest, contains="preview install")
+
+    def test_a_malformed_digest_is_refused(self):
+        self.refused(self.target(), self.good(), digest="not-a-digest", contains="32 lowercase hexadecimal")
+
+    def test_a_digest_at_a_terminal_is_refused_before_anything_is_read(self):
+        place, path = self.target(), self.good()
+        digest, _ = self.preview_of(place, path)
+        with unittest.mock.patch.object(approve, "is_terminal", lambda stream: True):
+            code, out, err = self.run_install(place, path, digest=digest)
+        self.assertEqual(1, code)
+        self.assertIn("without a terminal", err)
+        self.assertEqual({}, self.tree(self.target_root))
+
+    def test_a_table_edited_after_attach_reads_block_even_with_the_right_digest(self):
+        place, path = self.target(), self.good()
+        digest, _ = self.preview_of(place, path)
+        self.levels(**{KEY_INSTALL: "ask", "wb adopt": "none"})
+        self.refused(place, path, digest=digest)
+
+
+class InstallDigestElsewhere(AskBase):
+    def test_a_digest_at_none_is_refused(self):
+        self.attach_with(**{KEY_INSTALL: "none"})
+        self.refused(self.target(), self.good(), digest="0" * 32, contains="level ask")
+
+    def test_a_digest_at_block_is_refused(self):
+        self.attach_with()
+        self.refused(self.target(), self.good(), digest="0" * 32)
+
+
+class AdoptAtAsk(AskBase, AdoptPreviewBase):
+    def setUp(self):
+        AskBase.setUp(self)
+        self.attach_with(**{KEY_ADOPT: "ask"})
+
+    def repo_target(self, name="repo"):
+        return AdoptAtNone.repo_target(self, name)
+
+    def test_it_adopts_with_the_digest_of_the_preview_and_logs_under_its_own_key(self):
+        place, path = self.repo_target(), self.good()
+        digest, _ = self.preview_of(place, path, adopt=True)
+        code, out, err = self.run_install(place, path, adopt=True, digest=digest)
+        self.assertEqual((0, WARNING), (code, err), out)
+        self.assertEqual(b"hello\n", self.read(place, "README.md"))
+        self.assertEqual(["wb adopt", "ask", "digest:" + digest], self.log()[0].split("\t")[3:6])
+
+    def test_two_previews_with_another_seed_give_one_digest(self):
+        place, path = self.repo_target(), self.good()
+        first, _ = self.preview_of(place, path, adopt=True, seed="one")
+        second, _ = self.preview_of(place, path, adopt=True, seed="two")
+        self.assertEqual(first, second)
+
+    def test_a_run_without_a_digest_or_with_a_wrong_one_is_refused(self):
+        place, path = self.repo_target(), self.good()
+        self.refused(place, path, adopt=True, contains="preview adopt")
+        self.refused(place, path, adopt=True, digest="0" * 32, contains="preview adopt")
 
 
 if __name__ == "__main__":

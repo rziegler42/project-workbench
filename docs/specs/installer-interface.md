@@ -161,14 +161,14 @@ says so.
 
 | command | kind | takes | writes | terminal only | state |
 |---|---|---|---|---|---|
-| `install` | project | target, a module selection | committed content, manifest, the project's store directory, then per-clone harness files | yes, owner-run; the owner may set `wb install` to `none` | built |
+| `install` | project | target, a module selection | committed content, manifest, the project's store directory, then per-clone harness files | yes, owner-run; the owner may set `wb install` to `ask` (with the digest of the preview) or `none` | built |
 | `preview` | project | `install`, `adopt`, `upgrade`, `add`, `rerender` or `release-approvals` and their arguments (`release-approvals` takes none) | nothing; no network, it reads only the approved cache (`release-approvals` reads the packages and the shipped records and ends with a digest) | no | built |
-| `adopt` | project | target, a module selection (as `install`) | committed content for the paths that are missing, manifest, the project's store directory; never an existing file and no harness file | yes, owner-run; the owner may set `wb adopt` to `none` | built (`adopt-existing-repository`) |
+| `adopt` | project | target, a module selection (as `install`) | committed content for the paths that are missing, manifest, the project's store directory; never an existing file and no harness file | yes, owner-run; the owner may set `wb adopt` to `ask` (with the digest of the preview) or `none` | built (`adopt-existing-repository`) |
 | `attach` | project | target, `--harness` | per-clone harness files, `.git/info/exclude`, the local manifest | no, but owner-run (harness deny rule) | built |
 | `rerender` | project | target, `--package` | the stale, new and missing rendered files, the harness's permissions file, the local manifest's hashes, then the rendering record in the guarded store | yes, owner-run at every level; the key offers `block` only | built (`rerender-attached-harness`, `refresh-rendered-harness`) |
 | `check` | project | target | nothing | no | built |
-| `upgrade` | project | target | after an approved preview, new content, left uncommitted | yes, owner-run; the owner may set it to `none` | built |
-| add a module | project | target, a module | the same as `upgrade`, new files and blocks only | yes, owner-run; the owner may set `wb add` to `none` | built |
+| `upgrade` | project | target | after an approved preview, new content, left uncommitted | yes, owner-run; the owner may set it to `ask` (with the digest of the preview) or `none` | built |
+| add a module | project | target, a module | the same as `upgrade`, new files and blocks only | yes, owner-run; the owner may set `wb add` to `ask` (with the digest of the preview) or `none` | built |
 | `acknowledge` | project | target | the guarded store: the project's acknowledgement baselines | yes, owner-run; the owner may set `acknowledge-first-tier` to `none` | built |
 | `recover` | project | target | removes the unfinished-write marker and the empty directories the plan created, nothing else | yes, owner-run; the owner may set `wb recover` to `none` | built |
 | `verify` | package | a package directory (`<package>` or `--dir`), `--select`, `--no-harness-required` | nothing | no | built |
@@ -308,9 +308,10 @@ publishes, and none edits a living or historical document** (`repository-boundar
   refused target. After a failure part-way, the report says what was written ("Failure part-way").
 - **Contacts the network and writes a cache directory** for each source that is not a local
   directory, in `install` itself and never in `preview`.
-- **Agent may run it:** by default no *(owner)*; the approver may set `wb install` to `none`. The owner runs `install`, from a terminal, and approves the
+- **Agent may run it:** by default no *(owner)*; the approver may set `wb install` to `ask` or `none`. The owner runs `install`, from a terminal, and approves the
   preview there. An agent runs `wb preview install ...` to see the same preview and write
-  nothing (the preview and approval section).
+  nothing (the preview and approval section). At `ask` the agent runs `wb install ... --digest <digest>` with the digest that
+  preview printed last, and the owner confirms that command (`command-permissions.md`, "The installer commands at `ask`").
 
 ### `adopt` (built by plan `2026-10-25-adopt-existing-repository`)
 
@@ -378,14 +379,15 @@ plan made and the owner may still change.
   the state found), a refused target, and every conflict above. After a failure part-way, the report
   says what was written.
 - **Terminal and exit codes.** Owner-run and terminal-only, checked before anything is read, as
-  `install` is, and runnable without a terminal only at the owner's level `none` for `wb adopt` (and for `wb install`)
-  (`command-permissions.md`, "`install` and `adopt` at `none`"). Exit 0 done; 1 refused or cancelled; 2 usage; 3 stopped after writing. There is no
+  `install` is, and runnable without a terminal only at the owner's level `ask` (with `--digest <32 hex>`) or `none` for `wb adopt`
+  (and for `wb install`) (`command-permissions.md`, "`install` and `adopt` at `none`", "The installer commands at `ask`"). Exit 0 done; 1 refused or cancelled; 2 usage; 3 stopped after writing. There is no
   attach step, so the exit 3 of `install` for a failed attach does not exist here. Standard output
   ends with the count of paths created, the count kept, the blocks not filled, that nothing was
   committed, and the `wb attach` and `wb upgrade` that follow.
 - **Contacts the network and writes a cache directory** for each source that is not a local
   directory, in `adopt` itself and never in `preview`.
-- **Agent may run it:** by default no; the approver may set `wb adopt` to `none`. The owner runs `adopt` from a terminal and approves the preview there.
+- **Agent may run it:** by default no; the approver may set `wb adopt` to `ask` or `none`. The owner runs `adopt` from a terminal and approves the preview there.
+  At `ask` the agent runs `wb adopt ... --digest <digest>` with the digest that `wb preview adopt ...` printed, and the owner confirms it.
   An agent runs `wb preview adopt ...` to see the same plan and write nothing. Every harness denies
   `wb adopt` as it denies `wb install` (see "The preview and approval", rule 2).
 - **An adopted project is an existing project** for every other command. `check`, `acknowledge`,
@@ -583,7 +585,8 @@ plan made and the owner may still change.
   lists every file entry of the manifest. The baselines are replaced in one atomic store
   write and nothing in the project is written.
 - **Agent may run it:** `wb preview upgrade ...` and `wb preview add ...`, yes. `upgrade` and
-  `add` themselves are owner-run, from a terminal *(owner)*.
+  `add` themselves are owner-run, from a terminal *(owner)*; at the level `ask` they run without one when given `--digest <digest>`,
+  the digest that the preview printed (`command-permissions.md`, "The installer commands at `ask`").
 
 ### `recover` (built by `unfinished-write-recovery`)
 
@@ -756,8 +759,8 @@ see its section). The split between a read-only
    An agent therefore cannot make the workbench contact an address it chose, and the approval
    a preview needs always came from the owner *(my call; found in review)*. `wb install`,
    `wb adopt`, `wb upgrade` and `wb add` write, and are owner-run.
-2. **The write commands are owner-run and terminal-only** (at the level `none` of `wb install`, `wb adopt`, `wb upgrade` or
-   `wb add`, the command runs without a terminal; `command-permissions.md`, "`upgrade` and `add` at `none`"). They need a terminal on both
+2. **The write commands are owner-run and terminal-only** (at the level `ask` of `wb install`, `wb adopt`, `wb upgrade` or
+   `wb add` with the digest of the preview, or at the level `none`, the command runs without a terminal; `command-permissions.md`, "`upgrade` and `add` at `none`"). They need a terminal on both
    standard input and standard output, checked on file descriptors as `approve` does, and
    refuse with `refused:` and exit 1 otherwise. They are denied to an agent by the harness,
    exactly as `approve`, `pin` and `attach` are. **rule:** the harness modules render a `deny`
@@ -770,7 +773,10 @@ see its section). The split between a read-only
    process, shows it, and asks. No preview is stored between steps and no digest is accepted
    from another run or another place, so there is nothing to edit or forge in between. The
    preview an agent saw with `preview` is only a courtesy: the owner approves the preview the
-   write command shows in the owner's terminal.
+   write command shows in the owner's terminal. The one exception is the level `ask`: there the
+   command takes `--digest`, the digest `wb preview` printed in another process, and recomputes
+   the digest itself from the plan it builds now; it stores nothing and trusts nothing it is given
+   but the 32 characters it compares.
 4. **The owner approves by typing.** After the preview the command asks for the first 12
    characters of the preview's digest and a press of Enter. The input is read after discarding
    anything already typed ahead (`termios.tcflush`), is length-bounded, and is compared to
@@ -836,7 +842,9 @@ see its section). The split between a read-only
   `.git/info/exclude` line; the local manifest; every harness file; every write to the
   guarded store; and, for a replacement, the hash the file has now.
 - Anything generated for the write, such as the project seed and ID, is generated before the
-  preview, held in memory, and included. Nothing is generated after the digest is computed.
+  preview, held in memory, and included. Nothing is generated after the digest is computed. The one exception is the digest of
+  a run at the level `ask`, which is taken over the plan with the seed and the time fixed, because the run draws its own
+  (`command-permissions.md`, "The installer commands at `ask`").
 
 ## Output
 
@@ -855,7 +863,7 @@ see its section). The split between a read-only
   show is escaped, never a traceback.
 - **rule:** a command that writes ends standard output with a line saying what was written:
   the count of paths, and that nothing was committed. A `preview` ends with `preview only:
-  nothing was written`. An `upgrade` that finds nothing to change says `nothing to change`
+  nothing was written`, and has before that line a line `digest: <32 hex>`, the digest of an `ask`. An `upgrade` that finds nothing to change says `nothing to change`
   and exits 0. Any other ending is a failure.
 - There is no machine-readable output form in this version *(owner)*. The prefixes above are
   the contract a script may rely on; the wording after them is not.

@@ -35,7 +35,7 @@ import shutil
 import stat
 
 from . import (__version__, acknowledgement, approvals, approve, base, confirm, declarations, firstparty,
-               gate, installed, installplan, levelrun, manifest, pins, preview, projectfs, snapshot, sources, target,
+               gate, installed, installplan, levelrun, levels, manifest, pins, preview, projectfs, snapshot, sources, target,
                unfinished, upgradeplan, verify)
 from .wbkit import display, safefs
 
@@ -277,6 +277,10 @@ def run_preview(guarded, parsed, out, err, distribution=None, version=None,
                            version or __version__, which, mode, parsed.select or ())
             text = upgradeplan.render(done["plan"], done["existing"], done["selection"],
                                       held.path, held.identity, approvals=done["approvals"])
+            fixed = prepare(guarded, held, parsed.packages, distribution, version or __version__, which, mode,
+                            parsed.select or (), preview.ASK_NOW)
+            digest = preview.ask_digest(mode, upgradeplan.digest(fixed["plan"], fixed["existing"], fixed["selection"],
+                                                                 held.identity))
     except target.TargetError as exc:
         return target.write_refusal(err, exc)
     except preview.Refused as exc:
@@ -292,6 +296,8 @@ def run_preview(guarded, parsed, out, err, distribution=None, version=None,
     out.write(text)
     if not done["plan"].writes and not done["plan"].pins:
         out.write("nothing to change\n")
+    out.write(preview.ASK_NOTE + "\n")
+    out.write("digest: %s\n" % digest)
     out.write(ENDING + "\n")
     return 0
 
@@ -429,6 +435,7 @@ def _lines(err, exc):
 
 def _run(guarded, parsed, stdin, out, err, distribution, version, which, progress, mode, route=None):
     unattended = route is not None and not route.terminal
+    asking = unattended and route.level == levels.ASK
     try:
         with target.open_target(parsed.target, guarded.root) as held:
             now = approvals.utc_now()
@@ -438,6 +445,15 @@ def _run(guarded, parsed, stdin, out, err, distribution, version, which, progres
             if unattended and manifest.project_id(existing.document["seed"]) != route.project_id:
                 return _refuse(err, "the project the level was read for is not the project being %s; nothing was "
                                     "written" % ("added to" if mode == "add" else "upgraded"))
+            if asking:
+                # The digest the owner confirmed is the one of the plan with the time of its pins fixed (`preview.ASK_NOW`).
+                fixed = prepare(guarded, held, parsed.packages, distribution, version, which, mode, parsed.select or (),
+                                preview.ASK_NOW)
+                fixed_digest = upgradeplan.digest(fixed["plan"], fixed["existing"], fixed["selection"], held.identity)
+                if preview.ask_mismatch(mode, fixed_digest, parsed.digest):
+                    return _refuse(err, "the digest is not the one of the plan built now; nothing was written; run `wb preview "
+                                        "%s` again, read it, and give the digest it prints" % mode)
+                evidence = preview.ask_digest(mode, fixed_digest)
             for warning in done["warnings"]:
                 err.write("warning: %s\n" % display.clean(warning))
             out.write(upgradeplan.render(plan, existing, selection, held.path, held.identity,
@@ -446,7 +462,11 @@ def _run(guarded, parsed, stdin, out, err, distribution, version, which, progres
                 out.write("nothing to change\n")
                 return 0
             digest = upgradeplan.digest(plan, existing, selection, held.identity)
-            if unattended:
+            if asking:
+                out.write("\nThe level of wb %s is ask here and the digest you gave is the one of this plan, so nothing is "
+                          "asked: it is applied now.\n" % mode)
+                out.flush()
+            elif unattended:
                 out.write("\nThe level of wb %s is none here, so nothing is asked: it is applied now.\n" % mode)
                 out.flush()
             else:
@@ -497,7 +517,7 @@ def _run(guarded, parsed, stdin, out, err, distribution, version, which, progres
 
             if not unattended:
                 return apply()
-            return levelrun.apply_logged(guarded, route, "wb " + mode, digest, apply, err, _refuse)
+            return levelrun.apply_logged(guarded, route, "wb " + mode, evidence if asking else digest, apply, err, _refuse)
     except target.TargetError as exc:
         return target.write_refusal(err, exc)
     except preview.Refused as exc:
@@ -520,11 +540,14 @@ def run(guarded, parsed, stdin, out, err, distribution=None, version=None, which
     # The level is read for the project the command is run from; the plan must be for that project (checked in `_run`).
     text = terminal_only(mode)
     try:
-        route = levelrun.route(guarded, cwd if cwd is not None else os.getcwd(), "wb " + mode, stdin, out, text)
+        route = levelrun.route_ask(guarded, cwd if cwd is not None else os.getcwd(), "wb " + mode, stdin, out, text)
     except levelrun.Refusal as exc:
         return _refuse(err, str(exc) if str(exc) == text else "%s (%s)" % (text, exc))
     except OSError as exc:
         return _refuse(err, "%s (the working directory cannot be read: %s)" % (text, exc.strerror or "unknown error"))
+    refusal = levelrun.digest_refusal(route, "wb " + mode, mode, parsed.digest)
+    if refusal:
+        return _refuse(err, refusal)
     progress = confirm.Progress()
     progress.warnings = []
     progress.stage = "files"

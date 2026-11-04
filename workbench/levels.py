@@ -60,10 +60,10 @@ Spec = collections.namedtuple("Spec", "kind klass offers word carried_by preview
 # the levels beyond ``block`` that the key offers in this version; `preview` the key of the read-only action whose digest an
 # ``ask`` is bound to. A checkpoint named here that a command carries out is named by `carried_by`.
 INSTALLER_KEYS = collections.OrderedDict([
-    ("wb install", Spec(COMMAND, PROJECT, (NONE,), "install", "wb install", "wb preview install", _DEVELOPMENT)),
-    ("wb adopt", Spec(COMMAND, PROJECT, (NONE,), "adopt", "wb adopt", "wb preview adopt", _DEVELOPMENT)),
-    ("wb upgrade", Spec(COMMAND, PROJECT, (NONE,), "upgrade", "wb upgrade", "wb preview upgrade", _DEVELOPMENT)),
-    ("wb add", Spec(COMMAND, PROJECT, (NONE,), "add", "wb add", "wb preview add", _DEVELOPMENT)),
+    ("wb install", Spec(COMMAND, PROJECT, (ASK, NONE), "install", "wb install", "wb preview install", _DEVELOPMENT)),
+    ("wb adopt", Spec(COMMAND, PROJECT, (ASK, NONE), "adopt", "wb adopt", "wb preview adopt", _DEVELOPMENT)),
+    ("wb upgrade", Spec(COMMAND, PROJECT, (ASK, NONE), "upgrade", "wb upgrade", "wb preview upgrade", _DEVELOPMENT)),
+    ("wb add", Spec(COMMAND, PROJECT, (ASK, NONE), "add", "wb add", "wb preview add", _DEVELOPMENT)),
     ("wb attach", Spec(COMMAND, PROJECT, (NONE,), "attach", "wb attach", "", _DEVELOPMENT)),
     ("wb rerender", Spec(COMMAND, GOVERNS, (), "rerender", "wb rerender", "wb preview rerender", _DEVELOPMENT)),
     ("acknowledge-first-tier", Spec(CHECKPOINT, GOVERNS, (NONE,), "acknowledge", "wb acknowledge", "", _PERMISSIONS)),

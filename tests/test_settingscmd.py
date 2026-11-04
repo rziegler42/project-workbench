@@ -24,8 +24,8 @@ CHECKPOINT_LINES = "checkpoint approve-plan: stop\ncheckpoint beta: stop\n"
 # checkpoint the installer does not name is in the class that governs and offers ``block`` only; an agent-safe key reads.
 KEY_FACTS = {
     "approve-plan": ("governs", "block,delegated,ask,none"),
-    "wb install": ("project", "block,none"), "wb adopt": ("project", "block,none"), "wb upgrade": ("project", "block,none"),
-    "wb add": ("project", "block,none"), "wb attach": ("project", "block,none"), "wb recover": ("project", "block,none"),
+    "wb install": ("project", "block,ask,none"), "wb adopt": ("project", "block,ask,none"),
+    "wb upgrade": ("project", "block,ask,none"), "wb add": ("project", "block,ask,none"), "wb attach": ("project", "block,none"), "wb recover": ("project", "block,none"),
     "wb rerender": ("governs", "block"), "wb approve": ("governs", "block,none"), "wb pin": ("governs", "block,none"),
     "wb release-approvals": ("governs", "block,ask,none"),
 }
@@ -214,15 +214,24 @@ class Printed(Settings):
         self.assertEqual((0, ""), (code, err))
         self.assertIn("level approve-plan: ask\n", out)
         self.assertIn("level wb release-approvals: ask\n", out)
-        self.assertIn("profile: trusting\nprofiled approve-plan: ask\nprofiled wb release-approvals: ask\n", out)
+        self.assertIn("profile: trusting\nprofiled approve-plan: ask\nprofiled wb install: ask\nprofiled wb adopt: ask\n"
+                      "profiled wb upgrade: ask\nprofiled wb add: ask\nprofiled wb release-approvals: ask\n", out)
         self.assertEqual(0, problem_lines(out), out)
 
-    def test_a_profile_that_moves_no_key_prints_its_name_only(self):
+    def test_the_profile_cautious_moves_no_key_and_prints_its_name_only(self):
+        self.owner({"version": 3, "levels": {}, "profile": "cautious"})
+        code, out, err = self.settings()
+        self.assertEqual((0, ""), (code, err))
+        self.assertIn("profile: cautious\n", out)
+        self.assertNotIn("profiled ", out)
+
+    def test_balanced_sets_the_four_installer_commands_that_offer_ask(self):
         self.owner({"version": 3, "levels": {}, "profile": "balanced"})
         code, out, err = self.settings()
         self.assertEqual((0, ""), (code, err))
-        self.assertIn("profile: balanced\n", out)
-        self.assertNotIn("profiled ", out)
+        self.assertIn("profile: balanced\nprofiled wb install: ask\nprofiled wb adopt: ask\nprofiled wb upgrade: ask\n"
+                      "profiled wb add: ask\n", out)
+        self.assertNotIn("profiled approve-plan", out)
 
     def test_a_key_entry_that_overrides_the_profile_is_not_listed_as_profiled(self):
         self.owner({"version": 3, "profile": "trusting", "levels": {"approve-plan": "block"}})

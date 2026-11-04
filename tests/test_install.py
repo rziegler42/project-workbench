@@ -565,7 +565,9 @@ class InstallTest(InstallBase):
         self.assertEqual(0, code, err)
         head = out.split("\nTo install, type", 1)[0]
         head = re.sub(r"digest: [0-9a-f]{64}\n", "", head)
-        self.assertEqual(shown.getvalue().replace("preview only: nothing was written\n", ""), head)
+        text = shown.getvalue().replace("preview only: nothing was written\n", "")
+        text = re.sub(r"%s\ndigest: [0-9a-f]{32}\n" % re.escape(preview.ASK_NOTE), "", text)  # the preview's ask digest
+        self.assertEqual(text, head)
         # What was written is what the plan listed.
         for line in head.splitlines():
             found = re.match(r"  create-file (\S+) \[\w[\w-]*\] \S+ (\d+) bytes sha256 ([0-9a-f]{64})",

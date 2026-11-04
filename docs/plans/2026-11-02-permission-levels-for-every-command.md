@@ -290,4 +290,38 @@ tested area.
   effect of the `balanced` and `trusting` profiles, and the evidence list made honest about what was read in full.
 - **Accepted:** by the owner on 2026-11-03 at the `accept-decision` checkpoint, level `ask` (`wb run groundwork preview`, then
   `accept` with the digest it printed). This is completion criterion 1 for increment A.
-- **Not done:** nothing is committed.
+- **Not done:** nothing is committed (this was A's line; A is committed as `6bb2437`).
+
+### Increment B — `ask` for the installer commands that have a preview (2026-11-03)
+
+- **Done:** `wb install`, `wb adopt`, `wb upgrade` and `wb add` offer `block`, `ask` and `none` (`levels.py`). `--digest <32 hex>` is read once by
+  `sources.parse_install(…, digest_ok=True)` for those four and refused by the previews. `levelrun.route_ask` reads the verified level and goes on
+  at `ask` and `none` (the kit's `may_run` is unchanged); `levelrun.digest_refusal` refuses a digest at a terminal and at `none`, and a missing or
+  malformed one at `ask`. `wb preview install|adopt|upgrade|add` print a note and `digest: <32 hex>` before `preview only: …`. The run builds the
+  plan, builds it again with `preview.ASK_SEED` and `preview.ASK_NOW`, and compares the `ask` digest of that plan before it prints or writes; the
+  attempt is logged at `ask` with `digest:<32 hex>`. Specs updated in the same change: `command-permissions.md` (new section "The installer
+  commands at `ask`", and the lines for the offers, profiles, the two "at `none`" paragraphs and the summary), `installer-interface.md`,
+  `docs/development.md`.
+- **Differs from the record's wording (decision 3):** the digest is `wbkit.digest.of(["wb <command>", <digest of the plan built with the fixed
+  seed and time>])`, not a hash of printed lines. It binds at least as much, and the spec describes it. The accepted record is not edited; the
+  owner may want a dated clarification note.
+- **Known limit, not closed:** the written plan and the plan the digest was taken over are two builds a moment apart (a package source rewritten
+  mid-run to another approved tree). Recorded in the spec's "What it does not prove". Closing it needs a further build and a second comparison.
+- **Effect on profiles:** `balanced` and `trusting` now read these four keys at `ask` (as the record says); a `wb rerender` is due for an owner
+  who names one.
+- **Verification run** (`python3 -B -W error -m unittest`, targeted; the full suite was not run): `test_install_levels`, `test_upgrade_levels`,
+  `test_levelrun`, `test_levels`, `test_levels_facts`, `test_permissions_drift`, `test_preview`, `test_upgrade_preview`, `test_adopt_preview`,
+  `test_install`, `test_upgrade`, `test_add`, `test_adopt`, `test_install_attach`, `test_install_pins`, `test_upgrade_pins`, `test_self_hosting`,
+  `test_approve_levels`, `test_ack_recover_levels`, `test_approve_pin_levels`, `test_release_ask`, `test_recover`, `test_unfinished`,
+  `test_acknowledge`, `test_installplan`, `test_upgradeplan`, `test_adopt_lifecycle`, `test_adopt_target`, `test_command_gate`,
+  `test_gate_corpus`, `test_rendering`, `test_rerender`, `test_attach`, `test_permissions`, `test_wbkit_digest`, `test_wbkit_levels`,
+  `test_settingscmd`, `test_doctor`, `test_planapprovals`, `test_delegation`: all OK. `test_settings` and `test_cli` by `discover`: OK.
+  `wb run code-work check` and `wb check`: no problems. Existing tests that described the old registry or the old preview were updated (the
+  list of keys that offer `ask`, the profile tests, the settings output, the preview endings).
+- **Review:** `reviewer` agent, one round, no blocking finding, six not blocking. Applied: the spec lines that were still false (summary,
+  "no flag" in two paragraphs, the `add` row, the "nothing is generated after the digest" rule), the usage-error row, the statement that a
+  `--source` is fetched before the check, the limit above, and tests for a digest given twice on the install command line, a stale digest
+  with nothing to change, and a plan for another project at `ask`. Not applied: an extra build to close the limit above (owner's call).
+- **Not covered by a test:** a change to what the harness would render (this fixture's harness renders no permissions, so `home` does not move
+  the plan); the exclusion list is guarded by the seed/time test and the module/target tests, not by one test per field.
+- **Not done:** nothing is committed; the owner has not run `wb rerender` or set any of the four keys.

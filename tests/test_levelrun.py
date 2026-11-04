@@ -181,5 +181,71 @@ class Boundaries(unittest.TestCase):
         self.assertEqual(settings.LEVELS, levelrun.kit.LEVELS)
 
 
+class RoutingForAsk(Ask):
+    """``route_ask``: the reading of a command that offers ``ask`` (plan ``2026-11-02-permission-levels-for-every-command``,
+    increment B). The kit's ``may_run`` is unchanged; this goes on at a verified ``ask`` as well as at ``none``."""
+
+    def route(self, terminal=False):
+        streams = Streams()
+        with unittest.mock.patch.object(levelrun.approve, "is_terminal", lambda stream: terminal):
+            return levelrun.route_ask(self.guarded, self.real, "approve-plan", streams.stdin, streams.out, TERMINAL_ONLY)
+
+    def test_a_verified_ask_goes_on_without_a_terminal(self):
+        self.attached(approve_plan="ask")
+        self.assertEqual((False, "ask", self.project_id), self.route()[:3])
+
+    def test_a_verified_none_goes_on_without_a_terminal(self):
+        self.attached(approve_plan="none")
+        self.assertEqual((False, "none", self.project_id), self.route()[:3])
+
+    def test_block_gives_the_caller_s_refusal(self):
+        self.attached(approve_plan="block")
+        with self.assertRaises(levelrun.Refusal) as caught:
+            self.route()
+        self.assertEqual(TERMINAL_ONLY, str(caught.exception))
+
+    def test_the_default_gives_the_caller_s_refusal(self):
+        self.attached()
+        with self.assertRaises(levelrun.Refusal) as caught:
+            self.route()
+        self.assertEqual(TERMINAL_ONLY, str(caught.exception))
+
+    def test_a_table_edited_after_attach_reads_block(self):
+        self.attached(approve_plan="ask")
+        self.table(approve_plan="none", other_step="ask")
+        with self.assertRaises(levelrun.Refusal):
+            self.route()
+
+    def test_a_terminal_goes_on_and_reads_nothing(self):
+        self.attached(approve_plan="block")
+        with unittest.mock.patch.object(rendering, "current_table", side_effect=AssertionError("read")):
+            self.assertEqual((True, None, None, None), tuple(self.route(terminal=True)))
+
+    def test_the_kit_still_runs_without_a_terminal_only_at_none(self):
+        from workbench.wbkit import levels as kit
+        self.assertFalse(kit.may_run("ask", False))
+        self.assertTrue(kit.may_run("none", False))
+
+
+class DigestRefusal(unittest.TestCase):
+    GOOD = "0123456789abcdef" * 2
+
+    def refusal(self, terminal, level, digest):
+        return levelrun.digest_refusal(levelrun.Route(terminal, level, "p", "/r"), "wb install", "install", digest)
+
+    def test_a_terminal_takes_no_digest(self):
+        self.assertIsNone(self.refusal(True, None, None))
+        self.assertIn("without a terminal", self.refusal(True, None, self.GOOD))
+
+    def test_none_takes_no_digest(self):
+        self.assertIsNone(self.refusal(False, "none", None))
+        self.assertIn("level ask", self.refusal(False, "none", self.GOOD))
+
+    def test_ask_needs_a_well_formed_digest_and_names_the_preview(self):
+        self.assertIsNone(self.refusal(False, "ask", self.GOOD))
+        for digest in (None, "", "ABCDEF" * 6, self.GOOD[:-1], self.GOOD + "0", "g" * 32):
+            self.assertIn("wb preview install", self.refusal(False, "ask", digest), digest)
+
+
 if __name__ == "__main__":
     unittest.main()

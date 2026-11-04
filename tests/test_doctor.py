@@ -392,10 +392,10 @@ class InAProject(test_rendering.Rendered):
 
     def test_a_setting_that_reads_other_than_set_is_a_problem(self):
         self.attached()
-        self.table(wb_upgrade="ask")
+        self.table(wb_attach="ask")
         code, out, err = self.doctor()
         self.assertEqual(1, code)
-        self.assertIn("problem: settings: settings set the level of wb upgrade to ask", out)
+        self.assertIn("problem: settings: settings set the level of wb attach to ask", out)
 
     def test_a_damaged_settings_file_is_reported_and_the_command_still_runs(self):
         self.attached()

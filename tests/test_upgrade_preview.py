@@ -112,7 +112,7 @@ class Preview(UpgradePreview):
         self.assertIn("replace %s" % SCRIPT, out)
         self.assertIn("approved by the module record", out)
         self.assertNotIn("nothing to change", out)
-        self.assertNotIn("digest:", out)
+        self.assertRegex(out, r"(?m)^digest: [0-9a-f]{32}\n(?=preview only: nothing was written\n\Z)")  # the digest of an ask
         self.assertEqual(before, (self.tree(self.place), self.tree(self.store_root)))
         with open(os.path.join(self.place, ".git", "index"), "rb") as handle:
             self.assertEqual(b"index", handle.read())
@@ -123,7 +123,8 @@ class Preview(UpgradePreview):
         self.install(path)
         code, out, err = self.preview("--package", path)
         self.assertEqual((0, ""), (code, err))
-        self.assertIn("nothing to change\npreview only: nothing was written\n", out)
+        self.assertIn("nothing to change\n", out)
+        self.assertRegex(out, r"(?m)^digest: [0-9a-f]{32}\npreview only: nothing was written\n\Z")
 
     def test_a_conflict_is_shown_and_is_not_a_refusal(self):
         self.install(self.version())
