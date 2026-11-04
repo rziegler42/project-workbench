@@ -536,6 +536,10 @@ owner accepted on 2026-10-23. The provider's `convergence` argument is built by 
 increment D, the skill guidance (`delegate-approval` in `code-work`) by increment E; the security pass, increment F, ran in two
 rounds and its findings are fixed.)*
 
+- **The profile check** *(decided, not built; plan `2026-11-04-review-profiles`, increments G, H and I; decision
+  `2026-11-04-delegated-approval-checks-the-profile-of-the-last-round`)*: when the owner's `delegate-profiles` setting is a list, the
+  installer also requires the last round's recorded request to equal a listed profile, and fails closed otherwise. With the
+  default `any` nothing changes (`review-profiles.md`, "The `convergence` report and `delegate-profiles`").
 - **The command.** `wb delegate-approve-plan <plan>` takes one argument and no option, runs from anywhere inside the
   project, and finds the root, the ID and the plan path as `approve-plan` does, with the same path rules. It is not
   owner-run: the agent may run it, and no harness denies it. It prints one line, `approved: <plan> by <Name <email>> delegated to <provider>

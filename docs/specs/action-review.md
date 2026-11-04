@@ -8,7 +8,8 @@ separately chosen; the owner may still change it. The approval is of the design 
 `describe` interface is a decision record of its own, accepted by the owner on 2026-10-25
 (`2026-10-25-describe-interface-for-action-review`). The rule schema, the module's layout and declaration, the bridge setting and the checks for `commit` and `remove` were
 written on 2026-10-26 by Increment A of plan `2026-10-26-action-review-engine` and wait for the owner's reading
-("The rule schema, the module and the checks"). The engine is built for `commit` and `remove` (plan `2026-10-26-action-review-engine`, Increments B to K; "As built, and its limits" at the end of the design says where it differs from the text and what it does not do), and so are the `describe` side of `safe-git` (for `commit`, `remove` and `push`) and the launcher rule (plans `2026-10-25-safe-git-describe` and `2026-10-26-safe-git-describe-push`). The shadow (the hook that records and decides nothing, its store, the labelling tool, the report and the test-set runner) is built by plan `2026-10-29-action-review-shadow-hook`, Increments A to H ("The shadow hook"), corrected after a security review by plan `2026-10-30-shadow-review-fixes`, and made to store redacted text by plan `2026-11-03-redact-collected-diffs`; it has not been installed or run by the owner. The status stays `Draft` because the owner has not read the engine's sections, because the shadow has not been run on real commands, and because the push rule, a hook that decides, the owner's personal setting and the cutover are not built (plan 5 of the split below).
+("The rule schema, the module and the checks"). The engine is built for `commit` and `remove` (plan `2026-10-26-action-review-engine`, Increments B to K; "As built, and its limits" at the end of the design says where it differs from the text and what it does not do), and so are the `describe` side of `safe-git` (for `commit`, `remove` and `push`) and the launcher rule (plans `2026-10-25-safe-git-describe` and `2026-10-26-safe-git-describe-push`). The shadow (the hook that records and decides nothing, its store, the labelling tool, the report and the test-set runner) is built by plan `2026-10-29-action-review-shadow-hook`, Increments A to H ("The shadow hook"), corrected after a security review by plan `2026-10-30-shadow-review-fixes`, and made to store redacted text by plan `2026-11-03-redact-collected-diffs`; it has not been installed or run by the owner. The status stays `Draft` because the owner has not read the engine's sections, because the shadow has not been run on real commands, and because the push rule, a hook that decides, the owner's profile file (which replaces the personal setting) and the cutover are not built (plan 5 of
+  the split below).
 
 Terms are defined in `terms.md`. The engine sits above the bridge of `model-bridge.md` and beside the engine of
 `review-engine.md`. The decision behind it is `2026-10-22-model-calls-go-through-vendor-bridges` (decisions 3, 6, 7
@@ -480,13 +481,18 @@ period has logged about 30 of the engine's own reviews. A review that times out 
 
 ### Settings and the bridge
 
+**Decided, not built.** The accepted record `2026-11-04-review-profiles-in-the-guarded-store` supersedes the record this section
+cites: this engine will read the `action-review` ladder of the owner's `review-profiles.json`, one rung, and read
+`.workbench/review.json` no more (`review-profiles.md`; plan `2026-11-04-review-profiles`, increment F). Until it is built, what
+follows is what the engine does.
+
 Decision 5 of `2026-10-22-model-calls-go-through-vendor-bridges` applies except for the file name. **This departs from
 decision 5.** The decision says each engine reads "a file named for the engine, `.workbench/<engine module>.json`";
 the owner chose on 2026-10-26, as the plan `2026-10-26-action-review-engine` records, that this engine reads the
 project file `.workbench/review.json`, the file the review engine already reads, and not `.workbench/action-review.json`.
 A decision outranks a spec and an accepted decision is never edited, so the departure is recorded in
-`2026-10-26-action-review-reads-the-review-setting`, which the owner accepted on 2026-10-26 and which refines decision 5
-for this file name only. The file holds a format number and the bridge, the model and the effort the
+`2026-10-26-action-review-reads-the-review-setting`, which the owner accepted on 2026-10-26, which refines decision 5
+for this file name only, and which `2026-11-04-review-profiles-in-the-guarded-store` has since superseded. The file holds a format number and the bridge, the model and the effort the
 project would like. It is a request and never an authorization.
 
 - **The reader is that of `review-engine`.** The file is at most 4,096 bytes, strict JSON, an object with `format` equal
@@ -502,8 +508,9 @@ project would like. It is a request and never an authorization.
   three counts belong to version 1, and the class `vendor_unreachable` and a `usage` of five counts belong to version 2. An
   object that mixes the two is a failure. The engine keeps no usage, so the added counts are checked and ignored.
 - **Recorded limit: the personal setting is not built.** The owner's personal setting would be authoritative over the
-  project's request. No helper can read the guarded store, as for the review engine, so the engine reads the project file
-  only; a project file is not the owner's personal setting, and a project could name another installed bridge. Only an
+  project's request. The kit has no accessor for the guarded store, so this engine's helper reads the project file
+  only (the review engine reads its seal key there by a fixed path, and the record above decides that both engines will read the
+  owner's profile file); a project file is not the owner's personal setting, and a project could name another installed bridge. Only an
   installed, pinned bridge that provides `model-bridge` can run. The precedence rule of the earlier text is deferred
   with the personal setting.
 - **Recorded limit: one file for two engines.** Both engines refuse an unknown field, so a field added for one is
@@ -872,9 +879,9 @@ run, and the installer's copying of the module was not run (the first test throu
 `describe` through the launcher, the fourteen code checks for `commit` and `remove`, the rubric and the reply schema, the
 bridge call, the verdict object, the exit table, the log row and the pins of the shipped data files. **What did not, when
 the engine was built:** the rule and checks for `push`, the owner's hook, the writer of the log, the labelled set, the report and the
-shadow period (plan 4), cutover and the removal of `claude-workflow` (plan 5), and the owner's personal setting (below). Plan 4
+shadow period (plan 4), cutover and the removal of `claude-workflow` (plan 5), and the owner's personal setting, which the owner's profile file replaces (below). Plan 4
 (`2026-10-29-action-review-shadow-hook`) has since built the shadow side ("The shadow hook"); the push rule, a hook that decides,
-the cutover and the personal setting are still not built.
+the cutover and the owner's profile file (`review-profiles.md`) are still not built.
 
 **Where the build departs from the text Increment A wrote.** Each is written into the sections above; the list is here so
 the owner can find them.
@@ -930,7 +937,8 @@ was reviewed by the approver and declines under `describe` (`safe-git.md`).
   is refused earlier as `path_refused`, as observed in Increment G; the 5-second `describe` budget is a guess; `find_root` takes the nearest project, so a nested project
   under the working directory would supply its own rules (pinned, so a changed rule is refused); the hook must start `review`
   in the directory where the command will run.
-- The personal setting is not built (see "Settings and the bridge").
+- The owner's profile file, which replaces the personal setting, is not built (see "Settings and the bridge" and
+  `review-profiles.md`).
 
 **The owner's steps.** The agent does not run these, and nothing below is done until the owner does it. The shadow hook records and
 allows nothing: the prompt stays the owner's, and removing its settings entry stops it. This is the one complete list (plan

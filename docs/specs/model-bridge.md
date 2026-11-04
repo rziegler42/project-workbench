@@ -88,6 +88,11 @@ bridge that cannot honour `--server` (a bridge to a program has no endpoint) or 
 kinds of tool) refuses it with a `refused:` line before anything runs, the same refusal as any other bad option, and never as an
 unknown option.
 
+**Options a review passes** *(decided, not built; plan `2026-11-04-review-profiles`, increment C)*. A bridge module's command
+declaration may list the options beyond this core (as the bridge-specific options of `ask-ollama.md` already are) that a review may pass from an owner profile, each with a grammar from a closed
+list (`module-contract.md`, `commands[].review_options`). The review engine passes those, `--model` and `--effort`, and nothing else
+from a profile. The contract itself does not change.
+
 **Paths.** `--root` and `--schema` are resolved against the project root found as `wb run` finds it, and a
 relative path is read that way, not against the caller's directory. Every component of the path must be inside
 the project and none may be a link. `--root` must exist, be a directory the program can enter, and not lie inside

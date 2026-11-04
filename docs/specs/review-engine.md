@@ -23,8 +23,8 @@ Non-goals:
 - A verdict, an approval, a plan status or any change to a reviewed document. The engine is read-only towards the
   documents it reviews and writes only its own state.
 - Reviewing code, a diff or an action. The four kinds are plan, spec, roadmap and ADR.
-- Choosing the model for the owner: the project setting is a request and the owner's personal setting, which is not yet
-  readable by a helper, will win when it can be (see "Limits").
+- Choosing the model for the owner. Today the project setting is a request and the owner's personal setting is not read. The
+  owner's profile file `review-profiles.json` is decided to replace the project setting and is not built (`review-profiles.md`).
 - Listing a vendor's models. The engine cannot; a bridge could offer it later.
 
 ## Declaration
@@ -213,6 +213,11 @@ The state is an agent-writable file in the project, so tampering is made visible
 
 ## The project setting
 
+**Decided, not built.** The accepted record `2026-11-04-review-profiles-in-the-guarded-store` retires this file: the engine will read
+the owner's `review-profiles.json` in the guarded store, take the profile of a round from a ladder for the review's kind, and read
+`.workbench/review.json` no more (`review-profiles.md`; plan `2026-11-04-review-profiles`, increments D and E). Until increment D
+is built, what follows is what the engine does.
+
 `.workbench/review.json` is project-owned configuration the engine reads and does not install (accepted record,
 decision 5). It is strict JSON, at most 4,096 bytes, with:
 
@@ -334,8 +339,10 @@ The module conforms when tests against a fake bridge, installed as a real pinned
 
 ## Limits and open questions
 
-- The personal setting for bridge, model and effort (accepted record, decision 5) is not built: no helper can read the
-  owner's personal settings. Until then the project file is the only source.
+- The personal setting for bridge, model and effort (accepted record, decision 5) is not built, and the owner's
+  `review-profiles.json`, decided to replace the project file, is not built either (`review-profiles.md`). Until then the project
+  file is the only source. The limit is the missing reader of that file and not the store: this engine already reads its seal key
+  there by a fixed path.
 - The seal is tamper-evident for a careless agent, not a boundary against one that can read the key; a rollback is
   detected only where the mark exists.
 - A committed state can conflict when two people review one document; the owner `reset`s the review.

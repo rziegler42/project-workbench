@@ -1106,6 +1106,10 @@ rendering, decides here, so a setting the owner wrote for another project applie
 
 ## Not built
 
+- The `delegate-profiles` setting and the settings file version that holds it, decided by
+  `2026-11-04-delegated-approval-checks-the-profile-of-the-last-round` (plan `2026-11-04-review-profiles`, increment I). `wb settings`
+  will print `delegate-profiles approve-plan: any` or a list. Until then a delegated plan approval checks that the review converged
+  and nothing about the profile it ran on (`review-profiles.md`).
 - `delegated` for `accept-decision` and for the other seven keys that do not offer it (every key but `approve-plan`). The plan
   `2026-10-29-accept-decision-at-ask` built `ask` for `accept-decision` and left `delegated` reading `block`: the accepted record leaves
   undecided what a delegated review's subject is for a decision, and the roadmap candidate `checkpoint-levels-beyond-block` stays open.

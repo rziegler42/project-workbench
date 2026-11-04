@@ -328,4 +328,33 @@ the second came back with no meaningful finding.
 
 ## Result
 
-Empty until work starts.
+### Increment A — The specification (2026-11-04)
+
+- **Done:** `docs/specs/review-profiles.md` is written as a `Draft`. It states the file (place, strict reading, a size bound of 32,768
+  bytes, up to 32 profiles), the profile fields and the rule for each, the closed list of option grammars (`word`, `name`, `count`,
+  `onoff`) and the field `review_options` that a module's command declaration carries, the ladder rules, what a round records, `status`,
+  the action-review engine's one rung, the install default, the `wb doctor` checks, the `convergence` report's `last_requested` and
+  format 2, and `delegate-profiles` (settings file version 4). It marks each section as decided and not built, with the increment that
+  builds it, and it gives a reason for each number the accepted records left to it. Seven specs were corrected in place:
+  `review-engine.md`, `action-review.md`, `model-bridge.md`, `module-contract.md`, `command-permissions.md`, `installer-interface.md`
+  and `trust-and-approval.md`. Each carries a "decided, not built" note, and the sentences that called the owner's personal setting
+  unreadable by a helper were corrected in the two engine specs (they were false: the review engine reads its seal key from the store).
+- **Prerequisites:** the `Status:` lines of `2026-11-01-ask-ollama-bridge` and `2026-11-02-bridge-model-configurations` were reread and
+  read `Completed`.
+- **Verification as run:** `wb check` and `wb run code-work check` report no problems, and `git diff --check` is clean. No code changed,
+  so no test was run. `wb plan-status` still reads `approved`.
+- **Review:** one `reviewer` agent pass (read-only; it had no shell, so it did not see `git diff` or the checks). It found no blocking
+  finding and eleven not blocking ones. Applied: (1) an Ollama profile name `local-<record name>` could exceed the 32-character rule, so
+  a record whose name is too long gets no profile and the install says why; (2) the comparison now says that the bridge, model, effort
+  and options must all be equal; (3) the file's reader checks only the file's own rules and the declaration-dependent checks run when a
+  profile is resolved, so one uninstalled bridge cannot invalidate the file; (4) the engine refuses a model with a space or a leading
+  `-`; (5) settings file version 4 is stated (it accepts what version 3 accepts, a new file is still seeded at 3, an older workbench
+  stops safely); (6) the report's size cap is raised from 4,096 to 8,192 bytes with the arithmetic, for increment G to confirm; (7) the
+  preview's text of an old `review.json` is bounded and escaped and is not part of the digest; (8) the stale sentences about the
+  personal setting in `review-engine.md` and `action-review.md` were corrected; (9) and (10) acceptance criteria were widened. Noted and
+  not changed: `model-bridge.md` says a bridge accepts nothing beyond its option table, while `ask-ollama.md` already adds options; that
+  tension was there before, and the new paragraph now says "as the bridge-specific options of `ask-ollama.md` already are".
+- **Not done:** the owner's reading of the spec, which stays `Draft`. No code. Nothing is pushed. The open point about where the engine
+  learns a server's location class is written into the spec for increment E.
+- **Left for the owner:** the verdict, the word to commit, and approval of the spec's numbers (they are proposals), the file size bound,
+  the 32 and 8 limits, the grammar names and the field name `review_options`.
