@@ -99,9 +99,10 @@ direction. A name that is not one of the three, or a value that is not text, rea
 agent-run keys keep their default so the agent can report it), and `wb settings` and `wb doctor` report it. `wb settings` prints a
 `profile: <name>` line, and a `profiled <key>: <level>` line for each key the profile moved, only when a profile is named. `wb doctor`
 adds a note naming the profile and the keys it moved; the `governs` keys it relaxed are reported as risks, as any relaxed key of that
-class is. With the keys of this version `trusting` moves `approve-plan`, `wb release-approvals`, `wb install`, `wb adopt`, `wb upgrade`
-and `wb add`, and any module key that offers `ask`, to `ask`; `balanced` moves `wb install`, `wb adopt`, `wb upgrade` and `wb add` to
-`ask` and nothing else, because they are the `project` keys that offer `ask` (the other `project` keys offer `block` and `none` only). The fallback reading of
+class is. With the keys of this version `trusting` moves `approve-plan`, `wb release-approvals`, `wb install`, `wb adopt`, `wb upgrade`,
+`wb add`, `wb recover` and `acknowledge-first-tier` (where a module declares it), and any module key that offers `ask`, to `ask`; `balanced` moves
+`wb install`, `wb adopt`, `wb upgrade`, `wb add` and `wb recover` to `ask` and nothing else, because they are the `project` keys that offer `ask` (the
+other `project` keys offer `block` and `none` only). The fallback reading of
 `wb release-approvals` when its level cannot be verified also reads a profile-set `ask`.
 
 A module can also declare a prompt that is not a key: a command's `asks` (an argument that is asked and not owner-run) and a
@@ -965,8 +966,14 @@ preview in the conversation before it asks and no code enforces that. **At `ask`
 changes someone else made to the files that instruct and run it, and move the pin of a helper whose file was edited, so that the launcher
 runs the new bytes (`acknowledge`), or clear a marker (`recover`);** the digest binds the list the preview showed and not the behavior of the
 edited bytes, and the owner reads the list before confirming. The two examinations of a run are two reads a moment apart, as at a terminal.
-The marker of `recover` is unauthenticated text, so the project check stops a mistake and not a forged marker, as at `none`. A project that
-is not rendered cannot use `ask`: it reads `block`.
+The marker of `recover` is unauthenticated text, so the project check stops a mistake and not a forged marker, as at `none`. **The level of
+`recover` is read for the project the working directory is in and the target is compared only when the marker names a project, so an agent that
+can write a directory can forge a marker there that names no project, take the digest from `wb preview recover`, and have the owner's
+confirmed run remove the marker and the empty directories it lists (`rmdir` only; the store, the baselines and the pins are not touched; a
+marker that lists `.workbench` is refused). The owner reads the target in the preview before confirming a digest, which the harness prompt does
+not show.** This was found by the security review of increment A (2026-11-04) and accepted as a limit; refusing at `ask` a target that is not the
+root of the project the level was read for would also stop the recovery of a failed `install` or `adopt`, whose marker names no project, and needs
+its own decision. A project that is not rendered cannot use `ask`: it reads `block`.
 
 **Profiles.** The profile `balanced` sets `wb recover`, a `project` key that offers `ask`, to `ask`, and `trusting` also sets
 `acknowledge-first-tier`, a `governs` key that offers it, wherever an installed module declares it. `wb settings` prints a `profiled <key>: ask`
