@@ -1,6 +1,6 @@
 # Review settings are owner profiles in the guarded store, chosen by a ladder for each kind of review, and a project tracks none
 
-Status: Proposed
+Status: Accepted by Robert Ziegler <25854477+rziegler42@users.noreply.github.com> on 2026-11-04
 Date: 2026-11-04
 
 ## Context

@@ -1,6 +1,6 @@
 # A delegated plan approval checks the request of the last round against an owner setting
 
-Status: Proposed
+Status: Accepted by Robert Ziegler <25854477+rziegler42@users.noreply.github.com> on 2026-11-04
 Date: 2026-11-04
 
 ## Context

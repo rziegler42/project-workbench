@@ -1,6 +1,6 @@
 # Model calls go through thin vendor bridges; review and action review are separate engines
 
-Status: Accepted by the owner on 2026-10-22
+Status: Accepted by the owner on 2026-10-22; decision 5 superseded in part by 2026-11-04-review-profiles-in-the-guarded-store
 Date: 2026-10-22
 
 ## Context

@@ -1,6 +1,6 @@
 # The action-review engine reads the review setting
 
-Status: Accepted by the owner on 2026-10-26
+Status: Superseded by 2026-11-04-review-profiles-in-the-guarded-store
 
 ## Context
 
