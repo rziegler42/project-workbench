@@ -273,4 +273,21 @@ tested area.
 
 ## Result
 
-Empty until work starts.
+### Increment A — Decision: where an installer command reads its level (2026-11-03)
+
+- **Done:** one new record, `Proposed`:
+  `docs/decisions/2026-11-03-installer-commands-read-their-level-and-take-an-ask-digest.md`. It decides that a command with a terminal
+  test (`install`, `adopt`, `upgrade`, `add`, and in C `recover`, `approve`, `pin` and the acknowledge tiers) reads the verified level
+  only and fails closed; that `attach`, which has no terminal test, also reads the owner's setting, as `release-approvals` does; the
+  `ask` flow; that the `ask` digest binds what is decided and leaves out the seed and time a run generates; and the per-command table
+  for B and C. No code and no spec changed.
+- **Found while reading:** `wb preview install` and the run build the plan in two processes with a random seed and a fresh time, so
+  the plan's own digest cannot be the `ask` digest. For `upgrade` and `add` the record does not assume it; B tests each command.
+- **Verification run:** `wb run code-work check` and `wb check`, both "check found no problems", after the review's edits.
+- **Review:** `reviewer` agent, one round, no blocking finding, nine not blocking. All nine applied to the record: the need for a new
+  reading beside `levelrun.route` (the kit's `may_run` is unchanged), the target identity and other fields the digest keeps, the
+  upgrade and add claim narrowed, "lock" corrected, the test wording, a digest at `none` refused as `release-approvals` does, the
+  effect of the `balanced` and `trusting` profiles, and the evidence list made honest about what was read in full.
+- **Accepted:** by the owner on 2026-11-03 at the `accept-decision` checkpoint, level `ask` (`wb run groundwork preview`, then
+  `accept` with the digest it printed). This is completion criterion 1 for increment A.
+- **Not done:** nothing is committed.
