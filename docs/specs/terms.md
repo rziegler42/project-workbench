@@ -326,8 +326,9 @@ path or field.
   `wb install` or `wb run <command> <argument>`.
 
 **levels table**
-: The `levels` object of the personal settings (version 2), which maps a key to a level. A key's level is its table entry, else its
-  checkpoint reading (`stop` as `block`, `delegate` as `delegated`), else its shipped default.
+: The `levels` object of the personal settings (version 2 or 3), which maps a key to a level. A key's level is its table entry, else its
+  checkpoint reading (`stop` as `block`, `delegate` as `delegated`), else the level its risk profile sets (version 3), else its
+  shipped default.
 
 **pin**
 : The record, in the guarded store, of a shipped helper's path (relative to the project root) and its SHA-256. The launcher runs a

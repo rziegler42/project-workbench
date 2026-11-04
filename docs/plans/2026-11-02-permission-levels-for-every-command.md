@@ -26,8 +26,9 @@ In:
 
 - Changing a shipped default, the compiled floor or the personal `floor` list.
 - `delegated` for any key and named risk profiles: the plan `2026-11-03-delegated-levels-and-risk-profiles`.
-- The owner-run arguments of first-party modules, `wb verify` and the author guide, and where a module's hook is registered: the plan
-  `2026-11-03-module-conformance-levels-and-hooks`.
+- The owner-run arguments of first-party modules, the pairing of `wb run remote-runner submit` and `fetch` with the checkpoints
+  `submit-remote-job` and `fetch-remote-output` (`command-permissions.md` now assigns it there), `wb verify` and the author guide, and
+  where a module's hook is registered: the plan `2026-11-03-module-conformance-levels-and-hooks`.
 - Who may approve a plan.
 - The harness's global configuration and its own prompts.
 - Any change to the registry's structure; plan `2026-11-02-permission-system-consistency` builds it and this plan adds to it.
@@ -46,8 +47,10 @@ In:
 - A decision record is written `Proposed`; accepting it is a checkpoint at level `ask`.
 - **A spec is never left false between increments.** An increment that changes what a command offers, or how it is run, updates the
   lines of the specs that its change makes false (`command-permissions.md`, `installer-interface.md`, `trust-and-approval.md` and the
-  command's own spec) in the same commit; increment E then replaces what remains "intended" and checks the whole.
-- Increments B, C and D are separable: the owner may drop any of them.
+  command's own spec) in the same commit; increment F then replaces what remains "intended" and checks the whole.
+- C needs B, and D (the record), E (its build) and F (the walk-through) need B's registry work. The owner may drop C, or D with E,
+  or both; dropping B drops all of them. The completion criteria apply to the increments the owner kept, and each one dropped is
+  named under Deferred work with the reason.
 - Testing is targeted; before any wider run the author states what could break outside the tested area.
 
 ## Completion criteria
@@ -55,11 +58,11 @@ In:
 1. The record of increment A is accepted. For increment D either a new record is accepted, or the existing accepted record
    `2026-10-27-rerender-is-terminal-only` is named by the spec as the one that stands. No accepted record is rewritten; a superseded
    record changes only its status line, once its successor is accepted.
-2. `wb install`, `wb adopt`, `wb upgrade` and `wb add` offer `ask`; a run without a digest, or with a stale one, is refused; the
+2. If B is kept: `wb install`, `wb adopt`, `wb upgrade` and `wb add` offer `ask`; a run without a digest, or with a stale one, is refused; the
    attempt and the outcome are logged; each works in a project that is not yet rendered, or the spec names why it cannot.
-3. `wb attach`, `wb recover`, `wb approve`, `wb pin` and the acknowledge tiers each offer `ask` with a preview and digest, or the
+3. If C is kept: `wb attach`, `wb recover`, `wb approve`, `wb pin` and the acknowledge tiers each offer `ask` with a preview and digest, or the
    spec names the reason one cannot and the record that keeps it so.
-4. `wb rerender` is decided: it offers `ask` or `none` by a mechanism that a stale rendering cannot grant itself, or it stays
+4. If D is kept: `wb rerender` is decided: it offers `ask` or `none` by a mechanism that a stale rendering cannot grant itself, or it stays
    `block` by a recorded decision that names the reason.
 5. No setting an owner can write reads other than as written without `wb doctor` saying so.
 
@@ -89,7 +92,9 @@ test, the gate corpus and `wb doctor`).
 **Dependencies:** A accepted.
 **Affected areas:** the registry, `install.py`, `adoptplan.py`, `upgrade.py`, `levelrun.py`, `rendering.py`,
 `tests/test_install_levels.py`, `tests/test_upgrade_levels.py`, `tests/test_upgrade_preview.py`, `tests/test_adopt_preview.py`,
-`tests/test_levels.py`.
+`tests/test_levels.py`; and the specs the change makes false, in the same commit: `docs/specs/command-permissions.md`,
+`docs/specs/installer-interface.md`, `docs/specs/trust-and-approval.md` and the command's own spec (`harness-refresh.md` for
+`upgrade`).
 **Steps:**
 1. Write the tests first: the key offers `ask`; a run without a digest, or with a stale one, is refused; the digest changes when
    the preview's content changes; the attempt and outcome are logged.
@@ -97,6 +102,8 @@ test, the gate corpus and `wb doctor`).
    `2026-11-02-permission-system-consistency`): the preview prints `digest:`, the command takes `--digest`,
    and the digest is recomputed inside the command's own lock.
 3. Make `wb settings` and `wb doctor` stop reporting "not offered" for a setting the key now offers.
+4. Update, in the same commit, each line of the specs above that this change makes false (the "Agent may run it" line and the
+   terminal-only wording of the four commands, the `via` of an approval made at `ask`); leave the rest "intended" for increment F.
 **Verification:** the tests named above, and the drift test (`tests/test_permissions_drift.py`, from
 `2026-11-02-permission-system-consistency`).
 **Evidence:** the one local commit, with the trailer `Plan: 2026-11-02-permission-levels-for-every-command#B`.
@@ -107,23 +114,30 @@ test, the gate corpus and `wb doctor`).
 and a digest, or the spec records why one cannot.
 **Dependencies:** B.
 **Affected areas:** `attach.py`, `recover.py`, `approve.py`, `pins.py`, `pinplan.py`, `acknowledge.py`, the registry, the matching
-tests (`tests/test_approve_pin_levels.py`, `tests/test_ack_recover_levels.py`, `tests/test_levels.py`).
+tests (`tests/test_approve_pin_levels.py`, `tests/test_ack_recover_levels.py`, `tests/test_levels.py`); `docs/decisions/` (a record for
+each command that stays without `ask`, unless an accepted record already keeps it so); and, in the same commit, the
+specs the change makes false: `docs/specs/command-permissions.md`, `docs/specs/installer-interface.md`,
+`docs/specs/trust-and-approval.md` and the command's own spec.
 **Steps:**
-1. For each command read what it changes and what a preview could show honestly. Where none can, record the reason in the spec;
-   do not invent a digest of nothing.
+1. For each command read what it changes and what a preview could show honestly. Where none can, do not invent a digest of nothing:
+   cite a specific existing accepted record that keeps the command without `ask`, or draft a `Proposed` record (the `draft-decision`
+   skill) that gives the reason and names the command, stop for the owner's acceptance at the `accept-decision` checkpoint, and then
+   record the reason and the accepted record in the spec. A command is not left without `ask` on the spec's word alone
+   (completion criterion 3).
 2. Write the tests first, then build the preview and the `--digest` form as in B.
-3. This increment may be split into a plan of its own if it grows beyond one reviewable commit.
+3. Update, in the same commit, each line of the specs above that this change makes false, as in B step 4.
+4. If this increment grows beyond one reviewable commit, stop and report. Do not split it inside this plan. The owner then either
+   marks C deferred here, with the reason under Deferred work (the completion criteria then apply without C, as the separability
+   text says), or approves a successor plan that takes C's scope and criteria; no work on the successor begins before its own approval.
 **Verification:** the tests named above and the drift test.
 **Evidence:** the one local commit, with the trailer `Plan: 2026-11-02-permission-levels-for-every-command#C`.
 
-### Increment D — `wb rerender` under its own record
+### Increment D — Decision: `wb rerender` under its own record
 
-**Outcome:** the owner's decision on whether `wb rerender` may offer `ask` or `none`, and the build if it does.
+**Outcome:** the owner's decision on whether `wb rerender` may offer `ask` or `none`, recorded.
 **Dependencies:** B.
-**Affected areas:** `docs/decisions/` (a record), then `rerender.py`, `rendering.py`, the registry, `tests/test_rerender.py`, and in
-the same commit as any change of behaviour every current spec that says rerender is terminal-only and `block` only:
-`docs/specs/harness-rerender.md`, `harness-refresh.md`, `command-permissions.md` ("Re-rendering an attached clone", "Not built") and
-`installer-interface.md`.
+**Affected areas:** `docs/decisions/` (a record, or none if the standing record is kept), and the spec that names the standing record
+if it is kept: `docs/specs/command-permissions.md` ("Re-rendering an attached clone").
 **Steps:**
 1. Draft a `Proposed` record that names `2026-10-27-rerender-is-terminal-only` and either supersedes it with a mechanism or leaves it
    standing (then no record is needed, and this step ends with that statement). The old record's text is not touched; its status
@@ -131,14 +145,26 @@ the same commit as any change of behaviour every current spec that says rerender
    exactly that change). A rerender changes the rules that govern the agent and reads its own level through the record it
    repairs. State a design (for example `ask` bound to the digest of `wb preview rerender`, verified against the owner's settings
    file and not the rendering) or recommend leaving it `block`, with the reason. Stop for the owner.
-2. If accepted with a mechanism, write the tests first (a stale rendering cannot grant itself the level), then build it, and update
-   the four specs named above in the same commit, so that none says "terminal-only" of a command that now offers a level.
-3. If the owner leaves it `block`, record that in the spec as a decision and close the increment.
-**Verification:** `tests/test_rerender.py` and the tests of `rendering`.
-**Evidence:** one or two local commits (the record, then the build), each with the trailer
-`Plan: 2026-11-02-permission-levels-for-every-command#D`.
+2. If the owner leaves it `block`, record that in the spec as a decision and close the plan's work on rerender: increment E is not
+   built.
+**Verification:** the document check.
+**Evidence:** the one local commit, with the trailer `Plan: 2026-11-02-permission-levels-for-every-command#D`.
 
-### Increment E — Walk-through and the specs as built
+### Increment E — Build the rerender level the record accepts
+
+**Outcome:** `wb rerender` offers the level the accepted record names, by a mechanism that a stale rendering cannot grant itself.
+Not built if D ends with the standing record kept.
+**Dependencies:** D, with a record accepted.
+**Affected areas:** `rerender.py`, `rendering.py`, the registry, `tests/test_rerender.py`, and in the same commit every current spec
+that says rerender is terminal-only and `block` only: `docs/specs/harness-rerender.md`, `harness-refresh.md`,
+`command-permissions.md` ("Re-rendering an attached clone", "Not built") and `installer-interface.md`.
+**Steps:**
+1. Write the tests first (a stale rendering cannot grant itself the level), then build it as the record says.
+2. Update the four specs named above in the same commit, so that none says "terminal-only" of a command that now offers a level.
+**Verification:** `tests/test_rerender.py` and the tests of `rendering`, and the drift test.
+**Evidence:** the one local commit, with the trailer `Plan: 2026-11-02-permission-levels-for-every-command#E`.
+
+### Increment F — Walk-through and the specs as built
 
 **Outcome:** each new level is run once in this clone and recorded; the specs describe what is built.
 **Dependencies:** all earlier increments that the owner kept.
@@ -149,13 +175,18 @@ to `none`", and the terminal-only wording of `install`, `adopt`, `upgrade`, `add
 command that gained `ask`), `docs/development.md`.
 **Steps:**
 1. Run `wb doctor`; the owner fixes what it flags and reruns `wb rerender` in a terminal.
-2. For each command that gained `ask`, run its preview and its command with the digest once, in a throwaway project where the command
-   changes files; record the output.
+2. For each command that gained `ask`, run its preview and its command with the digest once, in a throwaway project and with the
+   store isolated: a throwaway project does not isolate the guarded store, which `wb approve`, `wb pin`, `wb attach` and others write,
+   so each run sets `HOME` to a new empty scratch directory (the store is fixed under `HOME`, mode 0700; no installer variable moves
+   it) and never uses the owner's store. Before the first run list the scratch directory; after each command list again and record
+   every file it created or changed outside the project, with the command, so the non-project writes of each are enumerated by
+   observation. Record the output, and say in the Result that the scratch directory holds only throwaway data and was left in place
+   or removed (a removal is the owner's, through `wb run safe-git remove`).
 3. Replace "intended" text with "built" in each spec named above, citing the increment and the test; remove from "Not built" only
    what is built; record what stays `block` and the decision that keeps it so. Tell the owner the roadmap file is not edited.
 4. Run the document check.
 **Verification:** the runs above, as run; the document check.
-**Evidence:** the one local commit, with the trailer `Plan: 2026-11-02-permission-levels-for-every-command#E`.
+**Evidence:** the one local commit, with the trailer `Plan: 2026-11-02-permission-levels-for-every-command#F`.
 
 ## Verification for the plan as a whole
 
@@ -213,6 +244,22 @@ tested area.
   increments A to D as they stand here; it did not cover the split, and the owner's approval of the first version no longer holds
   (this plan reads "changed since approval"). The review engine's state for the first version stays with this file's review key (4 of
   the bound of 5 rounds used, the bound extended by the owner at `ask`).
+- **Fresh review of the split version (2026-11-03):** `ask-codex` (gpt-5.6-terra, medium) through the review engine, after the owner's
+  reset (a new window, bound 3), 3 of 3 rounds used (engine rounds 5 to 7), not converged. Round 1, three major findings, all
+  applied: the remote-runner pairing's assignment in `command-permissions.md` still named this plan (the spec now names
+  `2026-11-03-module-conformance-levels-and-hooks`, and Non-goals say so); B and C named no specs although the plan requires
+  same-commit spec updates (both now list them and step it); the walk-through did not isolate the guarded store (it now runs under a
+  scratch `HOME` and records each non-project write by observation). Round 2, one major, applied: C allowed a spec-only reason for a
+  command without `ask`, against completion criterion 3 (C now requires an accepted record). Round 3, two major, applied: the criteria
+  were unconditional although B and C are separable (they now apply to the increments kept), and D held two commits (D is the record,
+  E the build, F the walk-through). The edits after round 3 were not reviewed; the bound is reached, so another round needs the
+  owner's extend.
+- **Renumbered (2026-11-03), round 7:** the review of this split version found that increment D held two commits, so D (the record)
+  and E (the build) are separate increments and the walk-through is F; the text above that speaks of the walk-through as increment
+  E describes the first version.
+- **Round 8 (2026-11-03), bound extended to 4 by the owner:** one major finding (R8-F1), applied: increment C's permitted split
+  into a plan of its own had no completion path; step 4 now stops and reports, and the owner defers C or approves a successor plan.
+  The round did not converge; its fix is unreviewed.
 - **Left for the owner:** review of this plan, with the rounds the engine allows, or the owner's decision to approve it as it stands;
   the plan stays `Proposed`, and approving it is the owner's act.
 
