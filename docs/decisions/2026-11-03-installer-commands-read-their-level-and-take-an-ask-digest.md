@@ -141,3 +141,19 @@ searched for its statements on attach and rendering, not read in full, and the p
 its built behavior is taken from the spec section that describes it. The finding that the preview and the
 run differ by their seed and time is from reading `preview.run` and `install.run`; increment B proves it by a test before building
 on it. No tool was run against a project, and nothing was changed except this record.
+
+## Note, 2026-11-04
+
+Clarification of decision 3, approved by the owner; it follows increment B of `2026-11-02-permission-levels-for-every-command` (commit
+7e4512f). The body above is unchanged.
+
+The built digest is not taken over printed lines with the generated values removed. The run builds the plan with the seed fixed at
+`ask-digest-fixed-seed` and the time of the pins fixed at `1970-01-01T00:00:00Z`. The digest is the kit helper's digest
+(`wbkit/digest.py`) over two items: the command (`wb <command>`) and the digest of that fixed plan. So the values a run draws for itself
+are fixed, not left out, and everything else the plan's digest covers stays bound. The two readings agree on what the owner is shown and
+on the exclusion of the seed, the time and the values derived from them. They differ in how it is done and in one residual: the plan that
+is written and the plan the digest covers are two builds apart, which `command-permissions.md` ("The installer commands at `ask`",
+"What it does not prove") records and the owner accepted. The alternative that the record rejected, passing a seed and a time to the
+run, was not built: the fixed values are constants in `preview.py`, and no flag lets an agent choose them. For the commands in
+`2026-11-03-levels-for-recover-pin-approve-attach` the same rule holds: the digest is per command and binds what that command's preview
+shows.
