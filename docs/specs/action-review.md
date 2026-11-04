@@ -952,8 +952,9 @@ file `~/.claude/settings.json`.
 2. **Copy four files to a dedicated directory, from a clean checkout, and check them.** The directory is yours alone, outside every
    project, empty apart from these four files (a stray `secrets.py` or `errno.py` beside them would shadow the standard library, because
    the hook puts its own directory first on the import path). The four files are read-only; the directory stays writable by you so that
-   you can replace them. If `~/action-review-shadow` exists from an earlier version, delete it first. From a checkout of this repository
-   at the commit you intend (`git status --short` must print nothing):
+   you can replace them. If `~/action-review-shadow` exists from an earlier version, delete it first. `upgrade` in step 1 leaves what it
+   wrote uncommitted: commit that first, because the files below are the committed ones. From a checkout of this repository at the commit
+   you intend (`git status --short` must print nothing):
    ```
    D=~/action-review-shadow
    rm -rf "$D" && mkdir "$D" && chmod 700 "$D"
