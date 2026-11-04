@@ -372,3 +372,69 @@ tested area.
 - **Files:** `docs/specs/command-permissions.md` and this plan. Nothing in `workbench/` or the tests changed; the drift test and the
   document check pass.
 - **Left for the owner:** the verdict and the word to commit; then F, the walk-through.
+- **Afterwards:** committed as 6570488.
+
+### Increment F — Walk-through and the specs as built (2026-11-04)
+
+- **Step 1.** `wb doctor` in this clone found no problems after the owner's `wb rerender` (twice: after the successor plan's three
+  increments, and after the owner set `wb upgrade` and `acknowledge-first-tier` to `ask`).
+- **Step 3, the specs.** Nothing was left to turn from "intended" to "built": each increment of this plan and of the successor plan
+  updated the lines its change made false in the same commit (the "Agent may run it" lines and the terminal-only wording of the commands in
+  `installer-interface.md`, the `via` values in `trust-and-approval.md`, the command tables of `docs/development.md`, and the sections
+  "The installer commands at `ask`", "`recover` and `acknowledge` at `ask`", "`approve` and `pin` at `ask`" and "`attach` at `ask`" of
+  `command-permissions.md`). The only "intended" left in the six documents is an unrelated word in `harness-refresh.md`. **What stays
+  `block`, and the decision that keeps it so:** `wb rerender` (the standing `2026-10-27-rerender-is-terminal-only`, considered again in
+  increment D), `acknowledge-second-tier` (`2026-11-04-the-second-acknowledge-tier-offers-no-ask`) and every key under "Not built" in the
+  spec. The roadmap file is not edited. `harness-rerender.md` and `harness-refresh.md` needed no change: they describe `wb rerender`, which did not change.
+- **Step 2, the walk-through, run by the owner in their own terminal** (a script of mine was refused by the permission classifier because
+  it typed the owner's confirmation through a pseudo-terminal; the script that was run types nothing and starts the two steps that need
+  a terminal on the owner's own). The scripts (`walk_all.py`, `walk_rest.py`, `walklib.py`; sha256 `263e9716...`, `c9a7a6c6...`, `94d9e3a3...`)
+  set `HOME` to a new empty scratch directory for every command, so the guarded store was the scratch one, and listed the scratch store
+  and the target project before and after every command; the record is `walk.log` (581 lines, sha256 `93481473...`). A grep of the
+  owner's own store afterwards found none of the scratch projects, so it was not touched. The scratch directory holds only throwaway
+  data and was left in place; removing it is the owner's, through `wb run safe-git remove`. Run on commit 6570488, harness `claude`.
+- **The setting up.** The scratch store's settings had the nine keys at `ask` (`wb install`, `adopt`, `upgrade`, `add`, `attach`,
+  `recover`, `approve`, `pin`, `acknowledge-first-tier`). The owner approved a copy of `tests/fixtures/sample-package` and installed the
+  scratch project at a terminal (typed confirmations). `wb settings` there read all nine at `ask`, `wb rerender` and
+  `acknowledge-second-tier` at `block`, and every preview key at `none`. The rendered permissions file had, for each of the nine commands,
+  `Bash(wb <command>)` and `Bash(wb <command> *)` in `ask` and none in `deny` (the only deny on a similar name is `wb approve-plan`).
+- **Each command, run from the scratch project, with no terminal.** For all nine: the preview printed exactly one 32-character digest and
+  wrote nothing; the command without a digest was refused (exit 1, "is at the level ask: run `wb preview <command>` ...") and wrote
+  nothing; the command with the digest exited 0 and wrote what is listed. Files written **outside the project the command acts on**
+  (all of them in the scratch store; the level log gained one attempt and one outcome per run, each with the level `ask` and the 32-character digest the
+  preview printed as its evidence):
+
+| command (target) | written in the target project | written in the scratch store |
+|---|---|---|
+| `adopt` (a repository with a file) | 95 paths: `.workbench/`, `AGENTS.md`, `docs/` | the project's `baselines`, `pins`, `seen`; the level log |
+| `approve` (a package directory) | nothing | two approval records under `packages/`; the level log |
+| `upgrade` (the project, to the approved copy) | `.workbench/manifest.json`, one module-owned file | the project's `baselines`; the level log |
+| `acknowledge` (one edited baselined file) | nothing | the project's `baselines`; the level log |
+| `pin` (a helper) | nothing | the project's `pins`; the level log |
+| `install` (a new directory, harness `claude`) | about 135 files and directories, the per-clone harness files included | the project's `baselines`, `pins`, `rendering`, `seen`; the level log |
+| `add` (`ask-codex`) | the module's helper and `module.json`, `.workbench/manifest.json` | the project's `baselines`, `pins`; the level log |
+| `attach` (a clone with its local manifest removed) | `.workbench/local/harness.json` (the rendered files held the planned bytes and were kept) | the level log (the rendering record was written with the same bytes) |
+| `recover` (an unfinished-write marker) | the marker removed | the level log |
+
+- **What this shows beyond the tests:** the real launcher and the real `claude` harness render the nine keys as `ask` rules; the previews
+  write nothing in the project or the store; a refused run changes nothing; the level was read from the scratch project's own rendering
+  record for the eight commands that read only the verified level, and `attach` consults the verified level first (`levelrun.unattended`)
+  and the owner's own setting only when that is neither `ask` nor `none`; the working project was rendered with `wb attach: ask`, so by the
+  code's order of reading `attach` ran by the **verified-`ask` route**, the one the tests of increment C did not cover, with another clone
+  as the target. The log cannot tell the two routes apart (both read `ask`). The digest the preview printed is the evidence the log holds.
+- **What it does not show.** (1) Claude Code's own prompt: the commands were run by a script, not through the harness, so that the
+  harness prompts for a rendered `ask` rule is the harness's behaviour and was not exercised here. (2) The first run's script mistakes
+  (an install selection without `groundwork`, an `add` of `review-engine`, which needs a `model-bridge` provider) refused two previews
+  and crashed the script before `attach`; they were mine and the second script ran those four steps in the same scratch folder.
+  (3) The `recover` marker was made with the installer's `unfinished.build`, as the tests do, not left by a failed install; the clone
+  for `attach` was made by removing its local manifest. (4) `wb doctor` in the scratch project reported one problem, that its hook runs
+  `wb`, which was not on the minimal `PATH` the script gave its children: an artefact of the walk. (5) `upgrade` and `add` skipped
+  `docs/notes.md` ("a newer version exists; the project's file is not touched"), the installer's rule for seeded files, unrelated to `ask`.
+- **Step 4:** the document check passes.
+- **Completion criteria of the plan.** 1: the record of A is accepted, and for D the standing record is named by the spec. 2 (B kept):
+  `install`, `adopt`, `upgrade` and `add` offer `ask`, a run without a digest or with a stale one is refused, the attempt and outcome are
+  logged, and each works in a project that is rendered (seen in the walk-through; a project that is not rendered reads `block`, which the
+  spec names). 3: C was deferred; its scope and criterion went to `2026-11-03-levels-for-recover-pin-approve-attach`, whose criteria are met.
+  4: `wb rerender` stays `block` by a recorded decision that names the reason. 5: `wb doctor` finds no problems with the owner's settings as
+  they stand.
+- **Left for the owner:** the verdict; the plan's `Status:` line; and the word to commit.

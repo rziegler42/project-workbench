@@ -1185,6 +1185,9 @@ clarification note) and are tested where a test can show them (`tests/test_comma
 - Probes of spellings of `approve-plan` at `ask`, before and after the command gate: owner-run, 2026-10-26; the first stopped the
   plan (`bash -c` approved a plan in auto mode); the second, at commit `2cfd762`, is in the Result of Increment J of the plan.
 - Security reviews of the design and of the built code, read-only in effect, in the plan's Result for Increments D, J and H.
+- Walk-through of the nine installer commands that offer `ask` (`install`, `adopt`, `upgrade`, `add`, `attach`, `recover`, `approve`,
+  `pin`, `acknowledge`): owner-run in a scratch `HOME` on 2026-11-04, at commit `6570488`, with each preview, the command refused without a digest
+  and the command with it, and the files each wrote listed; in the Result of Increment F of the plan `2026-11-02-permission-levels-for-every-command`.
 
 ## Acceptance criteria
 
