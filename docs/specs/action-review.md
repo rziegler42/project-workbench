@@ -571,7 +571,8 @@ line only when it is the last line of standard error and agrees with the exit co
 fields, an approve with no failed check); otherwise the command is `failed`. With no `outcome:` line, exit 1 is `refused` and any
 other status is `failed`. A command over 4,096 characters is `unreviewable` without starting the engine; malformed input is
 `malformed_input` and a tool other than `Bash` is `not_bash`, each with no command hash. A verdict row is written first, then the
-collected row, and a failed write is noted without changing anything else. Nothing the hook prints, writes or returns can be an
+collected row (none for a command declined for a secret or a credential-named path), and a failed write is noted without changing
+anything else. Nothing the hook prints, writes or returns can be an
 answer to the harness: its source holds no answer object and no write to standard output, and the tests read both.
 
 **The data files.** The directory is `~/.config/project-workbench/action-review/`, a subdirectory of the guarded store found from
@@ -591,7 +592,8 @@ JSON is refused on write and skipped, with a count, on read.
   redacted ("Redaction", below). A case where the
   directory cannot be written leaves no row and is noted on standard error; the plan's earlier `store_error` outcome is dropped
   for that reason, since it could never appear in a row.
-- `collected.jsonl`: one row per reviewed command. Fields: `id` (a random 128-bit hex string), `ts`, `rule` (the engine's rule
+- `collected.jsonl`: one row per reviewed command, except a command the engine declined because of `no_secret_lines` or
+  `paths_not_credentials`, which leaves a verdict row and no collected row (below, "Redaction"). Fields: `id` (a random 128-bit hex string), `ts`, `rule` (the engine's rule
   name, such as `safe-git-commit`, which names the action for the per-action counts), `command_sha256` (of the raw text, equal to
   the verdict row's), `command` (the text as redacted, at most 4,096 characters), `facts` (a redacted copy of the `describe`
   object, at most the object cap of `safe-git.md`), `verdict`, `failed_checks`, `reason` (redacted). It may still hold what the
@@ -630,6 +632,15 @@ that starts with `sk-` and runs on. The owner then judges from the command and t
 entropy, because it would hide the git hashes that the owner needs. The work is linear in the text: a test redacts the largest text
 the hook can hold (393,216 characters) in each of 24 hostile shapes, with a limit of 2 seconds; the longest took under 0.1 second.
 
+*As built: a command declined for a secret is not collected* (plan `2026-11-04-shadow-hook-security-review-fixes`, increment A; found by
+the security review of 2026-11-04). When the verdict is a decline whose failed checks include `no_secret_lines` (the engine's own scan
+found a secret in the diff or the message) or `paths_not_credentials` (a credential-named path), the hook writes the verdict row, with its
+failed checks and its redacted reason, and no collected row, so the diff, the command text and the facts are not kept. The patterns above
+cannot recognise every shape that the engine's scan does (the review found a `glpat-` token, a bare `npm_` token, `sk_live_`, `pwd=` and a
+`Basic` header declined by the engine and not redacted). Two shapes were not declined by the engine in that review, `pass=...` and a Slack
+webhook, so a commit with only those is approved by the engine and collected as the patterns leave it: that gap is the engine's scan and
+the redactor's, it is not closed here, and the report's "reviewed commands with no collected row" count includes the declined ones.
+
 *As built: when a redaction cannot be done.* It raises (an object nested deeper than 64, a key that is not a string, a value that is
 not JSON), or the redacted reason would be over 300 characters, or the redacted command over 4,096. The verdict row is then written
 without its reason, no collected row is written, and the hook notes it on standard error in fixed text. If the redacted facts make
@@ -643,8 +654,11 @@ and `verdict`. A row with a field the format does not name, a duplicate key, a n
 ASCII, or a line over its cap (verdicts and testset 8 KiB, collected 512 KiB, labels 4 KiB) is refused on write and skipped, with a
 count, on read. A file is full at 128 MiB. A writer killed part-way leaves a fragment; the next row starts a new line, so the
 fragment is one skipped line. So the hook cannot record an approve that names a failed check as `reviewed`: it records that case
-as `failed`. A `reviewed` outcome with no `facts:` line is recorded as a verdict row with `reviewed` true and no collected row, and
-the report counts it as reviewed but not collectable, by the `command_sha256` that links the two files.
+as `failed`. A `reviewed` outcome with no `facts:` line, and a decline for `no_secret_lines` or `paths_not_credentials`, is recorded as a
+verdict row with `reviewed` true and no collected row, and the report counts it as reviewed but not collectable, by the `command_sha256`
+that links the two files. **A decline for a secret can therefore never be labelled**, so a false decline of that kind does not reach the
+labelled set that the false-decline rate is computed from; the owner reads the count of such commands in the report when judging a
+cutover.
 
 **Placement of the programs.** `module-boundary.md` ("Module directories") puts a script that something runs at use time in
 `ships` and a script for measuring in `tools/`. The hook and the store library it imports are shipped data files under `hook/`

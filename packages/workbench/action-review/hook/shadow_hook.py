@@ -42,6 +42,10 @@ REASONS = ("reviewed", "no_rule", "unreviewable", "refused", "failed", "timeout"
 EXIT_OF = {"reviewed": (0,), "no_rule": (1,), "unreviewable": (1,), "refused": (1,), "failed": (2,), "timeout": (1, 2)}
 ENGINE_FIELDS = ("rule", "facts_sha256", "rubric_sha256", "bridge", "model", "effort", "format")
 ENVIRONMENT = {"PATH": "/usr/local/bin:/usr/bin:/bin", "LANG": "C.UTF-8"}
+# A command the engine declined because of one of these checks holds a secret or touches a credential-named path, and the redactor
+# below is a list of patterns that cannot tell what the engine's own scan can: nothing of such a command is collected (its verdict
+# row stays, with the redacted reason). Plan `2026-11-04-shadow-hook-security-review-fixes`, increment A.
+NO_COLLECT_CHECKS = ("no_secret_lines", "paths_not_credentials")
 
 
 def note(err, text):
@@ -300,7 +304,8 @@ def record(err, home, outcome, command, verdict=None, log_row=None, facts=None):
     reviewed = outcome == "reviewed"
     digest = sha256(command) if command is not None else None
     rule = log_row.get("rule") if log_row else None
-    collecting = reviewed and facts is not None and isinstance(rule, str)
+    declined_for_a_secret = bool(verdict) and any(check in NO_COLLECT_CHECKS for check in verdict[1])
+    collecting = reviewed and facts is not None and isinstance(rule, str) and not declined_for_a_secret
     reason, shown, facts = redacted_text(err, command, verdict, facts if collecting else None)
     row = {"ts": store.now(), "command_sha256": digest, "outcome": outcome,
            "verdict": verdict[0] if verdict else None, "failed_checks": list(verdict[1]) if verdict else [],

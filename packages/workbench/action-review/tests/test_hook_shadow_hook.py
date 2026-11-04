@@ -526,6 +526,87 @@ class Redacting(Base):
         self.assertEqual("", err.getvalue())
 
 
+# Shapes of secret that the security review of 2026-11-04 found the hook's redactor does not name. The engine's own scan
+# (`no_secret_lines`) names most of them: where it does, the commit is declined and the hook collects nothing of it.
+SHAPES = {
+    "gitlab": "glpat-a1b2c3d4e5f6g7h8i9j0",
+    "npm": "npm_A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8",
+    "stripe": "sk_live_4eC39HqLyjWDarjtT1zdp7dc",
+    "pwd": "pwd=Tr0ub4dor3xyzq",
+    "basic": "Basic dXNlcjpwYXNzd29yZDEyMw==",
+    "aws": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYzEXAMPLEKEY",
+    "pass": "pass=Tr0ub4dor3xyzq",
+    "slack": "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX",
+}
+
+
+def diff_adding(text, path="a.txt"):
+    return "--- a/%s\n+++ b/%s\n@@ -0,0 +1 @@\n+%s\n" % (path, path, text)
+
+
+class DeclinedSecrets(Base):
+    """A commit the engine declines because it holds a secret, or touches a credential-named path, leaves no collected row, whatever
+    shape the secret has (the redactor is a list of patterns; the engine's own scan is the better judge of a diff)."""
+
+    def stored_text(self):
+        data = ""
+        for name in ("verdicts.jsonl", "collected.jsonl"):
+            path = os.path.join(self.store.data_dir(self.home), name)
+            if os.path.exists(path):
+                with open(path, "rb") as handle:
+                    data += handle.read().decode("utf-8")
+        return data
+
+    def test_every_shape_the_engine_declines_leaves_no_collected_row_and_no_text(self):
+        declined = []
+        for name, shape in SHAPES.items():
+            with self.subTest(name):
+                os_remove_rows(self.home)
+                self.run_hook(self.engine(describe=described(commit_doc(diff=diff_adding("x = " + shape)))))
+                row = self.one_verdict()
+                if "no_secret_lines" not in row["failed_checks"]:
+                    continue  # the engine does not name this shape; the hook cannot tell it from any other diff
+                declined.append(name)
+                self.assertEqual(([], 0), self.rows("collected.jsonl"))
+                self.assertNotIn(shape, self.stored_text())
+        # What the engine's scan names today. A shape that is not here is approved by the engine and collected as the redactor leaves
+        # it: that gap is the scan's and the redactor's, and this test says so (the spec's "Redaction"). If the scan learns another
+        # shape this assertion fails, and the list is updated with the spec.
+        self.assertEqual(["basic", "gitlab", "npm", "pwd", "stripe"], sorted(declined))
+
+    def test_a_decline_for_a_credential_named_path_leaves_no_collected_row(self):
+        facts = commit_doc(paths=[".env"], requested_paths=[".env"], diff=diff_adding("PLAIN=value", ".env"))
+        self.run_hook(self.engine(describe=described(facts)))
+        row = self.one_verdict()
+        self.assertEqual(("reviewed", "decline"), (row["outcome"], row["verdict"]))
+        self.assertIn("paths_not_credentials", row["failed_checks"])
+        self.assertNotIn("no_secret_lines", row["failed_checks"])
+        self.assertEqual(([], 0), self.rows("collected.jsonl"))
+        self.assertNotIn("PLAIN=value", self.stored_text())
+
+    def test_a_decline_for_another_reason_is_still_collected(self):
+        self.run_hook(self.engine(bridge=answered(reply("decline", ["scope_is_coherent"], "Mixed."))))
+        self.assertEqual(1, len(self.rows("collected.jsonl")[0]))
+        os_remove_rows(self.home)
+        self.run_hook(self.engine(describe=described(commit_doc(head="b" * 40))))
+        self.assertEqual(["head_matches"], self.one_verdict()["failed_checks"])
+        self.assertEqual(1, len(self.rows("collected.jsonl")[0]))
+
+    def test_a_decline_for_a_secret_among_other_failed_checks_is_not_collected(self):
+        # Several checks fail at once: the secret one is enough to drop the collected row.
+        self.run_hook(self.engine(describe=described(commit_doc(head="b" * 40, diff=diff_adding("x = " + SHAPES["gitlab"])))))
+        row = self.one_verdict()
+        self.assertIn("no_secret_lines", row["failed_checks"])
+        self.assertEqual(([], 0), self.rows("collected.jsonl"))
+
+    def test_the_verdict_row_keeps_its_failed_checks_and_a_redacted_reason(self):
+        self.run_hook(self.engine(describe=described(commit_doc(diff=diff_adding("x = " + SHAPES["gitlab"])))))
+        row = self.one_verdict()
+        self.assertEqual("decline", row["verdict"])
+        self.assertTrue(row["reviewed"])
+        self.assertNotIn(SHAPES["gitlab"], self.stored_text())
+
+
 class Inputs(Base):
     def test_malformed_input_leaves_a_row_with_no_command_hash_and_runs_no_engine(self):
         self.install_wb(self.engine())

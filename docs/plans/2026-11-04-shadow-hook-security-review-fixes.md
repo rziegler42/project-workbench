@@ -233,4 +233,33 @@ runs only if the owner decides after the author states what could break outside 
 
 ## Result
 
-Empty until work starts.
+### Increment A — A declined secret leaves no text in the collected data (built in a scratch clone, 2026-11-04)
+
+- **Where the work is.** Editing a file under `packages/workbench/` in the real tree changes the module's hash and the command gate then
+  refuses every Bash command until the owner releases the approvals (the Result of increment B of `2026-10-29-action-review-shadow-hook`).
+  So the increment was built and tested in a scratch clone at `2bf78db` (session scratchpad, `wb-sa/`); the real tree holds nothing of it
+  yet. Four files differ: `hook/shadow_hook.py`, `helper/action-review` (the hook's pin, now `12b8bc5ac3a1…`),
+  `tests/test_hook_shadow_hook.py`, and `docs/specs/action-review.md`.
+- **Done.** `record` writes no collected row for a decline whose failed checks include `no_secret_lines` or `paths_not_credentials`
+  (`NO_COLLECT_CHECKS`); the verdict row stays, with its failed checks and its redacted reason; a decline for another reason still
+  collects. The spec says so ("Redaction", the `collected.jsonl` bullet, the report's "reviewed but not collectable") and says what follows:
+  **a decline for a secret can never be labelled**, so a false decline of that kind never reaches the labelled set.
+- **Criterion 1 is met only for the shapes the engine's scan declines.** The test, through the real engine, found the engine declines
+  `glpat-`, a bare `npm_` token, `sk_live_`, `pwd=` and a `Basic` header (and the test pins that list), and does not decline an unnamed 40-character
+  AWS secret, `pass=` or a Slack webhook. For those three the engine approves, the redactor does not name them, and a commit that holds only one of
+  them is still collected as it stands. The plan's wording lists `pass=` and a Slack webhook among the shapes that leave nothing; that is not
+  true and is recorded here and in the spec. Closing it needs a pattern in the redactor or the engine's scan; it is the owner's to
+  decide whether a later plan does (Deferred work already names the redaction patterns; this adds these three shapes).
+- **Verification as run in the clone** (HOME and the store set to scratch directories, `PYTHONPATH` to the clone): the new tests failed before
+  the change (9 tests) for the right reason, the collected row existing; after it `test_hook_shadow_hook`, `test_hook_redact`,
+  `test_hook_store`, `test_actionreview_pins`, `test_actionreview_module` and `test_tools_report` pass (226 tests) except
+  `Launcher.test_the_environment_holds_exactly_path_home_and_lang`, which fails the same way on the unchanged real tree (macOS adds
+  `__CF_USER_TEXT_ENCODING` to the fake `wb`'s environment, as the security review noted). Removing `paths_not_credentials` from the tuple
+  made exactly the credential-path test fail. The whole module set (755 tests) in the clone had four failures: that one, a thread test that
+  passes alone, and two tests that read the real project's untracked `.workbench/review.json`, which a clone does not have.
+- **Review:** one `reviewer` exchange, no blocking finding; applied: the test now pins exactly which shapes the engine declines (so a
+  vacuous pass at a floor of four is gone), a stale "below" in the spec, and the spec's lines on "reviewed but not collectable" and on
+  the unlabelled secret declines. Not applied: the status header of the spec, which does not list this plan (minor).
+- **Not done yet:** copy the four files into the real tree, the owner's `wb release-approvals` (the preview is `wb preview
+  release-approvals`; the real run is the owner's at a terminal, because the gate is closed by then), the checks in the real tree, and the
+  commit with the two new shipped approval records.
