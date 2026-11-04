@@ -32,10 +32,14 @@ increment is built, its section is edited to say what is true, and this spec bec
   the agent writes there and does not make it unreadable; that is a guard against a mistaken or careless agent and not a boundary
   against a process that runs as the owner (`review-engine.md`, "The seal").
 - A helper reaches the store by a fixed path under the home directory through the kit's no-follow layer; the kit has no store accessor
-  (`review-engine.md`, "The seal"). A reader in the kit is a kit change, and increment B reads the kit's API-number rule before it makes
-  one.
-- A further file directly in the store root is tolerated. That is an inference from `workbench/store.py` (`2026-11-01-endpoint-records-
-  in-the-store`); increment B tests it.
+  (`review-engine.md`, "The seal"). The reader is a new module of the kit, `wbkit/profiles.py` *(built by increment B)*. The kit's rules
+  allow it: two helpers and the installer need it, and a module added to the kit that changes none a helper imports needs no new
+  API number (`module-boundary.md`, "The kit"; `wbkit/identity.py` and `wbkit/digest.py` were added the same way). The kit knows no
+  document kind and no module, so the caller names the ladder keys it accepts and the keys whose ladder holds one rung, and the
+  review engine, the action-review engine and `wb doctor` each pass theirs; a drift test compares the sets.
+- A further file directly in the store root is tolerated. That was an inference from `workbench/store.py` (`2026-11-01-endpoint-records-
+  in-the-store`); increment B tests it (`tests/test_kit_profiles.py`, "TheStoreRoot"): a store made by `Store.ensure` takes the file, keeps
+  it through a second `ensure` and refuses nothing.
 - A bridge runs only when it is an installed, pinned module that provides `model-bridge` in the project (decision 5 of
   `2026-10-22-model-calls-go-through-vendor-bridges`). The file lists what the owner permits and grants nothing.
 

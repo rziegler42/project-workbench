@@ -358,3 +358,46 @@ the second came back with no meaningful finding.
   learns a server's location class is written into the spec for increment E.
 - **Left for the owner:** the verdict, the word to commit, and approval of the spec's numbers (they are proposals), the file size bound,
   the 32 and 8 limits, the grammar names and the field name `review_options`.
+- **Committed** as b369478 (the owner's word to commit, 2026-11-04).
+
+### Increment B — The reader in the kit (2026-11-04)
+
+- **Kit rules read first (step 1).** A new module of the kit needs no new API number: `module-boundary.md` says a module added to the
+  kit that changes none a helper imports needs none, and `identity.py` and `digest.py` were added that way. Rule 2 says the kit knows no
+  document kind and no module, so the reader cannot hold the ladder keys; the caller passes the keys it accepts and the keys whose
+  ladder holds one rung. That is a change from the plan's wording only in that the keys are an argument, and it is written into
+  `review-profiles.md` and `module-boundary.md`. The change is one commit, so the increment did not stop.
+- **Done:** `workbench/wbkit/profiles.py` (new). `parse(data, ladder_keys, single_rung_keys)` is a strict parser of the bytes;
+  `read(ladder_keys, single_rung_keys)` reads the file by its fixed path under the home directory through the no-follow layer, bounded,
+  and parses it; `for_round(found, kind, number, default_allowed)` returns the name and profile of rung n and repeats the last rung.
+  `ProfileError` carries the file's name and a fixed reason and never the file's text or a path, and it keeps no earlier exception
+  (`from None`), so a traceback cannot show a path either. The two keys arguments have no default, so a caller cannot forget the
+  one-rung rule.
+- **Tests first:** `tests/test_kit_profiles.py` was written before the module (the first run failed on the missing module), then
+  widened after the review (see below) and run again before the fixes, when eight of them failed for the reasons they were written
+  for. It has 59 tests: a valid file, each refusal of criterion 2 of the plan, the limits at their edges (including 32 profiles of
+  every bound), hostile content (a repeated key below the top, deep nesting, a huge integer, a lone surrogate, a name with a trailing
+  newline, a letter that is not ASCII), the marker test (no refusal repeats the file's text), the ladder rules, the default fallback,
+  the reading cases (missing file, missing store, a link, a directory, an oversize file, a file that cannot be read, a home that is
+  not absolute, no variable moving the file) and the store root.
+- **The record's inference is confirmed:** a store made by `Store.ensure` takes `review-profiles.json` in its root, keeps it through a
+  second `ensure` and refuses nothing. That tests `store.py` only. Whether `wb doctor` and the other readers of the real store
+  tolerate the file is for increment J's tests.
+- **Verification as run:** `python3 -B -W error -m unittest tests.test_kit tests.test_kit_readers tests.test_safefs tests.test_kit_profiles`
+  reports 175 tests OK, and `python3 -B -W error -m unittest discover -s tests -p 'test_store.py'` reports 23 OK. The kit's own
+  boundary tests caught two mistakes of my first version (a use of `compile`, and a module name in a docstring); both are fixed.
+  `wb check` and `wb run code-work check` report no problems, and `git diff --check` is clean. The full suite was not run: only the
+  kit is touched, no module imports the new file yet, and the owner decides any wider run.
+- **Review:** one `reviewer` agent pass (read-only; it ran nothing). No blocking finding. Applied: `raise ... from None` at the two
+  places where a refusal replaced another exception (the earlier exception held the path); the two keys arguments made required; the
+  garbled wording of the one-rung message; a kind that is not text or is `default` is refused; the tests it found missing (an empty
+  `ladders`, the bounds, more marker cases, trailing newlines, non-ASCII, a repeated key below the top, deep nesting, a huge integer,
+  a null `options`, a missing store, a store that is a link, an unreadable file). Noted and not changed: `_problem` classifies the
+  safefs text by substring, as `ask-ollama` does, so a home path containing a classifying word could be misread (the message is still
+  clean); a file with more than one hard link is read, as the other readers do; the returned dictionaries are mutable; and importing
+  `call.NAME` brings `subprocess` into every importer, which the kit allows and which avoids a second copy of the name pattern.
+- **Not done:** nothing in the engines or the installer calls the reader yet (C onward). The drift test that compares the ladder-key
+  sets of the callers belongs to the increment that adds the second caller (F).
+- **Left for the owner:** the verdict and the word to commit. A security review: this increment reads an owner file by a fixed path
+  and parses it as untrusted text; the agent asks once whether to run a security review with an installed module that provides
+  `security-review`, and runs it only if the owner says so. Releases: none needed, since nothing under `packages/` changed.

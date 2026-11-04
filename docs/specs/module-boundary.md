@@ -78,6 +78,11 @@ needs in order to read untrusted repository content safely and to report:
   (rule 5 below: the installer and the `groundwork` helper both need it; no helper uses it yet). The installer's `identity` module
   re-exports the kit's names. It adds a
   module to the kit and changes none that a helper imports, so it needs no new API number;
+- the owner's review profile file (`wbkit/profiles.py`, plan `2026-11-04-review-profiles`, Increment B; `review-profiles.md`): one strict
+  reader of `review-profiles.json` in the guarded store by its fixed path (`read`), a parser of the bytes (`parse`) and the choice of the
+  profile for a round (`for_round`). The installer and the two engines that ask a model for a review share it (rule 5 below). The
+  kit knows no document kind (rule 2 below), so the caller passes the ladder keys it accepts and the keys whose ladder holds one rung.
+  It adds a module to the kit and changes none that a helper imports, so it needs no new API number;
 - a hash-checked replace of one existing file (`Root.replace_file`, plan `2026-10-29-accept-decision-at-ask`, Increment D): the file is
   read as `read_if_present` reads it, replaced only if it still has the expected SHA-256, and the identity read is compared again just
   before the rename (the identity taken before the read); a link, a file that is not regular, one with another hard link, a read-only
