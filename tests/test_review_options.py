@@ -72,6 +72,15 @@ class Declared(unittest.TestCase):
             self.refused({name: {"grammar": "word"}})
         self.assertEqual({"model", "effort", "timeout", "schema", "root", "confine"}, set(profiles.RESERVED))
 
+    def test_a_prefix_of_a_reserved_name_is_refused(self):
+        for reserved in sorted(profiles.RESERVED):
+            for size in range(1, len(reserved) + 1):
+                self.refused({reserved[:size]: {"grammar": "word"}})
+
+    def test_a_name_that_only_begins_with_a_reserved_word_is_accepted(self):
+        for name in ("model-id", "server", "efforts"):
+            self.assertEqual(name, parse(declaration({name: {"grammar": "word"}})).commands[0].review_options[0][0])
+
     def test_an_option_name_has_the_form_of_an_argument(self):
         for name in ("Server", "1x", "", "a" * 33, "a_b", "a b", "-x", "x\n"):
             self.refused({name: {"grammar": "word"}})

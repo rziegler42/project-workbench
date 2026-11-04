@@ -31,6 +31,9 @@ increment is built, its section is edited to say what is true, and this spec bec
 - The guarded store is at `~/.config/project-workbench/` and nothing moves it (`2026-10-20-fixed-store-location`). The harness denies
   the agent writes there and does not make it unreadable; that is a guard against a mistaken or careless agent and not a boundary
   against a process that runs as the owner (`review-engine.md`, "The seal").
+- Only the last part of the store path is refused when it is a link; a symlinked `~/.config` is followed, as is any link above the
+  store root. `HOME` moves the whole store, so a process that sets it reads another file: the guard is against a mistaken agent and
+  not against a process that runs as the owner.
 - A helper reaches the store by a fixed path under the home directory through the kit's no-follow layer; the kit has no store accessor
   (`review-engine.md`, "The seal"). The reader is a new module of the kit, `wbkit/profiles.py` *(built by increment B)*. The kit's rules
   allow it: two helpers and the installer need it, and a module added to the kit that changes none a helper imports needs no new
@@ -92,7 +95,7 @@ the owner's approval of this spec and is refined by the increment that builds it
 increment D.)* A module's command declaration may carry `review_options`, an object from an option name to
 `{"grammar": <name>, "excludes": [<name>, ...]}`.
 
-- A name is `^[a-z][a-z0-9-]*$`, at most 32 characters. The reserved names above are refused by the reader of the declaration, and `wb verify` refuses the declaration
+- A name is `^[a-z][a-z0-9-]*$`, at most 32 characters. The reserved names above, and every non-empty prefix of one, are refused by the reader of the declaration, and `wb verify` refuses the declaration
   because it reads declarations through that same reader.
 - `grammar` is one word of a **closed list**, so a module cannot supply an expression of its own: `word` (1 to 64 characters of
   `A-Za-z0-9._:-`, starting with a letter or digit), `name` (1 to 32 characters of `a-z0-9_-`, starting with a letter or digit), `count`
@@ -218,19 +221,25 @@ listed profile that names no model, which follows the vendor's own default and c
   the Ollama bridge a model is a key of the endpoint record and `server` names a record, so an edit to `bridge-endpoints.json` can change
   what runs while the profile's strings still match: an edit invalidates a round only if it is an edit to `review-profiles.json`. The
   state that holds the last round is kept in the project and sealed with a key the agent can read (`review-engine.md`, "The seal"), so
-  a forged state could claim a request; that is the trust level `converged` already has.
+  a forged state could claim a request, and could reset the ladder to its first rung; that is the trust level `converged` already has.
+- **What is kept in the project.** The review's state records the name of the profile, the model name and the option values of each
+  round, so nothing sensitive belongs in a model name or an option value, and the owner's file is not the only place they appear.
+- **Version skew.** A new engine on a kit that lacks `profiles.py` fails to start, and an older engine reads a round of the new shape
+  as unusable. No kit API number was raised, so the installer does not catch this; the recovery is to delete the review
+  (`review-engine.md`, `archive` and `prune`) or to bring the installed copy up as a whole.
 
 ## Acceptance criteria
 
 Each is checkable by the increment named.
 
 1. The reader refuses a duplicate key, an unknown field, an oversize file, a bad name, a ladder of more than five rungs or none, an
-   `action-review` ladder of other than one rung, a ladder that names an absent profile, a profile that holds a reserved or undeclared
-   option, a value outside its grammar, and a file whose `format` is not 1 (B).
-2. A declaration that lists a reserved name or a grammar outside the closed list is refused by the reader and by `wb verify` (C).
+   `action-review` ladder of other than one rung, a ladder that names an absent profile, a profile that holds a reserved option or a
+   prefix of a reserved name (D-A), a value outside its grammar, and a file whose `format` is not 1 (B).
+2. A declaration that lists a reserved name (or a prefix of one, D-A) or a grammar outside the closed list is refused by the reader and by `wb verify` (C).
 3. The nth round of a window uses rung n, the last rung repeats, a bridge error spends no round and retries the same rung, and the first
-   round after `reset` uses the first rung (D). The engine passes `--model`, `--effort` and the options the module declares, and
-   nothing else from a profile (D).
+   round after `reset` uses the first rung (D). The engine passes `--model`, `--effort` and the options of the profile, and nothing
+   else from a profile; it does not read the module's declaration, so a bridge refuses an option it does not accept, and `wb doctor`
+   and the delegated-approval check report an undeclared one (D, I, J).
 4. A missing or invalid file ends a review with a message that names the file, and `.workbench/review.json` changes nothing (D, F).
 5. Each round records its profile and request, and `status` prints the next profile, its server's class or `unknown`, and `same` or
    `changed` by the meaning above (D, E).

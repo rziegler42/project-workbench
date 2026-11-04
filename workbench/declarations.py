@@ -44,7 +44,7 @@ commands    an object of at most ``MAX_COMMANDS`` entries, each a command name i
             name (``2026-10-29-accept-decision-at-ask``). ``review_options`` is an object of at most
             ``MAX_REVIEW_OPTIONS`` options that a review may pass from an owner profile, each ``{"grammar", "excludes"}``:
             the grammar one word of ``REVIEW_GRAMMARS``, and ``excludes`` an optional list of ``effort`` or other options of
-            the same command; the names of a profile's fixed fields and of the engine are refused
+            the same command; the names of a profile's fixed fields and of the engine, and every prefix of them, are refused
             (``2026-11-04-review-profiles-in-the-guarded-store``).
 checks     a list of at most ``MAX_CHECKS`` objects ``{"helper", "kit"}``, both required. The
             helper is an item of ``ships`` or a file below one, and its last path segment, the
@@ -424,9 +424,9 @@ def _review_options(check, name, entry):
         if len(option) > MAX_ARGUMENT_CHARS or not _ARGUMENT.match(option):
             check.fail("commands", "command %s: the review option %s must be lowercase letters, digits and dashes, starting "
                                    "with a letter, at most %d characters" % (name, _shown(option), MAX_ARGUMENT_CHARS))
-        if option in profiles.RESERVED:
-            check.fail("commands", "command %s: the review option %s is a fixed field of a profile or an option the engine "
-                                   "sets, and cannot be declared" % (name, _shown(option)))
+        if profiles.reserved_or_prefix(option):
+            check.fail("commands", "command %s: the review option %s is, or begins, the name of a fixed field of a profile or of an option "
+                                   "the engine sets, and cannot be declared" % (name, _shown(option)))
         check.exact_keys(body, "commands", ("grammar",), ("excludes",))
         grammar = body["grammar"]
         if not isinstance(grammar, str) or grammar not in REVIEW_GRAMMARS:

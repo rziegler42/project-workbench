@@ -92,7 +92,8 @@ unknown option.
 increment D)*. A bridge module's command
 declaration may list the options beyond this core (as the bridge-specific options of `ask-ollama.md` already are) that a review may pass from an owner profile, each with a grammar from a closed
 list (`module-contract.md`, `commands[].review_options`). The review engine passes those, `--model` and `--effort`, and nothing else
-from a profile. The contract itself does not change.
+from a profile. The contract itself does not change. A bridge matches option names exactly and accepts no abbreviation, because the
+kit refuses a profile option that is a reserved name or a prefix of one, and a bridge that abbreviated would read `--mod` as `--model`.
 
 **Paths.** `--root` and `--schema` are resolved against the project root found as `wb run` finds it, and a
 relative path is read that way, not against the caller's directory. Every component of the path must be inside

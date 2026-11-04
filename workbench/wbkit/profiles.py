@@ -6,7 +6,8 @@ raise ``wbkit.API``.
 
 ``docs/decisions/2026-11-04-review-profiles-in-the-guarded-store.md`` and ``docs/specs/review-profiles.md``. The file is the owner's, in
 the guarded store at the fixed path under the home directory, read through the no-follow layer and bounded. It is read whole or
-refused whole. A refusal names the file and the rule and never repeats the file's text or a path, because the text is the owner's
+refused whole. Only the last part of the path is refused when it is a link, and ``HOME`` moves the whole store: the guard
+is against a mistaken agent and not against a process that runs as the owner. A refusal names the file and the rule and never repeats the file's text or a path, because the text is the owner's
 and a path is the account's.
 
 What this does not do: it checks the file's own rules and nothing that needs a module's declaration (that an option is declared, its
@@ -58,6 +59,12 @@ def fail(why):
     return ProfileError("%s %s" % (FILE, why))
 
 
+def reserved_or_prefix(name):
+    """Whether `name` is a reserved option name or a non-empty prefix of one. A bridge that accepts abbreviated options would read
+    ``--mod`` as ``--model``, so a prefix is as unusable as the name itself."""
+    return type(name) is str and name != "" and any(reserved.startswith(name) for reserved in RESERVED)
+
+
 def _text(value):
     return type(value) is str and re.fullmatch(TEXT, value) is not None
 
@@ -86,8 +93,8 @@ def _profile(record):
     if not isinstance(options, dict) or len(options) > MAX_OPTIONS:
         raise fail("holds a profile whose options are not an object of at most %d entries" % MAX_OPTIONS)
     for name, value in options.items():
-        if re.fullmatch(OPTION_NAME, name) is None or name in RESERVED:
-            raise fail("holds an option whose name is outside the name rule or is reserved")
+        if re.fullmatch(OPTION_NAME, name) is None or reserved_or_prefix(name):
+            raise fail("holds an option whose name is outside the name rule, is reserved or is a prefix of a reserved name")
         if not _text(value):
             raise fail("holds an option whose value is not printable ASCII of at most 128 characters with no space and no leading -")
     return Profile(bridge, model if "model" in record else None, effort if "effort" in record else None, dict(options))

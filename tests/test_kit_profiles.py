@@ -173,6 +173,49 @@ class Refused(unittest.TestCase):
         self.refuse({"format": 1, "profiles": {self.MARK: {"bridge": "ask-codex"}}, "ladders": {}})
 
 
+class ReservedPrefixes(unittest.TestCase):
+    """A bridge that reads abbreviated options would take `--mod x` for `--model`, so a prefix of a reserved name is refused too."""
+
+    def prefixes(self):
+        for name in sorted(profiles.RESERVED):
+            for size in range(1, len(name) + 1):
+                yield name[:size]
+
+    def test_the_function_says_reserved_or_a_prefix_of_one(self):
+        for name in self.prefixes():
+            self.assertTrue(profiles.reserved_or_prefix(name), name)
+
+    def test_other_names_are_not_reserved(self):
+        for name in ("model-id", "server", "thinking", "context", "max-output", "efforts", "x", "m-x", "timeouts", ""):
+            self.assertFalse(profiles.reserved_or_prefix(name), name)
+
+    def test_every_prefix_is_refused_as_a_profile_option(self):
+        for name in self.prefixes():
+            body = document()
+            body["profiles"]["local"]["options"] = {name: "x"}
+            with self.assertRaises(profiles.ProfileError, msg=name):
+                parse(body)
+
+    def test_a_name_that_only_begins_with_a_reserved_word_is_accepted(self):
+        for name in ("model-id", "server", "efforts", "root-dir"):
+            body = document()
+            body["profiles"]["local"]["options"] = {name: "x"}
+            self.assertEqual({name: "x"}, parse(body).profiles["local"].options)
+
+    def test_a_bridge_that_matches_prefixes_would_have_taken_the_option_for_a_reserved_one(self):
+        """The fake reader that stands for a third-party bridge: it resolves an abbreviation to the unique option it begins."""
+        known = ["--model", "--effort", "--timeout", "--schema", "--root", "--confine", "--server"]
+
+        def resolve(argument):
+            matches = [name for name in known if name.startswith(argument)]
+            return matches[0] if len(matches) == 1 else None
+
+        self.assertEqual("--model", resolve("--mod"))
+        for name in self.prefixes():
+            if resolve("--" + name) in ["--" + reserved for reserved in profiles.RESERVED]:
+                self.assertTrue(profiles.reserved_or_prefix(name), name)
+
+
 class Resolution(unittest.TestCase):
     def setUp(self):
         self.got = parse(document(ladders={"plan": ["quick", "local", "deep"], "default": ["quick", "deep"],

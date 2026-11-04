@@ -230,7 +230,8 @@ changes nothing here (the action-review engine reads it until its increment F).
 - **What is passed.** `ask`, `--timeout`, `--schema`, then the profile's model and effort and each option as `--<name> <value>` in the
   order of their names, and nothing else from a profile. The engine does not check an option against the bridge's declaration: the
   declaration is a pinned fact of the installer, which `wb doctor` and the delegated approval read; the bridge refuses an option it
-  does not accept, and the refusal is reported with the name of the profile.
+  does not accept, and the refusal is reported with the name of the profile. The model name and the option values of each round are
+  kept in the review's state in the project, so nothing sensitive belongs in them.
 - **A request and never an authorization.** A round runs only if the profile's bridge is an installed module that provides
   `model-bridge`, is pinned, and is unchanged since the pin; the launcher decides that and refuses otherwise, and the engine then runs
   nothing and tries no other bridge. There is no default bridge: a missing or invalid file is a refusal that names the file and says

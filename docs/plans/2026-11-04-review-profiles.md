@@ -349,6 +349,14 @@ the second came back with no meaningful finding.
   increment and approved the changed plan through the `ask` flow (region `d94d2b96...ed18d07`). The addition was not sent to a second
   model: it is one increment taken from the review's own findings, it changes core files and documents only, and the increment itself
   gets a reviewer agent's read and a Result before its commit.
+- **Review of increment D-A (2026-11-04, a `reviewer` agent, one exchange).** No blocking finding. It found the function correct at
+  its edges (empty string, non-string, a full reserved name, a longer name, `model-id`, `server`, `context`), found the function used in
+  exactly the two places the plan names, and found no other place in `workbench/` or `packages/` that accepts an option name. **Applied:**
+  the stale wording at `review-profiles.md` (the declared-name rule and criterion 2) and in the docstring of `declarations.py`, which
+  still listed only the reserved names. **Deferred, not applied:** `module-contract.md` (the sentence that says the six names are
+  refused) is not among the plan's affected areas; it needs the owner's word to widen D-A, or a later increment. **Noted, not changed:**
+  the engine's own check of a stored round keeps `name in profiles.RESERVED` by design (finding L7). **Limits of its evidence:** it could
+  run nothing and read the files, not the diff; I checked the `ask-ollama` option parser myself: it matches names exactly.
 
 ## Deferred work
 
@@ -554,3 +562,21 @@ the second came back with no meaningful finding.
   within the known threat model. **Disposition:** all seven are fixed or stated in the nested increment D-A (the code fix for L2, the
   rest as text). **Limits of the evidence:** the reviewer could not run `git clone` or `git diff`, so it copied the tree and read the old
   `check_round` from the installed copy; it did not test `HOME` unset; the forged-window rung case was read and not run.
+
+### Increment D-A
+
+- **Done:** `profiles.reserved_or_prefix(name)` in the kit (true for a reserved name or a non-empty prefix of one), used by the profile
+  reader (`_profile`) and by the declaration reader (`_review_options`); the messages of both say "prefix". Text corrections: criterion 3
+  of `review-profiles.md` (the engine passes the profile's options and reads no declaration; `wb doctor` and the delegated check report
+  an undeclared one) (L1); the model name and option values are kept in the review's state (L3, also in `review-engine.md`); version
+  skew and its recovery (L4); the kit docstring and the spec on the last-part-only link refusal and `HOME` (L5, L6); the sealed state
+  can reset the ladder (L7); `model-bridge.md` says a bridge matches option names exactly.
+- **Tests first:** `ReservedPrefixes` in `tests/test_kit_profiles.py` (the function; every prefix of every reserved name refused as a
+  profile option; `model-id`, `server`, `efforts`, `root-dir` accepted; a fake bridge that resolves abbreviations shows `--mod` would
+  read as `--model`) and two tests in `tests/test_review_options.py` (every prefix refused as a declared option; the accepted names).
+  Before the code change they ran red: 5 failures and errors, all for the missing function and the missing refusal.
+- **Verification, as run:** `tests.test_kit_profiles`, `test_review_options`, `test_declarations`, `test_kit`, `test_verify`: 276 OK
+  (rerun after the last text fix); the review engine's folder: 433 OK; `wb check` and `wb run code-work check`: no problems;
+  `git diff --check` clean. No package changed, so no release is needed.
+- **Not done:** the `module-contract.md` sentence (above); the commit.
+- **Left for the owner:** the verdict, the choice on `module-contract.md`, and the word to commit.
