@@ -158,6 +158,34 @@ the engine's `module.json`, its tests, `docs/specs/review-engine.md`.
 **Evidence:** the one local commit, with the trailer `Plan: 2026-11-04-review-profiles#D`. The package edit needs a scripted pass and
 the owner's release, and the owner writes `review-profiles.json` before it.
 
+### Increment D-A — Harden the profile options after the security review
+
+**Outcome:** a profile or a declaration cannot name an option that is a prefix of a name the engine sets (`model`, `effort`,
+`timeout`, `schema`, `root`, `confine`), so a bridge that accepts abbreviated options cannot read it as one of those; and the kit and
+the specs say exactly what the engine does and does not check. This answers the security review of increments B to D (2026-11-04):
+no Critical, High or Medium finding and seven Low ones, whose fixes are this increment's.
+**Dependencies:** D.
+**Affected areas:** `workbench/wbkit/profiles.py`, `workbench/declarations.py`, `tests/test_kit_profiles.py`,
+`tests/test_review_options.py`, `docs/specs/review-profiles.md`, `docs/specs/review-engine.md` and `docs/specs/model-bridge.md`.
+Nothing under `packages/` changes: the engine's own check of a stored round is left as it is, because a stored round is written by
+the engine from a validated profile and a forged one is within the known threat model (finding L7), so no release is needed.
+**Steps:**
+1. Read the security review's findings L1 to L7 and the code they name.
+2. Write the tests first: every non-empty prefix of every reserved name is refused as an option of a profile and as a declared review
+   option; a name that only begins with a reserved word (`model-id`) or shares a first letter without being a prefix (`server`) is
+   still accepted; and a fake bridge that reads options with prefix matching shows that `--mod x` would have overridden `--model`.
+3. Build one function in the kit that says whether a name is reserved or a prefix of a reserved name, and use it in the profile
+   reader and in the declaration reader.
+4. Correct the text: criterion 3 says the engine passes the options of the profile and the bridge refuses one it does not accept (L1);
+   the model name and the option values are recorded in the review's state in the project, so nothing sensitive belongs in them (L3);
+   a new engine on a kit without `profiles.py` fails to start and an older engine reads a round of the new shape as unusable, and
+   recovery is to delete the review (L4); the kit's docstring says that only the last part of the store path is refused when it is a
+   link (L5) and that `HOME` moves the whole store (L6); the rung is chosen from the sealed state, which an agent that can read the
+   key can forge, as `converged` can (L7); a bridge matches option names exactly (`model-bridge.md`).
+**Verification:** the new tests, `tests/test_kit_profiles.py`, `tests/test_review_options.py`, `tests/test_declarations.py`,
+`tests/test_kit.py` and `tests/test_verify.py`; and the review engine's own folder, because the reader its tests use changes.
+**Evidence:** the one local commit, with the trailer `Plan: 2026-11-04-review-profiles#D-A`.
+
 ### Increment E — `status`, the next profile and the skill
 
 **Outcome:** `status` prints the profile of the next round and the location class of its server, and gives `request` the meaning of
@@ -316,6 +344,11 @@ the second came back with no meaningful finding.
 - **Left for the owner:** the verdict on each increment, the releases that increments C, D, E, F and H need, writing
   `review-profiles.json` before increment D is released, whether to run a security review at each surface the Risks section names, and
   the plan's `Status:` line.
+- **Increment D-A (added 2026-11-04, after the plan was approved and after increment D).** The security review of increments B to D
+  found no Critical, High or Medium finding and seven Low ones, and D-A holds their fixes. The owner chose to put them in a nested
+  increment and approved the changed plan through the `ask` flow (region `d94d2b96...ed18d07`). The addition was not sent to a second
+  model: it is one increment taken from the review's own findings, it changes core files and documents only, and the increment itself
+  gets a reviewer agent's read and a Result before its commit.
 
 ## Deferred work
 
@@ -505,3 +538,19 @@ the second came back with no meaningful finding.
   waits for the owner's approval (without it the accepted record says "declared options only" while the engine does not check
   that; the spec says so). `.workbench/review.json` stays until increment F.
 - **Left for the owner:** the verdict and the word to commit.
+- **Committed** as 02334f9 (the owner's word to commit, 2026-11-04) and pushed.
+- **Security review of increments B to D (2026-11-04, at the owner's request; a `security-reviewer` agent working in a scratch copy
+  with a fake store and fake bridges, nothing real started).** No Critical, High or Medium finding. About 330 hostile profile files
+  all ended in a `ProfileError` with fixed words and no file text or path; links, FIFOs, directories, oversize and unreadable files at the
+  path are refused; about 25 forged, validly sealed stored rounds made the state unusable or changed only what `status` and `convergence`
+  print, and nothing from a stored round reaches an argument list or a path; the argument list a profile can produce is read by both
+  first-party bridges without any shift between a name and a value; about 50 hostile declarations gave only `DeclarationError`; a
+  profile file replaced during a round leaves the recorded request equal to what was sent. **Seven Low findings,** all caused by the
+  owner's own file or by version skew: L1 the engine consults no declaration (the spec's criterion 3 said it did); L2 a prefix of a
+  reserved name (`mod`, `eff`, `tim`, `sch`, `conf`) is accepted, which a third-party bridge that accepts abbreviated options would read
+  as the reserved option (verified by the agent: the first-party bridges match exactly); L3 the model name and option values are copied
+  into the review's state in the project; L4 version skew (no kit API number was raised); L5 and L6 two overstated sentences of the
+  kit's docstring (a symlinked `~/.config` is followed; `HOME` moves the store); L7 a forged state can reset the ladder to rung 1,
+  within the known threat model. **Disposition:** all seven are fixed or stated in the nested increment D-A (the code fix for L2, the
+  rest as text). **Limits of the evidence:** the reviewer could not run `git clone` or `git diff`, so it copied the tree and read the old
+  `check_round` from the installed copy; it did not test `HOME` unset; the forged-window rung case was read and not run.
