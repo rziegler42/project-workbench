@@ -632,6 +632,13 @@ and not a problem, because the stale state is already safe).
   for a different reason, recorded in `2026-10-27-rerender-is-terminal-only` (accepted): at `none` the level would be read through the
   record, which reads `block` whenever the table or the permissions file differs, and those are the two ordinary reasons to run a
   re-render. A level written for it other than `block` reads as `block` with a note. It writes no level-log entry.
+  **That record stands, after `ask` was considered again on 2026-11-04** (plan `2026-11-02-permission-levels-for-every-command`,
+  increment D; the owner left the key at `block` and no new record was written). A design was weighed: read the level from the
+  owner's own settings in the guarded store, as `attach` does, and bind a `wb preview rerender` digest to the plan. It was not offered
+  because a re-render writes the permissions file that says what the agent may do, and the skills, agents and root file the agent reads,
+  and keeps the live file's `allow` rules and records them as trusted: at `ask` the owner confirms a digest, the agent's presentation of
+  the plan is not enforced, and an `allow` rule that an agent got into the file would be kept without being read. Refusing `ask` when
+  the plan keeps any `allow` rule would remove that, at the price of a second mode, and a re-render is rare and cheap at a terminal.
 - **`wb preview rerender`** is the read-only plan and is its own agent-safe key, default `none`. So is **`wb preview release-approvals`**
   (the read-only preview of a release, built by Increment B of the plan `2026-10-30-release-approvals-at-ask`).
 - **It runs only at a terminal**, on standard input and output, at every level; the owner types the first 12 characters of the
@@ -1126,7 +1133,8 @@ rendering, decides here, so a setting the owner wrote for another project applie
   installer runs, so a `none` for them has nothing to change. The accepted decision says no key should be limited to `block`; this
   list is the gap, and the owner decides whether a later plan closes it.
 - The rule that a command reaching more than one key takes the strictest level of them: each command reaches one key today.
-- `none` for `wb rerender`, if a way to authorize a stale rendering without a terminal is ever wanted: the key reads its level
+- `ask` or `none` for `wb rerender`, considered again and not offered on 2026-11-04 (the paragraph on the key, in "Re-rendering an attached
+  clone"); if a way to authorize a stale rendering without a terminal is ever wanted: the key reads its level
   through the record that a re-render repairs (see "Re-rendering an attached clone"), and it needs its own decision.
 - Picking up a module or package change in an attached clone: `upgrade` brings the installed files up to date and `wb rerender`
   then refreshes the rendered skills and agents (`harness-refresh.md`); the key it needs is the same `wb rerender`, `block` only.

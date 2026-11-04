@@ -351,3 +351,24 @@ tested area.
   family of four commands whose previews existed and came to 25 files and about 780 added lines.
 - **Left for the owner:** mark C deferred here (an edit to the plan's body, which needs a new approval) and approve a successor plan, or say
   how else to go on.
+- **Afterwards:** C was marked deferred, the plan was approved again, and the work moved to `2026-11-03-levels-for-recover-pin-approve-attach`
+  (increments A to C done, c4a0a75).
+
+### Increment D — Decision: `wb rerender` under its own record (2026-11-04)
+
+- **Decision (the owner's): leave `wb rerender` at `block`.** The accepted `2026-10-27-rerender-is-terminal-only` stands and no new record was
+  written; the spec names it as the one that stands (completion criterion 1) and records, in "Re-rendering an attached clone" and under
+  "Not built", that `ask` was considered again on 2026-11-04 and not offered, and why. Criterion 4 is met by that: the key stays
+  `block` by a recorded decision that names the reason.
+- **What was weighed.** The design that would offer `ask`: read the level from the owner's own settings in the guarded store (as `attach`
+  does since increment C of the successor plan), add `wb preview rerender` as the digest's source (it already lists every rule that moves,
+  every `allow` rule it keeps and every entry it removes), and take `--digest`. The reason it was not chosen: a re-render writes the
+  permissions file that defines what the agent may do, and the skills, agents and root file the agent reads; it keeps the live file's
+  `allow` rules and records them as trusted; at `ask` the owner confirms a digest and the agent's showing of the plan is not enforced, so an
+  `allow` rule an agent got into the file would be kept unread. The narrowing that would remove this (refuse at `ask` when the plan keeps
+  any `allow` rule) adds a second mode to a command that is rare and cheap to run at a terminal, and it would make `rerender` a third
+  reader of the owner's own settings. No other installer command with an honest preview is left without `ask`.
+- **Increment E is not built** (its text: "Not built if D ends with the standing record kept").
+- **Files:** `docs/specs/command-permissions.md` and this plan. Nothing in `workbench/` or the tests changed; the drift test and the
+  document check pass.
+- **Left for the owner:** the verdict and the word to commit; then F, the walk-through.
