@@ -641,6 +641,24 @@ refused and is not read as a fallback. It reads no token count from the server a
 server, an exact count of tokens and a command that reads each model's window from the server are not part of it.
 **Promotion trigger:** `ask-ollama-bridge` complete and the owner chooses to begin it.
 
+### review-profiles — Review settings as owner profiles, with a ladder for each kind of review
+
+**Outcome:** the choice of the bridge, model and effort for a review is the owner's, held in one file in the guarded store that lists
+named profiles and, for each kind of review, a ladder that uses a different profile in each round. A project tracks no review
+setting, so a vendor's change of model or cost is an edit to the owner's file and never to a project. Both engines that ask a model for
+a review read it, the Ollama bridge's server and thinking options are carried by a profile, and `wb install` writes a default file when
+none exists, from the bridges that are installed. A delegated plan approval can be limited, by an owner setting, to a review whose
+converging round ran on a profile the owner lists.
+**Dependencies:** `ask-ollama-bridge` and `bridge-model-configurations` complete. The decisions
+`2026-11-04-review-profiles-in-the-guarded-store` and `2026-11-04-delegated-approval-checks-the-profile-of-the-last-round` are
+proposed and wait for the owner; the first supersedes `2026-10-26-action-review-reads-the-review-setting` and supersedes in part decision 5 of
+`2026-10-22-model-calls-go-through-vendor-bridges`.
+**Boundary:** the profile file and its reader, the ladder in the review engine and in the action-review engine, the option a bridge
+declares for a review, the default written by the installer, `wb doctor`, the owner setting for delegated approval and the specs that
+describe them. A per-project choice of ladders, a tracked setting of any kind, a call-time choice of profile and a check against a
+vendor's model list are not part of it, and the tuning of a model stays in the endpoint file.
+**Promotion trigger:** the owner accepts the two proposed decisions and chooses to begin.
+
 ### port-superpowers — Port the superpowers skills the owner uses into neutral skills
 
 **Outcome:** an inventory of the superpowers skills the owner's former global configuration (the backup) and agents
