@@ -238,3 +238,48 @@ only if the owner decides after the author states what could break outside the t
   not. A `wb rerender` in a terminal is due for an owner who uses `trusting`. At `ask` an owner who confirms a digest lets the agent make
   a package trusted or a helper runnable; approve is machine-wide.
 - **Left for the owner:** the verdict, the veto of decision (2) if `--source` should have a preview, and the word to commit.
+- **Afterwards:** committed as 230fafa (22 files; I had said 25).
+
+### Increment C — `ask` for attach, and a record for the second acknowledge tier (2026-11-04)
+
+- **Done (uncommitted until the owner says):** `wb attach` offers `block`, `ask` and `none`. `wb preview attach [<target>|--dir] --harness
+  <package>/<module> [--package <source> [--ref <ref>]] ...` makes the same `prepare` the run makes, prints what would be written (files
+  created and kept, exclude lines, the local manifest, the settings file and what it changes, reports and notes) and `digest: <32 hex>`;
+  it prints nothing for a clone that cannot be attached. `attach` has no terminal test, so, as the accepted record says, it reads the
+  verified level (`levelrun.unattended`) and, when that is neither ask nor none (a project with no rendering record reads `block`),
+  the owner's own setting in the guarded store: the new `cli._owner_level` (`_owner_reading` is now a thin wrapper for
+  `release-approvals`, unchanged in effect). `ask`, a risk profile that sets it, or unreadable settings require the digest; the owner's
+  `none` takes no digest and goes on unlogged. The digest is compared after `prepare`, **before the attempt is logged and before anything
+  is written**; the write is then wrapped by `apply_logged`. A clone that already records a harness is refused by `prepare` at every
+  level, so for `attach` the matrix's "nothing to change" is a refusal and logs nothing.
+- **Digest inputs** (listed before building, as the plan requires): the target (path, device, inode), the project, the harness and its
+  version, each created and each kept file with the hash and mode of its bytes, the exclude lines, the local manifest to write, the
+  settings file, the rendering record as it would be written now (with the live hash of the shared settings file), and the reports,
+  warnings and notes. Nothing is drawn by a run. Rechecks: `apply`'s `target.recheck()` (after the rendering record is written, as at a
+  terminal) and the shared settings file's hash, read again when the record is written.
+- **The record for the second acknowledge tier:** `docs/decisions/2026-11-04-the-second-acknowledge-tier-offers-no-ask.md`, written
+  `Proposed`, previewed (digest `7e93a18f4fe6a57ca70ecf4d67ae262a`), and **accepted by the owner on 2026-11-04** at the `accept-decision`
+  checkpoint (level `ask`: the owner confirmed `wb run groundwork accept ... --digest 7e93a18f...`). The spec now cites it.
+- **Files:** `workbench/attach.py`, `cli.py`, `levels.py`, `levelrun.py` (docstrings); new `tests/test_attach_ask.py` (23 tests) and the
+  decision record; updated `test_levels`, `test_levels_facts`, `test_doctor`, `test_release_ask`, `test_ack_recover_levels`,
+  `test_approve_levels`, `test_permissions_drift`, `test_settings`, `test_settingscmd` (each had used `wb attach` as its example of a key
+  that offers no `ask`); specs `command-permissions.md` (new section "`attach` at `ask`"), `installer-interface.md`, `development.md`.
+  `cli._unattended_call` (no caller left) was removed.
+- **Verification as run:** the new tests failed before the code (20 of 22); with the digest comparison disabled the two stale-digest tests
+  fail. After the code all of these pass: `test_attach_ask`, `test_pin_approve_ask`, `test_ack_recover_ask`, `test_approve_pin_levels`,
+  `test_approve_levels`, `test_levels`, `test_levels_facts`, `test_permissions_drift`, `test_doctor`, `test_rendering`,
+  `test_gate_corpus`, `test_command_gate`, `test_ack_recover_levels`, `test_levelrun`, `test_preview`, `test_install_levels`,
+  `test_upgrade_levels`, `test_release_ask`, `test_rerender`, `test_refresh`, `test_harness_lock`, and by discovery `test_settings`,
+  `test_settingscmd`, `test_cli`, `test_approvals`, `test_pins`, `test_approve`, `test_launch`, `test_install`, `test_attach`,
+  `test_upgrade`. `wb check` and `wb doctor` found no problems. The full suite was not run.
+- **Not covered by a test:** the verified-`ask` route for `attach` (the working directory's project rendered with `wb attach: ask`, and
+  another clone as the target); it shares `levelrun.unattended` with `release-approvals`.
+- **Review:** one `reviewer` exchange, no blocking finding and no route to the writes at `ask` without a matching digest. Applied: stale
+  lines in `command-permissions.md` about `levelrun.optional` and `unattended`, docstrings in `levelrun.py` and `attach.py`, the line in
+  `installer-interface.md`, the dead helper, a table row and a test for the owner's own `none` with no digest, and a sentence about the
+  record being written before the recheck. The reviewer could not diff `_owner_reading` against HEAD; I did, and it is the same reading.
+- **Consequences for the owner:** `balanced` and `trusting` now both set `wb attach` to `ask` (a `project` key that offers it), so a
+  `wb rerender` in a terminal is due for an owner who uses either. At `ask` an owner who confirms a digest lets the agent render the
+  harness's permissions into a clone. **Completion criterion 3 is met**: `attach` offers `ask` with a preview and a digest, and the
+  second acknowledge tier is kept without it by the accepted record, which the spec names.
+- **Left for the owner:** the verdict, and the word to commit.

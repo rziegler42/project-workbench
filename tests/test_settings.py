@@ -769,7 +769,7 @@ class ProfileTest(SettingsBase):
         self.assertEqual("ask", got.levels["approve-plan"])
         self.assertEqual("ask", got.levels["wb release-approvals"])
         self.assertEqual("ask", got.levels["wb install"])  # a project key that offers ask since increment B
-        self.assertEqual("block", got.levels["wb attach"])  # a project key that offers block and none only today
+        self.assertEqual("ask", got.levels["wb attach"])  # a project key that offers ask since increment C of the successor plan
         self.assertEqual("block", got.levels["wb rerender"])
         self.assertIn(("approve-plan", "ask"), got.profiled)
         self.assertIn(("wb install", "ask"), got.profiled)
@@ -780,7 +780,7 @@ class ProfileTest(SettingsBase):
         _, got = self.effective({"version": 3, "levels": {}, "profile": "balanced"})
         _, plain = self.effective({"version": 3, "levels": {}})
         changed = {name for name in got.levels if got.levels[name] != plain.levels[name]}
-        self.assertEqual({"wb install", "wb adopt", "wb upgrade", "wb add", "wb recover"}, changed)
+        self.assertEqual({"wb install", "wb adopt", "wb upgrade", "wb add", "wb attach", "wb recover"}, changed)
         self.assertEqual({"ask"}, {got.levels[name] for name in changed})
         self.assertEqual({(name, "ask") for name in changed}, set(got.profiled))
 

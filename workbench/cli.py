@@ -49,8 +49,11 @@ USAGE = ("usage: python3 -m workbench verify [<package> | --dir <path>] "
          "       python3 -m workbench preview recover [<target> | --dir <path>]   (read-only)\n"
          "       python3 -m workbench recover [<target> | --dir <path>] [--digest <32 hex>]   (owner-run, terminal only;\n"
          "                                        at the level ask, without a terminal, with the digest of the preview)\n"
+         "       python3 -m workbench preview attach [<target> | --dir <path>] --harness <package>/<module>\n"
+         "                                           [--package <source> [--ref <ref>]] ...   (read-only)\n"
          "       python3 -m workbench attach [<target> | --dir <path>] --harness <package>/<module>\n"
-         "                                   [--package <source> [--ref <ref>]] ...   (owner-run)\n"
+         "                                   [--package <source> [--ref <ref>]] ... [--digest <32 hex>]   (owner-run; at the level\n"
+         "                                   ask, without a terminal, with the digest of the preview)\n"
          "       python3 -m workbench check [<target> | --dir <path>]   (read-only)\n"
          "       python3 -m workbench doctor [<target> | --dir <path>]   (read-only; what the permission settings do not do as\n"
          "                                   they say, and what they allow that is dangerous)\n"
@@ -135,8 +138,21 @@ RELEASE_KEY = "wb release-approvals"
 _RELEASE_DIGEST = re.compile(r"[0-9a-f]{32}\Z")
 
 
-def _owner_reading(guarded):
-    """What the owner's own settings, in the guarded store, say of the key ``wb release-approvals``: ``"ask"`` when they give it the
+def _owner_level(guarded, key):
+    """What the owner's own settings, in the guarded store, say of the key `key`: ``"ask"`` or ``"none"`` when they give it that level
+    (its risk profile's included), ``"damaged"`` when they cannot be read (then every checkpoint stops and the key is read as ``ask``
+    by the commands that use this), ``None`` otherwise."""
+    loaded = settings.load(guarded)
+    if loaded.levels_blocked:
+        return "damaged"
+    entry = loaded.levels.get(key)
+    if entry is None:  # no entry of its own: the level the owner's risk profile sets for the key, if any
+        entry = settings.profile_level(loaded.profile, levels.registry()[key])
+    return entry if entry in (levels.ASK, levels.NONE) else None
+
+
+def _owner_reading(guarded, key=None):
+    """What the owner's own settings, in the guarded store, say of the key `key` (default ``wb release-approvals``): ``"ask"`` when they give it the
     level ``ask``, ``"damaged"`` when they cannot be read (a file that is not JSON, a ``levels`` that is not an object, an invalid
     key name, an unsupported version, a profile that is not one of ``settings.PROFILES``) and the key therefore reads as ``block`` and
     every checkpoint stops, ``None`` otherwise. A key with no entry of its own takes the level its risk profile sets for it. The
@@ -144,13 +160,8 @@ def _owner_reading(guarded):
     verified level, which reads ``block`` when the rendering record, the local manifest or the harness file disagree and cannot be
     read from a directory that is no project (security review of Increments B to D). A damaged file is read as ``ask`` for this
     key, so the check does not turn itself off when the owner's own settings cannot be read (the owner's decision)."""
-    loaded = settings.load(guarded)
-    if loaded.levels_blocked:
-        return "damaged"
-    entry = loaded.levels.get(RELEASE_KEY)
-    if entry is None:  # no entry of its own: the level the owner's risk profile sets for the key, if any
-        entry = settings.profile_level(loaded.profile, levels.registry()[RELEASE_KEY])
-    return "ask" if entry == levels.ASK else None
+    found = _owner_level(guarded, key or RELEASE_KEY)
+    return "damaged" if found == "damaged" else ("ask" if found == levels.ASK else None)
 
 
 def _release(guarded, stdin, distribution, out, err, digests=None):
@@ -277,24 +288,6 @@ def _levelled(guarded, key, terminal_only, stdin, out, err, project_id=None, roo
     log.project_id = route.project_id
     log.level = route.level
     return log, None
-
-
-def _unattended_call(guarded, key, stdin, out, err, call):
-    """Run `call()` (the exit code of a command that has no terminal test: ``attach``, ``release-approvals``). Without a
-    terminal at a verified ``none`` for the project the working directory is in, the run is logged: the attempt before it and
-    the outcome after. Otherwise it goes on exactly as it always did."""
-    try:
-        route = levelrun.optional(guarded, os.getcwd(), key, stdin, out)
-    except OSError:
-        route = None
-    if route is None:
-        return call()
-
-    def refuse(stream, text):
-        err.write("refused: %s\n" % _clean(text))
-        return 1
-
-    return levelrun.apply_logged(guarded, route, key, "", call, err, refuse)
 
 
 def _refuse_without_store(store_root, stdin, out, err, terminal_only):
@@ -454,11 +447,13 @@ def _preview_trust(verb, tokens, out, err, store_root, distribution):
 
 
 def _preview(argv, out, err, store_root, distribution, home=None):
-    if len(argv) < 2 or argv[1] not in ("install", "adopt", "upgrade", "add", "rerender", "acknowledge", "recover", "approve",
-                                        "pin", "release-approvals"):
-        err.write("preview takes install, adopt, upgrade, add, rerender, acknowledge, recover, approve, pin or release-approvals\n%s"
-                  % USAGE)
+    if len(argv) < 2 or argv[1] not in ("install", "adopt", "upgrade", "add", "attach", "rerender", "acknowledge", "recover",
+                                        "approve", "pin", "release-approvals"):
+        err.write("preview takes install, adopt, upgrade, add, attach, rerender, acknowledge, recover, approve, pin or "
+                  "release-approvals\n%s" % USAGE)
         return 2
+    if argv[1] == "attach":
+        return _preview_attach(argv[2:], out, err, store_root, distribution, home)
     if argv[1] in ("approve", "pin"):
         return _preview_trust(argv[1], argv[2:], out, err, store_root, distribution)
     if argv[1] in ("acknowledge", "recover"):
@@ -547,7 +542,72 @@ def _recover(tokens, err, out, store_root, stdin):
     return recover.run(opened[0], spelling, stdin, out, err, log=log, digest=digest)
 
 
+ATTACH_KEY = "wb attach"
+
+
 def _attach(tokens, out, err, store_root, distribution, home, stdin=None):
+    """``attach`` (``docs/specs/command-permissions.md``, "``attach`` at ``ask``"). It has no terminal test. At a terminal it runs as it
+    always did. Without one, the verified level of the project the working directory is in decides when it is ``ask`` or ``none``; when
+    it is neither (a project with no rendering record reads ``block``), the owner's own setting in the guarded store decides: ``ask``,
+    or settings that cannot be read, require the digest of ``wb preview attach``; ``none`` takes no digest; anything else goes on as it
+    always did, and the harness's ``deny`` is the barrier."""
+    try:
+        command = attach.parse(tokens, digest_ok=True)
+    except sources.UsageError as exc:
+        err.write("%s\n%s" % (_clean(str(exc)), USAGE))
+        return 2
+    opened = _open_store(store_root, err)
+    if opened is None:
+        return 1
+    guarded, notes = opened
+    notes += launch.install_wrapper(guarded, distribution or firstparty.default_distribution())
+    for note in notes:
+        err.write("warning: %s\n" % _clean(note))
+    stdin = stdin if stdin is not None else sys.stdin
+    terminal = approve.is_terminal(stdin) and approve.is_terminal(out)
+
+    def refuse(stream, text):
+        err.write("refused: %s\n" % _clean(text))
+        return 1
+
+    def go(digest=None, log=None):
+        return attach.run(guarded, command, out, err, distribution, home=home, digest=digest, log=log)
+
+    if command.digest is not None and terminal:
+        return refuse(err, "a digest is for a run without a terminal at the level ask; at a terminal run %s without --digest"
+                      % ATTACH_KEY)
+    try:
+        route = levelrun.unattended(guarded, os.getcwd(), ATTACH_KEY, stdin, out)
+    except OSError:
+        route = None
+    owner = None
+    if route is None and not terminal:
+        owner = _owner_level(guarded, ATTACH_KEY)
+        if owner in (levels.ASK, "damaged"):
+            route = levelrun.Route(False, levels.ASK, None, None)
+        elif owner == levels.NONE and command.digest is not None:
+            route = levelrun.Route(False, levels.NONE, None, None)  # only to refuse the digest below
+    if route is None:
+        return go()
+    refusal = levelrun.digest_refusal(route, ATTACH_KEY, "attach", command.digest)
+    if refusal:
+        if owner == "damaged":
+            refusal = ("the owner's settings are damaged, so %s is read as ask until they are repaired (run `wb settings`): %s"
+                       % (ATTACH_KEY, refusal))
+        return refuse(err, refusal)
+    if owner == levels.NONE:
+        return go()  # the owner's own none with no digest: the project has no rendering record to log under; as it always did
+    if route.level == levels.NONE:
+        return levelrun.apply_logged(guarded, route, ATTACH_KEY, "", go, err, refuse)
+
+    def log(evidence, write):
+        return levelrun.apply_logged(guarded, route, ATTACH_KEY, evidence, write, err, refuse)
+
+    return go(command.digest, log)
+
+
+def _preview_attach(tokens, out, err, store_root, distribution, home=None):
+    """``preview attach``: what ``attach`` would write, read-only, with the digest a run at the level ``ask`` takes."""
     try:
         command = attach.parse(tokens)
     except sources.UsageError as exc:
@@ -560,8 +620,7 @@ def _attach(tokens, out, err, store_root, distribution, home, stdin=None):
     notes += launch.install_wrapper(guarded, distribution or firstparty.default_distribution())
     for note in notes:
         err.write("warning: %s\n" % _clean(note))
-    return _unattended_call(guarded, "wb attach", stdin if stdin is not None else sys.stdin, out, err,
-                            lambda: attach.run(guarded, command, out, err, distribution, home=home))
+    return attach.run_preview(guarded, command, out, err, distribution, home=home)
 
 
 def _check(tokens, out, err, store_root, distribution):

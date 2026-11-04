@@ -446,14 +446,14 @@ class ReleaseApprovalsAtNone(NoTerminalTest):
 class Offers(unittest.TestCase):
     def test_the_keys_offer_block_and_none(self):
         registry = levels.registry(checkpoints=(FIRST, SECOND))
-        for key in (SECOND, "wb attach"):
+        for key in (SECOND,):
             with self.subTest(key=key):
                 self.assertEqual(("block", "none"), registry[key].offers)
                 self.assertEqual("block", registry[key].default)
 
     def test_recover_and_the_first_tier_also_offer_ask(self):
         registry = levels.registry(checkpoints=(FIRST, SECOND))
-        for key in (FIRST, "wb recover"):
+        for key in (FIRST, "wb recover", "wb attach"):
             with self.subTest(key=key):
                 self.assertEqual(("block", "ask", "none"), registry[key].offers)
                 self.assertEqual("block", registry[key].default)

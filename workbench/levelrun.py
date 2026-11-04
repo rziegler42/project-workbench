@@ -149,9 +149,10 @@ def apply_logged(guarded, route, key, digest, apply, err, refuse):
 
 
 def optional(guarded, start, key, stdin, out):
-    """For a command that has no terminal test (``attach``, ``release-approvals``): the ``Route`` when it runs without a
-    terminal at a verified ``none`` for the project that holds `start`, so that the run is logged; ``None`` otherwise, and the
-    command goes on exactly as it always did (at a terminal, at another level, or where no level can be read)."""
+    """For a command that has no terminal test and takes no digest: the ``Route`` when it runs without a terminal at a verified
+    ``none`` for the project that holds `start`, so that the run is logged; ``None`` otherwise, and the command goes on exactly as
+    it always did (at a terminal, at another level, or where no level can be read). No installer command uses it now: ``attach``
+    did until it gained ``ask`` and moved to ``unattended`` (plan ``2026-11-03-levels-for-recover-pin-approve-attach``, increment C)."""
     if approve.is_terminal(stdin) and approve.is_terminal(out):
         return None
     try:
@@ -162,10 +163,11 @@ def optional(guarded, start, key, stdin, out):
 
 
 def unattended(guarded, start, key, stdin, out):
-    """For ``release-approvals`` alone: the ``Route`` when it runs without a terminal at a verified ``ask`` or ``none`` for the
-    project that holds `start`; ``None`` otherwise (at a terminal, at ``block``, or where no level can be read), and the command
-    goes on as it always did there. ``optional`` stays the reading of ``attach``, which has no digest and so no use for ``ask``
-    (``docs/specs/command-permissions.md``, "`wb release-approvals` at `ask`")."""
+    """For ``release-approvals`` and ``attach``, the commands with no terminal test that take a digest: the ``Route`` when it runs
+    without a terminal at a verified ``ask`` or ``none`` for the project that holds `start`; ``None`` otherwise (at a terminal, at
+    ``block``, or where no level can be read), and the command goes on as it always did there, unless the owner's own setting
+    says ``ask`` (``cli._owner_level``; "`wb release-approvals` at `ask`" and "`attach` at `ask`" in
+    ``docs/specs/command-permissions.md``)."""
     if approve.is_terminal(stdin) and approve.is_terminal(out):
         return None
     try:

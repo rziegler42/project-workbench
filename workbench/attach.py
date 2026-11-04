@@ -22,16 +22,22 @@ first write unless noted:
 Writing then adds the exclude lines (before any file, so a failure never leaves a file git would
 pick up), creates the files and writes the local manifest last, so a
 clone that stopped part-way has none and can run attach again; the files already written are then
-left as they are. Attach is not terminal-gated and has no digest prompt: it does not change
+left as they are. Attach is not terminal-gated and has no digest prompt at a terminal: it does not change
 the project's committed content, and the barrier against an agent running it is the deny rule a
 harness renders for it. It runs no git and contacts no network.
+
+At the level ``ask`` (``docs/specs/command-permissions.md``, "``attach`` at ``ask``") the command also runs without a terminal, with
+``--digest``: the digest ``wb preview attach`` printed, taken over everything this run would write. It is compared after the same
+``prepare`` the run makes and before the attempt is logged or anything is written.
 """
 
 import collections
+import hashlib
+import json
 import os
 import shutil
 
-from . import (__version__, acknowledgement, declarations, firstparty, gate, harnessstage, installed,
+from . import (__version__, acknowledgement, askdigest, declarations, firstparty, gate, harnessstage, installed,
                localmanifest, manifest, preview, projectfs, refusal, rendering, snapshot, sources, target, upgrade,
                verify)
 from .wbkit import display, safefs
@@ -42,7 +48,7 @@ inputs = harnessstage.inputs
 _check_paths = harnessstage.check_paths
 Refused = refusal.Refused
 
-Command = collections.namedtuple("Command", "target harness packages")
+Command = collections.namedtuple("Command", "target harness packages digest", defaults=(None,))
 # `create` and `kept` are lists of ``harnessplan.Planned``; `exclude` the layout's entries;
 # `document` the local manifest to write; `reports` the translation's; `warnings` and `notes` text.
 # `rendering` is the record of what the levels table rendered and `project_id` the project it belongs to; attach
@@ -52,11 +58,12 @@ Prepared = collections.namedtuple(
                 "settings rendering project_id", defaults=(None, None))
 
 
-def parse(tokens, harness_required=True):
+def parse(tokens, harness_required=True, digest_ok=False):
     """A ``Command`` from ``[<target> | --dir <path>] --harness <package>/<module> [--package
     <source> [--ref <ref>]] ...``; a ``sources.UsageError`` otherwise. With `harness_required` false there is no
-    ``--harness`` (``wb preview rerender`` takes the harness the clone records) and the command's harness is None."""
-    positional = dir_option = harness = None
+    ``--harness`` (``wb preview rerender`` takes the harness the clone records) and the command's harness is None. With
+    `digest_ok`, ``--digest <32 lowercase hex>`` is accepted once: the digest of ``wb preview attach``, for a run at the level ``ask``."""
+    positional = dir_option = harness = digest = None
     packages = []
     index = 0
     while index < len(tokens):
@@ -83,6 +90,13 @@ def parse(tokens, harness_required=True):
                 raise sources.UsageError("--dir was given twice")
             dir_option = sources._value(tokens, index, token)
             index += 2
+        elif token == "--digest" and digest_ok:
+            if digest is not None:
+                raise sources.UsageError("--digest was given twice")
+            digest = sources._value(tokens, index, token)
+            if not sources.kitdigest.well_formed(digest):
+                raise sources.UsageError(sources.kitdigest.SHAPE)
+            index += 2
         elif token.startswith("-"):
             raise sources.UsageError("unknown option %s" % token)
         else:
@@ -104,7 +118,7 @@ def parse(tokens, harness_required=True):
         spelling = target.choose(positional, dir_option)
     except target.TargetUsage as exc:
         raise sources.UsageError(str(exc))
-    return Command(spelling, named, [tuple(item) for item in packages])
+    return Command(spelling, named, [tuple(item) for item in packages], digest)
 
 
 def default_home():
@@ -380,10 +394,72 @@ def _refusal(exc, err):
     return 1
 
 
+def _inner_digest(prepared, identity):
+    """The digest of everything a run of `prepared` would write, which ``wb preview attach`` prints under the ``ask`` digest: the
+    target (its path and its device and inode), the project, the harness and its version, every file to create and every file kept,
+    with the bytes' hash and mode, the exclude lines, the local manifest, the settings file, the rendering record as it would be
+    written now (with the live hash of the shared settings file), and the reports, warnings and notes. Nothing in it is drawn by a
+    run: the files, the manifest and the record hold no time and no seed."""
+    record = prepared.rendering
+    if record is not None:
+        record = rendering.with_shared_hash(record, prepared.path)
+    fields = {"command": "attach", "target": {"path": prepared.path, "device": identity[0], "inode": identity[1]},
+              "project": prepared.project_id, "harness": prepared.harness, "version": prepared.version,
+              "create": [[item.path, item.sha256, item.mode] for item in prepared.create],
+              "kept": [[item.path, item.sha256, item.mode] for item in prepared.kept],
+              "exclude": list(prepared.exclude), "document": prepared.document, "settings": prepared.settings,
+              "rendering": record, "reports": [[item.level, item.item, item.message] for item in prepared.reports],
+              "warnings": list(prepared.warnings), "notes": list(prepared.notes)}
+    return hashlib.sha256(json.dumps(fields, sort_keys=True, default=str).encode("ascii")).hexdigest()
+
+
+def run_preview(guarded, command, out, err, distribution=None, version=None, which=shutil.which, home=None):
+    """``wb preview attach``: what the command would write, read-only, ending with the digest a run at the level ``ask`` takes. It makes
+    the same ``prepare`` the run makes, so it refuses what the run would refuse (a clone that already records a harness, a conflict, a
+    package that does not verify) and then prints no digest. Nothing is written. Returns the exit code."""
+    try:
+        with target.open_target(command.target, guarded.root) as held:
+            prepared = prepare(guarded, held, command, distribution, version, which, home)
+            inner = _inner_digest(prepared, held.identity)
+    except target.TargetError as exc:
+        return target.write_refusal(err, exc)
+    except preview.Refused as exc:
+        return _refusal(exc, err)
+    except safefs.SafeFsError as exc:
+        err.write("refused: %s\n" % display.clean(str(exc)))
+        return 1
+    for warning in prepared.warnings:
+        err.write("warning: %s\n" % display.clean(warning))
+    out.write("attach %s %s in %s\n" % (display.ascii_text(prepared.harness)[:140], display.ascii_text(prepared.version)[:40],
+                                       display.ascii_text(prepared.path)))
+    _listed(out, "would create %d files" % len(prepared.create), [item.path for item in prepared.create])
+    _listed(out, "would leave %d files as they are (they hold the planned bytes)" % len(prepared.kept),
+            [item.path for item in prepared.kept])
+    if prepared.exclude:
+        out.write("would add to .git/info/exclude (where missing): %s\n"
+                  % ", ".join(display.ascii_text(item) for item in prepared.exclude))
+    out.write("would record %s\n" % localmanifest.PATH)
+    for report in prepared.reports:
+        out.write("%s: %s: %s\n" % (display.ascii_text(report.level), display.ascii_text(report.item), display.clean(report.message)))
+    if prepared.settings:
+        out.write("%s changes what the agent may do here: it denies the owner-run commands and writes to the guarded store, and "
+                  "asks before the hard stops\n" % display.ascii_text(prepared.settings))
+    for note in prepared.notes:
+        out.write("note: %s\n" % display.clean(note))
+    out.write("digest: %s\n" % askdigest.ask_digest("attach", inner))
+    out.write(askdigest.ENDING + "\n")
+    return 0
+
+
 def run(guarded, command, out, err, distribution=None, version=None, which=shutil.which,
-        home=None):
+        home=None, digest=None, log=None):
     """Attach and print the result. Returns the exit code: 0 done, 1 refused, 3 stopped after
-    writing, 130 interrupted before writing."""
+    writing, 130 interrupted before writing.
+
+    `log`, given by the command line at the level ``ask`` (``cli._attach``), is ``log(evidence, write) -> exit code``: the attempt is
+    logged just before `write` (the files) and the outcome after. `digest` is then the digest ``wb preview attach`` printed; it is
+    compared with the digest of the plan this run built, before the attempt is logged and before anything is written, and a
+    mismatch is refused. Without `log` the whole call is what the command line wraps, or nothing is, as it always was."""
     writer = None
     prepared = None
     try:
@@ -391,19 +467,32 @@ def run(guarded, command, out, err, distribution=None, version=None, which=shuti
             prepared = prepare(guarded, held, command, distribution, version, which, home)
             for warning in prepared.warnings:
                 err.write("warning: %s\n" % display.clean(warning))
-            try:
-                writer = projectfs.Writer(held)
-                record_rendering(guarded, prepared)
-                added = apply(writer, prepared)
-            except (Exception, KeyboardInterrupt) as exc:
-                cause = "interrupted" if isinstance(exc, KeyboardInterrupt) else str(exc)
-                _failed(cause, prepared, list(writer.written) if writer is not None else [], err)
-                return 3
-            try:
-                _finish(prepared, writer, added, out, err)
-            except KeyboardInterrupt:
-                pass
-            return 0
+            evidence = ""
+            if log is not None:
+                inner = _inner_digest(prepared, held.identity)
+                if askdigest.ask_mismatch("attach", inner, digest):
+                    err.write("refused: the digest is not the one of the attachment built now; nothing was written; run `wb preview "
+                              "attach` again, read it, and give the digest it prints\n")
+                    return 1
+                evidence = askdigest.ask_digest("attach", inner)
+
+            def write():
+                nonlocal writer
+                try:
+                    writer = projectfs.Writer(held)
+                    record_rendering(guarded, prepared)
+                    added = apply(writer, prepared)
+                except (Exception, KeyboardInterrupt) as exc:
+                    cause = "interrupted" if isinstance(exc, KeyboardInterrupt) else str(exc)
+                    _failed(cause, prepared, list(writer.written) if writer is not None else [], err)
+                    return 3
+                try:
+                    _finish(prepared, writer, added, out, err)
+                except KeyboardInterrupt:
+                    pass
+                return 0
+
+            return write() if log is None else log(evidence, write)
     except target.TargetError as exc:
         return target.write_refusal(err, exc)
     except preview.Refused as exc:

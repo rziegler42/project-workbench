@@ -469,12 +469,12 @@ class AtAskFromTheOwnersSettings(ReleaseAsk):
         self.assertEqual(["refused", "refused before writing"], self.log()[1].split("\t")[3:])
 
     def test_a_setting_of_ask_for_an_installer_command_that_does_not_offer_it_is_still_read_as_block(self):
-        # `wb attach` offers block and none only: `ask` there is noted and read as block, as it was before this plan.
-        self.attach_at("ask", key="wb attach")
+        # `wb rerender` offers block only: `ask` there is noted and read as block, as it was before this plan.
+        self.attach_at("ask", key="wb rerender")
         self.real_verifiers()
         code, out, err = self.go(["settings"])
         self.assertEqual(0, code, (out, err))
-        self.assertIn("level wb attach: block\n", out)
+        self.assertIn("level wb rerender: block\n", out)
 
 
 if __name__ == "__main__":

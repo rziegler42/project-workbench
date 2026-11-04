@@ -164,7 +164,7 @@ says so.
 | `install` | project | target, a module selection | committed content, manifest, the project's store directory, then per-clone harness files | yes, owner-run; the owner may set `wb install` to `ask` (with the digest of the preview) or `none` | built |
 | `preview` | project | `install`, `adopt`, `upgrade`, `add`, `rerender`, `acknowledge`, `recover` or `release-approvals` and their arguments (`release-approvals` takes none) | nothing; no network, it reads only the approved cache (`release-approvals` reads the packages and the shipped records and ends with a digest) | no | built |
 | `adopt` | project | target, a module selection (as `install`) | committed content for the paths that are missing, manifest, the project's store directory; never an existing file and no harness file | yes, owner-run; the owner may set `wb adopt` to `ask` (with the digest of the preview) or `none` | built (`adopt-existing-repository`) |
-| `attach` | project | target, `--harness` | per-clone harness files, `.git/info/exclude`, the local manifest | no, but owner-run (harness deny rule) | built |
+| `attach` | project | target, `--harness` (and `--digest` at `ask`) | per-clone harness files, `.git/info/exclude`, the local manifest | no, but owner-run (harness deny rule); the owner may set `wb attach` to `ask` (with the digest of `wb preview attach`) or `none` | built |
 | `rerender` | project | target, `--package` | the stale, new and missing rendered files, the harness's permissions file, the local manifest's hashes, then the rendering record in the guarded store | yes, owner-run at every level; the key offers `block` only | built (`rerender-attached-harness`, `refresh-rendered-harness`) |
 | `check` | project | target | nothing | no | built |
 | `upgrade` | project | target | after an approved preview, new content, left uncommitted | yes, owner-run; the owner may set it to `ask` (with the digest of the preview) or `none` | built |
@@ -422,7 +422,7 @@ plan made and the owner may still change.
   version between the lock and the installed workbench warns and continues.
 - **Prints** post-install notes for steps it cannot perform, such as a harness's project trust,
   and warns when a file it wrote changes the agent's permissions.
-- **Agent may run it:** by default no *(owner)*; the approver may set `wb attach` to `none`. Attach writes the files that set an agent's own
+- **Agent may run it:** by default no *(owner)*; the approver may set `wb attach` to `ask` (with the digest of `wb preview attach`) or `none`. Attach writes the files that set an agent's own
   permissions, deny rules and instructions. Choosing and attaching a harness is the owner's
   act in setting up a clone, before an agent runs in it; the harness's deny rule on `wb
   attach` is the barrier, as it is for `approve`. It is not terminal-gated, because setting up

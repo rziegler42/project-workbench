@@ -329,7 +329,7 @@ class OfferedLevels(Ask):
                  "wb add": ("block", "ask", "none"),
                  "wb approve": ("block", "ask", "none"), "wb pin": ("block", "ask", "none"),
                  "acknowledge-first-tier": ("block", "ask", "none"), "acknowledge-second-tier": ("block", "none"),
-                 "wb recover": ("block", "ask", "none"), "wb attach": ("block", "none"),
+                 "wb recover": ("block", "ask", "none"), "wb attach": ("block", "ask", "none"),
                  "wb release-approvals": ("block", "ask", "none"),
                  "accept-decision": ("block", "none")}
         for name, key in levels.registry(checkpoints=("a", "accept-decision")).items():

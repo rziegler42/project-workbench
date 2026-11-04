@@ -25,7 +25,7 @@ CHECKPOINT_LINES = "checkpoint approve-plan: stop\ncheckpoint beta: stop\n"
 KEY_FACTS = {
     "approve-plan": ("governs", "block,delegated,ask,none"),
     "wb install": ("project", "block,ask,none"), "wb adopt": ("project", "block,ask,none"),
-    "wb upgrade": ("project", "block,ask,none"), "wb add": ("project", "block,ask,none"), "wb attach": ("project", "block,none"), "wb recover": ("project", "block,ask,none"),
+    "wb upgrade": ("project", "block,ask,none"), "wb add": ("project", "block,ask,none"), "wb attach": ("project", "block,ask,none"), "wb recover": ("project", "block,ask,none"),
     "wb rerender": ("governs", "block"), "wb approve": ("governs", "block,ask,none"), "wb pin": ("governs", "block,ask,none"),
     "wb release-approvals": ("governs", "block,ask,none"),
 }
@@ -215,7 +215,8 @@ class Printed(Settings):
         self.assertIn("level approve-plan: ask\n", out)
         self.assertIn("level wb release-approvals: ask\n", out)
         self.assertIn("profile: trusting\nprofiled approve-plan: ask\nprofiled wb install: ask\nprofiled wb adopt: ask\n"
-                      "profiled wb upgrade: ask\nprofiled wb add: ask\nprofiled wb recover: ask\nprofiled wb approve: ask\nprofiled wb pin: ask\n"
+                      "profiled wb upgrade: ask\nprofiled wb add: ask\nprofiled wb attach: ask\nprofiled wb recover: ask\n"
+                      "profiled wb approve: ask\nprofiled wb pin: ask\n"
                       "profiled wb release-approvals: ask\n", out)
         self.assertEqual(0, problem_lines(out), out)
 
@@ -231,7 +232,7 @@ class Printed(Settings):
         code, out, err = self.settings()
         self.assertEqual((0, ""), (code, err))
         self.assertIn("profile: balanced\nprofiled wb install: ask\nprofiled wb adopt: ask\nprofiled wb upgrade: ask\n"
-                      "profiled wb add: ask\nprofiled wb recover: ask\n", out)
+                      "profiled wb add: ask\nprofiled wb attach: ask\nprofiled wb recover: ask\n", out)
         self.assertNotIn("profiled approve-plan", out)
 
     def test_a_key_entry_that_overrides_the_profile_is_not_listed_as_profiled(self):
