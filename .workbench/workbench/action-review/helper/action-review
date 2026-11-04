@@ -48,8 +48,8 @@ PINS = {
     "reply-schema.json": "ead8d9b7c80e962ad890685ef6c0c054bf10bb5b0796374c02cc59e336d3570a",
     # Not read by the review: the owner's shadow hook, which is copied out of the project, and the owner compares the copy's
     # hash with this one (plan `2026-10-29-action-review-shadow-hook`).
-    "hook/shadow_store.py": "db5fafbf8c64b03a3c1d1b74c011512225f09b06e6b96f1155a0dd96050e2c32",
-    "hook/shadow_hook.py": "9d95c55ecb196b4cb9cc2a42ba3d03ff52410b57608699f72fa8fa5ed5fe7d1f",
+    "hook/shadow_store.py": "a61c458dbab72a65150739a60c7f724e77ea755347766e3af34550b8dc15f722",
+    "hook/shadow_hook.py": "a894e59de171f7139827fe60158930fe33fd52f8f6aa88755ad6dbb7b848a299",
 }
 MAX_RULE = 16384
 MAX_RULES = 64
@@ -1218,7 +1218,7 @@ def parse_verdict(text, rule):
 
 def ask_bridge(root, setting, prompt, seconds):
     """The `Answer` of the bridge the setting names, asked as exactly ``<bridge> ask --timeout 20 --schema <the shipped
-    reply schema> [--model <m>] [--effort <e>]`` with `prompt` on standard input, through the kit's `run_command` with
+    reply schema> --confine [--model <m>] [--effort <e>]`` with `prompt` on standard input, through the kit's `run_command` with
     the capability `model-bridge`, and stopped after `seconds`. The launcher refuses a bridge that is not installed,
     pinned and unchanged, and that is `BridgeRefused`: no other vendor is tried."""
     if not seconds > 0:
@@ -1230,7 +1230,10 @@ def ask_bridge(root, setting, prompt, seconds):
         raise BridgeRefused("the reply schema cannot be read, has another link or is too large") from None
     if schema is None or not pinned("reply-schema.json", schema):
         raise BridgeRefused("the reply schema is missing or is not the one this release ships")
-    arguments = ["ask", "--timeout", str(BRIDGE_SECONDS), "--schema", SCHEMA_FILE]
+    # The prompt holds captured text that an agent can write (a commit's diff and message), so the bridge is always asked to switch off
+    # the vendor program's tools that read files, run commands or reach a network (`docs/specs/model-bridge.md`, "Confinement"). A
+    # bridge that refuses the option is a refusal, and the call is never repeated without it.
+    arguments = ["ask", "--timeout", str(BRIDGE_SECONDS), "--schema", SCHEMA_FILE, "--confine"]
     if setting.model:
         arguments += ["--model", setting.model]
     if setting.effort:
