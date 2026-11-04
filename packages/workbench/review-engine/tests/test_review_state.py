@@ -8,7 +8,7 @@ import stat
 import unittest
 
 import support_review
-from support_review import NAMESPACE, OTHER_PLAN, PLAN, SPEC, decision_entry, key_of, round_entry
+from support_review import profile_entry, NAMESPACE, OTHER_PLAN, PLAN, SPEC, decision_entry, key_of, round_entry
 from workbench.wbkit import safefs
 
 
@@ -405,6 +405,39 @@ class RoundEntries(support_review.Review):
                                                                      verdict="changes_needed", reading="changes_needed",
                                                                      model="m-1", at="2026-02-03T04:05:06Z")])
         self.assertEqual(("ok", 2), (got["seal"], got["rounds_total"]))
+
+    def test_a_round_of_the_shape_before_profiles_and_one_of_the_shape_since_are_both_read(self):
+        got = self.sealed([round_entry(1, ["nit"]), profile_entry(2, ["nit"], profile="quick")])
+        self.assertEqual(("ok", 2), (got["seal"], got["rounds_total"]))
+
+    def test_a_round_with_a_profile_and_options_is_read(self):
+        asked = {"model": "m", "effort": "low", "options": {"server": "home", "thinking": "on"}}
+        self.assertEqual("ok", self.sealed([profile_entry(1, requested=asked)])["seal"])
+
+    def test_a_malformed_round_of_the_new_shape_makes_the_state_unusable(self):
+        good = profile_entry(1, ["major"])
+        old = round_entry(1, ["major"])
+        bad = [dict(old, requested={"model": None, "effort": None, "options": {}}),
+               dict(good, profile=None), dict(good, profile=""), dict(good, profile="Quick"), dict(good, profile="a" * 33),
+               dict(good, profile=1), dict(good, requested={"model": None, "effort": None}),
+               dict(good, requested={"model": None, "effort": None, "options": None}),
+               dict(good, requested={"model": None, "effort": None, "options": []}),
+               dict(good, requested={"model": None, "effort": None, "options": {"model": "x"}}),
+               dict(good, requested={"model": None, "effort": None, "options": {"Server": "x"}}),
+               dict(good, requested={"model": None, "effort": None, "options": {"server": ""}}),
+               dict(good, requested={"model": None, "effort": None, "options": {"server": "a b"}}),
+               dict(good, requested={"model": None, "effort": None, "options": {"server": "-x"}}),
+               dict(good, requested={"model": None, "effort": None, "options": {"server": 1}}),
+               dict(good, requested={"model": None, "effort": None, "options": {"o%d" % n: "v" for n in range(9)}}),
+               dict(good, requested={"model": "a b", "effort": None, "options": {}}),
+               dict(good, requested={"model": None, "effort": "max", "options": {}})]
+        for each in bad:
+            got = self.sealed([each])
+            self.assertEqual(("unsealed", "the state is not usable"), (got["seal"], got["reason"]), each)
+
+    def test_a_model_of_a_server_with_a_slash_is_read(self):
+        asked = {"model": "freehuntx/qwen3-coder:14b", "effort": None, "options": {}}
+        self.assertEqual("ok", self.sealed([profile_entry(1, requested=asked)])["seal"])
 
     def test_the_usage_may_hold_whole_numbers_and_none(self):
         usage = {"input_tokens": 12, "output_tokens": 0, "total_tokens": None}

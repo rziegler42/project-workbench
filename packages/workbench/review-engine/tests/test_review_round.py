@@ -45,8 +45,8 @@ class Success(Round):
         self.assertEqual(hashlib.sha256(data).hexdigest(), entry["sha256"])
         self.assertEqual({"n": 1, "file": "round-1.json", "sha256": entry["sha256"],
                           "document_sha256": hashlib.sha256(b"# Title\n").hexdigest(),
-                          "at": "2026-02-03T04:05:06Z", "bridge": "ask-codex",
-                          "requested": {"model": None, "effort": None}, "model": entry["model"],
+                          "at": "2026-02-03T04:05:06Z", "bridge": "ask-codex", "profile": "p",
+                          "requested": {"model": None, "effort": None, "options": {}}, "model": entry["model"],
                           "verdict": "changes_needed", "reading": "changes_needed", "mismatch": False,
                           "usage": {"input_tokens": 12, "output_tokens": 5, "total_tokens": None},
                           "findings": [{"id": "R1-F1", "severity": "major"}]}, entry)
@@ -103,7 +103,7 @@ class Success(Round):
         argv = record["argv"]
         self.assertEqual("gpt-5.1", argv[argv.index("--model") + 1])
         self.assertIn('model_reasoning_effort="high"', argv)
-        self.assertEqual({"model": "gpt-5.1", "effort": "high"}, self.state()["rounds"][0]["requested"])
+        self.assertEqual({"model": "gpt-5.1", "effort": "high", "options": {}}, self.state()["rounds"][0]["requested"])
 
     def test_no_model_or_effort_is_sent_when_the_setting_has_none(self):
         self.round()
@@ -301,14 +301,14 @@ class Bridges(Round):
         self.refuses("has changed since it was pinned")
 
     def test_a_missing_setting_is_refused_and_the_bridge_is_not_guessed(self):
-        os.remove(self.path(support_bridge.SETTING))
-        self.refuses("review.json")
+        os.remove(os.path.join(self.store, "review-profiles.json"))
+        self.refuses("review-profiles.json")
 
     def test_a_setting_that_is_not_usable_is_refused(self):
-        self.write(support_bridge.SETTING, "{")
-        self.refuses("review.json")
+        self.owner_file("{")
+        self.refuses("review-profiles.json")
         self.setting(bridge="ask-codex", retries=3)
-        self.refuses("retries")
+        self.refuses("review-profiles.json")
 
 
 class Refusals(Round):

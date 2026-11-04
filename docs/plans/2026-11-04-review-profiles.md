@@ -447,3 +447,61 @@ the second came back with no meaningful finding.
 - **Not done:** the commit and the push. The commit holds the core files and tests, the specs, the plan, the two package files, the two
   new shipped records and the deletion of the eight stale ones.
 - **Left for the owner:** the verdict and the word to commit.
+- **Committed** as 89f8c0e (the owner's word to commit, 2026-11-04) and pushed.
+
+### Increment D — The review engine reads the profile file (2026-11-04)
+
+- **The design point settled first (step 1, the stop condition).** The engine could not learn a bridge's declared options from a
+  source an agent cannot write without a launcher change, which the plan does not name. The agent stopped and reported three options;
+  the owner chose the second: the engine does not read a declaration. It passes the options of the owner's profile after the kit's
+  checks of their form, the bridge refuses an option it does not accept (the refusal is reported with the profile's name), and
+  `wb doctor` and the delegated-approval check read the pinned declaration (increments I and J). The spec says so. The accepted
+  record says the engine takes only declared options, so a dated clarification note on it is **proposed and waits for the owner's
+  approval** (its text is in the report of this increment).
+- **Done, in the live tree (core, uncommitted):** `workbench/wbkit/profiles.py` makes its patterns public (`PROFILE_NAME`,
+  `OPTION_NAME`, `TEXT`) so the engine validates a stored round with the kit's own text; `docs/specs/review-engine.md` ("The owner's
+  profiles", the field list of a round, the limits and the as-built log) and `docs/specs/review-profiles.md` say what is built.
+- **Done, in a scratch clone only (package, nine files):** `packages/workbench/review-engine/helper/review-engine`: `read_profiles`
+  replaces `read_setting`; a round takes rung n of the ladder of its kind (else `default`) by its place in the window; the arguments
+  are `ask`, `--timeout`, `--schema`, then the profile's model, effort and options in name order; a failure is prefixed with the
+  profile's name; a round records `profile` and a request with `options`; `check_round` reads both shapes of a stored round; `status`'
+  `request` compares the last round with the profile it names (a round from before profiles, or one whose profile is gone, reads
+  `changed`). Eight test files: `test_review_ladder.py` (new), `test_review_setting.py` (rewritten for the owner's file),
+  `test_review_commands.py` (status), `test_review_state.py` (both shapes, malformed new ones), `test_review_round.py`,
+  `test_review_convergence.py`, `support_review.py` and `support_bridge.py`.
+- **Tests first:** the new and changed tests were run against the unchanged engine and 54 failed, as they should; after the change all
+  433 tests of the engine's folder pass. Five deliberate weakenings of the engine (the rung from the count of all rounds, options not
+  passed, `status` always `same`, stored options not checked, `default` refused for a document kind) were each caught by a test.
+- **Verification as run:** in the clone, the engine's folder, 433 tests OK; in the live tree, `tests.test_kit_profiles`,
+  `test_review_options`, `test_kit` OK, `wb check` and `wb run code-work check` report no problems, `git diff --check` is clean. The
+  full suite was not run; the owner decides any wider run.
+- **Review:** one `reviewer` agent pass (read-only; it ran nothing). No blocking finding. It found the code matches the records and
+  the spec for the ladder, the arguments, the record and `status`; that nothing from the owner's file or a stored state can reach the
+  bridge in any form but one validated `--name value` pair; that old rounds are read and `convergence` does not read `requested`; and no
+  remaining use of the removed names. Applied: the field list of a round in the spec, three stale passages of the spec, one false
+  sentence in `action-review.md`, the reverse hybrid shape (an old round whose request has `options`) added to the state test, and a
+  stray call removed from one ladder test. **Not changed, deferred to increment E:** the `peer-review` skill and the test that locks
+  in its text still name `.workbench/review.json`.
+- **Not done:** the package files are not in the live tree; no release, no commit, no upgrade of the installed copy. The action-review
+  engine and the shadow hook still read `.workbench/review.json` until increment F, so **that file must stay**.
+- **The owner's steps (one list):** (1) write the owner's file in the store (the commands are in the report of this increment; it
+  reproduces today's setting and changes nothing by itself, because the installed copy of the engine still reads the old file); (2) run
+  the copy script `d_install_files.py` in the scratchpad, which copies the nine files only if each source has the recorded hash and
+  prints the hash of each file it wrote; (3) tell the agent; (4) run `wb release-approvals` in a terminal, because the command gate
+  refuses the agent while a package differs from its release; (5) the agent lists the stale shipped records for the owner's approval
+  and removes them, reruns the engine's tests in the live tree and the core checks, and asks for the owner's word to commit; (6) after
+  the commit, `wb upgrade` of the installed copy is separate: it is what makes the next review use the new engine, and the owner
+  chooses when.
+- **The owner's steps, as done (2026-11-04):** the owner wrote the profile file (the agent read it back: one profile, `standard`, the
+  same bridge, model and effort as the old setting, and the `default` and `action-review` ladders); ran the copy script, and the agent
+  checked all nine files in the live tree against the recorded hashes (they match); ran `wb release-approvals` in a terminal. The
+  release preview then read `record recorded` for the package and all 13 modules, and listed exactly two stale records (the
+  `workbench` package record that increment C committed, and the old `review-engine` module record), which the owner approved from a
+  dry-run list and the agent removed; `stale records: 0`.
+- **Verification after the release, as run (live tree):** the engine's folder, 433 tests OK; `tests.test_kit_profiles`,
+  `test_review_options`, `test_kit`, `test_declarations`, `test_verify`, 269 OK; the first-party, permissions-drift, levels and commands
+  tests OK; `wb check` and `wb run code-work check` report no problems; `git diff --check` is clean.
+- **Not done:** the commit and the push; the upgrade of the installed copy; the dated clarification note on the profiles record, which
+  waits for the owner's approval (without it the accepted record says "declared options only" while the engine does not check
+  that; the spec says so). `.workbench/review.json` stays until increment F.
+- **Left for the owner:** the verdict and the word to commit.

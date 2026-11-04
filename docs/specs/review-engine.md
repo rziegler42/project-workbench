@@ -23,8 +23,8 @@ Non-goals:
 - A verdict, an approval, a plan status or any change to a reviewed document. The engine is read-only towards the
   documents it reviews and writes only its own state.
 - Reviewing code, a diff or an action. The four kinds are plan, spec, roadmap and ADR.
-- Choosing the model for the owner. Today the project setting is a request and the owner's personal setting is not read. The
-  owner's profile file `review-profiles.json` is decided to replace the project setting and is not built (`review-profiles.md`).
+- Choosing the model for the project: the owner's `review-profiles.json` does (`review-profiles.md`), and a project file chooses
+  nothing.
 - Listing a vendor's models. The engine cannot; a bridge could offer it later.
 
 ## Declaration
@@ -81,8 +81,8 @@ A round is one call to the bridge and, if the reply is valid, one recorded set o
   their decisions so that a repeated one is recognised. For a plan it tells the reviewer to read the plan's roadmap
   candidate and its specs and to report drift from either as a finding. It is at most 65,536 bytes, below the bridge's
   262,144. The reviewer reads the files itself through the bridge's read-only program; the engine embeds no file.
-- **The call** is `wbkit.call.run_command(root, <bridge>, ["ask", ...], provides="model-bridge", ...)` with the model and
-  effort of the setting as the bridge's documented options, a `--schema` file the engine writes for the reply shape, a
+- **The call** is `wbkit.call.run_command(root, <bridge>, ["ask", ...], provides="model-bridge", ...)` with the profile's model,
+  effort and options as the bridge's options, a `--schema` file the engine writes for the reply shape, a
   bridge `--timeout` of 600 seconds and an engine limit of 660. The schema file is `schema.json` in the review's own
   directory, the same bytes every round. The engine runs nothing else and imports no bridge.
 - **The reply** is accepted only when the bridge's object is valid under `model-bridge.md` (an unknown `contract`, a
@@ -163,7 +163,9 @@ with the project, so a clone and a teammate keep the history. It holds:
 - `state.json`: strict JSON with exactly the fields `format` (1), `kind`, `path`, `window`, `rounds`, `decisions`,
   `closed`, `generation` and `seal`. The `window` is `{"first": <the number of the window's first round>, "bound": <1 to 5>}`, so the
   rounds used are the rounds from `first` on. A round is a record with exactly `n`, `file` (`round-<n>.json`), `sha256`
-  (of that file), `document_sha256`, `at` (a UTC time), `bridge`, `requested` (`model` and `effort`, each or null),
+  (of that file), `document_sha256`, `at` (a UTC time), `bridge`, `profile` (the name of the owner's profile the round ran on;
+  absent in a round written before profiles), `requested` (`model` and `effort`, each or null, and since profiles `options`, an object
+  of at most 8 option names and values; a round before profiles has the first two only),
   `model` (as the bridge reported it, cleaned, at most 200 characters, or null), `verdict` (the reviewer's), `reading`
   (the engine's: `changes_needed` if any finding is `blocker` or `major`), `mismatch`, `usage` (three counts or null, whatever
   contract version the bridge used; a count above 2,147,483,647 is stored as null) and `findings` (each with `id` and `severity`, numbered in order). Each
@@ -211,30 +213,34 @@ The state is an agent-writable file in the project, so tampering is made visible
   and the guarded store is a mechanical barrier under the owner's account (`trust-and-approval.md`). The harness
   denies the agent writes to the store; it does not make the store unreadable.
 
-## The project setting
+## The owner's profiles
 
-**Decided, not built.** The accepted record `2026-11-04-review-profiles-in-the-guarded-store` retires this file: the engine will read
-the owner's `review-profiles.json` in the guarded store, take the profile of a round from a ladder for the review's kind, and read
-`.workbench/review.json` no more (`review-profiles.md`; plan `2026-11-04-review-profiles`, increments D and E). Until increment D
-is built, what follows is what the engine does.
+*(Built by plan `2026-11-04-review-profiles`, increment D.)* The engine takes the bridge, the model, the effort and the options of a
+round from the owner's `review-profiles.json` in the guarded store (accepted records `2026-11-04-review-profiles-in-the-guarded-store`
+and `2026-11-04-delegated-approval-checks-the-profile-of-the-last-round`; the format, the bounds and the ladder rules are in
+`review-profiles.md`). `.workbench/review.json`, which this section described before, is no longer read by this engine, and a file at that path
+changes nothing here (the action-review engine reads it until its increment F).
 
-`.workbench/review.json` is project-owned configuration the engine reads and does not install (accepted record,
-decision 5). It is strict JSON, at most 4,096 bytes, with:
-
-| field | meaning |
-|---|---|
-| `format` | `1`, required |
-| `bridge` | the name of the bridge command (for example the first-party `ask-codex`), required to run a round |
-| `model` | optional; the bridge's `--model` value, with the bridge's own charset and length |
-| `effort` | optional; `low`, `medium` or `high` |
-
-It is a request and never an authorization. A round runs only if the named bridge is an installed module that provides
-`model-bridge`, is pinned, and is unchanged since the pin; the launcher decides that and refuses otherwise, and the
-engine then runs nothing and tries no other bridge. There is no default bridge: a missing or malformed file, or one
-with no `bridge`, is a refusal that names the file, because the kit cannot list installed bridges and the engine will
-not guess a vendor to send content to. The settings used are recorded in each round. A pulled commit that changes the
-file is a difference `wb acknowledge` lists, and the next round records the changed request. `status` says when the
-setting now differs from what the last round asked.
+- **Reading.** The kit reads the file (`wbkit/profiles.py`), whole or refused whole. The engine names the ladder keys it accepts: the
+  four document kinds, `default`, and the key of the other engine that asks a model for a review, so that one file serves both and
+  the other engine's ladder never makes the file invalid here (a longer ladder than its one rung is refused, as it is there).
+- **The ladder.** The nth round of the review's current window runs on rung n of the ladder of the review's kind (`plan`, `spec`,
+  `roadmap` or `adr`), else of `default`. The last rung serves every later round of the window. A bridge error spends no round, so a
+  retry runs on the same rung. The first round after `reset` runs on the first rung.
+- **What is passed.** `ask`, `--timeout`, `--schema`, then the profile's model and effort and each option as `--<name> <value>` in the
+  order of their names, and nothing else from a profile. The engine does not check an option against the bridge's declaration: the
+  declaration is a pinned fact of the installer, which `wb doctor` and the delegated approval read; the bridge refuses an option it
+  does not accept, and the refusal is reported with the name of the profile.
+- **A request and never an authorization.** A round runs only if the profile's bridge is an installed module that provides
+  `model-bridge`, is pinned, and is unchanged since the pin; the launcher decides that and refuses otherwise, and the engine then runs
+  nothing and tries no other bridge. There is no default bridge: a missing or invalid file is a refusal that names the file and says
+  how it is made, because the kit cannot list installed bridges and the engine will not guess a vendor to send content to.
+- **What a round records.** The name of the profile, the bridge, and the request (model, effort and options), beside the model the
+  bridge reported. A round written before profiles has no profile and a request without options; both shapes are read, and an edit to
+  the owner's file never rewrites a round already stored.
+- **`status`.** Its `request` says whether the profile the last round ran on still asks what that round asked: `same`, or `changed` (a
+  different bridge, model, effort or options, a profile that is gone, or a round from before profiles, which names none), `none` when no
+  round has asked yet, or `unreadable` when the file is refused (`status` itself does not refuse).
 
 ## Owner-run commands
 
@@ -306,8 +312,8 @@ The module conforms when tests against a fake bridge, installed as a real pinned
    no bridge runs; a path with `..` or an absolute path is refused.
 3. A round runs the bridge only through `run_command` with `provides` `model-bridge`; a bridge that is not installed,
    not pinned, not a `model-bridge` or edited since the pin is refused and nothing else runs.
-4. A missing, malformed or bridge-less `.workbench/review.json` is refused naming the file; the model and effort reach
-   the bridge only as its documented options.
+4. A missing or invalid `review-profiles.json` is refused naming the file and how it is made; the model, effort and options reach
+   the bridge only as the profile's, and `.workbench/review.json` is read by nothing.
 5. A valid reply is stored with numbered findings; a reply that is not one object of the schema, has an unknown field, a
    wrong type, an oversize string, more than 100 findings or a bad severity is a failure and spends no round.
 6. Each bridge error class is reported as it is and spends no round; the engine never retries.
@@ -339,10 +345,9 @@ The module conforms when tests against a fake bridge, installed as a real pinned
 
 ## Limits and open questions
 
-- The personal setting for bridge, model and effort (accepted record, decision 5) is not built, and the owner's
-  `review-profiles.json`, decided to replace the project file, is not built either (`review-profiles.md`). Until then the project
-  file is the only source. The limit is the missing reader of that file and not the store: this engine already reads its seal key
-  there by a fixed path.
+- The owner's `review-profiles.json` is the only source of the bridge, model, effort and options (increment D of plan
+  `2026-11-04-review-profiles`; it replaces the project file and the personal setting that decision 5 left unbuilt). The engine
+  does not check an option against the bridge's declaration (see "The owner's profiles").
 - The seal is tamper-evident for a careless agent, not a boundary against one that can read the key; a rollback is
   detected only where the mark exists.
 - A committed state can conflict when two people review one document; the owner `reset`s the review.
@@ -373,7 +378,8 @@ Built by plan `2026-10-23-review-engine`, increments C to G (the module `review-
   verdicts, usage and the numbering of their findings). Entries of `decisions` are checked only as bounded objects of
   clean strings, small whole numbers, lists, objects and null, until the increment that writes them.
 - A state is refused when it would be larger than 4,194,304 bytes once written, so that it can always be read back.
-- The round (increment D): `review-plan`, `review-spec`, `review-roadmap` and `review-adr` read `.workbench/review.json`
+- The round (increment D; its source of the setting is superseded by "The owner's profiles" above, which says what is true
+  now): `review-plan`, `review-spec`, `review-roadmap` and `review-adr` read `.workbench/review.json`
   (strict, at most 4,096 bytes, `format` 1, `bridge`, optional `model` and `effort`; a missing or bridge-less file is a
   refusal that names it, and no bridge is chosen), take the lock for the whole round, refuse a closed review, a full
   window, an undecided meaningful finding, an unsealed or rolled-back state and a stored round file that is missing,
@@ -411,7 +417,8 @@ Built by plan `2026-10-23-review-engine`, increments C to G (the module `review-
   digits) that holds only the engine's own file names, whose state is sealed, whose name is the key of the path in its
   state, and which was closed 90 days ago or more; it also removes the review's mark. Removal goes through descriptors
   that never follow a link, and a directory that holds anything else is left whole.
-- The setting and the skill (increment F). `status` prints one more field, `request`, when the state could be used:
+- The setting and the skill (increment F; the comparison and the source of the setting are superseded by "The owner's profiles"
+  above, which says what is true now). `status` prints one more field, `request`, when the state could be used:
   `none` (no round has asked yet), `same`, `changed` (the bridge, model or effort now differs from the last round's
   request) or `unreadable` (the setting is refused; `status` itself does not refuse). It reads the setting and
   changes nothing. `init` and the owner commands do not print it. The skill `peer-review` names no harness, vendor
@@ -420,6 +427,11 @@ Built by plan `2026-10-23-review-engine`, increments C to G (the module `review-
   kept out of anything a vendor can read, that a refusal is reported and not worked around, and that the owner's word
   is the verdict. The plan's wording of a missing setting (use the one installed bridge) was not built: there is no
   default bridge, as the setting section says, because the kit cannot list the installed ones.
+- The owner's profiles (plan `2026-11-04-review-profiles`, increment D). `read_setting` and the project file are gone: `read_profiles`
+  reads the owner's file through the kit, a round takes its profile from the ladder by its place in the window, the arguments carry
+  the profile's model, effort and options, a round records its `profile` and a request with `options`, and `status`' `request`
+  compares the last round with the profile it names. `check_round` reads both shapes of a stored round. The skill still names the
+  old file until increment E.
 - `convergence` (plan `2026-10-23-delegated-approval`, increment B). The thirteenth argument and the declaration field
   `convergence` that names it. It resolves the document as a plan, loads the state as `status` does (no lock, no write,
   no key made) and prints the object of "Convergence". `converged` is true when the last round's verdict and the

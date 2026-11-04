@@ -31,15 +31,15 @@ EFFORTS = ("low", "medium", "high")
 RESERVED = frozenset(("model", "effort", "timeout", "schema", "root", "confine"))
 DEFAULT = "default"
 
-_PROFILE_NAME = r"[a-z0-9][a-z0-9_-]{0,31}"
-_OPTION_NAME = r"[a-z][a-z0-9-]{0,31}"
+PROFILE_NAME = r"[a-z0-9][a-z0-9_-]{0,31}"
+OPTION_NAME = r"[a-z][a-z0-9-]{0,31}"
 # Printable ASCII with no space and no leading "-", 1 to 128 characters: text that can never read as an option.
-_TEXT = r"[!-,.-~][!-~]{0,127}"
+TEXT = r"[!-,.-~][!-~]{0,127}"
 # The closed list of grammars a module's declaration may give an option that a review passes. None allows a leading "-", and a
 # module cannot supply an expression of its own (docs/specs/review-profiles.md, "The options a module declares for a review").
 GRAMMARS = {
     "word": r"[A-Za-z0-9][A-Za-z0-9._:-]{0,63}",
-    "name": _PROFILE_NAME,
+    "name": PROFILE_NAME,
     "count": r"[1-9][0-9]{0,7}",
     "onoff": r"on|off",
 }
@@ -59,7 +59,7 @@ def fail(why):
 
 
 def _text(value):
-    return type(value) is str and re.fullmatch(_TEXT, value) is not None
+    return type(value) is str and re.fullmatch(TEXT, value) is not None
 
 
 def fits(grammar, value):
@@ -86,7 +86,7 @@ def _profile(record):
     if not isinstance(options, dict) or len(options) > MAX_OPTIONS:
         raise fail("holds a profile whose options are not an object of at most %d entries" % MAX_OPTIONS)
     for name, value in options.items():
-        if re.fullmatch(_OPTION_NAME, name) is None or name in RESERVED:
+        if re.fullmatch(OPTION_NAME, name) is None or name in RESERVED:
             raise fail("holds an option whose name is outside the name rule or is reserved")
         if not _text(value):
             raise fail("holds an option whose value is not printable ASCII of at most 128 characters with no space and no leading -")
@@ -115,7 +115,7 @@ def parse(data, ladder_keys, single_rung_keys):
         raise fail("must hold 1 to %d profiles" % MAX_PROFILES)
     found = {}
     for name, record in records.items():
-        if re.fullmatch(_PROFILE_NAME, name) is None:
+        if re.fullmatch(PROFILE_NAME, name) is None:
             raise fail("holds a profile name outside the name rule")
         found[name] = _profile(record)
     ladders = body["ladders"]

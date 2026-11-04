@@ -18,6 +18,7 @@ PLAN = "docs/plans/2026-01-01-sample.md"
 SPEC = "docs/specs/sample.md"
 OTHER_PLAN = "docs/plans/2026-01-02-other.md"
 NAMESPACE = ".workbench/workbench/review-engine"
+PROFILES = "review-profiles.json"
 
 
 def round_entry(n, severities=(), **changes):
@@ -27,6 +28,13 @@ def round_entry(n, severities=(), **changes):
              "model": None, "verdict": "no_meaningful_changes", "reading": "no_meaningful_changes",
              "mismatch": False, "usage": {"input_tokens": None, "output_tokens": None, "total_tokens": None},
              "findings": [{"id": "R%d-F%d" % (n, k + 1), "severity": s} for k, s in enumerate(severities)]}
+    entry.update(changes)
+    return entry
+
+
+def profile_entry(n, severities=(), profile="p", **changes):
+    """A round in the shape the engine writes since profiles: the name of the profile and a request that holds options."""
+    entry = round_entry(n, severities, profile=profile, requested={"model": None, "effort": None, "options": {}})
     entry.update(changes)
     return entry
 
@@ -68,6 +76,19 @@ class Review(unittest.TestCase):
         self.store = os.path.join(self.home, ".config", "project-workbench")
         guarded.Store(self.store).ensure()
         self.project_id = kit_project.read_id(self.root)
+
+    # --- the owner's profile file ------------------------------------------------------------------
+
+    def owner_file(self, body):
+        """Write the owner's `review-profiles.json` in the guarded store; text or bytes are written as given."""
+        data = body if isinstance(body, (str, bytes)) else json.dumps(body)
+        with open(os.path.join(self.store, PROFILES), "wb" if isinstance(data, bytes) else "w") as handle:
+            handle.write(data)
+
+    def setting(self, **fields):
+        """The owner's file with one profile, `p`, that holds `fields` (a bridge, a model, an effort, options), as the ladder
+        of every kind of review."""
+        self.owner_file({"format": 1, "profiles": {"p": fields}, "ladders": {"default": ["p"]}})
 
     # --- files -----------------------------------------------------------------------------------
 

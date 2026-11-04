@@ -24,7 +24,6 @@ from workbench.wbkit import project as kit_project
 ROOT = support_install.ROOT
 PACKAGE = os.path.join(ROOT, "packages", "workbench")
 SELECT = ("claude", "ask-codex", "review-engine")
-SETTING = ".workbench/review.json"
 
 FAKE = """#!{python}
 import json, os, subprocess, sys, time
@@ -98,7 +97,7 @@ def result(body=None, code=None, stderr=b"", over=False, timed_out=False, raw=No
 
 
 class Round(support_review.Review):
-    """A project made by the installer from a copy of the package, with the setting naming `ask-codex`."""
+    """A project made by the installer from a copy of the package, with the owner's file naming `ask-codex`."""
 
     def setUp(self):
         self.base, self.root = self.make_base()
@@ -148,9 +147,6 @@ class Round(support_review.Review):
         self.addCleanup(holder.cleanup)
         base = os.path.realpath(holder.name)
         return base, os.path.join(base, "project")
-
-    def setting(self, **fields):
-        self.write(SETTING, json.dumps(dict({"format": 1}, **fields)))
 
     def control(self, **fields):
         with open(os.path.join(self.vendor, "control.json"), "w") as handle:

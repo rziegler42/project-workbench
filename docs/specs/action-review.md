@@ -489,7 +489,9 @@ follows is what the engine does.
 Decision 5 of `2026-10-22-model-calls-go-through-vendor-bridges` applies except for the file name. **This departs from
 decision 5.** The decision says each engine reads "a file named for the engine, `.workbench/<engine module>.json`";
 the owner chose on 2026-10-26, as the plan `2026-10-26-action-review-engine` records, that this engine reads the
-project file `.workbench/review.json`, the file the review engine already reads, and not `.workbench/action-review.json`.
+project file `.workbench/review.json`, the file the review engine read then (it reads the owner's `review-profiles.json` since plan
+`2026-11-04-review-profiles`, increment D; this engine still reads the project file until increment F), and not
+`.workbench/action-review.json`.
 A decision outranks a spec and an accepted decision is never edited, so the departure is recorded in
 `2026-10-26-action-review-reads-the-review-setting`, which the owner accepted on 2026-10-26, which refines decision 5
 for this file name only, and which `2026-11-04-review-profiles-in-the-guarded-store` has since superseded. The file holds a format number and the bridge, the model and the effort the

@@ -187,3 +187,15 @@ adopted, low effort rising to high for later rounds, and its "Calibration result
 limits are the ones that section states: toy repositories, one run per configuration, recall only, a false-alarm gate not completed,
 some configurations not run, and prices as of that date. The models measured are not the model this clone is configured for. The
 conclusion used here is only that a higher effort of the cheaper model did not raise recall in that sample.
+
+## Note, 2026-11-04
+
+A clarification made at the owner's request; the decision above is unchanged.
+
+Item 3 says the keys of a profile's `options` are only options that the bridge's module declares for use by a review, and that the
+engine passes nothing else from a profile. The review engine does not read a declaration at run time. Only the installer can read a
+declaration from a source an agent cannot write, and a launcher check on every call was set aside as larger than the gap it closes,
+because the option names come from the owner's file, which an agent cannot write. The engine passes a profile's options after the
+kit's checks of their form. The bridge refuses an option it does not accept. `wb doctor` and the delegated-approval check read the
+pinned declaration and report an undeclared option, a value that does not fit its grammar, and a broken exclusion
+(`docs/specs/review-profiles.md`, "Where each check runs").

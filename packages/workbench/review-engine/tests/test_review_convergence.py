@@ -280,9 +280,9 @@ class Convergence(Review):
         self.assertFalse(os.path.exists(self.store_path("seal-key")))
 
     def test_it_runs_no_bridge(self):
-        # there is no setting file and no bridge in this project: a round would be refused for that, convergence is not
+        # there is no profile file and no bridge in this project: a round would be refused for that, convergence is not
         self.sealed([round_entry(1)])
-        self.assertFalse(os.path.exists(self.path(".workbench/review.json")))
+        self.assertFalse(os.path.exists(os.path.join(self.store, "review-profiles.json")))
         self.assertTrue(self.converge()["converged"])
 
     def test_status_is_unchanged_by_the_new_argument(self):

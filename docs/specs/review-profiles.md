@@ -80,9 +80,10 @@ the owner's approval of this spec and is refined by the increment that builds it
   `thinking` with `effort`) is invalid.
 - **Where each check runs.** The reader of the file checks the file's own rules and nothing that needs a module: the bounds, the
   names, the reserved option names, the value rule above, and that a ladder names profiles that exist. It does not read a module's
-  declaration, so one bridge that is not installed never invalidates the file. The checks that need the declaration (that an option
-  is declared, its grammar and its exclusions) run when a profile is resolved for a round, in the engine, and in `wb doctor`. For
-  the installer's check, a listed profile is invalid if it fails either set.
+    declaration, so one bridge that is not installed never invalidates the file. The checks that need the declaration (that an option
+  is declared, its grammar and its exclusions) run in `wb doctor` and in the installer's check of a delegated approval, which read
+  the pinned declaration. The engine runs none of them (see the open point under "The options a module declares for a review").
+  For the installer's check, a listed profile is invalid if it fails either set.
 - A profile holds no window, output limit, temperature or keep-alive default of its own.
 
 ### The options a module declares for a review
@@ -106,14 +107,16 @@ increment D.)* A module's command declaration may carry `review_options`, an obj
 - The grammars are defined once, in the kit (`wbkit/profiles.py`, `GRAMMARS` and `fits`), and the declaration reader takes its closed
   list from there. The Ollama helper's own patterns for `--server`, `--context` and `--max-output` are the same text, which its
   module test compares.
-- **Open point for increment D.** The engine must learn which options an installed bridge declares, from a source an agent cannot
-  write. The installed copy of a declaration is a project file, so it is not that source by itself; the declaration hash that the
-  owner pinned is. Increment D reads the kit's `run_command` and the launcher first and stops and reports if the answer needs the
-  launcher to supply the declared options, which is a larger change than the plan names.
+- **Where the declaration is checked (the owner's choice of 2026-11-04).** The engine does not read a declaration: it passes the
+  options of the owner's profile and the bridge refuses one it does not accept, reported with the profile's name. Only the
+  installer can read a declaration from a source an agent cannot write, so the checks that need it run in `wb doctor` and in the
+  delegated-approval check (increments I and J). The alternative, a launcher check on every review call, was set aside as a larger
+  change than the gap it closes: the option names come from the owner's file, which an agent cannot write, so only the owner's own
+  mistake or a bridge the owner installed on purpose can put an undeclared option there.
 
 ### The ladder
 
-*(Decided; built by increment D for the review engine and F for the action-review engine.)*
+*(Built by increment D for the review engine; increment F builds it for the action-review engine.)*
 
 - The nth round of the review's current window uses rung n. The last rung is used for every later round of the window. `extend` raises
   the bound by 1 to 5 up to the ceiling of 5 rounds in a window (`review-engine.md`), which the ceiling of 5 rungs covers.
@@ -131,11 +134,12 @@ increment D.)* A module's command declaration may carry `review_options`, an obj
 
 ### What a round records and what `status` prints
 
-*(Decided; built by increments D and E.)*
+*(Built by increment D: the record and `request`; increment E builds `next`.)*
 
 - Each round records the name of the profile and the request it resolved to (bridge, model, effort and options), beside the model the
   bridge reported. A round stored before this is built carries only the bridge, the model and the effort asked for, and reads as having
-  no options and no profile. The exact field names are fixed by increment D and written back here.
+  no options and no profile. The round entry gains the field `profile` (the name) and its `requested` gains `options` (an object of strings); both shapes are
+  read (`review-engine.md`, "State").
 - `status` keeps the `request` values `none`, `same`, `changed` and `unreadable`. `same` means the request of the last round equals the
   current definition of the profile that its rung names. `changed` means it does not. An edit to the file never rewrites a recorded round.
 - `status` also prints, for the next round, the profile and the location class of its server (`this-machine`, `owner-network` or

@@ -95,35 +95,53 @@ class Status(support_review.Review):
 
 
 class ChangedRequest(support_review.Review):
-    """`status` compares the setting now with what the last round asked (checklist item 4)."""
+    """`status` compares the request of the last round with the current definition of the profile that round names
+    (checklist item 4; `docs/specs/review-profiles.md`, "What a round records and what `status` prints")."""
 
-    def asked(self, setting, **last):
-        if setting is not None:
-            self.write(".workbench/review.json", setting if isinstance(setting, str) else json.dumps(setting))
+    def asked(self, fields, requested=None, profile="p", **last):
+        """The request `status` reports after one round recorded as run on `profile` with `requested`, when the owner's file
+        holds `fields` as profile `p` (no file at all when `fields` is None)."""
+        if fields is not None:
+            self.setting(**fields)
         self.reviewed()
         state = self.state()
-        state["rounds"][0].update(last)
+        state["rounds"][0].update(profile=profile, requested=requested or {"model": None, "effort": None, "options": {}}, **last)
         self.forge(state)
         return self.document("status", PLAN)["request"]
 
-    def test_the_same_setting_is_the_same_request(self):
-        self.assertEqual("same", self.asked({"format": 1, "bridge": "ask-codex"}))
-        self.assertEqual("same", self.asked({"format": 1, "bridge": "ask-codex", "model": "m", "effort": "low"},
-                                            requested={"model": "m", "effort": "low"}))
+    def test_the_same_profile_is_the_same_request(self):
+        self.assertEqual("same", self.asked({"bridge": "ask-codex"}))
+        self.assertEqual("same", self.asked({"bridge": "ask-codex", "model": "m", "effort": "low"},
+                                            requested={"model": "m", "effort": "low", "options": {}}))
+        self.assertEqual("same", self.asked({"bridge": "ask-ollama", "model": "m", "options": {"server": "home", "thinking": "on"}},
+                                            requested={"model": "m", "effort": None,
+                                                       "options": {"thinking": "on", "server": "home"}}, bridge="ask-ollama"))
 
-    def test_a_changed_bridge_model_or_effort_is_a_changed_request(self):
-        self.assertEqual("changed", self.asked({"format": 1, "bridge": "other"}))
-        self.assertEqual("changed", self.asked({"format": 1, "bridge": "ask-codex", "model": "m"}))
-        self.assertEqual("changed", self.asked({"format": 1, "bridge": "ask-codex"},
-                                               requested={"model": None, "effort": "high"}))
+    def test_a_changed_bridge_model_effort_or_option_is_a_changed_request(self):
+        self.assertEqual("changed", self.asked({"bridge": "other"}))
+        self.assertEqual("changed", self.asked({"bridge": "ask-codex", "model": "m"}))
+        self.assertEqual("changed", self.asked({"bridge": "ask-codex"}, requested={"model": None, "effort": "high", "options": {}}))
+        self.assertEqual("changed", self.asked({"bridge": "ask-codex", "options": {"server": "home"}}))
+        self.assertEqual("changed", self.asked({"bridge": "ask-codex"},
+                                               requested={"model": None, "effort": None, "options": {"server": "home"}}))
 
-    def test_a_setting_that_cannot_be_read_is_reported_and_status_still_answers(self):
+    def test_a_profile_that_is_gone_is_a_changed_request(self):
+        self.assertEqual("changed", self.asked({"bridge": "ask-codex"}, profile="renamed"))
+
+    def test_a_round_from_before_profiles_names_no_profile_and_reads_as_changed(self):
+        self.setting(bridge="ask-codex")
+        self.reviewed()
+        self.assertEqual("changed", self.document("status", PLAN)["request"])
+
+    def test_a_file_that_cannot_be_read_is_reported_and_status_still_answers(self):
         self.assertEqual("unreadable", self.asked(None))
-        self.assertEqual("unreadable", self.asked("not json"))
-        self.assertEqual("unreadable", self.asked({"format": 1}))
+        self.owner_file("not json")
+        self.assertEqual("unreadable", self.asked(None))
+        self.owner_file({"format": 1, "profiles": {}, "ladders": {}})
+        self.assertEqual("unreadable", self.asked(None))
 
     def test_a_review_with_no_round_has_no_request_to_compare(self):
-        self.write(".workbench/review.json", json.dumps({"format": 1, "bridge": "other"}))
+        self.setting(bridge="other")
         self.document("init", PLAN)
         self.assertEqual("none", self.document("status", PLAN)["request"])
 
@@ -134,7 +152,7 @@ class ChangedRequest(support_review.Review):
         self.assertNotIn("request", got)
 
     def test_status_changes_nothing_when_it_compares(self):
-        self.asked({"format": 1, "bridge": "other"})
+        self.asked({"bridge": "other"})
         before = (self.tree(self.root), self.tree(self.store))
         self.document("status", PLAN)
         self.assertEqual(before, (self.tree(self.root), self.tree(self.store)))
