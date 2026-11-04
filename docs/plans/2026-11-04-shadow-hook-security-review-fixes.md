@@ -260,6 +260,40 @@ runs only if the owner decides after the author states what could break outside 
 - **Review:** one `reviewer` exchange, no blocking finding; applied: the test now pins exactly which shapes the engine declines (so a
   vacuous pass at a floor of four is gone), a stale "below" in the spec, and the spec's lines on "reviewed but not collectable" and on
   the unlabelled secret declines. Not applied: the status header of the spec, which does not list this plan (minor).
-- **Not done yet:** copy the four files into the real tree, the owner's `wb release-approvals` (the preview is `wb preview
-  release-approvals`; the real run is the owner's at a terminal, because the gate is closed by then), the checks in the real tree, and the
-  commit with the two new shipped approval records.
+- **Afterwards (2026-11-04):** the four files were copied into the real tree and the owner ran `wb release-approvals`; in the real tree
+  `wb check`, the plan check, `wb doctor`, `git diff --check` and the drift test were clean, and the module's 755 tests had one failure,
+  the macOS environment test above. Committed as e48f5e5 with the two new shipped approval records.
+
+### Increment B — The hook trusts nothing from its environment (built in a scratch clone, 2026-11-04)
+
+- **Where the work is.** A scratch clone at `e48f5e5` (`wb-sb/`); the real tree holds nothing of it. Six files differ:
+  `hook/shadow_hook.py`, `hook/shadow_store.py` (docstrings only), `helper/action-review` (the pins of both), `tests/test_hook_shadow_hook.py`,
+  `docs/specs/action-review.md`, `docs/development.md`.
+- **Done.** The hook takes its home directory from the account database (`pwd`, `account_home()`) and passes it to every store call and to
+  the engine; it has no default launcher (`--wb` is required, anything else is a usage note); and it notes a fixed line and does nothing
+  when it was not started isolated (a guard above every import but `sys`). The documented entry is
+  `/usr/bin/env -i <absolute interpreter> -I -B <dir>/shadow_hook.py --wb <absolute launcher>`; the spec, the development table and the
+  owner's step 3 say so. The note and the guard catch `Exception`, so a closed standard error cannot change the exit status.
+- **Departures from the plan, recorded.** (1) The plan's step 2 changes `shadow_store.data_dir` too. It was not changed: the labelling tool
+  and the report run at a terminal with the owner's environment, their tests redirect `HOME`, and the hook never reaches the fallback
+  because it always passes the home. Only the store's docstrings now say this, and its pin changed. A future caller that omits `home`
+  would use `HOME`; the docstring names that. (2) **`PYTHONSTARTUP` is not tested and not claimed**: CPython reads it only for an
+  interactive session, so a script run cannot show it. Criterion 2 lists it; this is the reason it is not met as written. (3) The plan's
+  criterion 2 says the entry protects against hostile start-up code; `-I` alone already ignores `PYTHONPATH` and the user site, and `env -i`
+  adds the non-Python variables (`LD_PRELOAD`, `DYLD_*`) and protects if `-I` is dropped. Neither protects against code installed with the
+  interpreter itself; the spec says so.
+- **Verification as run in the clone** (scratch `HOME` and store): the new tests failed before the change for the right reasons; after it
+  `test_hook_shadow_hook`, `test_hook_store`, `test_hook_redact`, `test_actionreview_pins`, `test_actionreview_module`, `test_tools_label` and
+  `test_tools_report` pass (267 tests) except the macOS environment test (fails on the unchanged tree) and, once, the thread-interleave test,
+  which passed three times alone. A control test shows that a plain interpreter with the hostile environment does import the hostile
+  `json.py`, `sitecustomize.py` and `usercustomize.py`; under the documented entry, and under `-I -B` alone, none of them runs; started
+  without `-I` the hook stops and records nothing. Three mutations (no guard, `HOME` read, a default launcher) were each caught by exactly the
+  tests meant for them.
+- **Not shown:** the hook run directly as the interpreter's own script with the real account database (the tests use a stub that patches
+  `pwd` and runs the file with `runpy`); `/usr/bin/env -i` with a macOS `/usr/bin/python3` shim (it re-executes through `xcrun`; the owner
+  names a real interpreter's absolute path and the hand run, step 6, is the first real run); behaviour under Claude Code.
+- **Review:** one `reviewer` exchange, no blocking finding; applied: a control test (finding 1), the claim about `PYTHONSTARTUP` and the
+  coverage of `env -i` (finding 2), two stale spec lines (finding 3), the store's docstrings (finding 4), `Exception` in the two places
+  and an orphan fragment of the hook's docstring (finding 5).
+- **Not done yet:** copy the six files into the real tree, the owner's `wb release-approvals`, the checks in the real tree, the commit
+  with the new shipped approval records.

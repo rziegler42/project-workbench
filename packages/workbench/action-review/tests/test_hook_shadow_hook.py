@@ -61,6 +61,27 @@ sys.exit(spec["code"])
 """
 
 
+# Started as `python3 -I -B stub.py <home> <hook> <arguments>`: the stub makes the account database name `<home>` as the account's
+# home directory (the hook asks the database and not the environment, so no environment variable can point it at a scratch
+# directory) and then runs the hook file as `__main__`. The interpreter's own start-up is the real one: its flags decide what
+# it reads from the environment before any of this code runs.
+STUB = """import pwd, runpy, sys
+home, hook = sys.argv[1], sys.argv[2]
+real = pwd.getpwuid
+
+
+def named(uid):
+    found = real(uid)
+    return pwd.struct_passwd((found.pw_name, found.pw_passwd, found.pw_uid, found.pw_gid, found.pw_gecos, home, found.pw_shell))
+
+
+pwd.getpwuid = named
+sys.argv = [hook] + sys.argv[3:]
+runpy.run_path(hook, run_name="__main__")
+"""
+ENV_PROGRAM = "/usr/bin/env"
+
+
 class Base(EngineBase):
     @classmethod
     def setUpClass(cls):
@@ -87,6 +108,17 @@ class Base(EngineBase):
         with open(os.path.join(self.wbdir, "spec.json"), "w") as handle:
             json.dump({"code": replay.code, "out": replay.out.hex(), "err": replay.err.hex(), "sleep": replay.sleep,
                        "child": child}, handle)
+
+    def program(self, argv, raw=None, flags=("-I", "-B"), prefix=(), env=None):
+        """Run the hook file as a program, as the settings entry does, with the account's home directory set to `self.home`."""
+        stub = os.path.join(self.base, "stub.py")
+        if not os.path.exists(stub):
+            with open(stub, "w") as handle:
+                handle.write(STUB)
+        raw = json.dumps(self.event()).encode("utf-8") if raw is None else raw
+        env = {"PATH": "/usr/bin:/bin"} if env is None else env
+        return subprocess.run(list(prefix) + [sys.executable, *flags, stub, self.home, HOOK, *argv], input=raw, env=env,
+                              capture_output=True, timeout=60)
 
     def wb_args(self):
         path = os.path.join(self.wbdir, "args.json")
@@ -150,8 +182,7 @@ class Answer(Base):
     def test_the_script_prints_nothing_and_exits_0_for_every_engine_outcome(self):
         for name, replay in self.cases():
             self.install_wb(replay)
-            run = subprocess.run([sys.executable, "-B", HOOK, "--wb", self.wb], input=json.dumps(self.event()).encode(),
-                                 env={"HOME": self.home, "PATH": "/usr/bin:/bin", "PYTHONDONTWRITEBYTECODE": "1"}, capture_output=True, timeout=60)
+            run = self.program(["--wb", self.wb])
             self.assertEqual((0, b""), (run.returncode, run.stdout), (name, run.stderr))
 
     def test_the_script_prints_nothing_for_bad_input_too(self):
@@ -160,14 +191,12 @@ class Answer(Base):
                json.dumps(self.event(hook_event_name="PreToolUse")).encode(), b"{" * 5000, b"x" * 2000000]
         self.install_wb(self.engine())
         for raw in bad:
-            run = subprocess.run([sys.executable, "-B", HOOK, "--wb", self.wb], input=raw,
-                                 env={"HOME": self.home, "PATH": "/usr/bin:/bin", "PYTHONDONTWRITEBYTECODE": "1"}, capture_output=True, timeout=60)
+            run = self.program(["--wb", self.wb], raw)
             self.assertEqual((0, b""), (run.returncode, run.stdout), raw[:30])
 
     def test_the_script_prints_nothing_when_the_arguments_are_wrong_or_the_wb_is_missing(self):
         for argv in ([], ["--wb"], ["--wb", "relative/wb"], ["--wb", "/no/such/wb"], ["--other"], ["--wb", self.wb, "x"]):
-            run = subprocess.run([sys.executable, "-B", HOOK, *argv], input=json.dumps(self.event()).encode(),
-                                 env={"HOME": self.home, "PATH": "/usr/bin:/bin", "PYTHONDONTWRITEBYTECODE": "1"}, capture_output=True, timeout=60)
+            run = self.program(argv)
             self.assertEqual((0, b""), (run.returncode, run.stdout), argv)
 
     def test_main_returns_0_and_does_not_raise_for_an_interrupt_or_an_exit_inside_it(self):
@@ -441,9 +470,7 @@ class Redacting(Base):
         for replay in (self.leaky(), self.leaky_diff()):
             os_remove_rows(self.home)
             self.install_wb(replay)
-            run = subprocess.run([sys.executable, "-B", HOOK, "--wb", self.wb], input=json.dumps(self.event(LEAKY_COMMAND)).encode(),
-                                 env={"HOME": self.home, "PATH": "/usr/bin:/bin", "PYTHONDONTWRITEBYTECODE": "1"},
-                                 capture_output=True, timeout=60)
+            run = self.program(["--wb", self.wb], json.dumps(self.event(LEAKY_COMMAND)).encode())
             self.assertEqual((0, b""), (run.returncode, run.stdout))
             for secret in SECRETS:
                 self.assertNotIn(secret.encode(), run.stderr)
@@ -607,6 +634,108 @@ class DeclinedSecrets(Base):
         self.assertNotIn(SHAPES["gitlab"], self.stored_text())
 
 
+class Isolation(Base):
+    """The hook takes nothing from its inherited environment (plan `2026-11-04-shadow-hook-security-review-fixes`, increment B; the
+    second security review, Medium 2). A Python script cannot defend itself against what the interpreter runs before it, so the
+    entry that starts it is `/usr/bin/env -i <absolute interpreter> -I -B <hook> --wb <launcher>`; what the script itself does is to
+    take its home from the account database, to need `--wb`, and to stop at once when it was not started isolated."""
+
+    def setUp(self):
+        super().setUp()
+        self.hostile = os.path.join(self.base, "hostile")
+        self.json_only = os.path.join(self.base, "json-only")
+        self.other_home = os.path.join(self.base, "other-home")
+        for path in (self.hostile, self.json_only, self.other_home):
+            os.mkdir(path)
+        self.user_base = os.path.join(self.base, "user-base")
+        probe = subprocess.run([sys.executable, "-c", "import site; print(site.getusersitepackages())"],
+                               env={"PYTHONUSERBASE": self.user_base, "PATH": "/usr/bin:/bin"}, capture_output=True, timeout=60)
+        self.user_site = probe.stdout.decode().strip()
+        os.makedirs(self.user_site)
+        self.markers = {}
+        for directory, name in ((self.hostile, "json"), (self.hostile, "sitecustomize"), (self.json_only, "json"),
+                                (self.user_site, "usercustomize")):
+            marker = os.path.join(self.base, "%s-%s.ran" % (os.path.basename(directory) or "user", name))
+            self.markers[(directory, name)] = marker
+            with open(os.path.join(directory, name + ".py"), "w") as handle:
+                handle.write("open(%r, 'w').close()\n" % marker)
+        self.install_wb(self.engine())
+
+    def hostile_environment(self, **extra):
+        env = {"PATH": "/usr/bin:/bin", "HOME": self.other_home, "PYTHONPATH": self.hostile, "PYTHONUSERBASE": self.user_base}
+        env.update(extra)
+        return env
+
+    def ran(self):
+        found = [os.path.basename(path) for path in self.markers.values() if os.path.exists(path)]
+        return sorted(found)
+
+    def test_the_control_without_any_protection_the_hostile_environment_does_run_code(self):
+        # Without this the tests below could pass because the hostile layout does nothing at all. A plain interpreter with the same
+        # environment imports the hostile `json.py`, `sitecustomize.py` and `usercustomize.py`. (`PYTHONSTARTUP` is read only by an
+        # interactive session, so neither this test nor the hook's run can show it; it is not claimed.)
+        run = subprocess.run([sys.executable, "-B", "-c", "import json"], env=self.hostile_environment(), capture_output=True,
+                             timeout=60)
+        self.assertEqual(0, run.returncode, run.stderr)
+        self.assertEqual(["hostile-json.ran", "hostile-sitecustomize.ran", "site-packages-usercustomize.ran"], self.ran())
+
+    def test_started_as_the_documented_entry_nothing_hostile_runs_and_the_row_is_recorded(self):
+        run = self.program(["--wb", self.wb], prefix=[ENV_PROGRAM, "-i"], env=self.hostile_environment())
+        self.assertEqual((0, b""), (run.returncode, run.stdout), run.stderr)
+        self.assertEqual([], self.ran())
+        self.assertEqual("reviewed", self.one_verdict()["outcome"])
+
+    def test_isolated_mode_alone_ignores_the_path_the_startup_file_and_the_user_site(self):
+        run = self.program(["--wb", self.wb], env=self.hostile_environment())
+        self.assertEqual((0, b""), (run.returncode, run.stdout), run.stderr)
+        self.assertEqual([], self.ran())
+        self.assertEqual("reviewed", self.one_verdict()["outcome"])
+
+    def test_a_different_home_variable_moves_neither_the_data_directory_nor_the_launcher(self):
+        run = self.program(["--wb", self.wb], env=self.hostile_environment())
+        self.assertEqual(0, run.returncode, run.stderr)
+        self.assertEqual("reviewed", self.one_verdict()["outcome"])
+        self.assertFalse(os.path.exists(os.path.join(self.other_home, ".config")), "the data went below the HOME variable")
+        seen = self.wb_args()
+        self.assertEqual(self.home, seen["env"]["HOME"])  # the engine is given the account's home, not the variable
+
+    def test_started_without_isolation_the_hook_stops_at_once_and_records_nothing(self):
+        # Only `json.py` is on this path: the guard sits above every other import of the file, so the hook's own imports are not
+        # taken from it. This does not claim that code the interpreter ran at start-up (`sitecustomize`) did not run.
+        env = {"PATH": "/usr/bin:/bin", "PYTHONPATH": self.json_only}
+        run = self.program(["--wb", self.wb], flags=("-B",), env=env)
+        self.assertEqual((0, b""), (run.returncode, run.stdout))
+        self.assertIn(b"python3 -I", run.stderr)
+        self.assertNotIn(b"hunter", run.stderr)
+        self.assertFalse(os.path.exists(self.markers[(self.json_only, "json")]), "a hostile json.py was imported")
+        self.assertEqual(([], 0), self.rows("verdicts.jsonl"))
+        self.assertIsNone(self.wb_args(), "the engine was started by a hook that was not isolated")
+
+    def test_the_data_directory_and_the_home_the_engine_gets_come_from_the_account_database(self):
+        import pwd
+        found = pwd.getpwuid(os.getuid())
+        named = pwd.struct_passwd((found.pw_name, found.pw_passwd, found.pw_uid, found.pw_gid, found.pw_gecos, self.home,
+                                   found.pw_shell))
+        with unittest.mock.patch.dict(os.environ, {"HOME": self.other_home}), \
+                unittest.mock.patch.object(pwd, "getpwuid", return_value=named):
+            self.assertEqual(self.home, self.mod.account_home())
+            code = self.mod.main(["--wb", self.wb], io.BytesIO(json.dumps(self.event()).encode()), io.StringIO())
+        self.assertEqual(0, code)
+        self.assertEqual("reviewed", self.one_verdict()["outcome"])
+        self.assertFalse(os.path.exists(os.path.join(self.other_home, ".config")))
+
+    def test_an_account_database_that_cannot_answer_records_nothing_and_notes_it(self):
+        import pwd
+        with unittest.mock.patch.object(pwd, "getpwuid", side_effect=KeyError("uid")):
+            self.assertIsNone(self.mod.account_home())
+            err = io.StringIO()
+            code = self.mod.main(["--wb", self.wb], io.BytesIO(json.dumps(self.event()).encode()), err)
+        self.assertEqual(0, code)
+        self.assertIn("home directory", err.getvalue())
+        self.assertIsNone(self.wb_args())
+        self.assertEqual(([], 0), self.rows("verdicts.jsonl"))
+
+
 class Inputs(Base):
     def test_malformed_input_leaves_a_row_with_no_command_hash_and_runs_no_engine(self):
         self.install_wb(self.engine())
@@ -723,7 +852,8 @@ class Program(Base):
             self.assertEqual("failed", self.one_verdict()["outcome"], wb)
         self.assertIsNone(self.wb_args())
 
-    def test_the_default_wb_is_the_launcher_in_the_guarded_store_of_the_home_directory(self):
+    def test_without_wb_there_is_no_default_launcher_and_the_hook_runs_nothing(self):
+        # Plan `2026-11-04-shadow-hook-security-review-fixes`, increment B: the launcher is always the one the owner's entry names.
         launcher = os.path.join(self.home, ".config", "project-workbench", "bin", "wb")
         os.makedirs(os.path.dirname(launcher), mode=0o700)
         os.chmod(os.path.join(self.home, ".config", "project-workbench"), 0o700)
@@ -731,8 +861,12 @@ class Program(Base):
         self.wbdir = os.path.dirname(launcher)
         self.wb = launcher
         self.install_wb(self.engine())
-        self.run_hook(argv=[])
-        self.assertEqual("reviewed", self.one_verdict()["outcome"])
+        code, err = self.run_hook(argv=[])
+        self.assertEqual(0, code)
+        self.assertIn("usage", err)
+        self.assertIn("--wb", err)
+        self.assertIsNone(self.wb_args(), "the engine was started without a launcher the owner named")
+        self.assertEqual(([], 0), self.rows("verdicts.jsonl"))
 
     def test_an_unknown_argument_or_a_missing_value_is_noted_and_runs_nothing(self):
         self.install_wb(self.engine())

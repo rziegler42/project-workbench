@@ -550,14 +550,26 @@ output. In every case its exit status is 0. The engine's own parser decides whet
 nothing. A command that matches no rule, including a push and a remote-job command, is `no_rule`, and the engine cannot
 tell the two apart from any other command with no rule, so the report does not split them.
 
-*As built (Increment D, `hook/shadow_hook.py`).* It is called `python3 -B /path/to/shadow_hook.py [--wb <absolute path>]` with
-`shadow_store.py` beside it; with no argument the launcher is `~/.config/project-workbench/bin/wb`. Any other argument is noted on
-standard error and nothing is recorded. The launcher must be an absolute path to an executable file **named `wb`** that is not inside
+*As built (Increment D, `hook/shadow_hook.py`; amended by plan `2026-11-04-shadow-hook-security-review-fixes`, increment B).* It is
+called `/usr/bin/env -i <absolute interpreter> -I -B /path/to/shadow_hook.py --wb <absolute path>` with `shadow_store.py` beside it.
+`--wb` is required: there is no default launcher, and any other argument, or none, is noted on standard error and nothing is
+recorded. **The environment.** The hook takes its home directory, which decides where the rows go and which `HOME` the engine is given,
+from the account database (`pwd`) and not from the `HOME` variable, and it notes the fixed line "the hook was not started with
+python3 -I" and does nothing when it was not started isolated. That guard sits above every other import of the file, so the hook's own
+imports are not taken from a path the environment named. **It cannot stop code the interpreter ran before the file**
+(a `sitecustomize` or `usercustomize` found through a hostile `PYTHONPATH` or user site); `-I` makes the interpreter ignore those,
+and `env -i` also removes the variables that load code into a process (`LD_PRELOAD`, `DYLD_*`) and still protects if `-I` is
+ever dropped, which is why the owner's steps give the entry in that form. Neither protects against code installed with the interpreter
+itself (its own `site-packages`): the interpreter is the owner's choice. The tests first show, with a plain interpreter, that the hostile
+layout does run code, and then start the hook as a program with that environment and show that none of it runs (`Isolation` in
+`test_hook_shadow_hook.py`); `PYTHONSTARTUP`, which only an interactive session reads, is not tested. The stub those tests use runs the
+hook file with `runpy`, so they do not exercise the file as the interpreter's own script, nor the real account database. The labelling tool and the report are run by the owner at a terminal,
+with the owner's own environment, and still find their directory from `HOME`. The launcher must be an absolute path to an executable file **named `wb`** that is not inside
 the command's own directory (after links are resolved) and whose directory name does not hold the path separator; otherwise the
 engine is not started and the command is recorded as `failed` (a `:` in the directory's name would split the `PATH` entry). The
 launcher's directory is first on the `PATH` of the engine and of everything the engine starts, so it should hold nothing but `wb`
-and be writable by the owner alone: anything named `git`, `python3` or `codex` there would shadow the system program (the default,
-`~/.config/project-workbench/bin`, holds `wb` and a `run/` directory). The hook does not check the directory's owner or mode, and
+and be writable by the owner alone: anything named `git`, `python3` or `codex` there would shadow the system program (the guarded
+store's `bin`, `~/.config/project-workbench/bin`, holds `wb` and a `run/` directory). The hook does not check the directory's owner or mode, and
 it refuses a launcher inside the command's own directory but not one in a repository above it; the engine's own lookup drops any
 `PATH` entry inside the outermost repository of the command's directory. The engine runs in its own process group with `PATH`, `HOME` and
 `LANG` and nothing else in its environment. **The `PATH` begins with the launcher's own directory**, then `/usr/local/bin:/usr/bin:/bin`:
@@ -576,7 +588,8 @@ anything else. Nothing the hook prints, writes or returns can be an
 answer to the harness: its source holds no answer object and no write to standard output, and the tests read both.
 
 **The data files.** The directory is `~/.config/project-workbench/action-review/`, a subdirectory of the guarded store found from
-the account's home directory; no environment variable, option or file moves it (`2026-10-20-fixed-store-location`). The owner
+the account's home directory; no option or file moves it, and the hook takes that directory from the account database, not from
+`HOME` (`2026-10-20-fixed-store-location`; the labelling tool and the report, run by the owner at a terminal, use `HOME`). The owner
 decided this on 2026-10-29. The store check of the installer (`workbench/store.py`, `Store.ensure`) creates and checks only the
 store's root and its four directories (`packages`, `cache`, `projects`, `bin`), reads no other entry, and so tolerates this
 subdirectory; read on 2026-10-30. The hook creates it with mode 0700 and its files with 0600, and writes only below it, never to
@@ -915,11 +928,11 @@ of plan `2026-10-29-action-review-shadow-hook`, Increment H.
    them). A program run from inside a project is code that project could change. The test-set runner is not copied; it runs from
    the checkout (step 8).
 3. **Register the hook in your user-level Claude settings, never in a project,** with the entry below. The `--wb` path is the
-   launcher in the guarded store and is also the default; its file name must be `wb`. There is **no `onFailure`**: with `"block"` a failure of the hook would
+   launcher in the guarded store and is required, as there is no default; its file name must be `wb`. The interpreter is an absolute path of the Python you trust (`/usr/bin/env -i` clears the environment, so `python3` alone would not be found). There is **no `onFailure`**: with `"block"` a failure of the hook would
    deny the request. Claude Code's own format and rules for the hook are under "The shadow hook".
    ```json
    {"hooks": {"PermissionRequest": [{"matcher": "Bash", "hooks": [{"type": "command", "timeout": 30,
-     "command": "python3 -B /your/directory/shadow_hook.py --wb /home/<you>/.config/project-workbench/bin/wb"}]}]}}
+     "command": "/usr/bin/env -i /absolute/path/to/python3 -I -B /your/directory/shadow_hook.py --wb /home/<you>/.config/project-workbench/bin/wb"}]}]}}
    ```
    **What leaves your machine from here on:** every prompted command that matches a rule is reviewed by the engine, which sends
    its facts, a commit's diff included, to the bridge's vendor (two model calls at most per command). `collected.jsonl` keeps the

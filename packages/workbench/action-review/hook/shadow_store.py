@@ -6,8 +6,11 @@ imports only the standard library and runs nothing when imported.
 
 What it keeps true:
 
-* The directory is below the guarded store, found from the home directory. No environment variable, option or file moves it
-  (``docs/decisions/2026-10-20-fixed-store-location.md``); `home` is an argument only so that tests can use another one.
+* The directory is below the guarded store, found from the home directory. No option or file moves it
+  (``docs/decisions/2026-10-20-fixed-store-location.md``); `home` is an argument so that tests can use another one. Without it the
+  directory comes from ``HOME`` (``expanduser``), which is what the owner-run labelling tool and the report use at a terminal; **the
+  hook never relies on that**: it takes the account's home directory from the account database and passes it in
+  (``shadow_hook.account_home``).
 * The store root and the directory are real directories, owned by the current user, with mode exactly 0700, and nothing on the
   way down is followed through a link (the ancestors of the store may be, as for the guarded store). A directory with another
   mode is refused and named, never repaired. What is made is the store root (mode 0700), ``action-review`` and its four files,
@@ -162,7 +165,8 @@ def check_row(name, row):
 # -- the directory and the files ----------------------------------------------------------------------------------------
 
 def data_dir(home=None):
-    """The directory of the store below `home`, which defaults to the account's home directory."""
+    """The directory of the store below `home`, which defaults to the home directory ``expanduser`` finds (from ``HOME``). The
+    hook always passes `home` explicitly, from the account database."""
     if home is None:
         home = os.path.expanduser("~")
     if not isinstance(home, str) or not os.path.isabs(home) or "\0" in home:

@@ -48,8 +48,8 @@ PINS = {
     "reply-schema.json": "ead8d9b7c80e962ad890685ef6c0c054bf10bb5b0796374c02cc59e336d3570a",
     # Not read by the review: the owner's shadow hook, which is copied out of the project, and the owner compares the copy's
     # hash with this one (plan `2026-10-29-action-review-shadow-hook`).
-    "hook/shadow_store.py": "db5fafbf8c64b03a3c1d1b74c011512225f09b06e6b96f1155a0dd96050e2c32",
-    "hook/shadow_hook.py": "12b8bc5ac3a11cf8a60db11daabc29e309d627b2913421d786fda7282150b325",
+    "hook/shadow_store.py": "a61c458dbab72a65150739a60c7f724e77ea755347766e3af34550b8dc15f722",
+    "hook/shadow_hook.py": "a894e59de171f7139827fe60158930fe33fd52f8f6aa88755ad6dbb7b848a299",
 }
 MAX_RULE = 16384
 MAX_RULES = 64

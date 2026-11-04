@@ -4,9 +4,12 @@
 The owner copies this file and ``shadow_store.py`` out of the project to a directory of their own and registers the hook for
 the ``PermissionRequest`` event, matcher ``Bash``, with a time limit of 30 seconds and no ``onFailure`` setting:
 
-    python3 /path/to/shadow_hook.py --wb /absolute/path/to/wb
+    /usr/bin/env -i /absolute/path/to/python3 -I -B /path/to/shadow_hook.py --wb /absolute/path/to/wb
 
-(``docs/specs/action-review.md``, "The shadow hook"). For each prompt it runs ``wb run action-review review --log-row
+``env -i`` and ``-I`` are what keep the interpreter's own start-up from reading the environment (a hostile ``PYTHONPATH`` or user
+site, and the variables that load code into a process): a script cannot defend itself against code that runs before it. This file
+notes a missing ``-I`` and does nothing; it takes the home directory from the account database and not from ``HOME``, and has no
+default launcher (``docs/specs/action-review.md``, "The shadow hook"). For each prompt it runs ``wb run action-review review --log-row
 --collect '<command>'`` from the directory the command will run in, reads the lines the engine prints on standard error, and
 writes a row to ``~/.config/project-workbench/action-review/`` through ``shadow_store``. It writes nothing to standard output
 and exits 0 in every case: the prompt stays the owner's, whatever the engine said and whatever went wrong here. A failure of the
@@ -17,13 +20,24 @@ inside the command's own directory, pass its environment on, or trust a line of 
 kind. The ``wb`` launcher is given a clean environment. Standard library only, apart from the store beside it.
 """
 
-import hashlib
-import json
-import os
-import re
-import signal
-import subprocess
 import sys
+
+if __name__ == "__main__" and not sys.flags.isolated:
+    # Above every other import, so that nothing the hook imports is taken from a path the environment named. This makes a missing
+    # `-I` visible and stops the hook's work; it cannot stop code the interpreter ran before this file (the entry's `env -i` does).
+    try:
+        sys.stderr.write("the hook was not started with python3 -I; nothing was reviewed or recorded\n")
+    except Exception:  # a closed standard error is `None`: whatever it is, the hook still exits 0
+        pass
+    sys.exit(0)
+
+import hashlib  # noqa: E402
+import json  # noqa: E402
+import os  # noqa: E402
+import pwd  # noqa: E402
+import re  # noqa: E402
+import signal  # noqa: E402
+import subprocess  # noqa: E402
 
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 import shadow_store as store  # noqa: E402  the store beside this file, whose directory is the first on the path
@@ -36,7 +50,7 @@ MAX_INPUT = 1 << 20
 MAX_COMMAND = 4096
 MAX_REASON = 300  # the store's limit for a stored reason
 MAX_STREAM = 2 << 20
-USAGE = "usage: shadow_hook.py [--wb <absolute path of the wb launcher>]"
+USAGE = "usage: shadow_hook.py --wb <absolute path of the wb launcher>   (the launcher is required: there is no default)"
 REASONS = ("reviewed", "no_rule", "unreviewable", "refused", "failed", "timeout")
 # A timeout is exit 1 when `describe` ran out of time (a refusal) and exit 2 when the bridge did (a failure).
 EXIT_OF = {"reviewed": (0,), "no_rule": (1,), "unreviewable": (1,), "refused": (1,), "failed": (2,), "timeout": (1, 2)}
@@ -51,7 +65,7 @@ NO_COLLECT_CHECKS = ("no_secret_lines", "paths_not_credentials")
 def note(err, text):
     try:
         err.write(text + "\n")
-    except (OSError, ValueError):
+    except Exception:  # a note must never change the exit status
         pass
 
 
@@ -149,10 +163,19 @@ def read_event(stdin):
     return "ok", command, cwd
 
 
-def parse_arguments(argv, home_dir):
-    """The path of the ``wb`` launcher, or None for a call this hook does not take."""
-    if argv == []:
-        return os.path.join(home_dir, ".config", "project-workbench", "bin", "wb")
+def account_home():
+    """The home directory of the account the hook runs as, from the account database, or None. The ``HOME`` variable is not read:
+    it is part of the environment the harness passes on, and this directory decides where the rows go and what home the engine
+    is given."""
+    try:
+        home = pwd.getpwuid(os.getuid()).pw_dir
+    except (KeyError, OSError, OverflowError):
+        return None
+    return home if isinstance(home, str) and os.path.isabs(home) and "\0" not in home else None
+
+
+def parse_arguments(argv):
+    """The path of the ``wb`` launcher, or None for a call this hook does not take: ``--wb`` and its value, and nothing else."""
     if len(argv) == 2 and argv[0] == "--wb":
         return argv[1]
     return None
@@ -321,30 +344,33 @@ def record(err, home, outcome, command, verdict=None, log_row=None, facts=None):
 
 
 def run(argv, stdin, err, home):
-    home_dir = home if home is not None else os.path.expanduser("~")
-    wb = parse_arguments(argv, home_dir)
+    home_dir = home if home is not None else account_home()
+    if home_dir is None:
+        note(err, "the hook could not find the account's home directory; nothing was reviewed or recorded")
+        return
+    wb = parse_arguments(argv)
     if wb is None:
         note(err, USAGE)
         return
     kind, command, cwd = read_event(stdin)
     if kind != "ok":
-        record(err, home, kind, None)
+        record(err, home_dir, kind, None)
         return
     if len(command) > MAX_COMMAND:
-        record(err, home, "unreviewable", command)
+        record(err, home_dir, "unreviewable", command)
         return
     if not usable_launcher(wb, cwd):
         note(err, "the hook was not given a wb it may run; nothing was reviewed")
-        record(err, home, "failed", command)
+        record(err, home_dir, "failed", command)
         return
     try:
         code, out, errb, timed_out = run_engine(wb, command, cwd, home_dir)
     except (OSError, ValueError):
         note(err, "the engine could not be started")
-        record(err, home, "failed", command)
+        record(err, home_dir, "failed", command)
         return
     outcome, verdict, log_row, facts = classify(code, out, errb, timed_out)
-    record(err, home, outcome, command, verdict, log_row, facts)
+    record(err, home_dir, outcome, command, verdict, log_row, facts)
 
 
 def main(argv, stdin, err, home=None):
