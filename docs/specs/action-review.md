@@ -933,63 +933,143 @@ was reviewed by the approver and declines under `describe` (`safe-git.md`).
 - The personal setting is not built (see "Settings and the bridge").
 
 **The owner's steps.** The agent does not run these, and nothing below is done until the owner does it. The shadow hook records and
-allows nothing: the prompt stays the owner's, and removing its settings entry stops it. The module's files are the ones at the commit
-of plan `2026-10-29-action-review-shadow-hook`, Increment H.
+allows nothing: the prompt stays the owner's, and removing its settings entry stops it. This is the one complete list (plan
+`2026-11-04-shadow-hook-security-review-fixes`, increment D, after the second security review of 2026-11-04); a step that must wait for
+another comes after it, and the protections (step 3) come before the hook is registered (step 4). The module's files are those of the
+commit that holds this text. If you copied files for an earlier version of these steps, they are out of date: do step 2 again. Every
+command below is typed in a terminal, in the root of the project you work in, unless it says otherwise. "The user-level settings" is the
+file `~/.claude/settings.json`.
 
-1. **Install the module into a project you work in** (this repository first): `python3 -m workbench preview add --dir <checkout>
-   --package packages/workbench --select action-review`, then the same with `add` instead of `preview add`; run `acknowledge` first
-   if it lists changes. The hook runs `wb run action-review review`, so the project needs the module installed and pinned, a
-   `safe-git` and a `model-bridge` module (`ask-codex`) installed and pinned, and `.workbench/review.json` naming the bridge. After
-   a later change to the module, `wb release-approvals` and `upgrade` are yours to run.
-2. **Copy four files out of the project** to one directory of your own that no project contains, so that `shadow_store.py` sits
-   beside each of the others: `hook/shadow_hook.py` and `hook/shadow_store.py` (the SHA-256 of each is in the helper's `PINS`; compare
-   it with `sha256sum` of the copy), and `tools/label.py` and `tools/report.py` (never installed; take them from a checkout at the
-   approved commit, check each is byte-equal to the committed file, and let `wb verify` check the module's tree hash, which covers
-   them). A program run from inside a project is code that project could change. The test-set runner is not copied; it runs from
-   the checkout (step 8).
-3. **Register the hook in your user-level Claude settings, never in a project,** with the entry below. The `--wb` path is the
-   launcher in the guarded store and is required, as there is no default; its file name must be `wb`. The interpreter is an absolute path of the Python you trust (`/usr/bin/env -i` clears the environment, so `python3` alone would not be found). There is **no `onFailure`**: with `"block"` a failure of the hook would
-   deny the request. Claude Code's own format and rules for the hook are under "The shadow hook".
+1. **Install the module into a project you work in, and keep it current** (this repository first). The hook runs `wb run action-review
+   review`, so the project needs the module installed and pinned, a `safe-git` and a `model-bridge` module (`ask-codex`) installed and
+   pinned, and `.workbench/review.json` naming the bridge. First time: `python3 -m workbench preview add --dir <checkout> --package
+   packages/workbench --select action-review`, then the same with `add` instead of `preview add`. **The engine the hook starts is the
+   installed copy under `.workbench/`, not the one in `packages/`**, so after any change to the module, in this order: `wb
+   release-approvals`; `acknowledge` if it lists changes (the project must be known on this machine and every difference acknowledged);
+   `python3 -m workbench preview upgrade --dir <checkout> --package packages/workbench` and read it (the manifest records the package
+   as `local:workbench`, which must be given with `--package`; if it says a module is not approved, `wb approve` it first); then the
+   same with `upgrade` instead of `preview upgrade`. Without that the hook runs the engine as it was installed.
+2. **Copy four files to a dedicated directory, from a clean checkout, and check them.** The directory is yours alone, outside every
+   project, empty apart from these four files (a stray `secrets.py` or `errno.py` beside them would shadow the standard library, because
+   the hook puts its own directory first on the import path). The four files are read-only; the directory stays writable by you so that
+   you can replace them. If `~/action-review-shadow` exists from an earlier version, delete it first. From a checkout of this repository
+   at the commit you intend (`git status --short` must print nothing):
+   ```
+   D=~/action-review-shadow
+   rm -rf "$D" && mkdir "$D" && chmod 700 "$D"
+   for f in hook/shadow_hook.py hook/shadow_store.py tools/label.py tools/report.py; do
+     git show "HEAD:packages/workbench/action-review/$f" > "$D/$(basename $f)"
+   done
+   chmod 444 "$D"/*.py
+   ls -A "$D"                                   # exactly: label.py report.py shadow_hook.py shadow_store.py
+   git -C "$D" rev-parse --show-toplevel        # must fail: "not a git repository"
+   shasum -a 256 "$D"/*.py
+   ```
+   `git show` writes the committed bytes, so a working-tree edit cannot get in. The hashes you print are the check against the checkout;
+   the helper's `PINS` (`grep -n 'hook/shadow' packages/workbench/action-review/helper/action-review`) holds the SHA-256 of
+   `shadow_hook.py` and `shadow_store.py`, and comparing them is a second check that proves less (the helper is a file of the project,
+   which an agent can write; a mismatch is a reason to stop, a match is not proof). `label.py` and `report.py` are never installed; `wb
+   verify` on the module checks its tree hash, which covers them. A program run from inside a project is code that project could change,
+   which is why none of these is run from the project. The test-set runner is not copied; it runs from the checkout (step 8).
+3. **Protect the files with user-level rules, and know their limit.** In the user-level settings, under `permissions.deny`, add:
+   `Read(~/.config/project-workbench/action-review/**)`, `Edit(~/action-review-shadow)`, `Edit(~/action-review-shadow/**)`,
+   `Write(~/action-review-shadow/**)`, `Edit(~/.claude/settings.json)` and `Write(~/.claude/settings.json)` (your Claude Code version
+   may fold the `Write` rules into its edit rules; use the spelling it documents). The rendered rules deny the agent's edits to
+   `~/.config/project-workbench/**` and not its reads, and a tool-level deny does not stop a shell: `cat`, a redirect or `cp` still work.
+   These rules narrow the gap and do not close it. **Anything that runs as you can change the hook, its settings, the data files and the
+   labels**, so the report in step 9 is evidence for you to weigh, not proof. Note that with the `Edit` rule on the settings file, you
+   change that file yourself, in an editor, not through the agent.
+4. **Try the entry by hand, then register it.** The interpreter is an absolute path to a Python you trust, never `python3` alone:
+   `/usr/bin/env -i` clears the environment, and the macOS `/usr/bin/python3` is a shim that starts the developer tools. Find yours with
+   `python3 -c 'import sys; print(sys.executable)'`. `-I` makes Python ignore `PYTHONPATH` and the user site; `env -i` also removes the
+   variables that load code into a process. Neither protects against code installed with the interpreter itself. `--wb` is the launcher
+   in the guarded store, an absolute path whose file name is `wb`, and is required.
+   *By hand first,* in the root of the project from step 1 (the hook runs the engine in the directory it is given, and the engine needs
+   a project there; from `$HOME` the launcher is refused because it lies inside that directory). This reviews nothing and sends nothing:
+   `ls` has no rule, so the engine never reaches the model.
+   ```
+   echo '{"hook_event_name":"PermissionRequest","tool_name":"Bash","cwd":"'"$PWD"'","tool_input":{"command":"ls"}}' |
+     /usr/bin/env -i /absolute/path/to/python3 -I -B ~/action-review-shadow/shadow_hook.py --wb "$HOME/.config/project-workbench/bin/wb"
+   echo "exit $?"
+   python3 -B ~/action-review-shadow/report.py
+   ```
+   It must print nothing before `exit 0`, and, with an empty data directory (any earlier rows add to the counts), the report must show
+   `prompted 1 (reviewed 0, not reviewed 1)` and `not reviewed: no_rule 1`. If the hook prints a line on standard error, that line says
+   what is wrong (a missing `-I`, no `--wb`, a launcher it may not run); a `refused` or `failed` outcome in the report is step 6's list.
+   *Then register it in the user-level settings,* merged into the `hooks` you already have. There is **no `onFailure`**: with `"block"`
+   a failure of the hook would deny the request.
    ```json
    {"hooks": {"PermissionRequest": [{"matcher": "Bash", "hooks": [{"type": "command", "timeout": 30,
-     "command": "/usr/bin/env -i /absolute/path/to/python3 -I -B /your/directory/shadow_hook.py --wb /home/<you>/.config/project-workbench/bin/wb"}]}]}}
+     "command": "/usr/bin/env -i /absolute/path/to/python3 -I -B /Users/<you>/action-review-shadow/shadow_hook.py --wb /Users/<you>/.config/project-workbench/bin/wb"}]}]}}
    ```
-   **What leaves your machine from here on:** every prompted command that matches a rule is reviewed by the engine, which sends
-   its facts, a commit's diff included, to the bridge's vendor (two model calls at most per command). `collected.jsonl` keeps the
-   command text, those facts and the reason on your disk (mode 0600, outside every project) until you delete it. The hook redacts
-   them first with a fixed list of patterns ("Redaction", in "The data files"), but the list is best effort: a secret in a shape it
-   does not name is kept as it was. Do not copy, share or back up that file to anywhere you do not control.
-4. **To collect commits as well as removals,** add a user-level `ask` rule for `wb run safe-git commit`, in the form your other rules
+   **What leaves your machine from here on:** every prompted command that matches a rule is reviewed by the engine, which sends its
+   facts, a commit's diff included, to the bridge's vendor (two model calls at most per command). `collected.jsonl` keeps the command
+   text, those facts and the reason on your disk (mode 0600, outside every project) until you delete it, except for a commit the engine
+   declined for a secret or a credential-named path, which leaves a verdict row and nothing else ("Redaction"). The hook redacts the rest
+   with a fixed list of patterns, which is best effort: a secret in a shape it does not name, and one the engine does not name either
+   (`pass=...`, a Slack webhook, an unnamed AWS secret), is kept as it was. Do not copy, share or back up that file to anywhere you do not
+   control. **The vendor program is started confined** (`--confine`), which is a tripwire and not a boundary ("The bridge call is
+   confined"): text that must not reach a vendor does not belong in a commit you let the shadow review. **Check your `codex`
+   before you register:** `codex --version` must print a release that passed the release check of `model-bridge.md` ("Release check
+   for untrusted text"; `codex-cli` 0.163.0 passed it on 2026-11-01). For any other release, run that check yourself first: nothing in
+   the engine does.
+5. **To collect commits as well as removals,** add a user-level `ask` rule for `wb run safe-git commit`, in the form your other rules
    use. Every commit then raises a prompt, which changes your workflow while the shadow runs; remove the rule when it ends. The
    module's `remove` already asks; the accepted decision `2026-10-29-workbench-asks-for-remove-submit-and-fetch` leaves `commit`
    unprompted, and a permission-request hook sees only a command that raised a prompt. A command your `allow` rules or a permission
    mode let through is not seen. Pushes and remote jobs are seen only if they prompt, and the engine reports them as `no_rule`.
-5. **Add a user-level `Read` deny for `~/.config/project-workbench/action-review/**`.** The rendered rules deny the agent's edits
-   to the store and not its reads. This narrows the gap and does not close it (a shell `cat` still works).
-6. **Check that it fires, and write down what you see** (this is the hand run of Increment H): work as usual and look at
-   `python3 -B report.py`, whose `prompted` line should rise by one for each prompted command. Note whether it fires on a project
-   `ask` in an interactive session, on the two module commands (`remove`, and `commit` once step 4 is done), and in auto mode when
-   the classifier decides without a prompt (the hooks page does not say; "The shadow hook"). Note a `refused` or `failed` outcome:
-   it means the launcher, the module or the bridge is not set up.
-7. **Label** at a terminal with `python3 -B label.py` (`--skipped` revisits the skipped). `right` means you would have judged as the
-   engine did, `wrong` that you would not. Judge from the command and the facts (press `f`), not from the engine's reason: when a
-   model was asked, its reason is the model's own words, which the commit's text may have steered. Until there are at least 10 labelled commits and 10 labelled removals the report says "not
-   enough labels".
+6. **Check that it fires, and write down what you see** (the hand run of increment H): work as usual and look at `python3 -B
+   ~/action-review-shadow/report.py`, whose `prompted` line should rise by one for each prompted command. Note whether it fires on a
+   project `ask` in an interactive session, on the two module commands (`remove`, and `commit` once step 5 is done), and in auto mode
+   when the classifier decides without a prompt (the hooks page does not say; "The shadow hook"). A `refused` or `failed` outcome means
+   the launcher, the module or the bridge is not set up. Causes to look at, in order: (a) the hook gives the engine the `PATH`
+   `<the launcher's directory>:/usr/local/bin:/usr/bin:/bin` and nothing else, so `git`, `codex` (and `node`, which the `codex` shim needs)
+   must be there, and **`wb` runs the first `python3` on that path**, which on macOS is the system `/usr/bin/python3` (3.9.6 on the
+   machine this was written on) unless `/usr/local/bin` has another: the installer and the three helpers load under 3.9.6 (checked by
+   loading their top level) but the engine has not been run under it; if it fails, make `/usr/local/bin/python3` a link to the Python
+   you trust, or ask for the hook's `PATH` to change; (b) the project's `.workbench/review.json` names a bridge that is installed and
+   pinned; (c) Codex is signed in; (d) the installed engine is the current one (step 1); (e) the report finds no rows because it looks
+   under `HOME` and the hook writes under the home directory of the account database: they are the same on a normal login and differ if
+   `HOME` was changed (`sudo`, a wrapper, another account), in which case run the report with the same `HOME` the account database
+   gives. **The time budget:** the engine stops itself after 25 seconds (at most 5 for `describe` and the rest for the bridge), the hook
+   waits 27 and then 2 more for a program that left its group, and the harness stops the hook at 30; the store's file lock waits at
+   most 5 seconds a try, and a run makes at most three tries (two for the verdict row, which has a fallback, one for the collected row),
+   so a slow store can add up to 15 seconds and push a run past 30; the harness then stops the hook and the row of that command is
+   lost (a fragment is skipped on read). Nothing else changes.
+7. **Label** at a terminal with `python3 -B ~/action-review-shadow/label.py` (`--skipped` revisits the skipped). `right` means you would have
+   judged as the engine did, `wrong` that you would not. Judge from the command and the facts (press `f`), not from the engine's reason:
+   when a model was asked, its reason is the model's own words, which the commit's text may have steered. Until there are at least 10
+   labelled commits and 10 labelled removals the report says "not enough labels". A commit the engine declined for a secret is never
+   collected, so a false decline of that kind cannot be labelled and is not in the rate.
 8. **Run the test set against a real model, once,** from the root of a checkout you trust: `python3 -B
-   packages/workbench/action-review/tools/run_testset.py [--codex-dir <absolute path>]`. It needs the `codex` program on your
-   `PATH` and a Codex directory (`~/.codex` by default) with your sign-in, and refuses without them. It sends 3 synthetic prompts
-   (not yours) to Codex through `ask-codex`, after you type `send 3`; this tool sends nothing else (the hook of step 3 is a separate
-   matter). It writes the rows the report reads. If it ends with exit 1 and a "not run" line, fix the cause named beside each case
-(Codex not signed in, a failing bridge, a broken checkout) and run it again: a case that did not run leaves no row, so the report
-cannot count it. It was tested only against a fake `codex`.
-9. **Read the report** with `python3 -B report.py`. A false approve on the labels or the test set is its first line and keeps the
+   packages/workbench/action-review/tools/run_testset.py [--codex-dir <absolute path>]`. It needs the `codex` program on your `PATH` and a
+   Codex directory (`~/.codex` by default) with your sign-in, and refuses without them. It sends 3 synthetic prompts (not yours) to Codex
+   through `ask-codex`, after you type `send 3`, and the call is confined like every call of the engine; this tool sends nothing else (the
+   hook of step 4 is a separate matter). It writes the rows the report reads. If it ends with exit 1 and a "not run" line, the line
+   gives the case and the engine's exit code and not the cause, because the runner does not show the engine's own `refused:` or `failed:`
+   line: run `wb run action-review review '<a command of the case>'` by hand in a scratch project to see it (a bridge that refuses
+   `--confine`, a Codex that rejects the reply schema together with the confinement arguments, a Codex that is not signed in). A case that
+   did not run leaves no row, so the report cannot count it. It was tested only against a fake `codex`; **this is the first time the
+   confined call with the reply schema runs against a real one.** The runner hashes only its case file and trusts the rest of the
+   checkout, and is started without `-I`, which is why it runs once, from a checkout you trust.
+9. **Read the report** with `python3 -B ~/action-review-shadow/report.py`. A false approve on the labels or the test set is its first line and keeps the
    cutover closed; a false approve in any run of a test case counts (to start the test set afresh, change the engine if it needs
-   it, then delete `testset.jsonl` and run the test set again), and the cutover line reads "met" only with all 29 test cases. When it says the bound is met, the cutover is still your decision and a plan of its own (plan 5): a hook that
-   decides does not exist.
+   it, then delete `testset.jsonl` and run the test set again), and the cutover line reads "met" only with all 29 test cases. The data
+   files are plain files that anything running as you can edit (step 3), and the agent chooses which commands prompt, so it also
+   chooses which become labelled data: **before any cutover, re-label a sample at a terminal yourself**, and note
+   `shasum -a 256` of the three data files after each session so that a later change is visible. When the report says the bound is met,
+   the cutover is still your decision and a plan of its own (plan 5): a hook that decides does not exist.
+
+**To stop,** remove the hook's entry from the user-level settings; nothing else is running. Delete `~/.config/project-workbench/action-review/`
+when you no longer want the data.
 
 **Not verified.** The hook has never run against the real `wb` launcher, a real bridge or Claude Code; the tests replay the real
-engine's own output bytes through a fake `wb`. Whether it fires in auto mode, on a project `ask` in an interactive session and on the
-two module commands is open until step 6. No real model has been asked: the test-set evidence for the cutover does not exist yet.
+engine's own output bytes through a fake `wb`, and start the hook through a stub that patches the account database. Whether it fires in
+auto mode, on a project `ask` in an interactive session and on the two module commands is open until step 6. Whether Claude Code applies
+a project's `settings.json` `env` to hook processes, honours exit 2 on `PermissionRequest` or holds the prompt while the hook runs is
+unverified, and so is whether it accepts the deny spellings of step 3. The confined call with the reply schema has not been run against a
+real Codex (step 8). The engine has not been run under the system Python 3.9. No real model has been asked: the test-set evidence for the
+cutover does not exist yet.
 
 ## Proposed split into plans (default)
 

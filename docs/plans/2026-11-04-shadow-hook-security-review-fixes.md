@@ -326,5 +326,34 @@ runs only if the owner decides after the author states what could break outside 
 - **Review:** one `reviewer` exchange, no blocking finding; applied: the spec's wording on refusal versus failure, on the runner not showing
   the cause, and on the unchecked codex release. The review-engine's own bridge call is unconfined by design (`model-bridge.md`: it needs the
   program's file access to read the plans) and is not covered by this plan.
-- **Not done yet:** copy the three files into the real tree, the owner's `wb release-approvals`, the checks in the real tree, the commit
-  with the new shipped approval records.
+- **Afterwards (2026-11-04):** the three files were copied into the real tree and the owner ran `wb release-approvals`; `wb check`, the plan
+  check, `wb doctor`, `git diff --check` and the drift test were clean, and the module's 764 tests had one failure, the macOS environment
+  test. Committed as f5d5643 with the two new shipped approval records.
+
+### Increment D — The owner's steps are complete (2026-11-04)
+
+- **Done.** Documentation only (no file under `packages/`, so no release and the command gate stayed open): `docs/specs/action-review.md`,
+  "The owner's steps", rewritten as one complete ordered list, with "To stop" and "Not verified". Order: install and keep the module
+  current (the hook starts the installed engine, so the release of the approvals, `acknowledge` if needed, `preview upgrade` and
+  `upgrade` with `--package packages/workbench`, because the manifest records the package as `local:workbench`); copy four files from
+  `git show HEAD:...` into a dedicated directory and check the hashes; **the protections (deny rules) before the registration**; try
+  the entry by hand with a harmless command (`ls`, which has no rule, so nothing reaches the model) and then register
+  `/usr/bin/env -i <absolute interpreter> -I -B <dir>/shadow_hook.py --wb <launcher>`; the optional `ask` for commits; the hand run with
+  the causes to look at; labelling; the test set; the report. Added: the vendor program is confined and the codex release check (the
+  owner's `codex --version` against 0.163.0), what a steered model can do, the report is advisory and a sample is re-labelled at a
+  terminal before any cutover, the time budget with the store's lock waits (at most three tries of 5 seconds), the hook's fixed `PATH`
+  and that `wb` runs the first `python3` on it (the system 3.9.6 on this machine), and that the hook's home (account database) and the
+  tools' home (`HOME`) can differ.
+- **Checked on this machine, read-only, while writing it:** `codex --version` is 0.163.0; the Python is `/opt/homebrew/opt/python@3.15`;
+  `/usr/bin/python3` is 3.9.6, and the installer and the engine, `safe-git` and `ask-codex` helpers load (top level only) under it; the
+  engine has not been run under it, which the spec says.
+- **Review:** one `reviewer` exchange, two blocking findings, both applied: step 1 had `preview upgrade` and `upgrade` without `--dir` and
+  `--package` (a `local:workbench` package must be given); step 8 had added `-I` to `run_testset.py`, which no other document or test
+  has (dropped, and the spec says the runner is started without it). Applied, not blocking: where to run the by-hand test and what the
+  report shows, the lock-wait arithmetic, "read-only" files in a writable directory, the protections before the registration, one
+  settings file named once, the `HOME` difference, stale "this plan" wording. **The rewritten text was not reviewed again.**
+- **Not shown:** every step has been checked against the code by reading, none has been run; the first real run is the owner's. The
+  accuracy of the deny-rule spellings and of the hook entry for Claude Code is unverified.
+- **Completion criteria.** 1 and 2 are met for the shapes and the entry stated in the Results of A and B (with `PYTHONSTARTUP` not
+  claimed); 3 is met by C with the combination not yet run against a real Codex; 4 is met by this increment; 5 passed at each release.
+  The plan's `Status:` line is left for the owner to set (`Completed`).
