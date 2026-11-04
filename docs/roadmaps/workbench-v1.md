@@ -651,13 +651,13 @@ none exists, from the bridges that are installed. A delegated plan approval can 
 converging round ran on a profile the owner lists.
 **Dependencies:** `ask-ollama-bridge` and `bridge-model-configurations` complete. The decisions
 `2026-11-04-review-profiles-in-the-guarded-store` and `2026-11-04-delegated-approval-checks-the-profile-of-the-last-round` are
-proposed and wait for the owner; the first supersedes `2026-10-26-action-review-reads-the-review-setting` and supersedes in part decision 5 of
+accepted by the owner on 2026-11-04; the first supersedes `2026-10-26-action-review-reads-the-review-setting` and supersedes in part decision 5 of
 `2026-10-22-model-calls-go-through-vendor-bridges`.
 **Boundary:** the profile file and its reader, the ladder in the review engine and in the action-review engine, the option a bridge
 declares for a review, the default written by the installer, `wb doctor`, the owner setting for delegated approval and the specs that
 describe them. A per-project choice of ladders, a tracked setting of any kind, a call-time choice of profile and a check against a
 vendor's model list are not part of it, and the tuning of a model stays in the endpoint file.
-**Promotion trigger:** the owner accepts the two proposed decisions and chooses to begin.
+**Promotion trigger:** the two decisions are accepted (met on 2026-11-04) and the owner chooses to begin.
 
 ### port-superpowers — Port the superpowers skills the owner uses into neutral skills
 
