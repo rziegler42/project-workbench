@@ -298,7 +298,24 @@ agent tells the owner what could break before any run wider than the plan names,
 
 ## Review record
 
-Empty until a review is asked for.
+Reviewed by Codex (`gpt-5.6-terra`) through the review engine on 2026-11-04, at the owner's request: two rounds of the bound of 3, and
+the second came back with no meaningful finding.
+
+- **Applied (round 1, major):** the plan did not record or check the roadmap candidate's prerequisites. The assumptions now say that
+  `2026-11-01-ask-ollama-bridge` and `2026-11-02-bridge-model-configurations` read `Completed` when the plan was drafted (verified), and
+  Increment A depends on them and rereads their status lines first.
+- **Applied (round 1, major):** the accepted delegated-approval record requires `wb doctor` to report a `delegate-profiles` name that
+  dangles, and no increment owned it. Increment I now owns that check and the one for a listed profile that names no model, with tests;
+  Increment J keeps the file's checks; criterion 7 is split to match.
+- **Not applied (round 1 minor, repeated in round 2 with no new evidence):** the roadmap candidate said the two decisions were still
+  proposed. A roadmap changes only with the owner's word; the owner gave it, and the two phrases were corrected in the commit that holds
+  the plan.
+- **Also read by a reviewer agent:** the two decision records this plan builds, in a separate pass (not this plan).
+- **Limits:** the review is a second model's read of the plan's shape. File and test names in the plan were checked by the agent; the
+  details left to the first steps of increments B and I (the kit's API-number rule and the settings file's versioning) were not.
+- **Left for the owner:** the verdict on each increment, the releases that increments C, D, E, F and H need, writing
+  `review-profiles.json` before increment D is released, whether to run a security review at each surface the Risks section names, and
+  the plan's `Status:` line.
 
 ## Deferred work
 
