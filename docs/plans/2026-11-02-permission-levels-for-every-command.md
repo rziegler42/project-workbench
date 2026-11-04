@@ -324,4 +324,22 @@ tested area.
   with nothing to change, and a plan for another project at `ask`. Not applied: an extra build to close the limit above (owner's call).
 - **Not covered by a test:** a change to what the harness would render (this fixture's harness renders no permissions, so `home` does not move
   the plan); the exclusion list is guarded by the seed/time test and the module/target tests, not by one test per field.
-- **Not done:** nothing is committed; the owner has not run `wb rerender` or set any of the four keys.
+- **Committed:** `7e4512f`, with the trailer `Plan: 2026-11-02-permission-levels-for-every-command#B`. The owner has not run `wb rerender` or set
+  any of the four keys. The owner accepted the limit above; the clarification note on the record is to be proposed with increment C.
+
+### Increment C — stopped at its step 4 (2026-11-03)
+
+- **Nothing built, nothing changed in code or specs.** I read the entry points and the confirmation of each command and sized the increment
+  against step 4 ("if this increment grows beyond one reviewable commit, stop and report").
+- **What each command has today** (read, not run): `wb recover` and `wb acknowledge` already compute a read-only examination with a digest
+  (`recover.examine`, `acknowledge.examine`; the typed flow compares the first 12 characters and the run examines again), so each needs a
+  `wb preview` entry, a `--digest` option and the B route. `wb pin` shows the helper's path, size and sha256 and compares the first 12
+  characters of that hash; it needs a preview entry and the same. `wb approve` verifies a package (and, with `--source`, fetches it) and
+  confirms by typed digest of the request; it needs a preview that does the verification without recording. `wb attach` has no preview and no
+  terminal test: it needs a preview of what it would write and the owner's-settings reading of the decision (decision 1, second bullet).
+  `acknowledge-second-tier` governs no command today, so it has nothing to preview and needs an accepted record that keeps it without `ask`.
+- **Size:** five commands, each with a preview (every preview adds an agent-safe key to the registry, the corpus and `wb settings`), a parser
+  option, the route and a digest check, its tests, and the spec lines it makes false in four documents, plus one record. Increment B did one
+  family of four commands whose previews existed and came to 25 files and about 780 added lines.
+- **Left for the owner:** mark C deferred here (an edit to the plan's body, which needs a new approval) and approve a successor plan, or say
+  how else to go on.
