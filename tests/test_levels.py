@@ -15,7 +15,8 @@ OWNER_RUN_KEYS = ("wb install", "wb adopt", "wb upgrade", "wb add", "wb attach",
                   "wb approve", "wb pin", "wb release-approvals", "approve-plan")
 # The keys the agent-safe actions give (plan 2026-10-27-a-level-for-every-command, increment A).
 AGENT_KEYS = ("wb verify", "wb preview install", "wb preview adopt", "wb preview upgrade", "wb preview add",
-              "wb preview rerender", "wb preview acknowledge", "wb preview recover", "wb preview release-approvals", "wb launch", "wb check", "wb plan-status", "wb settings",
+              "wb preview rerender", "wb preview acknowledge", "wb preview recover", "wb preview approve", "wb preview pin",
+              "wb preview release-approvals", "wb launch", "wb check", "wb plan-status", "wb settings",
               "wb doctor")
 # Agent-safe words that are not a key: the hook entry points, the words that only dispatch to an action, and an
 # action that reaches another action's key.
@@ -214,9 +215,10 @@ class OfferedLevelsTest(unittest.TestCase):
 
     # The keys that offer ``ask`` in this version: the plan approval, the release, (plan
     # ``2026-11-02-permission-levels-for-every-command``, increment B) the four installer commands that have a preview, and (plan
-    # ``2026-11-03-levels-for-recover-pin-approve-attach``, increment A) ``recover`` and the first acknowledge tier.
+    # ``2026-11-03-levels-for-recover-pin-approve-attach``, increments A and B) ``recover``, the first acknowledge tier, ``approve`` and
+    # ``pin``.
     ASK_KEYS = ("approve-plan", "wb release-approvals", "wb install", "wb adopt", "wb upgrade", "wb add", "wb recover",
-                "acknowledge-first-tier")
+                "acknowledge-first-tier", "wb approve", "wb pin")
 
     def test_only_the_keys_with_a_preview_offer_ask_among_the_owner_run_keys(self):
         for name, key in self.keys().items():
@@ -226,7 +228,7 @@ class OfferedLevelsTest(unittest.TestCase):
                 self.assertEqual(name in self.ASK_KEYS, "ask" in key.offers)
 
     def test_the_commands_that_have_a_preview_offer_block_ask_and_none_and_default_to_block(self):
-        for name in ("wb install", "wb adopt", "wb upgrade", "wb add", "wb recover"):
+        for name in ("wb install", "wb adopt", "wb upgrade", "wb add", "wb recover", "wb approve", "wb pin"):
             key = self.keys()[name]
             with self.subTest(key=name):
                 self.assertEqual((("block", "ask", "none"), "block"), (key.offers, key.default))

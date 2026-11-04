@@ -327,9 +327,9 @@ class OfferedLevels(Ask):
         built = {"approve-plan": ("block", "delegated", "ask", "none"), "wb install": ("block", "ask", "none"),
                  "wb adopt": ("block", "ask", "none"), "wb upgrade": ("block", "ask", "none"),
                  "wb add": ("block", "ask", "none"),
-                 "wb approve": ("block", "none"), "wb pin": ("block", "none"),
-                 "acknowledge-first-tier": ("block", "none"), "acknowledge-second-tier": ("block", "none"),
-                 "wb recover": ("block", "none"), "wb attach": ("block", "none"),
+                 "wb approve": ("block", "ask", "none"), "wb pin": ("block", "ask", "none"),
+                 "acknowledge-first-tier": ("block", "ask", "none"), "acknowledge-second-tier": ("block", "none"),
+                 "wb recover": ("block", "ask", "none"), "wb attach": ("block", "none"),
                  "wb release-approvals": ("block", "ask", "none"),
                  "accept-decision": ("block", "none")}
         for name, key in levels.registry(checkpoints=("a", "accept-decision")).items():

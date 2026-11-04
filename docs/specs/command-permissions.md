@@ -100,7 +100,7 @@ agent-run keys keep their default so the agent can report it), and `wb settings`
 `profile: <name>` line, and a `profiled <key>: <level>` line for each key the profile moved, only when a profile is named. `wb doctor`
 adds a note naming the profile and the keys it moved; the `governs` keys it relaxed are reported as risks, as any relaxed key of that
 class is. With the keys of this version `trusting` moves `approve-plan`, `wb release-approvals`, `wb install`, `wb adopt`, `wb upgrade`,
-`wb add`, `wb recover` and `acknowledge-first-tier` (where a module declares it), and any module key that offers `ask`, to `ask`; `balanced` moves
+`wb add`, `wb recover`, `wb approve`, `wb pin` and `acknowledge-first-tier` (where a module declares it), and any module key that offers `ask`, to `ask`; `balanced` moves
 `wb install`, `wb adopt`, `wb upgrade`, `wb add` and `wb recover` to `ask` and nothing else, because they are the `project` keys that offer `ask` (the
 other `project` keys offer `block` and `none` only). The fallback reading of
 `wb release-approvals` when its level cannot be verified also reads a profile-set `ask`.
@@ -138,7 +138,7 @@ separated by single spaces, at most 96 characters.
 - `block`: every key.
 - `delegated`: `approve-plan` only, whose gate is a converged, sealed review of the exact bytes (`delegation.py`). The gate must
   pass at the moment of the run, and the run counts only while the table still reads `delegated`.
-- `ask`: `approve-plan`, `accept-decision` (a checkpoint of a command that declares it), `wb release-approvals` (a digest of the preview of its release, "`wb release-approvals` at `ask`"), `wb install`, `wb adopt`, `wb upgrade` and `wb add` (the digest of `wb preview <command>`, taken over the plan with the seed and the time of its pins fixed; "The installer commands at `ask`"), `wb recover` and `acknowledge-first-tier` (the digest of `wb preview recover` and `wb preview acknowledge`, taken over the examination each shows; "`recover` and `acknowledge` at `ask`"), and an owner-run argument of a module's command whose declaration names it in `levels` (below). `none`: `approve-plan`, `wb install`, `wb adopt` (built by Increment F), `wb upgrade` and `wb add` (built by Increment G), `wb approve` and `wb pin` (built by Increment H), `acknowledge-first-tier`, `acknowledge-second-tier`, `wb recover`, `wb attach` and `wb release-approvals` (built by Increment J), `accept-decision` (built by Increment K), every agent-safe action and
+- `ask`: `approve-plan`, `accept-decision` (a checkpoint of a command that declares it), `wb release-approvals` (a digest of the preview of its release, "`wb release-approvals` at `ask`"), `wb install`, `wb adopt`, `wb upgrade` and `wb add` (the digest of `wb preview <command>`, taken over the plan with the seed and the time of its pins fixed; "The installer commands at `ask`"), `wb recover` and `acknowledge-first-tier` (the digest of `wb preview recover` and `wb preview acknowledge`, taken over the examination each shows; "`recover` and `acknowledge` at `ask`"), `wb approve` and `wb pin` (the digest of `wb preview approve` and `wb preview pin`, taken over the request or the pin; "`approve` and `pin` at `ask`"), and an owner-run argument of a module's command whose declaration names it in `levels` (below). `none`: `approve-plan`, `wb install`, `wb adopt` (built by Increment F), `wb upgrade` and `wb add` (built by Increment G), `wb approve` and `wb pin` (built by Increment H), `acknowledge-first-tier`, `acknowledge-second-tier`, `wb recover`, `wb attach` and `wb release-approvals` (built by Increment J), `accept-decision` (built by Increment K), every agent-safe action and
   every declared module argument that is not owner-run; the keys under "Not built" offer `block` only, and so does `wb rerender`. A key offers a level only
   from the version that builds it for that command.
 
@@ -521,7 +521,7 @@ be written, nothing is written; an outcome that cannot be written after the writ
 arguments and, at `ask` only, `--digest`, and the `deny` is removed only for the `wb` spelling, as for `install`. `levelrun.apply_logged` is the one place
 that writes the attempt and the outcome for these four commands.
 
-**`approve` and `pin` at `none`** (built by Increment H). The keys `wb approve` and `wb pin` offer `block` and `none`. **At `none` an agent can
+**`approve` and `pin` at `none`** (built by Increment H). The keys `wb approve` and `wb pin` offer `block`, `none` and, since increment B of the plan `2026-11-03-levels-for-recover-pin-approve-attach`, `ask` ("`approve` and `pin` at `ask`"); this paragraph is about `none`. **At `none` an agent can
 make a package or a helper trusted**, which is what the accepted decision `2026-10-26-a-level-for-every-command` records as the owner's
 choice: an approval is what lets the installer verify and gate a package, and a pin is what lets `launch` run a helper. The level is read
 by the command line for the project the working directory is in (`levelrun.route`); at a terminal nothing is read and the typed
@@ -855,8 +855,8 @@ that is not a boundary; the owner's review of the commit that holds the records 
 Built by the plan `2026-11-02-permission-levels-for-every-command`, increment B, as the accepted decision
 [2026-11-03-installer-commands-read-their-level-and-take-an-ask-digest](../decisions/2026-11-03-installer-commands-read-their-level-and-take-an-ask-digest.md)
 decides. `wb install`, `wb adopt`, `wb upgrade` and `wb add` offer `block`, `ask` and `none` and default to `block`; they do not offer
-`delegated`. `wb recover` and the first acknowledge tier offer it too ("`recover` and `acknowledge` at `ask`"). The other installer commands do not offer `ask` yet (`wb attach`,
-`wb approve`, `wb pin` and the second acknowledge tier are increments B and C of the plan `2026-11-03-levels-for-recover-pin-approve-attach`; `wb rerender` is
+`delegated`. `wb recover` and the first acknowledge tier offer it too ("`recover` and `acknowledge` at `ask`"). `wb approve` and `wb pin` offer it too ("`approve` and `pin` at `ask`"). The other installer commands do not offer `ask` yet (`wb attach`
+and the second acknowledge tier are increment C of the plan `2026-11-03-levels-for-recover-pin-approve-attach`; `wb rerender` is
 increments D and E of the plan above).
 
 **How the level is read.** These four commands have a terminal test, so they read the verified level only, as they do at `none`
@@ -914,8 +914,8 @@ in a terminal.
 Built by the plan `2026-11-03-levels-for-recover-pin-approve-attach`, increment A, on the rules of the accepted decision
 [2026-11-03-installer-commands-read-their-level-and-take-an-ask-digest](../decisions/2026-11-03-installer-commands-read-their-level-and-take-an-ask-digest.md)
 and its note of 2026-11-04. `wb recover` and the checkpoint `acknowledge-first-tier` (the key of `wb acknowledge`) offer `block`, `ask` and
-`none` and default to `block`; they do not offer `delegated`. `acknowledge-second-tier` still offers `none` only, and `wb attach`, `wb approve` and
-`wb pin` do not offer `ask` yet: they are increments B and C of the same plan.
+`none` and default to `block`; they do not offer `delegated`. `acknowledge-second-tier` still offers `none` only, `wb attach` does not offer `ask`
+yet (increment C of the same plan), and `wb approve` and `wb pin` do ("`approve` and `pin` at `ask`").
 
 **How the level is read.** Both commands have a terminal test, so they read the verified level only (`levelrun.route_ask`), exactly as
 `install` does in "The installer commands at `ask`": `ask` and `none` hold only while the rendering record, the local manifest and the
@@ -978,6 +978,62 @@ its own decision. A project that is not rendered cannot use `ask`: it reads `blo
 **Profiles.** The profile `balanced` sets `wb recover`, a `project` key that offers `ask`, to `ask`, and `trusting` also sets
 `acknowledge-first-tier`, a `governs` key that offers it, wherever an installed module declares it. `wb settings` prints a `profiled <key>: ask`
 line for each, `wb doctor` names them, and the rendered rules change at the next `wb rerender`, which the owner runs in a terminal.
+
+## `approve` and `pin` at `ask`
+
+Built by the plan `2026-11-03-levels-for-recover-pin-approve-attach`, increment B, on the rules of the accepted decision
+[2026-11-03-installer-commands-read-their-level-and-take-an-ask-digest](../decisions/2026-11-03-installer-commands-read-their-level-and-take-an-ask-digest.md)
+and its note of 2026-11-04. `wb approve` and `wb pin` offer `block`, `ask` and `none` and default to `block`; they do not offer `delegated`.
+`wb attach` and the second acknowledge tier do not offer `ask` yet (increment C of the same plan).
+
+**How the level is read.** Both commands have a terminal test, so they read the verified level only (`levelrun.route_ask`), as `install`
+and `recover` do, with the same table of forms as "`recover` and `acknowledge` at `ask`". `pin` is for one project: the level is read for
+the project the working directory is in, and the project id given must be that one, with `--root` the root of that project (as at `none`).
+`approve` is machine-wide, as at `none`: an approval made at `ask` in one project is on file for every project, which is the owner's
+choice when they set the key.
+
+**The previews.** `wb preview pin <project-id> <name> <helper> --root <dir> [--kit N]` and `wb preview approve <package> [--module <name>]`
+are read-only agent-safe actions (the keys `wb preview pin` and `wb preview approve` read `none` by default). Each prints what the
+terminal command shows before its typed confirmation, then `digest: <32 lowercase hex>` and `preview only: nothing was written`.
+`preview pin` needs no git identity and records nothing; `preview approve` verifies the package as `approve` does and records no approval.
+They take no `--digest`.
+
+**What the digest binds** (the inputs, listed before building). `wbkit.digest.of` of two lines, `wb <command>` and the SHA-256 of the
+canonical JSON of:
+- for `pin`: the project id, the name, the helper's path in the project, its SHA-256 and size, the kit, and the pin it would replace (its
+  path, hash, kit, declaration hash and time). The time the new pin records and the git identity are drawn or read by the run and are not in it.
+- for `approve`: the kind (package or module) and the module named, the name, declaration hash and tree hash of the package and of
+  every module that the verification produced, and the SHA-256 of the request text the owner is shown (rendered only from those
+  objects, with the absolute path of the package: the preview and the run name the same directory). Whether a record is already on file is not in it: that changes nothing and the run says so.
+
+**What the run does at `ask`.** It reads the level, refuses a missing, malformed, repeated or stale digest before it reads anything else
+that it could change, then reads the git identity (a missing identity refuses before anything is shown), builds what the preview shows from
+the same inputs and compares the digest, prints it, says that the level is `ask` and the digest is that of this request or pin, asks
+nothing, reads the helper or verifies the package again and compares (the check the terminal flow makes after the typed answer), and
+writes. The attempt is written to the level log just before the write and the outcome after, with the level `ask` and the evidence
+`digest:<the 32 characters>`. A pin that already holds these bytes (the same path, hash and kit) says `already pinned ... nothing to
+change` and writes and logs nothing, and leaves the record as it is, a declaration an installer made included; a pin at a terminal or at
+`none` over such a pin would replace it and drop the declaration. An approval already on file says so, as at `none`. **The record says how it
+was made:** a pin or an approval written at `ask` has `via` `ask`, which the pin and approval formats now accept
+(`trust-and-approval.md`). **An older copy of the installer refuses a pins file or an approval record that holds `via: ask`**, and a pins
+file it cannot read fails closed, so the formats only grow in this direction.
+
+**`--source` has no preview.** `wb approve --source` downloads the package into the cache before it can verify it, and a preview is
+read-only and fetches nothing. So at `ask` `approve` takes a package directory and refuses `--source` ("a download has no preview"), and
+`wb preview approve` takes no `--source`. The owner approves a downloaded package at a terminal, or gives the directory it was fetched
+to. This is a narrowing of the key at `ask`, recorded here and in the Result of the plan; it is not a separate decision record.
+
+**What it does not prove.** The owner sees the command and a digest at the harness's prompt, not the request; the agent shows the
+preview in the conversation before it asks and no code enforces that. **At `ask` an owner who confirms a digest lets the agent make a
+package trusted (`approve`, so that the installer verifies, gates and installs it) or a helper runnable (`pin`, so that `launch` runs
+exactly those bytes)**, which is what the owner chooses by setting the key; the digest binds the bytes the preview showed, the verification
+checks a package's structure and not its behavior, and the owner reads the request before confirming. The two verifications of an
+approval, and the two reads of a helper, are two reads a moment apart, as at a terminal. The typed text at a terminal is friction and not
+authentication, and so is the digest.
+
+**Profiles.** `wb approve` and `wb pin` are `governs` keys that offer `ask`, so `trusting` sets both to `ask`; `balanced` does not
+(it moves `project` keys only). `wb settings` prints a `profiled <key>: ask` line for each, `wb doctor` reports them as risks, and the
+rendered rules change at the next `wb rerender`, which the owner runs in a terminal.
 
 ## Not built
 

@@ -13,7 +13,7 @@ The file is strict JSON::
                                       "sha256": "<64 hex>", "time": "<UTC>"}}}
 
 The file is written at ``format 2``; a ``format 1`` file is read. A pin made by ``pin`` also records ``"via"``
-(``terminal`` or ``none``, the level the run was authorized under), and its ``pinned_by`` is then the git identity
+(``terminal``, ``ask`` or ``none``, the level the run was authorized under), and its ``pinned_by`` is then the git identity
 ``Name <email>`` (``identity.py``; at most 256 characters). A pin without ``via`` keeps its earlier ``pinned_by``, at most 64
 characters: the role text of an installer or acknowledge pin, or the account name an earlier ``pin`` wrote. ``via`` is not
 allowed in a ``format 1`` file. Neither ``pinned_by`` nor ``via`` is read by any check.
@@ -44,12 +44,12 @@ import json
 import os
 import re
 
-from . import approvals, approve, declarations, identity
+from . import approvals, approve, askdigest, declarations, identity, levels
 from .wbkit import display, safefs
 
 FORMAT = 2
 FORMATS = (1, 2)
-VIAS = ("terminal", "none")
+VIAS = ("terminal", "ask", "none")
 OLD_PINNED_BY_LIMIT = 64
 PINNED_BY_LIMIT = 256
 CONFIRM_CHARS = 12
@@ -243,20 +243,31 @@ TERMINAL_ONLY = ("pinning is owner-run: standard input and output must both be t
                  "yourself, from your own terminal.")
 
 
-def run(store, project_id, name, helper, root, stdin, stdout, err, kit=None, log=None):
-    """Pin `helper` (a file inside `root`) under `name`; with `kit`, to run through the kit runner.
-    Returns the exit code.
+def _inner_digest(project_id, name, rel, digest, size, kit, existing):
+    """The digest of what a pin would record and replace, which ``wb preview pin`` prints under the ``ask`` digest: the project, the
+    name, the path in the project, the hash and size of the helper, the kit, and the pin it would replace (its path, hash, kit,
+    declaration and time). The time the new pin records, and who pins it, are drawn by the run and are not in it."""
+    fields = {"command": "pin", "project": project_id, "name": name, "path": rel, "sha256": digest, "size": size, "kit": kit,
+              "replaces": None if existing is None else {"path": existing.path, "sha256": existing.sha256, "kit": existing.kit,
+                                                          "declaration": existing.declaration, "time": existing.time}}
+    return hashlib.sha256(json.dumps(fields, sort_keys=True).encode("ascii")).hexdigest()
 
-    `log`, given by the command line when the owner has set the level of ``wb pin`` to ``none`` for this project
-    (``levelrun.route``), is ``log(digest, apply) -> exit code``: the command then runs without a terminal and asks
-    nothing, and `log` runs `apply` (the pin) between an attempt and an outcome."""
-    if log is None and not (approve.is_terminal(stdin) and approve.is_terminal(stdout)):
-        return _refuse(err, TERMINAL_ONLY)
-    try:
-        who = identity.read().text  # first: a missing identity refuses before anything is shown or asked
-    except identity.IdentityError as exc:
-        return _refuse(err, str(exc))
-    via = "terminal" if log is None else "none"
+
+def _show(stdout, project_id, name, rel, data, digest, kit, existing):
+    stdout.write("pin helper %s for project %s\n" % (display.ascii_text(name), project_id))
+    stdout.write("  path in the project: %s\n" % display.ascii_text(rel))
+    stdout.write("  size:   %d bytes\n  sha256: %s\n" % (len(data), digest))
+    stdout.write("  it %s\n" % ("runs through the kit runner, kit API %d" % kit if kit is not None
+                                 else "runs directly, as a program"))
+    if existing is not None:
+        stdout.write("  this REPLACES the pin %s (hash %s, pinned %s)\n" % (
+            display.ascii_text(existing.path), existing.sha256, existing.time))
+    stdout.write("  beginning of the file:\n%s\n\n" % _preview(data))
+
+
+def run_preview(store, project_id, name, helper, root, stdout, err, kit=None):
+    """``wb preview pin``: what a pin would record, read-only, ending with the digest a run at the level ``ask`` takes. Nothing is
+    recorded and no identity is needed. Returns the exit code."""
     try:
         check_id(project_id)
         check_name(name)
@@ -268,19 +279,61 @@ def run(store, project_id, name, helper, root, stdin, stdout, err, kit=None, log
     except PinError as exc:
         return _refuse(err, str(exc))
     digest = hash_bytes(data)
+    _show(stdout, project_id, name, rel, data, digest, kit, existing)
+    stdout.write("%s\n" % askdigest.EXAMINATION_NOTE)
+    stdout.write("digest: %s\n" % askdigest.ask_digest("pin", _inner_digest(project_id, name, rel, digest, len(data), kit, existing)))
+    stdout.write(askdigest.ENDING + "\n")
+    return 0
 
-    stdout.write("pin helper %s for project %s\n" % (display.ascii_text(name), project_id))
-    stdout.write("  path in the project: %s\n" % display.ascii_text(rel))
-    stdout.write("  size:   %d bytes\n  sha256: %s\n" % (len(data), digest))
-    stdout.write("  it %s\n" % ("runs through the kit runner, kit API %d" % kit if kit is not None
-                                 else "runs directly, as a program"))
-    if existing is not None:
-        stdout.write("  this REPLACES the pin %s (hash %s, pinned %s)\n" % (
-            display.ascii_text(existing.path), existing.sha256, existing.time))
-    stdout.write("  beginning of the file:\n%s\n\n" % _preview(data))
+
+def run(store, project_id, name, helper, root, stdin, stdout, err, kit=None, log=None, digest=None):
+    """Pin `helper` (a file inside `root`) under `name`; with `kit`, to run through the kit runner.
+    Returns the exit code.
+
+    `log`, given by the command line when the owner has set the level of ``wb pin`` to ``ask`` or ``none`` for this project
+    (``levelrun.route_ask``), is ``log(digest, apply) -> exit code`` with a ``level``: the command then runs without a terminal and
+    asks nothing, and `log` runs `apply` (the pin) between an attempt and an outcome. At ``ask`` it needs `digest`, the one
+    ``wb preview pin`` printed, and refuses a stale one before anything is recorded; a pin that already holds exactly these bytes
+    says so and records nothing."""
+    if log is None and not (approve.is_terminal(stdin) and approve.is_terminal(stdout)):
+        return _refuse(err, TERMINAL_ONLY)
+    try:
+        who = identity.read().text  # first: a missing identity refuses before anything is shown or asked
+    except identity.IdentityError as exc:
+        return _refuse(err, str(exc))
+    asking = log is not None and getattr(log, "level", None) == levels.ASK
+    via = "terminal" if log is None else log.level
+    try:
+        check_id(project_id)
+        check_name(name)
+        if kit is not None:
+            check_kit(kit)
+        root_abs, rel = _relative_inside(root, helper)
+        data = _read_helper(root_abs, rel)
+        existing = load(store, project_id).get(name)
+    except PinError as exc:
+        return _refuse(err, str(exc))
+    digest_of_helper = hash_bytes(data)
+    evidence = digest_of_helper
+    if asking:
+        inner = _inner_digest(project_id, name, rel, digest_of_helper, len(data), kit, existing)
+        if askdigest.ask_mismatch("pin", inner, digest):
+            return _refuse(err, "the digest is not the one of the pin built now; nothing was recorded; run `wb preview pin` again, "
+                                "read it, and give the digest it prints")
+        evidence = askdigest.ask_digest("pin", inner)
+        if existing is not None and (existing.path, existing.sha256, existing.kit) == (rel, digest_of_helper, kit):
+            stdout.write("already pinned: %s holds exactly these bytes; nothing to change\n" % display.ascii_text(name))
+            return 0
+    digest = digest_of_helper
+
+    _show(stdout, project_id, name, rel, data, digest, kit, existing)
     stdout.write("From now on `launch` runs exactly these bytes and refuses any other. Read the "
                  "file first.\n")
-    if log is not None:
+    if asking:
+        stdout.write("The level of wb pin is ask here and the digest you gave is the one of this pin, so nothing is asked: it is "
+                     "pinned now.\n")
+        stdout.flush()
+    elif log is not None:
         stdout.write("The level of wb pin is none here, so nothing is asked: it is pinned now.\n")
         stdout.flush()
     else:
@@ -306,4 +359,4 @@ def run(store, project_id, name, helper, root, stdin, stdout, err, kit=None, log
             " (no gate)" if pin.via == "none" else ""))
         return 0
 
-    return apply() if log is None else log(digest, apply)
+    return apply() if log is None else log(evidence if asking else digest, apply)

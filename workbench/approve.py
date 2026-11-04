@@ -33,13 +33,16 @@ a harness renders for this command, and the deny rule on the guarded store.
 The approver recorded is the person's git identity, ``Name <email>``, read from the account's own global git
 configuration as ``identity.py`` says, not from an environment variable and never from the project. It is read first: a
 missing identity refuses before anything is shown or asked. The record also says how the run was authorized (``via``:
-``terminal``, or ``none`` when the owner has set the level of ``wb approve`` to ``none``). Both are provenance and text
+``terminal``, ``ask`` when the owner has set the level of ``wb approve`` to ``ask`` and the digest of ``wb preview approve`` was
+given, or ``none`` when the level is ``none``). Both are provenance and text
 only: they grant nothing.
 """
 
+import hashlib
+import json
 import os
 
-from . import approvals, fetch, firstparty, identity, request, verify
+from . import approvals, askdigest, fetch, firstparty, identity, levels, request, verify
 from .wbkit import display, safefs
 
 CONFIRM_CHARS = 12
@@ -104,14 +107,42 @@ def build(path, module_name, distribution=None, origin=None):
     return result, text, chosen.tree_hash[:CONFIRM_CHARS], "module"
 
 
+def _inner_digest(result, text, what, module_name):
+    """The digest of what an approval would record, which ``wb preview approve`` prints under the ``ask`` digest: the kind (package or
+    module), the module named, the name, declaration hash and tree hash of the package and of every module the verification
+    produced, and the request the owner is shown (rendered only from those objects, with the path of the package). Whether a record is
+    already on file is not in it: that changes nothing and says so."""
+    fields = {"command": "approve", "what": what, "module": module_name, "snapshot": _snapshot(result),
+              "request": hashlib.sha256(text.encode("utf-8", "replace")).hexdigest()}
+    return hashlib.sha256(json.dumps(fields, sort_keys=True).encode("ascii")).hexdigest()
+
+
+def run_preview(path, module_name, stdout, err, distribution=None):
+    """``wb preview approve``: verify the package at `path` and show the request, read-only, ending with the digest a run at the level
+    ``ask`` takes. Nothing is recorded and nothing is downloaded: a package that has to be fetched has no preview (``--source`` is
+    refused by the command line). Returns the exit code."""
+    try:
+        result, text, token, what = build(path, module_name, distribution, None)
+    except _Refused as exc:
+        err.write("%s\n" % exc)
+        return 1
+    stdout.write(text + "\n\n")
+    stdout.write("%s\n" % askdigest.EXAMINATION_NOTE)
+    stdout.write("digest: %s\n" % askdigest.ask_digest("approve", _inner_digest(result, text, what, module_name)))
+    stdout.write(askdigest.ENDING + "\n")
+    return 0
+
+
 def run(store, path, module_name, stdin, stdout, err, distribution=None, source=None,
-        ref="HEAD", log=None):
+        ref="HEAD", log=None, digest=None):
     """Approve the package at `path`, or one of its modules. Returns the exit code.
 
-    `log`, given by the command line when the owner has set the level of ``wb approve`` to ``none`` for this project
-    (``levelrun.route``), is ``log(digest, apply) -> exit code``: the command then runs without a terminal and asks
-    nothing, and `log` runs `apply` (the records) between an attempt and an outcome. An approval already on file
-    changes nothing and is not logged.
+    `log`, given by the command line when the owner has set the level of ``wb approve`` to ``ask`` or ``none`` for this project
+    (``levelrun.route_ask``), is ``log(digest, apply) -> exit code`` with a ``level``: the command then runs without a terminal and
+    asks nothing, and `log` runs `apply` (the records) between an attempt and an outcome. An approval already on file
+    changes nothing and is not logged. At ``ask`` it needs `digest`, the one ``wb preview approve`` printed for the same package
+    directory and module, and refuses a stale one before anything is recorded; it takes a package directory and not `source`,
+    because a download has no preview.
 
     With `source` (a URL or a local repository) the package is first downloaded inertly into
     the guarded store's cache (``fetch.py``), and the request, the typed hash and the record
@@ -119,11 +150,15 @@ def run(store, path, module_name, stdin, stdout, err, distribution=None, source=
     """
     if log is None and not (is_terminal(stdin) and is_terminal(stdout)):
         return _refuse(err, TERMINAL_ONLY)
+    asking = log is not None and getattr(log, "level", None) == levels.ASK
+    if asking and source is not None:
+        return _refuse(err, "at the level ask, approve takes a package directory and not --source: a download has no preview. "
+                            "Approve it at a terminal, or give the directory it was fetched to")
     try:
         who = identity.read().text  # first: a missing identity refuses before a download, a request or a prompt
     except identity.IdentityError as exc:
         return _refuse(err, str(exc))
-    via = "terminal" if log is None else "none"
+    via = "terminal" if log is None else log.level
     fetched = origin = None
     if source is not None:
         stdout.write("Downloading %s (ref %s) into the cache. Nothing is executed or "
@@ -150,8 +185,20 @@ def run(store, path, module_name, stdin, stdout, err, distribution=None, source=
             err.write("The downloaded copy is kept at %s\n" % display.clean(fetched.path))
         return 1
 
+    evidence = None
+    if asking:
+        inner = _inner_digest(result, text, what, module_name)
+        if askdigest.ask_mismatch("approve", inner, digest):
+            kept()
+            return _refuse(err, "the digest is not the one of the request built now; nothing was recorded; run `wb preview "
+                                "approve` again, read it, and give the digest it prints")
+        evidence = askdigest.ask_digest("approve", inner)
     stdout.write(text + "\n\n")
-    if log is not None:
+    if asking:
+        stdout.write("The level of wb approve is ask here and the digest you gave is the one of this request, so nothing is asked: "
+                     "it is recorded now.\n")
+        stdout.flush()
+    elif log is not None:
         stdout.write("The level of wb approve is none here, so nothing is asked: it is recorded now.\n")
         stdout.flush()
     else:
@@ -179,7 +226,7 @@ def run(store, path, module_name, stdin, stdout, err, distribution=None, source=
 
     if log is None or _on_file(store, info, hashes, module_name):
         return apply()
-    return log(info.tree_hash if module_name is None else hashes[module_name].tree_hash, apply)
+    return log(evidence if asking else (info.tree_hash if module_name is None else hashes[module_name].tree_hash), apply)
 
 
 def _on_file(store, info, hashes, module_name):

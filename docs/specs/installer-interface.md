@@ -172,8 +172,8 @@ says so.
 | `acknowledge` | project | target | the guarded store: the project's acknowledgement baselines | yes, owner-run; the owner may set `acknowledge-first-tier` to `ask` (with the digest of `wb preview acknowledge`) or `none` | built |
 | `recover` | project | target | removes the unfinished-write marker and the empty directories the plan created, nothing else | yes, owner-run; the owner may set `wb recover` to `ask` (with the digest of `wb preview recover`) or `none` | built |
 | `verify` | package | a package directory (`<package>` or `--dir`), `--select`, `--no-harness-required` | nothing | no | built |
-| `approve` | package | a package directory, or `--source` with an optional `--ref`; `--module` | the guarded store: approval records, the cache | yes | built; `--dir` proposed |
-| `pin` | package | a project id, a name, a helper, `--root` | the guarded store: a pin (the installer pins declared helpers itself; this is for any other) | yes | built |
+| `approve` | package | a package directory, or `--source` with an optional `--ref`; `--module` (at `ask`, a directory only, with `--digest`) | the guarded store: approval records, the cache | yes; the owner may set `wb approve` to `ask` (with the digest of `wb preview approve`) or `none` | built; `--dir` proposed |
+| `pin` | package | a project id, a name, a helper, `--root` (and `--digest` at `ask`) | the guarded store: a pin (the installer pins declared helpers itself; this is for any other) | yes; the owner may set `wb pin` to `ask` (with the digest of `wb preview pin`) or `none` | built |
 | `launch` | package | a project id, a name, `--root`, arguments after `--` | a private copy of the pinned helper under `bin/run/` while it runs, removed afterwards | no | built |
 | `release-approvals` | package | nothing, and at `ask` without a terminal `--digest <32 hex>` from `preview release-approvals` | the shipped first-party records in the workbench distribution, and the level log when it runs without a terminal at `ask` or `none` | no terminal test; the owner may set it to `ask` or `none` | built |
 | `approve-plan` | project | a plan path, and at `ask` `--digest <32 hex>` | the guarded store: a plan approval record, and the level log when it runs without a terminal | yes, owner-run; the owner may set it to `ask` or `none` | built |
@@ -189,9 +189,10 @@ says so.
   project; an install never offers it *(my call)*.
 - `approve` and `pin` record an owner's approval or pin in the guarded store and each need a
   terminal on both standard input and standard output. **rule:** no command an agent is
-  meant to run records an owner approval or a pin, unless the owner has set the key `wb approve` or `wb pin` to `none`; at `none` the
-  command runs without a terminal and its run is logged (`command-permissions.md`, "`approve` and `pin` at `none`"), which lets an
-  agent make a package or a helper trusted. The terminal test is friction and not
+  meant to run records an owner approval or a pin, unless the owner has set the key `wb approve` or `wb pin` to `ask` or `none`; at
+  `ask` the command runs without a terminal only with the digest of `wb preview approve` or `wb preview pin`, and at `none` with no
+  digest, and either way its run is logged (`command-permissions.md`, "`approve` and `pin` at `ask`", "`approve` and `pin` at `none`"),
+  which lets an agent make a package or a helper trusted. The terminal test is friction and not
   authentication; what stops an agent is the harness's deny rule on these commands and on the
   store (`trust-and-approval.md`, "Residual risk").
 - `release-approvals` is a maintainer's release-time command. It needs no terminal and
@@ -661,9 +662,10 @@ downloaded or asked (`trust-and-approval.md`, "The approver and how it was autho
 how to set it (`git config --global user.name`, `user.email`) when it is missing or invalid; nothing is written or logged. The
 success line then ends with who approved and, for a level other than a terminal, how. Written `X` for `Name <email>`:
 
-- `approve`: `approved <kind> <subject> by X`, with ` (no gate)` at the level `none` of `wb approve`. A repeat keeps the first record
+- `approve`: `approved <kind> <subject> by X`, with ` (no gate)` at the level `none` of `wb approve` (a record made at `ask` says `ask` as its `via` and
+  prints the same line). A repeat keeps the first record
   and says `already approved <kind> <subject> (by <approver on file> on <time>); the earlier record is kept`.
-- `pin`: `pinned <name> -> <path> (sha256 <hash>) by X`, with ` (no gate)` at the level `none` of `wb pin`.
+- `pin`: `pinned <name> -> <path> (sha256 <hash>) by X`, with ` (no gate)` at the level `none` of `wb pin` (a pin made at `ask` has `ask` as its `via`).
 - `approve-plan`: `approved: <plan> (region <hash>) by X`, ` by X (ask)` at the level `ask` and ` by X (no gate)` at `none`. A repeat
   says `already approved: ...` and names the approver and the way on file, which may be another person's and another level; an
   entry written before 2026-10-29 has no way recorded and is shown by its approver text alone.

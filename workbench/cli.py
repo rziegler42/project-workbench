@@ -14,14 +14,17 @@ from . import (acknowledge, agent_gate, approvalcmd, approve, attach, check, com
                gate_hook, gatelog, harnesses, install, launch, levelrun, levels, pins, planapprovals, preview, recover,
                rendering, rerender, settings, settingscmd, sources, store, target, upgrade, verify)
 from . import commands as module_commands
-from .wbkit import display, safefs
+from .wbkit import digest as kitdigest, display, safefs
 
 PROG = "python3 -m workbench"
 USAGE = ("usage: python3 -m workbench verify [<package> | --dir <path>] "
          "[--select <module> ...] [--no-harness-required]\n"
-         "       python3 -m workbench approve (<package> | --source <url> [--ref <ref>]) [--module <name>]\n"
+         "       python3 -m workbench preview approve <package> [--module <name>]   (read-only; no --source: a download has no preview)\n"
+         "       python3 -m workbench approve (<package> | --source <url> [--ref <ref>]) [--module <name>] [--digest <32 hex>]\n"
          "                                                    (owner-run, terminal only)\n"
-         "       python3 -m workbench pin <project-id> <name> <helper> --root <dir> [--kit N]   (owner-run, terminal only)\n"
+         "       python3 -m workbench preview pin <project-id> <name> <helper> --root <dir> [--kit N]   (read-only)\n"
+         "       python3 -m workbench pin <project-id> <name> <helper> --root <dir> [--kit N] [--digest <32 hex>]\n"
+         "                                                 (owner-run, terminal only; at the level ask, with the digest of the preview)\n"
          "       python3 -m workbench launch <project-id> <name> --root <dir> -- <args>\n"
          "       python3 -m workbench run [--provides <capability>] <command> [<argument> ...]\n"
          "       python3 -m workbench release-approvals [--digest <32 hex>]   (--digest: at the level ask, without a terminal)\n"
@@ -91,6 +94,8 @@ def _parser():
     owner.add_argument("--ref", metavar="REF", help="the branch, tag or commit to download "
                                                     "(default: HEAD); only with --source")
     owner.add_argument("--module", metavar="NAME", help="approve only this module")
+    owner.add_argument("--digest", metavar="HEX", action="append",
+                       help="at the level ask without a terminal: the digest `preview approve` printed (once)")
     pin = commands.add_parser("pin", allow_abbrev=False,
                               help="owner-run, from a terminal: pin a helper's content")
     pin.add_argument("project_id", help="the project id (64 hex digits)")
@@ -99,6 +104,8 @@ def _parser():
     pin.add_argument("--root", required=True, metavar="DIR", help="the project directory")
     pin.add_argument("--kit", type=int, metavar="N", help="run the helper through the kit runner "
                                                          "with this kit API number")
+    pin.add_argument("--digest", metavar="HEX", action="append",
+                     help="at the level ask without a terminal: the digest `preview pin` printed (once)")
     run_cmd = commands.add_parser("launch", allow_abbrev=False,
                                   help="run a pinned helper if it still matches its pin")
     run_cmd.add_argument("project_id", help="the project id (64 hex digits)")
@@ -408,11 +415,52 @@ def _preview_examination(verb, tokens, out, err, store_root, distribution):
     return recover.run_preview(opened[0], spelling, out, err)
 
 
-def _preview(argv, out, err, store_root, distribution, home=None):
-    if len(argv) < 2 or argv[1] not in ("install", "adopt", "upgrade", "add", "rerender", "acknowledge", "recover",
-                                        "release-approvals"):
-        err.write("preview takes install, adopt, upgrade, add, rerender, acknowledge, recover or release-approvals\n%s" % USAGE)
+def _trust_arguments(verb, tokens):
+    """The parsed arguments of ``pin`` or ``approve`` with the checks `main` makes, for ``preview pin`` and ``preview approve``; the
+    previews take no ``--digest`` and ``preview approve`` no ``--source``. ``_Usage`` otherwise."""
+    args = _parser().parse_args([verb] + tokens)
+    if args.digest is not None:
+        raise _Usage("the previews do not take --digest")
+    if verb == "pin":
+        if "" in (args.project_id, args.name, args.root) or not args.helper:
+            raise _Usage("the project id, name, root and helper may not be empty")
+    else:
+        if args.source is not None or args.ref is not None:
+            raise _Usage("preview approve takes a package directory: a download has no preview")
+        if args.package is None or "" in (args.package, args.module):
+            raise _Usage("give the package directory")
+    return args
+
+
+def _preview_trust(verb, tokens, out, err, store_root, distribution):
+    """``preview pin`` and ``preview approve``: what the command would record, read-only."""
+    try:
+        args = _trust_arguments(verb, tokens)
+    except _Usage as exc:
+        err.write("%s\n%s" % (_clean(str(exc)), USAGE))
         return 2
+    except SystemExit as exc:
+        return exc.code if isinstance(exc.code, int) else 2
+    opened = _open_store(store_root, err)
+    if opened is None:
+        return 1
+    guarded, notes = opened
+    notes += launch.install_wrapper(guarded, distribution or firstparty.default_distribution())
+    for note in notes:
+        err.write("warning: %s\n" % _clean(note))
+    if verb == "pin":
+        return pins.run_preview(guarded, args.project_id, args.name, args.helper, args.root, out, err, kit=args.kit)
+    return approve.run_preview(args.package, args.module, out, err, distribution)
+
+
+def _preview(argv, out, err, store_root, distribution, home=None):
+    if len(argv) < 2 or argv[1] not in ("install", "adopt", "upgrade", "add", "rerender", "acknowledge", "recover", "approve",
+                                        "pin", "release-approvals"):
+        err.write("preview takes install, adopt, upgrade, add, rerender, acknowledge, recover, approve, pin or release-approvals\n%s"
+                  % USAGE)
+        return 2
+    if argv[1] in ("approve", "pin"):
+        return _preview_trust(argv[1], argv[2:], out, err, store_root, distribution)
     if argv[1] in ("acknowledge", "recover"):
         return _preview_examination(argv[1], argv[2:], out, err, store_root, distribution)
     if argv[1] == "release-approvals":
@@ -721,6 +769,11 @@ def main(argv, out=None, err=None, *, store_root=None, distribution=None, stdin=
             raise _Usage("the project id, name and root may not be empty")
         if args.command == "pin" and not args.helper:
             raise _Usage("the helper path may not be empty")
+        if args.command in ("pin", "approve") and args.digest is not None:
+            if len(args.digest) > 1:
+                raise _Usage("--digest was given twice")
+            if not kitdigest.well_formed(args.digest[0]):
+                raise _Usage(kitdigest.SHAPE)
         if args.command == "approve":
             if (args.package is None) == (args.source is None):
                 raise _Usage("give either a package directory or --source, not both and not neither")
@@ -756,21 +809,22 @@ def main(argv, out=None, err=None, *, store_root=None, distribution=None, stdin=
         for note in notes:
             err.write("warning: %s\n" % _clean(note))
         log, code = _levelled(guarded, "wb pin", pins.TERMINAL_ONLY, stdin, out, err, args.project_id,
-                               args.root)
+                               args.root, ask="pin", digest=args.digest[0] if args.digest else None)
         if code is not None:
             return code
         return pins.run(guarded, args.project_id, args.name, args.helper, args.root, stdin, out, err, kit=args.kit,
-                        log=log)
+                        log=log, digest=args.digest[0] if args.digest else None)
     if args.command == "release-approvals":
         return _release(guarded, stdin if stdin is not None else sys.stdin, distribution, out, err, args.digest)
     if args.command == "approve":
         for note in notes:
             err.write("warning: %s\n" % _clean(note))
-        log, code = _levelled(guarded, "wb approve", approve.TERMINAL_ONLY, stdin, out, err)
+        log, code = _levelled(guarded, "wb approve", approve.TERMINAL_ONLY, stdin, out, err, ask="approve",
+                              digest=args.digest[0] if args.digest else None)
         if code is not None:
             return code
         return approve.run(guarded, args.package, args.module, stdin, out, err, distribution,
-                           args.source, args.ref or "HEAD", log=log)
+                           args.source, args.ref or "HEAD", log=log, digest=args.digest[0] if args.digest else None)
 
     result = verify.verify_package(path, select=args.select,
                                    harness_required=not args.no_harness_required,

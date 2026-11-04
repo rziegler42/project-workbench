@@ -26,7 +26,7 @@ KEY_FACTS = {
     "approve-plan": ("governs", "block,delegated,ask,none"),
     "wb install": ("project", "block,ask,none"), "wb adopt": ("project", "block,ask,none"),
     "wb upgrade": ("project", "block,ask,none"), "wb add": ("project", "block,ask,none"), "wb attach": ("project", "block,none"), "wb recover": ("project", "block,ask,none"),
-    "wb rerender": ("governs", "block"), "wb approve": ("governs", "block,none"), "wb pin": ("governs", "block,none"),
+    "wb rerender": ("governs", "block"), "wb approve": ("governs", "block,ask,none"), "wb pin": ("governs", "block,ask,none"),
     "wb release-approvals": ("governs", "block,ask,none"),
 }
 
@@ -215,7 +215,8 @@ class Printed(Settings):
         self.assertIn("level approve-plan: ask\n", out)
         self.assertIn("level wb release-approvals: ask\n", out)
         self.assertIn("profile: trusting\nprofiled approve-plan: ask\nprofiled wb install: ask\nprofiled wb adopt: ask\n"
-                      "profiled wb upgrade: ask\nprofiled wb add: ask\nprofiled wb recover: ask\nprofiled wb release-approvals: ask\n", out)
+                      "profiled wb upgrade: ask\nprofiled wb add: ask\nprofiled wb recover: ask\nprofiled wb approve: ask\nprofiled wb pin: ask\n"
+                      "profiled wb release-approvals: ask\n", out)
         self.assertEqual(0, problem_lines(out), out)
 
     def test_the_profile_cautious_moves_no_key_and_prints_its_name_only(self):

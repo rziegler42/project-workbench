@@ -254,7 +254,7 @@ class ViaTest(Base):
         self.assertEqual(first, self.written(key))
 
     def test_a_via_that_is_not_one_of_the_two_or_an_approver_that_is_not_an_identity_is_not_written(self):
-        for who, via in ((IDENT, "ask"), (IDENT, "delegated"), ("bob", "terminal"), ("Name <a b@c.d>", "none")):
+        for who, via in ((IDENT, "maybe"), (IDENT, "delegated"), ("bob", "terminal"), ("Name <a b@c.d>", "none")):
             with self.subTest(who=who, via=via):
                 with self.assertRaises(ApprovalError):
                     approvals.record_module(self.store, "pkg/mod", A, B, who, NOW, via=via)
@@ -484,7 +484,7 @@ class ParseTest(unittest.TestCase):
     def test_each_bad_format_2_document_is_refused(self):
         document = self.two()
         without_via = {key: value for key, value in document.items() if key != "via"}
-        bad = [without_via, self.two(via="ask"), self.two(via="delegated"), self.two(via=""), self.two(via=None),
+        bad = [without_via, self.two(via="maybe"), self.two(via="delegated"), self.two(via=""), self.two(via=None),
                self.two(via=1), self.two(approver="bob"), self.two(approver="Name <a b@c.d>"),
                self.two(approver="x" * 257), self.two(approver="ㅤ <a@b.c>"), self.base(via="terminal"),
                self.two(extra=1)]

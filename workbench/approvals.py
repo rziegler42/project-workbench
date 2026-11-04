@@ -56,7 +56,7 @@ from .wbkit import safefs
 FORMAT = 1       # what a release writes: the approver is a role and the record has no `via`
 FORMATS = (1, 2)
 VIA_FORMAT = 2   # an approval made by a person: the approver is `Name <email>` and the record has a `via`
-VIAS = ("terminal", "none")
+VIAS = ("terminal", "ask", "none")
 OLD_APPROVER_LIMIT = 64
 APPROVER_LIMIT = 256
 KINDS = ("module", "package")

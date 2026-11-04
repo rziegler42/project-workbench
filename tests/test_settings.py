@@ -607,14 +607,14 @@ class LevelsTest(SettingsBase):
                 self.assertEqual(1, len(got.notes))
                 self.assertIn("wb rerender", got.notes[0])
 
-    def test_approve_and_pin_offer_none_and_nothing_else(self):
+    def test_approve_and_pin_offer_ask_and_none_but_not_delegated(self):
         for key in ("wb approve", "wb pin"):
             with self.subTest(key=key):
-                self.assertEqual("none", self.effective({"version": 2, "levels": {key: "none"}})[1].levels[key])
-                for level in ("ask", "delegated"):
-                    got = self.effective({"version": 2, "levels": {key: level}})[1]
-                    self.assertEqual("block", got.levels[key])
-                    self.assertEqual(1, len(got.notes))
+                for level in ("none", "ask"):
+                    self.assertEqual(level, self.effective({"version": 2, "levels": {key: level}})[1].levels[key])
+                got = self.effective({"version": 2, "levels": {key: "delegated"}})[1]
+                self.assertEqual("block", got.levels[key])
+                self.assertEqual(1, len(got.notes))
 
     def test_the_four_installer_commands_with_a_preview_offer_ask_and_none_but_not_delegated(self):
         # Plan 2026-11-02-permission-levels-for-every-command, increment B.

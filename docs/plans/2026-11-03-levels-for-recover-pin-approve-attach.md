@@ -192,3 +192,49 @@ only if the owner decides after the author states what could break outside the t
   wherever a module declares it; a `wb rerender` in a terminal is due for an owner who uses either. At `ask` an owner who confirms a digest lets
   the agent accept changes to instruction-bearing and executable files and move pins (written in the spec).
 - **Left for the owner:** the verdict, and the word to commit.
+- **Afterwards:** committed as 93faec7 with a follow-up 488efc1 (the spec's profile lines and the forged-marker limit, after the security
+  review of A, which found no Critical, High or Medium issue).
+
+### Increment B — `ask` for pin and approve (2026-11-04)
+
+- **Done (uncommitted until the owner says):** `wb pin` and `wb approve` offer `block`, `ask` and `none`. Two read-only previews,
+  `wb preview pin <project-id> <name> <helper> --root <dir> [--kit N]` and `wb preview approve <package> [--module <name>]`, print what the
+  terminal command shows, the note that its own digest is the one a terminal run types, then `digest: <32 hex>` and `preview only: nothing
+  was written`. A run without a terminal at `ask` takes it as `--digest` (`argparse` `append`; a repeated or malformed one is a usage error,
+  exit 2). The new module `workbench/askdigest.py` holds the ask-digest helpers because `preview` imports `installplan`, which imports `pins`;
+  `preview` keeps its names as aliases.
+- **Digest inputs** (listed before building, as the plan requires). Pin: the project id, the name, the path in the project, the helper's
+  SHA-256 and size, the kit, and the pin it would replace (path, hash, kit, declaration, time); the time the new pin records and the git
+  identity are left out. Approve: the kind and the module, the name, declaration hash and tree hash of the package and every module, and
+  the SHA-256 of the request text (which holds the package's absolute path); whether a record is already on file is left out. Rechecks: the
+  helper is read again and the package verified again after the comparison, as at a terminal.
+- **Decisions this increment made, for the owner to veto** (none needed a new record, as each follows the accepted record's rules):
+  (1) a pin or an approval written at `ask` has `via` `ask`, so `pins.VIAS` and `approvals.VIAS` now include it (an older copy of the
+  installer refuses such a record and a pins file it cannot read fails closed); (2) **`wb approve --source` is refused at `ask`** and
+  `preview approve` takes no `--source`, because a preview must not download; the owner approves a downloaded package at a terminal or gives
+  the directory it was fetched to; (3) a pin that already holds the same path, hash and kit says `already pinned` and writes and logs
+  nothing, at `ask` only, and so leaves an installer-made declaration alone; (4) the approve digest does not bind whether a record is on
+  file, so after an approval the same digest still matches and the run says `already approved`.
+- **Files:** `workbench/askdigest.py` (new), `pins.py`, `approve.py`, `approvals.py`, `levels.py`, `cli.py`, `preview.py`; new
+  `tests/test_pin_approve_ask.py` (the shared matrix, generalised in `test_ack_recover_ask.py` with `target()`, `NOTHING` and
+  `PROJECT_CHECK`; 47 tests, one skipped by design: approve is machine-wide); updated `test_levels`, `test_levels_facts`, `test_settings`,
+  `test_settingscmd`, `test_approvals`, `test_pins` (an `ask` via was the example of an invalid via), `test_permissions_drift`,
+  `test_approve_levels`; specs `command-permissions.md` (new section "`approve` and `pin` at `ask`"), `installer-interface.md`,
+  `trust-and-approval.md`, `docs/development.md`.
+- **A miss of increment A, found here:** `test_approve_levels.OfferedLevels.test_no_other_owner_run_key_offers_ask_or_none` still said
+  `wb recover` and the first acknowledge tier offer `none` only. Increment A's verification did not include that module, so A's commit left it
+  failing. It is fixed in this increment's commit.
+- **Verification as run:** the new tests failed before the code (46 of 47, one skipped); with the digest comparison disabled 8 of them fail.
+  After the code, all of these pass: `test_pin_approve_ask`, `test_ack_recover_ask`, `test_approve_pin_levels`, `test_approve_levels`,
+  `test_levels`, `test_levels_facts`, `test_permissions_drift`, `test_doctor`, `test_rendering`, `test_gate_corpus`, `test_command_gate`,
+  `test_ack_recover_levels`, `test_levelrun`, `test_preview`, `test_install_levels`, `test_upgrade_levels`, `test_release_ask`, and by
+  discovery `test_settings`, `test_settingscmd`, `test_cli`, `test_approvals`, `test_pins`, `test_approve`, `test_launch`, `test_install`,
+  `test_attach`. `wb check` and `wb doctor` found no problems. The full suite was not run.
+- **Review:** one `reviewer` exchange, no blocking finding; applied: a stale line in `trust-and-approval.md` (a pin's `via`), the spec says a
+  declaration-bearing pin is left as it is at `ask`, that an older copy refuses `via: ask`, and that the approve digest names the absolute path.
+  Not checked by the reviewer: the real harness behaviour of the rendered `ask` rules, and `_open_store`/`install_wrapper` beyond the launcher
+  refresh every preview does.
+- **Consequences for the owner:** `trusting` now also sets `wb approve` and `wb pin` to `ask` (they are `governs` keys); `balanced` does
+  not. A `wb rerender` in a terminal is due for an owner who uses `trusting`. At `ask` an owner who confirms a digest lets the agent make
+  a package trusted or a helper runnable; approve is machine-wide.
+- **Left for the owner:** the verdict, the veto of decision (2) if `--source` should have a preview, and the word to commit.

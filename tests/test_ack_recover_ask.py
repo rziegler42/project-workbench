@@ -22,6 +22,12 @@ class Matrix(object):
 
     VERB = LOGKEY = None
     DIGEST = re.compile(r"^digest: ([0-9a-f]{32})$", re.M)
+    NOTHING = "nothing to"       # what the run says when it has nothing to change
+    PROJECT_CHECK = True         # the command acts on one project, which must be the one the level was read for
+
+    def target(self):
+        """The arguments after the command word, for the preview and for the run (a subclass whose command takes others)."""
+        return [self.real]
 
     def dirty(self):
         """Put the project in a state where the command has something to do."""
@@ -36,7 +42,7 @@ class Matrix(object):
         raise NotImplementedError
 
     def previewed(self, verb=None):
-        code, out, err = self.go(["preview", verb or self.VERB, self.real])
+        code, out, err = self.go(["preview", verb or self.VERB] + self.target())
         self.assertEqual((0, ""), (code, err), out)
         found = self.DIGEST.findall(out)
         self.assertEqual(1, len(found), out)
@@ -46,7 +52,7 @@ class Matrix(object):
         return digest[:-1] + ("0" if digest[-1] != "0" else "1")
 
     def ask(self, *extra):
-        return self.go([self.VERB, self.real] + list(extra))
+        return self.go([self.VERB] + self.target() + list(extra))
 
     def entries(self):
         return [entry.split("\t") for entry in self.log()]
@@ -75,7 +81,7 @@ class Matrix(object):
 
     def test_the_preview_takes_no_digest(self):
         digest, _ = self.previewed()
-        code, out, err = self.go(["preview", self.VERB, self.real, "--digest", digest])
+        code, out, err = self.go(["preview", self.VERB] + self.target() + ["--digest", digest])
         self.assertEqual(2, code, (out, err))
 
     # -- the run
@@ -140,9 +146,11 @@ class Matrix(object):
     def test_a_table_edited_after_attach_reads_block_even_with_the_right_digest(self):
         digest, _ = self.previewed()
         self.table(**{self.KEY: "ask", "wb adopt": "none"})
-        self.refused([self.VERB, self.real, "--digest", digest])
+        self.refused([self.VERB] + self.target() + ["--digest", digest])
 
     def test_a_plan_for_another_project_than_the_level_was_read_for_is_refused_at_ask_too(self):
+        if not self.PROJECT_CHECK:
+            self.skipTest("the command is not for one project")
         digest, _ = self.previewed()
         before = self.snapshot()
         elsewhere = levelrun.Route(False, "ask", "0" * 64, self.real)
@@ -176,7 +184,7 @@ class Matrix(object):
         log, before = self.log(), self.snapshot()
         code, out, err = self.ask("--digest", digest)
         self.assertEqual((0, ""), (code, err), out)
-        self.assertIn("nothing to", out)
+        self.assertIn(self.NOTHING, out)
         self.assertEqual(log, self.log())
         self.assertEqual(before, self.snapshot())
 
@@ -195,11 +203,14 @@ class DigestElsewhere(object):
 
     DIGEST = "0" * 32
 
+    def target(self):
+        return [self.real]
+
     def test_a_digest_at_none_is_refused_saying_a_digest_needs_ask(self):
         self.attach_at("none")
         self.dirty()
         before = self.snapshot()
-        code, out, err = self.go([self.VERB, self.real, "--digest", self.DIGEST])
+        code, out, err = self.go([self.VERB] + self.target() + ["--digest", self.DIGEST])
         self.assertEqual(1, code, (out, err))
         self.assertIn("needs the level ask", err)
         self.assertEqual(before, self.snapshot())
@@ -207,7 +218,7 @@ class DigestElsewhere(object):
     def test_a_digest_at_block_is_refused_as_owner_run(self):
         self.attach_at("block")
         self.dirty()
-        self.refused([self.VERB, self.real, "--digest", self.DIGEST])
+        self.refused([self.VERB] + self.target() + ["--digest", self.DIGEST])
 
 
 class AcknowledgeFixture(object):

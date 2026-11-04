@@ -23,8 +23,8 @@ The levels a key offers: ``_OFFERS`` (derived from ``INSTALLER_KEYS``, and patch
 a key the installer names. ``approve-plan`` offers ``delegated`` (``wb delegate-approve-plan`` is its gate), ``ask`` (a digest of
 its preview) and ``none``; ``wb release-approvals`` offers ``ask`` (a digest of the preview of its release,
 ``2026-10-30-release-approvals-at-ask``) and ``none``; ``wb install``, ``wb adopt``, ``wb upgrade``, ``wb add``,
-``wb recover`` and the first acknowledge tier offer ``ask`` (a digest of their preview) and ``none``; the other owner-run
-installer commands, ``accept-decision`` and the second acknowledge tier offer ``none``; ``wb rerender`` offers ``block`` only (``2026-10-27-rerender-is-terminal-only``). No other key
+``wb recover``, ``wb approve``, ``wb pin`` and the first acknowledge tier offer ``ask`` (a digest of their preview) and ``none``;
+the other owner-run installer commands, ``accept-decision`` and the second acknowledge tier offer ``none``; ``wb rerender`` offers ``block`` only (``2026-10-27-rerender-is-terminal-only``). No other key
 offers ``ask`` unless an installed command's declaration gives its owner-run argument ``levels``
 (``declarations.ARGUMENT_LEVELS``) and ``checkpoint_of`` maps that argument to a checkpoint (then the checkpoint offers the
 levels the argument does; ``checkpoint_commands``). An agent-safe key and a declared argument that is not owner-run offer
@@ -71,8 +71,8 @@ INSTALLER_KEYS = collections.OrderedDict([
                                     _PERMISSIONS)),
     ("acknowledge-second-tier", Spec(CHECKPOINT, GOVERNS, (NONE,), "", "", "", _PERMISSIONS)),
     ("wb recover", Spec(COMMAND, PROJECT, (ASK, NONE), "recover", "wb recover", "wb preview recover", _DEVELOPMENT)),
-    ("wb approve", Spec(COMMAND, GOVERNS, (NONE,), "approve", "wb approve", "", _DEVELOPMENT)),
-    ("wb pin", Spec(COMMAND, GOVERNS, (NONE,), "pin", "wb pin", "", _DEVELOPMENT)),
+    ("wb approve", Spec(COMMAND, GOVERNS, (ASK, NONE), "approve", "wb approve", "wb preview approve", _DEVELOPMENT)),
+    ("wb pin", Spec(COMMAND, GOVERNS, (ASK, NONE), "pin", "wb pin", "wb preview pin", _DEVELOPMENT)),
     ("wb release-approvals", Spec(COMMAND, GOVERNS, (ASK, NONE), "release-approvals", "wb release-approvals",
                                   "wb preview release-approvals", _DEVELOPMENT)),
     (APPROVE_PLAN, Spec(CHECKPOINT, GOVERNS, (DELEGATED, ASK, NONE), APPROVE_PLAN, APPROVE_PLAN, "wb plan-status", _PERMISSIONS)),

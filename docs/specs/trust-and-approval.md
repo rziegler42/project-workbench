@@ -402,7 +402,7 @@ prose above and this section differ in precision, this section is what the code 
 - **Fields.** Strict JSON with exactly these fields and no others: `format` (1 or 2), `kind`
   (`module` or `package`), `subject`, `declaration_hash`, `tree_hash`, `approver` (printable text,
   at most 64 characters at format 1 and 256 at format 2), `time` (UTC, `YYYY-MM-DDTHH:MM:SSZ`) and
-  `workbench_version`. A format 2 record also has `via` (`terminal` or `none`). A package
+  `workbench_version`. A format 2 record also has `via` (`terminal`, `ask` or `none`). A package
   record also has `modules` (a list of `{name, declaration_hash, tree_hash}`, unique and sorted by
   name) and `commit` (`null` or a lowercase hex commit id). A record is written at format 2 exactly when it
   has a `via`, which is an approval made by a person; a record at format 1 is an earlier one or a shipped one
@@ -430,7 +430,7 @@ the earlier rule that the approver was the operating-system account name, with `
 
 - **What is recorded.** An approval made by a person (`approve`, `pin`, `approve-plan`, `delegate-approve-plan`) records the
   approver as that person's git identity in git's author form, `Name <email>`, and `via`, the level the run was authorized
-  under: `terminal` (typed at a terminal), `ask` (confirmed at a prompt, plan approval only), `none` (run with no gate) or
+  under: `terminal` (typed at a terminal), `ask` (confirmed at a prompt, with the digest of a preview: a plan approval, an `approve` or a `pin`), `none` (run with no gate) or
   `delegated` (a review stood in, plan approval only). The identity is an unverified attribution label: git does not check that
   a person owns an email, and two people could use one. It is provenance, no check reads it, and it grants nothing; who may
   approve is not decided here.
@@ -450,12 +450,12 @@ the earlier rule that the approver was the operating-system account name, with `
   `@` and something on each side. The stored text `Name <email>` is at most 210 characters. The comparison key of an identity is
   the lowercased email, never the name; the reader provides it, and nothing in the installer compares identities by it yet. Lookalike letters and brackets and runs of combining marks are not restricted; the security review
   of 2026-10-29 listed them, and the email carries the identity.
-- **Which record holds what.** Module and package approvals: format 2 holds the identity and a `via` of `terminal` or `none` (up to
+- **Which record holds what.** Module and package approvals: format 2 holds the identity and a `via` of `terminal`, `ask` or `none` (up to
   256 characters); format 1 is every earlier record and every shipped one, with an approver of up to 64 characters and no `via`.
   The release writes format 1 with the role `workbench-release`, so a second release changes nothing, and `terminal` would be
   false for it; no shipped record changed its format or its approver for this (two were released again on 2026-10-29, for the
   `code-work` module and the `workbench` package, because a package test was edited, and carry the new tree hash). Plan approvals: format 3 ("Plan approval records"). Pins: format 2, with `via`
-  (`terminal` or `none`) on a pin made by `pin`; the pins an install, upgrade, add or acknowledge makes keep their role text
+  (`terminal`, `ask` or `none`) on a pin made by `pin`; the pins an install, upgrade, add or acknowledge makes keep their role text
   (`workbench <command>`) and have no `via`. An entry written before this change is read as it is and stays as history.
 - **Shown as a sentence.** The commands print the approval as one: `approved ... by Name <email>`, with `(ask)` or `(no gate)` for
   those levels and `delegated to <provider> (<model>)` for a delegated plan approval (`installer-interface.md`).
@@ -788,7 +788,7 @@ A package is brought into `cache/<id>/` as data only: the files under `package/`
 - **Pins.** `projects/<id>/pins` is strict JSON,
   `{"format": 2, "pins": {"<name>": {"path", "pinned_by", "sha256", "time"}}}` (format 1 is read), and an entry may also hold
   `kit` (the kit API number), `declaration` (the hash of the `module.json` an installer-made pin was
-  confirmed with; absent from a pin the owner typed) and `via` (`terminal` or `none`; only in a format 2 file, and only on a pin
+  confirmed with; absent from a pin the owner typed) and `via` (`terminal`, `ask` or `none`; only in a format 2 file, and only on a pin
   made by `pin`, whose `pinned_by` is then `Name <email>`, up to 256 characters; a pin without `via` has role text of up to 64
   characters, such as `workbench install`). The project id is 64
   lowercase hex digits. A helper name is letters, digits and `._+-`, at most 64 characters, starting

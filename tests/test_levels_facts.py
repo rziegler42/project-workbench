@@ -60,7 +60,6 @@ class AnInstallerCommand(unittest.TestCase):
 
     def test_a_command_without_a_preview_has_none(self):
         self.assertEqual("", levels.registry()["wb attach"].preview)
-        self.assertEqual("", levels.registry()["wb pin"].preview)
 
     def test_the_classes_of_the_installer_commands(self):
         keys = levels.registry()

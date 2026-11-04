@@ -133,7 +133,7 @@ class PinFileTest(Base):
 
     def test_a_via_needs_an_identity_and_one_of_the_two_values(self):
         for label, who, via in (("not an identity", "bob", "terminal"), ("outside the grammar", "Name <a b@c.d>", "none"),
-                                ("a bad via", IDENT, "ask"), ("an empty via", IDENT, ""), ("a delegated via", IDENT, "delegated")):
+                                ("a bad via", IDENT, "maybe"), ("an empty via", IDENT, ""), ("a delegated via", IDENT, "delegated")):
             with self.subTest(label):
                 with self.assertRaises(pins.PinError):
                     pins.set_pin(self.store, PROJECT, "one", "a/one.sh", SHA, who, "2026-10-21T08:00:00Z", via=via)
@@ -147,7 +147,7 @@ class PinFileTest(Base):
         self.put(two())
         self.assertEqual("terminal", pins.lookup(self.store, PROJECT, "one").via)
         for label, data in (("a pinned_by that is not an identity", two(pinned_by="bob")),
-                            ("a bad via", two(via="ask")), ("a via that is not text", two(via=1)),
+                            ("a bad via", two(via="maybe")), ("a via that is not text", two(via=1)),
                             ("a via of null", two(via=None)), ("a 257 character pinned_by", two(pinned_by="x" * 257))):
             with self.subTest(label):
                 self.put(data)
