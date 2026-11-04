@@ -110,6 +110,10 @@ test, the gate corpus and `wb doctor`).
 
 ### Increment C — Previews and levels for the remaining installer commands
 
+**Deferred (2026-11-03, on the owner's direction):** C stopped at its step 4 because it does not fit one reviewable commit. Its scope and
+criterion 3 move to the successor plan `2026-11-03-levels-for-recover-pin-approve-attach`, which splits it by command group. Nothing below
+is built here; see Deferred work. D, E and F depend only on B and are unaffected.
+
 **Outcome:** `wb attach`, `wb recover`, `wb approve`, `wb pin` and the acknowledge tiers each offer `ask` with a read-only preview
 and a digest, or the spec records why one cannot.
 **Dependencies:** B.
@@ -265,6 +269,10 @@ tested area.
 
 ## Deferred work
 
+- Increment C (`ask` for `wb attach`, `wb recover`, `wb approve`, `wb pin` and the acknowledge tiers), with completion criterion 3: it
+  does not fit one reviewable commit (reason in the Result, "Increment C — stopped at its step 4"). The successor plan
+  `2026-11-03-levels-for-recover-pin-approve-attach` takes its scope and criterion, in three increments. Until that plan is approved and
+  built, these commands stay at `block` and `none`, as the specs say.
 - Reading the harness's global configuration (`workbench-v1#global-settings-check`).
 - Per-project overrides of the owner's personal settings.
 - `delegated` for keys other than `approve-plan`, and the hook that decides: `2026-11-03-delegated-levels-and-risk-profiles` and the
