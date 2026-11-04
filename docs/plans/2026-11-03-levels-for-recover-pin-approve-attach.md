@@ -30,22 +30,32 @@ In:
 
 ## Assumptions and constraints
 
-- The method is that of increment B of `2026-11-02-permission-levels-for-every-command` (committed as 7e4512f): the command reads the
-  verified level only and fails closed where it has a terminal test; the preview prints `digest: <32 hex>`; the run takes `--digest`;
-  the digest is taken over the plan built with the fixed seed and time, and is recomputed inside the command's own lock.
+- The rules are those of the accepted record `2026-11-03-installer-commands-read-their-level-and-take-an-ask-digest`: the command reads
+  the level by the route of its kind (verified only and failing closed where it has a terminal test); the preview prints
+  `digest: <32 hex>`; the run takes `--digest`, refuses a missing, malformed, repeated or stale one, and compares it before anything
+  is written. The digest is per command: it binds what that command's preview shows and decides, and leaves out what a run generates
+  for itself. It is not the install plan's digest, which `recover`, `acknowledge`, `pin`, `approve` and `attach` do not have. Each
+  increment therefore lists, before it builds, the preview inputs its digest binds, the values it excludes and why, and where the run
+  rechecks (inside the command's own lock where it has one). Increment B of the predecessor (7e4512f) is the worked example; how it
+  fixes the generated values is not copied here, and a difference between it and the record is for the record's owner to settle.
 - Every preview is read-only and is tested to change when the content it binds changes, and to be refused when stale.
+- **Shared test matrix.** For every command that gains `ask`, its tests cover each of: a run with no digest; a malformed digest; a
+  digest given twice; a stale digest; a `--digest` at a terminal (refused); a `--digest` at `none` (refused, saying a digest needs the
+  level `ask`); and a valid digest with nothing to change (says so, writes nothing and logs nothing); and that the attempt and the
+  outcome of a run at `ask` are logged.
 - Each preview adds an agent-safe key to the registry, the corpus and `wb settings`; the drift test must pass in the same commit.
 - An increment that changes what a command offers updates the lines of the specs it makes false in the same commit.
 - Any change to what a key offers changes a rendered rule; the owner runs `wb rerender` in a terminal afterwards, and `wb doctor` says
   when it is due.
-- The three increments are independent; the owner may drop any of them and name it under Deferred work. Completion criteria apply to the
-  increments kept.
+- Each increment depends only on the committed predecessor B (the registry, `levelrun.route_ask`, the digest refusal and the preview
+  parser) and none on another increment here, so the owner may drop any of them and name it under Deferred work. Completion criteria
+  apply to the increments kept. They run in the order A, B, C because the cheapest comes first, not because one needs another.
 - Edits to `workbench/*.py` are made atomically so the installer stays importable.
 - Testing is targeted; before any wider run the author states what could break outside the tested area.
 
 ## Completion criteria
 
-1. If A is kept: `wb recover` and each acknowledge tier offer `ask`; a run without a digest, or with a stale one, is refused; the attempt
+1. If A is kept: `wb recover` and each acknowledge tier that governs a command offer `ask` (a tier that governs none is decided in C); a run without a digest, or with a stale one, is refused; the attempt
    and the outcome are logged.
 2. If B is kept: `wb pin` and `wb approve` offer `ask` on the same terms.
 3. If C is kept: `wb attach` offers `ask` on the same terms, and `acknowledge-second-tier` is either given `ask` or kept without it by
@@ -58,15 +68,15 @@ In:
 ### Increment A — `ask` for recover and the acknowledge tiers
 
 **Outcome:** `wb recover` and the acknowledge tiers that govern a command offer `ask`, bound to the digest of a `wb preview` entry.
-**Dependencies:** none beyond the committed B of the plan `2026-11-02-permission-levels-for-every-command`.
+**Dependencies:** the committed B of the plan `2026-11-02-permission-levels-for-every-command`.
 **Affected areas:** the registry (`levels.py`), `recover.py`, `acknowledge.py`, `preview.py`, `cli.py`, `levelrun.py`, the parser in
 `sources.py`, `tests/test_ack_recover_levels.py`, `tests/test_levels.py`, `tests/test_permissions_drift.py`; and, in the same
 commit, the lines of `docs/specs/command-permissions.md`, `docs/specs/installer-interface.md`, `docs/specs/trust-and-approval.md` and
 `docs/development.md` that this makes false.
 **Steps:**
-1. Read `recover.examine`, `acknowledge.examine`, their typed confirmation and the route of B (`levelrun.route_ask`).
-2. Write the tests first: the key offers `ask`; a run without a digest, or with a stale one, is refused; the digest changes when the
-   examined content changes; the attempt and outcome are logged.
+1. Read `recover.examine`, `acknowledge.examine`, their typed confirmation and the route of B (`levelrun.route_ask`). List the inputs
+   each digest binds, what it excludes and where the run rechecks.
+2. Write the tests first: the key offers `ask`; the shared test matrix; the digest changes when the examined content changes.
 3. Build the `wb preview recover` and `wb preview acknowledge` entries on the existing examinations, the `--digest` option and the check.
 4. Update the specs and the registry facts in the same commit. If this grows beyond one reviewable commit, stop and report.
 **Verification:** the tests named above and the drift test.
@@ -75,12 +85,13 @@ commit, the lines of `docs/specs/command-permissions.md`, `docs/specs/installer-
 ### Increment B — `ask` for pin and approve
 
 **Outcome:** `wb pin` and `wb approve` offer `ask`, bound to the digest of a `wb preview` entry that records nothing.
-**Dependencies:** A.
+**Dependencies:** the committed B of the plan `2026-11-02-permission-levels-for-every-command`.
 **Affected areas:** the registry, `pins.py`, `pinplan.py`, `approve.py`, `preview.py`, `cli.py`, `levelrun.py`, the parser,
 `tests/test_approve_pin_levels.py`, `tests/test_levels.py`, `tests/test_permissions_drift.py`; the same four documents as A.
 **Steps:**
-1. Read what `pin` shows (path, size, sha256) and what `approve` verifies and confirms.
-2. Write the tests first, including that the `approve` preview verifies the package and records no approval, and that a changed package
+1. Read what `pin` shows (path, size, sha256) and what `approve` verifies and confirms. List the inputs each digest binds, what it
+   excludes and where the run rechecks.
+2. Write the tests first: the shared test matrix, including that the `approve` preview verifies the package and records no approval, and that a changed package
    or helper changes the digest.
 3. Build the previews, the `--digest` option and the check as in A.
 4. Update the specs and the registry facts in the same commit. If this grows beyond one reviewable commit, stop and report.
@@ -90,17 +101,18 @@ commit, the lines of `docs/specs/command-permissions.md`, `docs/specs/installer-
 ### Increment C — `ask` for attach, and a record for the second acknowledge tier
 
 **Outcome:** `wb attach` offers `ask`, bound to the digest of a preview of what it would write; `acknowledge-second-tier` is decided.
-**Dependencies:** A.
+**Dependencies:** the committed B of the plan `2026-11-02-permission-levels-for-every-command`.
 **Affected areas:** the registry, `attach.py`, `preview.py`, `cli.py` (`_owner_reading`, parameterised by key), `levelrun.py`, the parser,
 `tests/test_levels.py`, `tests/test_permissions_drift.py` and a new attach test file; `docs/decisions/` (one record); the same four
 documents as A.
 **Steps:**
 1. Read `attach.py` and the accepted record's first decision, second bullet (`attach` has no terminal test and also reads the owner's own
    setting).
-2. Draft a `Proposed` record (the `draft-decision` skill) that keeps `acknowledge-second-tier` without `ask` while it governs no command,
-   or give it `ask` if A found a command it governs. Stop for the owner's acceptance at the `accept-decision` checkpoint before the spec
+2. List the inputs the `attach` digest binds, what it excludes and where the run rechecks. Draft a `Proposed` record (the
+   `draft-decision` skill) that keeps `acknowledge-second-tier` without `ask` while it governs no command, or give it `ask` if it now
+   governs one. Stop for the owner's acceptance at the `accept-decision` checkpoint before the spec
    cites it.
-3. Write the tests first, including that the owner's own setting alone does not grant a run that the verified rendering would refuse
+3. Write the tests first: the shared test matrix, including that the owner's own setting alone does not grant a run that the verified rendering would refuse
    where the record says it must not, then build the preview, the option and the check.
 4. Update the specs and the registry facts in the same commit. If this grows beyond one reviewable commit, stop and report.
 **Verification:** the tests named above, the drift test and the document check.
@@ -125,7 +137,17 @@ only if the owner decides after the author states what could break outside the t
 
 ## Review record
 
-Empty until a review is asked for.
+- **Reviewer:** the project's review engine, model `gpt-5.6-terra`, through `wb run review-engine review-plan`.
+- **Rounds:** 2 of the bound of 3 (stopped at 2 on the owner's agreement). Not converged: each round found two major points, and the
+  second round's fixes were reviewed in no further round.
+- **Applied (4):** the digest rules follow the accepted record per command, and each increment lists what its digest binds, excludes and
+  rechecks (R1-F1); B and C depend only on the committed predecessor B, so each of the three can be dropped alone (R1-F2); criterion 1
+  covers only acknowledge tiers that govern a command, the other being decided in C (R2-F1); a shared test matrix of every digest case
+  is required for each command that gains `ask` (R2-F2).
+- **Rejected:** none.
+- **Left for the owner:** another round (the engine allows a third), or approval as it stands. One point is not this plan's to settle:
+  the accepted record says the `ask` digest leaves out the seed and time, while increment B of the predecessor fixed them; a dated
+  clarification note on that record, which needs the owner's approval, would remove the difference.
 
 ## Deferred work
 
