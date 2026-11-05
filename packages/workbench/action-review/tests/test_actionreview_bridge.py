@@ -14,6 +14,7 @@ import tempfile
 import unittest
 import unittest.mock
 
+import support_profile
 from tests import support_helpers, support_project
 from tests.support_project import tool
 from workbench import firstparty, launch, store
@@ -116,64 +117,85 @@ class Base(unittest.TestCase):
 
 
 class Setting(Base):
-    def read(self, text, raw=None):
-        root = self.project({".workbench/review.json": raw if raw is not None else text})
-        return self.helper.read_setting(root)
+    """The setting is the one rung of the owner's `action-review` ladder (plan `2026-11-04-review-profiles`, increment F)."""
 
-    def refused(self, text, raw=None, contains="review.json"):
+    def read(self, body):
+        home = self.project()
+        support_profile.write(home, body)
+        with unittest.mock.patch.dict(os.environ, {"HOME": home}):
+            return self.helper.read_setting()
+
+    def refused(self, body, contains="review-profiles.json"):
         with self.assertRaises(self.helper.SettingError) as caught:
-            self.read(text, raw)
+            self.read(body)
         self.assertIn(contains, str(caught.exception))
         return str(caught.exception)
 
     def test_the_bridge_the_model_and_the_effort_are_read(self):
-        got = self.read('{"format": 1, "bridge": "ask-codex", "model": "gpt-5.6-terra", "effort": "medium"}')
-        self.assertEqual(("ask-codex", "gpt-5.6-terra", "medium"), tuple(got))
+        got = self.read(support_profile.document("ask-codex", "gpt-5.6-terra", "medium"))
+        self.assertEqual(("ask-codex", "gpt-5.6-terra", "medium", ()), tuple(got))
 
     def test_the_model_and_the_effort_are_optional(self):
-        self.assertEqual(("ask-codex", None, None), tuple(self.read('{"format": 1, "bridge": "ask-codex"}')))
+        self.assertEqual(("ask-codex", None, None, ()), tuple(self.read(support_profile.document("ask-codex"))))
 
-    def test_the_real_projects_file_is_read(self):
-        with open(os.path.join(ROOT, ".workbench", "review.json"), "rb") as handle:
-            got = self.read("", raw=handle.read())
-        self.assertEqual("ask-codex", got.bridge)
+    def test_the_options_are_read_in_the_order_of_their_names(self):
+        got = self.read(support_profile.document("ask-ollama", "phi4:latest", options={"server": "lab", "context": "8192"}))
+        self.assertEqual((("context", "8192"), ("server", "lab")), got.options)
 
     def test_a_missing_file_is_refused_and_no_bridge_is_guessed(self):
-        with self.assertRaises(self.helper.SettingError):
-            self.helper.read_setting(self.project())
+        with unittest.mock.patch.dict(os.environ, {"HOME": self.project()}):
+            with self.assertRaises(self.helper.SettingError) as caught:
+                self.helper.read_setting()
+        self.assertIn("review-profiles.json", str(caught.exception))
 
-    def test_a_file_that_is_not_strict_json_is_refused(self):
-        for text in ("{", "[]", "null", '{"format": 1, "format": 1, "bridge": "b"}', '{"format": 1.0, "bridge": "b"}',
-                     '{"format": NaN, "bridge": "b"}', ""):
-            self.refused(text)
+    def test_the_project_file_is_read_by_nothing(self):
+        home = self.project()
+        root = self.project({".workbench/review.json": '{"format": 1, "bridge": "ask-codex"}'})
+        with unittest.mock.patch.dict(os.environ, {"HOME": home}):
+            with self.assertRaises(self.helper.SettingError):
+                self.helper.read_setting()
+            support_profile.write(home, support_profile.document("ask-ollama"))
+            self.assertEqual("ask-ollama", self.helper.read_setting().bridge)
+        self.assertTrue(os.path.exists(os.path.join(root, ".workbench", "review.json")))
 
-    def test_an_unknown_field_a_wrong_format_and_a_missing_bridge_are_refused(self):
-        self.refused('{"format": 1, "bridge": "b", "retries": 3}')
-        for value in (0, 2, True, "1", None):
-            self.refused(json.dumps({"format": value, "bridge": "b"}))
-        self.refused('{"format": 1}')
-        self.refused('{"bridge": "b"}')
+    def test_the_ladder_is_one_rung_and_a_longer_one_is_refused(self):
+        body = support_profile.document("ask-codex")
+        body["profiles"]["q"] = {"bridge": "ask-codex"}
+        body["ladders"] = {"action-review": ["p", "q"]}
+        self.refused(body)
 
-    def test_a_bridge_that_is_not_one_command_name_is_refused(self):
-        for value in ("", "a b", "../x", "-x", "a/b", "x" * 65, 1, None, ["b"]):
-            self.refused(json.dumps({"format": 1, "bridge": value}))
+    def test_a_file_with_no_action_review_ladder_is_refused_even_when_it_has_a_default(self):
+        self.refused(support_profile.document("ask-codex", ladders={"default": ["p"], "plan": ["p"]}))
 
-    def test_a_model_outside_its_form_is_refused(self):
-        for value in ("", "-x", "a b", "m" * 65, 1, None, "a/b"):
-            self.refused(json.dumps({"format": 1, "bridge": "b", "model": value}))
-        self.read(json.dumps({"format": 1, "bridge": "b", "model": "m" * 64}))
+    def test_the_ladders_of_the_review_engine_are_accepted_beside_it(self):
+        body = support_profile.document("ask-codex", ladders={"plan": ["p"], "spec": ["p"], "roadmap": ["p"], "adr": ["p"],
+                                                              "default": ["p"], "action-review": ["p"]})
+        self.assertEqual("ask-codex", self.read(body).bridge)
 
-    def test_an_effort_outside_the_three_levels_is_refused(self):
+    def test_a_file_the_kit_refuses_is_refused(self):
+        for body in ("{", "[]", "null", "", b"\xff", '{"format": 2, "profiles": {}, "ladders": {}}',
+                     '{"format": 1, "profiles": {"p": {"bridge": "b"}}, "ladders": {"action-review": ["q"]}}',
+                     '{"format": 1, "profiles": {"p": {"bridge": "b", "retries": 3}}, "ladders": {"action-review": ["p"]}}'):
+            self.refused(body)
+
+    def test_a_model_outside_its_form_and_an_effort_outside_the_three_levels_are_refused(self):
+        for value in ("", "-x", "a b", "m" * 129, 1, None):
+            self.refused(support_profile.document("b", model=value) if isinstance(value, str) else
+                         json.dumps({"format": 1, "profiles": {"p": {"bridge": "b", "model": value}},
+                                     "ladders": {"action-review": ["p"]}}))
         for value in ("xhigh", "Low", "", 1, None):
-            self.refused(json.dumps({"format": 1, "bridge": "b", "effort": value}))
+            self.refused(json.dumps({"format": 1, "profiles": {"p": {"bridge": "b", "effort": value}},
+                                     "ladders": {"action-review": ["p"]}}))
 
-    def test_a_file_over_4096_bytes_is_refused(self):
-        self.refused("", raw=b'{"format": 1, "bridge": "b", "model": "' + b"m" * 4096 + b'"}')
+    def test_a_reserved_option_and_a_prefix_of_one_are_refused(self):
+        for name in ("model", "confine", "mod", "conf", "t"):
+            self.refused(support_profile.document("b", options={name: "x"}))
 
     def test_the_reason_never_quotes_the_file(self):
-        for text in ('{"format": 1, "bridge": "b", "%s": 1}' % MARKER, '{"format": 1, "bridge": "%s x"}' % MARKER,
-                     '{"format": 1, "bridge": "b", "model": "%s x"}' % MARKER, '{"format": 1.5e%s}' % MARKER,
-                     '{"format": 1, "bridge": "b", "effort": "%s"}' % MARKER):
+        for text in ('{"format": 1, "profiles": {"p": {"bridge": "b", "%s": 1}}, "ladders": {"action-review": ["p"]}}' % MARKER,
+                     '{"format": 1, "profiles": {"p": {"bridge": "%s x"}}, "ladders": {"action-review": ["p"]}}' % MARKER,
+                     '{"format": 1, "profiles": {"p": {"bridge": "b", "model": "%s x"}}, "ladders": {"action-review": ["p"]}}' % MARKER,
+                     '{"format": 1, "profiles": {"%s": {"bridge": "b"}}, "ladders": {"action-review": ["p"]}}' % MARKER):
             self.assertNotIn(MARKER, self.refused(text))
 
 
@@ -584,6 +606,16 @@ class Asking(Base):
         fake, _ = self.ask(setting=self.helper.Setting("b", None, "high"))
         self.assertEqual(["--effort", "high"], fake.calls[0][2][6:])
 
+    def test_the_options_of_the_profile_follow_the_model_and_the_effort_in_the_order_of_their_names(self):
+        setting = self.helper.Setting("b", "phi4:latest", "low", (("context", "8192"), ("server", "lab")))
+        fake, _ = self.ask(setting=setting)
+        self.assertEqual(["ask", "--timeout", "20", "--schema", SECTION + "/reply-schema.json", "--confine", "--model",
+                          "phi4:latest", "--effort", "low", "--context", "8192", "--server", "lab"], fake.calls[0][2])
+
+    def test_a_setting_made_without_options_passes_none(self):
+        fake, _ = self.ask(setting=self.helper.Setting("b", "m", None))
+        self.assertEqual(["--model", "m"], fake.calls[0][2][6:])
+
     def test_every_bridge_call_is_confined_so_a_model_steered_by_the_commit_text_has_no_tool(self):
         # Plan `2026-11-04-shadow-hook-security-review-fixes`, increment C. The engine sends captured text (the facts of a command,
         # a commit's diff and message included, which an agent can write), and `docs/specs/model-bridge.md` ("Confinement") says
@@ -794,7 +826,7 @@ class RealLauncher(support_project.Project):
         capability = unittest.mock.patch.object(self.helper, "CAPABILITY", "p:model-bridge")
         capability.start()
         self.addCleanup(capability.stop)
-        self.write(".workbench/review.json", '{"format": 1, "bridge": "bridge", "model": "m1", "effort": "low"}')
+        support_profile.write(self.home, support_profile.document("bridge", "m1", "low"))
         self.write(SECTION + "/rubric/rubric.md", self.rubric_bytes())
         with open(os.path.join(MODULE, "reply-schema.json"), "rb") as handle:
             self.write(SECTION + "/reply-schema.json", handle.read())
@@ -817,7 +849,7 @@ class RealLauncher(support_project.Project):
         return os.path.exists(self.log)
 
     def go(self, seconds=20.0, bridge="bridge", document=None):
-        setting = self.helper.read_setting(self.real)._replace(bridge=bridge)
+        setting = self.helper.read_setting()._replace(bridge=bridge)
         rubric = self.helper.read_rubric(self.real, self.rule)
         return self.helper.judge(self.real, self.rule, document or commit_doc(), setting, rubric, seconds)
 

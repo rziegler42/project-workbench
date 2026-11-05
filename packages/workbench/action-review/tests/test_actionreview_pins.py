@@ -150,7 +150,7 @@ class Rubric(Pins):
 
 
 class Schema(Pins):
-    SETTING = type("Setting", (), {"bridge": "bridge", "model": None, "effort": None})()
+    SETTING = type("Setting", (), {"bridge": "bridge", "model": None, "effort": None, "options": ()})()
 
     def asked(self, root):
         envelope = {"contract": 1, "ok": True, "vendor": "v", "model": "m", "reply": ANSWER,

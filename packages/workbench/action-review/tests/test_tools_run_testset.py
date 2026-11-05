@@ -17,6 +17,7 @@ import tempfile
 import unittest
 import unittest.mock
 
+import support_profile
 from tests import support_install
 
 ROOT = support_install.ROOT
@@ -88,7 +89,9 @@ class Base(unittest.TestCase):
         with open(os.path.join(self.codex_dir, "auth.json"), "w") as handle:
             handle.write("{}")
         self.install_codex("honest")
-        patch = unittest.mock.patch.dict(os.environ, {"PATH": os.pathsep.join([self.bin, "/usr/bin", "/bin"])})
+        support_profile.write(self.home, support_profile.document("ask-codex", "gpt-5.6-terra", "medium"))
+        patch = unittest.mock.patch.dict(os.environ, {"HOME": self.home,
+                                                      "PATH": os.pathsep.join([self.bin, "/usr/bin", "/bin"])})
         patch.start()
         self.addCleanup(patch.stop)
 
@@ -226,14 +229,17 @@ class Running(Base):
         self.assertTrue(all(call["auth"] for call in calls), "the Codex sign-in did not reach the bridge")
         self.assertEqual(1, sum(call["reviewer"] for call in calls))
 
-    def test_each_row_names_the_bridge_and_the_model_and_effort_of_the_project_setting(self):
+    def test_each_row_names_the_bridge_and_the_model_and_effort_of_the_owners_action_review_profile(self):
         self.run_runner("send 3")
         rows = self.rows()[0]
-        with open(os.path.join(ROOT, ".workbench", "review.json")) as handle:
-            setting = json.load(handle)
         for row in rows:
-            self.assertEqual(("ask-codex", setting.get("model"), setting.get("effort")), (
-                row["bridge"], row["model"], row["effort"]))
+            self.assertEqual(("ask-codex", "gpt-5.6-terra", "medium"), (row["bridge"], row["model"], row["effort"]))
+
+    def test_the_profile_the_scratch_projects_hold_is_the_owners_rung(self):
+        support_profile.write(self.home, support_profile.document("ask-codex", "other-model", "high"))
+        self.run_runner("send 3")
+        for row in self.rows()[0]:
+            self.assertEqual(("other-model", "high"), (row["model"], row["effort"]))
 
     def test_the_summary_says_what_ran_and_the_model_was_asked(self):
         code, out, _ = self.run_runner("send 3")
@@ -246,9 +252,13 @@ class Running(Base):
         self.assertNotIn("MISMATCH", out)
 
     def test_nothing_is_written_to_the_owners_home_but_the_test_set_file(self):
-        self.run_runner("send 3")
         store_root = os.path.join(self.home, ".config", "project-workbench")
-        self.assertEqual(["action-review"], os.listdir(store_root))
+        with open(os.path.join(store_root, "review-profiles.json"), "rb") as handle:
+            before = handle.read()
+        self.run_runner("send 3")
+        self.assertEqual(["action-review", "review-profiles.json"], sorted(os.listdir(store_root)))
+        with open(os.path.join(store_root, "review-profiles.json"), "rb") as handle:
+            self.assertEqual(before, handle.read(), "the owner's profile file was changed")
         self.assertEqual(["testset.jsonl"], os.listdir(os.path.join(store_root, "action-review")))
         self.assertEqual(["auth.json"], os.listdir(self.codex_dir))
         with open(os.path.join(self.codex_dir, "auth.json")) as handle:
@@ -373,16 +383,22 @@ class Running(Base):
         self.assertNotIn("unreviewable-pipe", [row["case"] for row in self.rows()[0]])
         self.assertIn("unreviewable-pipe (the engine ended with exit 0 where the file expects 1)", out)
 
-    def test_a_model_or_effort_the_engine_would_refuse_ends_the_run_before_anything_is_sent(self):
-        for setting in ({"format": 1, "bridge": "ask-codex", "model": "bad\x1b[2Jmodel‮", "effort": "medium"},
-                        {"format": 1, "bridge": "ask-codex", "model": "m" * 65},
-                        {"format": 1, "bridge": "ask-codex", "model": "-leading-dash"},
-                        {"format": 1, "bridge": "ask-codex", "model": "ok", "effort": "extreme"},
-                        {"format": 1, "bridge": "ask-codex", "model": "line\nbreak"}):
-            with unittest.mock.patch.object(self.runner, "project_setting", return_value=setting):
-                code, out, err = self.run_runner("send 3")
-            self.assertEqual(2, code, setting)
-            self.assertEqual("", out, "nothing is shown or asked: " + repr(setting))
+    def test_a_profile_file_the_engine_would_refuse_ends_the_run_before_anything_is_sent(self):
+        profile = support_profile.document("ask-codex", "ok", "medium")
+        for body in ("{", "", b"\xff",
+                     support_profile.document("ask-codex", model="bad\x1b[2Jmodel"),
+                     support_profile.document("ask-codex", model="m" * 129),
+                     support_profile.document("ask-codex", model="-leading-dash"),
+                     {"format": 1, "profiles": {"p": {"bridge": "ask-codex", "effort": "extreme"}},
+                      "ladders": {"action-review": ["p"]}},
+                     support_profile.document("ask-codex", options={"mod": "x"}),
+                     dict(profile, ladders={"action-review": ["p", "p"]}),
+                     dict(profile, ladders={"default": ["p"]}),
+                     dict(profile, ladders={})):
+            support_profile.write(self.home, body)
+            code, out, err = self.run_runner("send 3")
+            self.assertEqual(2, code, body)
+            self.assertEqual("", out, "nothing is shown or asked: " + repr(body))
             self.assertEqual(1, len(err.splitlines()), err)
             self.assertIn("nothing was sent", err)
             for char in err:
@@ -390,33 +406,52 @@ class Running(Base):
             self.assertEqual([], self.calls())
             self.assertEqual(([], 0), self.rows())
 
+    def test_a_missing_profile_file_ends_the_run_and_the_project_file_is_not_a_substitute(self):
+        os.remove(os.path.join(self.home, ".config", "project-workbench", "review-profiles.json"))
+        code, out, err = self.run_runner("send 3")
+        self.assertEqual((2, ""), (code, out))
+        self.assertIn("review-profiles.json", err)
+        self.assertIn("nothing was sent", err)
+        self.assertEqual([], self.calls())
+
+    def test_a_rung_that_names_another_bridge_ends_the_run_because_only_ask_codex_has_a_sign_in_here(self):
+        support_profile.write(self.home, support_profile.document("ask-ollama", "phi4:latest"))
+        code, out, err = self.run_runner("send 3")
+        self.assertEqual((2, ""), (code, out))
+        self.assertIn("ask-codex", err)
+        self.assertIn("nothing was sent", err)
+        self.assertEqual([], self.calls())
+
+    def test_a_rung_with_options_ends_the_run_because_ask_codex_takes_none(self):
+        support_profile.write(self.home, support_profile.document("ask-codex", "gpt-5.6-terra", options={"alpha": "1"}))
+        code, out, err = self.run_runner("send 3")
+        self.assertEqual((2, ""), (code, out))
+        self.assertIn("options", err)
+        self.assertIn("nothing was sent", err)
+        self.assertEqual(1, len(err.splitlines()))
+        self.assertEqual([], self.calls())
+        self.assertEqual(([], 0), self.rows())
+
     def test_a_valid_model_and_effort_are_shown_in_the_confirmation(self):
-        setting = {"format": 1, "bridge": "ask-codex", "model": "gpt-5.6-terra", "effort": "medium"}
-        with unittest.mock.patch.object(self.runner, "project_setting", return_value=setting):
-            code, out, _ = self.run_runner("no")
+        support_profile.write(self.home, support_profile.document("ask-codex", "gpt-5.6-terra", "medium"))
+        code, out, _ = self.run_runner("no")
         self.assertEqual(0, code)
         self.assertIn("model gpt-5.6-terra, effort medium", out)
 
-    def test_a_model_or_effort_that_is_not_text_in_review_json_is_refused_not_silently_dropped(self):
-        folder = os.path.join(self.base, "checkout")
-        os.makedirs(os.path.join(folder, ".workbench"))
-        for body, field in (('{"format": 1, "bridge": "ask-codex", "model": 5}', "model"),
-                            ('{"format": 1, "bridge": "ask-codex", "effort": ["high"]}', "effort"),
-                            ('{"format": 1, "bridge": "ask-codex", "model": null}', "model")):
-            with open(os.path.join(folder, ".workbench", "review.json"), "w") as handle:
-                handle.write(body)
-            with unittest.mock.patch.object(self.runner, "ROOT", folder):
-                setting = self.runner.project_setting()
-            self.assertEqual(field, self.runner.setting_problem(setting), body)
+    def test_the_setting_is_the_one_rung_of_the_owners_file_and_nothing_else(self):
+        support_profile.write(self.home, support_profile.document("ask-codex", "m1", "low", options={"alpha": "1"}))
+        self.assertEqual({"bridge": "ask-codex", "model": "m1", "effort": "low", "options": {"alpha": "1"}},
+                         self.runner.project_setting())
+        support_profile.write(self.home, support_profile.document("ask-codex"))
+        self.assertEqual({"bridge": "ask-codex"}, self.runner.project_setting())
 
-    def test_a_missing_or_unreadable_review_json_gives_the_bridges_defaults(self):
+    def test_the_runner_reads_the_review_json_of_nothing(self):
         folder = os.path.join(self.base, "checkout")
         os.makedirs(os.path.join(folder, ".workbench"))
+        with open(os.path.join(folder, ".workbench", "review.json"), "w") as handle:
+            handle.write('{"format": 1, "bridge": "ask-codex", "model": "from-the-project-file"}')
         with unittest.mock.patch.object(self.runner, "ROOT", folder):
-            self.assertEqual({"format": 1, "bridge": "ask-codex"}, self.runner.project_setting())
-            with open(os.path.join(folder, ".workbench", "review.json"), "w") as handle:
-                handle.write("{not json")
-            self.assertEqual({"format": 1, "bridge": "ask-codex"}, self.runner.project_setting())
+            self.assertNotIn("from-the-project-file", repr(self.runner.project_setting()))
 
     def test_not_recorded_names_every_way_a_case_did_not_run_as_the_file_says(self):
         model = {"expect": {"exit": 0, "bridge_asked": True}}
@@ -449,15 +484,6 @@ class Running(Base):
         _, full, _ = self.run_runner("send 3")
         self.assertIn("Now run the report", full)
         self.assertNotIn("run the test set again", full)
-
-    def test_the_setting_check_is_the_engines_own_pattern(self):
-        ok = self.runner.setting_problem
-        for good in ({}, {"model": "gpt-5.6-terra"}, {"model": "a"}, {"model": "A" * 64}, {"model": "m1:2_3.4-5"},
-                     {"effort": "low"}, {"effort": "medium"}, {"effort": "high"}, {"model": "x", "effort": "high"}):
-            self.assertIsNone(ok(good), good)
-        for bad in ({"model": ""}, {"model": "A" * 65}, {"model": "_x"}, {"model": "a b"}, {"model": "a\n"},
-                    {"model": 5}, {"effort": "HIGH"}, {"effort": ""}, {"effort": 3}, {"model": "café"}):
-            self.assertIsNotNone(ok(bad), bad)
 
     def test_a_second_run_adds_rows_and_the_first_is_kept(self):
         self.run_runner("send 3")

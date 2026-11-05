@@ -26,15 +26,17 @@ engine said, and whether the two differ. A row is written only for a case that r
 not fail, it ended with the exit the file expects, and where the file expects the model to be asked, the model was asked. A
 refusal that the file expects is a ``decline`` with the check name ``refused``. Any other case leaves no row and is named as not
 run with its reason, so a model that was never asked (not signed in, a refused launcher) cannot read as a clean decline. A model
-or effort in the checkout's ``.workbench/review.json`` that the engine would refuse ends the run before anything is sent. Exit
-status: 0 done, 1 a case did not run or the store failed, 2 not a terminal, a bad argument or a refused setting, 3 a case that
-must be declined was approved, 130 interrupted.
+or effort comes from the one rung of the ``action-review`` ladder in the owner's ``review-profiles.json`` (the guarded store;
+the project file ``.workbench/review.json`` is read by nothing). A file the engine would refuse, a rung whose bridge is not
+``ask-codex`` (the only sign-in this tool puts in place) and a rung with options (``ask-codex`` takes none) end the run before
+anything is sent. Exit status: 0 done, 1 a case did
+not run or the store failed, 2 not a terminal, a bad argument or a refused setting, 3 a case that must be declined was approved,
+130 interrupted.
 """
 
 import hashlib
 import json
 import os
-import re
 import sys
 import time
 import unittest.mock
@@ -47,10 +49,10 @@ CASES = os.path.join(MODULE, "tests", "dangerous-cases.json")
 CASES_SHA256 = "23b9498ce86996378c91855107754b48a2c7b07ab3d9e1ff567bd9ac6ec79312"
 USAGE = "usage: run_testset.py [--codex-dir <absolute path>]"
 BRIDGE = "ask-codex"
-# The patterns by which the engine reads the model and the effort of `.workbench/review.json` (`SETTING_MODEL` and `EFFORTS` in the
-# helper). A value the engine would refuse makes every case a refusal, so it ends the run before anything is sent.
-MODEL = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,63}")
-EFFORTS = ("low", "medium", "high")
+# The ladder keys the engine accepts and the keys whose ladder holds one rung (`LADDER_KEYS` and `SINGLE_RUNG` in the helper; a test
+# compares them). A file the engine would refuse makes every case a refusal, so it ends the run before anything is sent.
+LADDER_KEYS = ("plan", "spec", "roadmap", "adr", "action-review", "default")
+SINGLE_RUNG = ("action-review",)
 
 sys.path.insert(0, os.path.join(MODULE, "hook"))
 import shadow_store as store  # noqa: E402  the store of the shadow, in the checkout beside this tool
@@ -69,18 +71,32 @@ def read_cases():
     return json.loads(data.decode("utf-8"))["cases"]
 
 
-def project_setting():
-    """The model and effort the owner's project asks for, or none: ``bridge`` is always the real one."""
-    setting = {"format": 1, "bridge": BRIDGE}
+def kit():
+    """The checkout's profile reader (``wbkit.profiles``), imported when it is needed so that a copy of this tool outside a checkout
+    still reaches its own message."""
     try:
-        with open(os.path.join(ROOT, ".workbench", "review.json"), encoding="utf-8") as handle:
-            mine = json.load(handle)
-    except (OSError, ValueError):
-        return setting
-    if isinstance(mine, dict):
-        for field in ("model", "effort"):
-            if field in mine:  # whatever it is: `setting_problem` refuses a value the engine would refuse
-                setting[field] = mine[field]
+        from workbench.wbkit import profiles
+    except ImportError:
+        if ROOT not in sys.path:
+            sys.path.insert(0, ROOT)
+        from workbench.wbkit import profiles
+    return profiles
+
+
+def project_setting():
+    """The fields of the one rung of the owner's ``action-review`` ladder (``bridge``, and ``model``, ``effort`` and ``options`` when
+    it has them), read by the kit as the engine reads it. Raises the kit's ``ProfileError`` for a file or a ladder the engine would
+    refuse; nothing in the project is read."""
+    profiles = kit()
+    found = profiles.read(LADDER_KEYS, SINGLE_RUNG)
+    _, profile = profiles.for_round(found, "action-review", 1, False)
+    setting = {"bridge": profile.bridge}
+    if profile.model is not None:
+        setting["model"] = profile.model
+    if profile.effort is not None:
+        setting["effort"] = profile.effort
+    if profile.options:
+        setting["options"] = dict(profile.options)
     return setting
 
 
@@ -112,7 +128,7 @@ def real_run_class(codex_dir, setting):
             return fields, {"helper/ask-codex": real}
 
         def review_setting(self):
-            return json.dumps(setting)
+            return dict(setting)
 
         def setUp(self):
             super().setUp()
@@ -142,15 +158,6 @@ def run_case(case, codex_dir, setting):
         return code, out, len(run.asks)
     finally:
         run.doCleanups()
-
-
-def setting_problem(setting):
-    """The name of the field of `setting` that the engine would refuse (``model`` or ``effort``), or None."""
-    if "model" in setting and not (isinstance(setting["model"], str) and MODEL.fullmatch(setting["model"])):
-        return "model"
-    if "effort" in setting and not (isinstance(setting["effort"], str) and setting["effort"] in EFFORTS):
-        return "effort"
-    return None
 
 
 def not_recorded(case, code, asked):
@@ -197,11 +204,18 @@ def run(argv, stdin, stdout, stderr, home):
         stderr.write("the Codex directory %s does not exist; sign in to Codex first or name it with --codex-dir\n"
                      % plain(codex_dir))
         return 2
-    setting = project_setting()
-    problem = setting_problem(setting)
-    if problem:
-        stderr.write("the project's .workbench/review.json holds a %s the engine would refuse (%s); nothing was sent\n"
-                     % (problem, plain(setting[problem], 60)))
+    try:
+        setting = project_setting()
+    except kit().ProfileError as exc:
+        stderr.write("%s; nothing was sent\n" % plain(exc, 300))
+        return 2
+    if setting["bridge"] != BRIDGE:
+        stderr.write("the action-review rung of review-profiles.json names the bridge %s and this tool can only run %s; nothing was "
+                     "sent\n" % (plain(setting["bridge"], 60), BRIDGE))
+        return 2
+    if setting.get("options"):
+        stderr.write("the action-review rung of review-profiles.json passes options and %s takes none, so every case that asks the "
+                     "model would be refused; nothing was sent\n" % BRIDGE)
         return 2
     sends = sum(1 for case in cases if case["expect"].get("bridge_asked"))
     stdout.write("Test set of the action-review shadow\n")

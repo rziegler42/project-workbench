@@ -18,6 +18,7 @@ import tempfile
 import unittest
 import unittest.mock
 
+import support_profile
 from tests import support_helpers, support_project
 from tests.support_project import tool
 from workbench import firstparty, launch, store
@@ -174,7 +175,8 @@ class EndToEnd(support_project.Project):
         return bridge, files
 
     def review_setting(self):
-        return '{"format": 1, "bridge": "bridge", "model": "m1", "effort": "low"}'
+        """The rung of the owner's `action-review` ladder that the scratch project's home holds, as the fields of a profile."""
+        return {"bridge": "bridge", "model": "m1", "effort": "low"}
 
     def setUp(self):
         support_project.Project.setUp(self)
@@ -210,7 +212,8 @@ class EndToEnd(support_project.Project):
         self.make_repository()
 
     def install_module_files(self):
-        self.put(".workbench/review.json", self.review_setting())
+        support_profile.write(self.home, {"format": 1, "profiles": {"p": self.review_setting()},
+                                          "ladders": {"action-review": ["p"]}})
         for name in ("rubric/rubric.md", "reply-schema.json", "rules/safe-git-commit.json",
                      "rules/safe-git-remove.json"):
             with open(os.path.join(MODULE, *name.split("/")), "rb") as handle:

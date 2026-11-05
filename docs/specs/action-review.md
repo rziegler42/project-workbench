@@ -8,7 +8,7 @@ separately chosen; the owner may still change it. The approval is of the design 
 `describe` interface is a decision record of its own, accepted by the owner on 2026-10-25
 (`2026-10-25-describe-interface-for-action-review`). The rule schema, the module's layout and declaration, the bridge setting and the checks for `commit` and `remove` were
 written on 2026-10-26 by Increment A of plan `2026-10-26-action-review-engine` and wait for the owner's reading
-("The rule schema, the module and the checks"). The engine is built for `commit` and `remove` (plan `2026-10-26-action-review-engine`, Increments B to K; "As built, and its limits" at the end of the design says where it differs from the text and what it does not do), and so are the `describe` side of `safe-git` (for `commit`, `remove` and `push`) and the launcher rule (plans `2026-10-25-safe-git-describe` and `2026-10-26-safe-git-describe-push`). The shadow (the hook that records and decides nothing, its store, the labelling tool, the report and the test-set runner) is built by plan `2026-10-29-action-review-shadow-hook`, Increments A to H ("The shadow hook"), corrected after a security review by plan `2026-10-30-shadow-review-fixes`, and made to store redacted text by plan `2026-11-03-redact-collected-diffs`; it has not been installed or run by the owner. The status stays `Draft` because the owner has not read the engine's sections, because the shadow has not been run on real commands, and because the push rule, a hook that decides, the owner's profile file (which replaces the personal setting) and the cutover are not built (plan 5 of
+("The rule schema, the module and the checks"). The engine is built for `commit` and `remove` (plan `2026-10-26-action-review-engine`, Increments B to K; "As built, and its limits" at the end of the design says where it differs from the text and what it does not do), and so are the `describe` side of `safe-git` (for `commit`, `remove` and `push`) and the launcher rule (plans `2026-10-25-safe-git-describe` and `2026-10-26-safe-git-describe-push`). The shadow (the hook that records and decides nothing, its store, the labelling tool, the report and the test-set runner) is built by plan `2026-10-29-action-review-shadow-hook`, Increments A to H ("The shadow hook"), corrected after a security review by plan `2026-10-30-shadow-review-fixes`, and made to store redacted text by plan `2026-11-03-redact-collected-diffs`; it has not been installed or run by the owner. The status stays `Draft` because the owner has not read the engine's sections, because the shadow has not been run on real commands, and because the push rule, a hook that decides and the cutover are not built (the owner's profile file, which replaced the personal setting, has been read by this engine since plan `2026-11-04-review-profiles`, increment F) (plan 5 of
   the split below).
 
 Terms are defined in `terms.md`. The engine sits above the bridge of `model-bridge.md` and beside the engine of
@@ -158,7 +158,7 @@ is therefore added to `ships`. It declares one command, `action-review`, with `h
 `python`, `kit` 1 and `arguments` `["review"]`, and no `owner` list: `review` reads and prints and writes nothing, and
 the owner's hook calls it. The launcher runs the helper as a private copy with nothing beside it, so the helper reads its
 rules, rubric and schema from the installed path below the project root that `project.find_root` finds from the working
-directory (the nearest project, as for the review setting); the package name in that path is the fixed word `workbench`.
+directory (the nearest project); the package name in that path is the fixed word `workbench`.
 It never takes a path from the caller or from a rule. Because the project tree is where a repository, or the assistant
 under review, can write, the helper holds a SHA-256 for each shipped data file (`PINS`, keyed by the path under the
 installed module) and uses a file only when its bytes match: a rule that does not match, or that was not shipped, is a rule
@@ -174,7 +174,7 @@ second `--log-row` always was, so the call without `--collect` reads exactly wha
 text, or none is a refusal (exit 1).
 
 **The rule file.** One file per rule in `rules/`, named `<module>-<action>.json` (for example `safe-git-commit.json`),
-UTF-8, strict JSON (a duplicate key, `NaN` or a non-object is an error, as for `.workbench/review.json`), at most 16,384
+UTF-8, strict JSON (a duplicate key, `NaN` or a non-object is an error, as for the owner's profile file), at most 16,384
 bytes; at most 64 files and 262,144 bytes in all, and a file that is not a regular file, is read through a link or has a
 second hard link is an error for its own key. The bytes must also equal the shipped file's SHA-256 (above). The object has
 these fields and no others; a missing required field, an unknown field or a wrong type means the rule does not load.
@@ -481,27 +481,21 @@ period has logged about 30 of the engine's own reviews. A review that times out 
 
 ### Settings and the bridge
 
-**Decided, not built.** The accepted record `2026-11-04-review-profiles-in-the-guarded-store` supersedes the record this section
-cites: this engine will read the `action-review` ladder of the owner's `review-profiles.json`, one rung, and read
-`.workbench/review.json` no more (`review-profiles.md`; plan `2026-11-04-review-profiles`, increment F). Until it is built, what
-follows is what the engine does.
+**As built (plan `2026-11-04-review-profiles`, increment F).** The bridge, the model, the effort and the options come from the one rung
+of the `action-review` ladder of the owner's `review-profiles.json` in the guarded store (accepted record
+`2026-11-04-review-profiles-in-the-guarded-store`, which superseded `2026-10-26-action-review-reads-the-review-setting` and decision 5
+of `2026-10-22-model-calls-go-through-vendor-bridges` for this file; the format and the ladder rules are in `review-profiles.md`).
+It is a request and never an authorization. `.workbench/review.json` is read by nothing.
 
-Decision 5 of `2026-10-22-model-calls-go-through-vendor-bridges` applies except for the file name. **This departs from
-decision 5.** The decision says each engine reads "a file named for the engine, `.workbench/<engine module>.json`";
-the owner chose on 2026-10-26, as the plan `2026-10-26-action-review-engine` records, that this engine reads the
-project file `.workbench/review.json`, the file the review engine read then (it reads the owner's `review-profiles.json` since plan
-`2026-11-04-review-profiles`, increment D; this engine still reads the project file until increment F), and not
-`.workbench/action-review.json`.
-A decision outranks a spec and an accepted decision is never edited, so the departure is recorded in
-`2026-10-26-action-review-reads-the-review-setting`, which the owner accepted on 2026-10-26, which refines decision 5
-for this file name only, and which `2026-11-04-review-profiles-in-the-guarded-store` has since superseded. The file holds a format number and the bridge, the model and the effort the
-project would like. It is a request and never an authorization.
-
-- **The reader is that of `review-engine`.** The file is at most 4,096 bytes, strict JSON, an object with `format` equal
-  to 1, `bridge` (a command name, required), and optionally `model` (letters, digits and `._:-`, at most 64 characters,
-  starting with a letter or digit) and `effort` (`low`, `medium` or `high`). An unknown field, a wrong type, a
-  duplicate key or a missing file is a refusal (exit 1); there is no default bridge, and the engine never guesses a
-  vendor to send content to. The engine passes `--model` and `--effort` to the bridge only when the file has them.
+- **The reader is the kit's.** `wbkit/profiles.py` reads the file, whole or refused whole, as the review engine does. This engine
+  names the ladder keys it accepts (the four kinds of document, `default` and `action-review`) and holds `action-review` to exactly one
+  rung. A missing or refused file, a missing `action-review` ladder (`default` never serves it) and a ladder of more than one rung
+  are refusals (exit 1) that name the file and a fixed rule and never quote the file; there is no default bridge, and the engine
+  never guesses a vendor to send content to. The call is `ask --timeout 20 --schema <the shipped schema> --confine`, then
+  `--model` and `--effort` when the profile has them, then each option as `--<name> <value>` in the order of their names. As in the
+  review engine, the engine does not check an option against the bridge's declaration: the bridge refuses an option it does not
+  accept, and that is a refusal of the review. A profile cannot change the time budget (25 seconds in all, the bridge given 20).
+  A drift test compares the ladder keys of this engine, the review engine and the test-set runner.
 - The bridge must be an installed, pinned module that provides `model-bridge`; the engine starts it through the kit's
   `run_command` with `--provides model-bridge`, and the launcher refuses one that is not. A name that is refused ends
   the review (exit 1) and no other vendor is tried.
@@ -509,16 +503,12 @@ project would like. It is a request and never an authorization.
   versions 1 and 2, and the object must fit the version it names: the error class `program_not_found` and a `usage` of
   three counts belong to version 1, and the class `vendor_unreachable` and a `usage` of five counts belong to version 2. An
   object that mixes the two is a failure. The engine keeps no usage, so the added counts are checked and ignored.
-- **Recorded limit: the personal setting is not built.** The owner's personal setting would be authoritative over the
-  project's request. The kit has no accessor for the guarded store, so this engine's helper reads the project file
-  only (the review engine reads its seal key there by a fixed path, and the record above decides that both engines will read the
-  owner's profile file); a project file is not the owner's personal setting, and a project could name another installed bridge. Only an
-  installed, pinned bridge that provides `model-bridge` can run. The precedence rule of the earlier text is deferred
-  with the personal setting.
-- **Recorded limit: one file for two engines.** Both engines refuse an unknown field, so a field added for one is
-  refused by the other until both readers change together.
-- A pulled change to the file is a difference `wb acknowledge` lists, and at run time the file is accepted only if it
-  names a bridge the owner already approved by installing it.
+- **Recorded limit: the rung is a request, and the owner's file is guarded by the harness, not by a boundary.** The harness denies
+  the agent writes in the guarded store and does not make it unreadable; that is a guard against a mistaken agent and not against a
+  process that runs as the owner (`review-engine.md`, "The seal"). Only an installed, pinned bridge that provides `model-bridge`
+  can run, whatever the file names.
+- The profile file is the owner's and is not part of the project, so a pull never changes it and `wb acknowledge` does not list it.
+  What is run is checked by the launcher alone: the bridge the rung names must be installed, pinned and unchanged since its pin.
 - The timeout the engine passes to the bridge (20 seconds) is shorter than its own limit (25), as `model-bridge.md`
   requires.
 - A missing or unreadable setting, or a bridge failure of any class, yields no approval.
@@ -775,8 +765,8 @@ real launcher in a fresh Git repository, the real engine), with the unit tests' 
 class `EndToEnd` gained `bridge_module` and `review_setting` hooks for it). It runs only when standard input and output are terminals
 and the SHA-256 of the case file is the one written in the tool. Only 3 of the 29 cases reach the model (the two controls, which must
 be approved, and the reviewer-directed message, which must be declined); the other 26 are decided by fixed code or refused before the
-bridge is asked, and send nothing. Before it starts it says so, names the bridge, the model and effort of the project's
-`.workbench/review.json`, the Codex directory and that nothing of the owner's is used, and waits for the owner to type `send 3`.
+bridge is asked, and send nothing. Before it starts it says so, names the bridge, the model and effort of the `action-review` rung of the owner's
+`review-profiles.json`, the Codex directory and that nothing of the owner's is used, and waits for the owner to type `send 3`.
 Each case runs in a temporary home into which the Codex directory (`~/.codex`, or `--codex-dir`) is linked, so that the bridge finds
 the sign-in; the tool does not read or change anything in it, but the Codex program the bridge runs may refresh its own sign-in there.
 The store it writes is the owner's own, found from the real home
@@ -786,12 +776,12 @@ the engine did not fail, it ended with the exit the file expects, and where the 
 asked. A refusal that the file expects is a `decline` with the check name `refused`. Any other case leaves no row and is named under
 "not run" with its reason (the engine failed, the engine ended with another exit than the file expects, the model was not asked, or
 the scratch project could not be built), so a model that was never asked (not signed in, a refused launcher) cannot read as a clean
-decline (security review of the shadow, finding Medium 2(b); plan `2026-10-30-shadow-review-fixes`, Increment B). A model or effort in
-the checkout's `.workbench/review.json` that the engine would refuse (the engine's own patterns) ends the run, before anything is
-sent, with one line on standard error. A case that is approved and must be declined is printed first, after the run. A recorded case
+decline (security review of the shadow, finding Medium 2(b); plan `2026-10-30-shadow-review-fixes`, Increment B). A profile file the engine would refuse, a missing
+file, a rung whose bridge is not `ask-codex` (the only sign-in the tool puts in place) and a rung with options (`ask-codex` takes
+none) end the run, before anything is sent, with one
+line on standard error; the tool reads the rung through the kit as the engine does. A case that is approved and must be declined is printed first, after the run. A recorded case
 decided by other checks than the file names is shown as `differs`, though it is no false approve. After a partial run the tool says
-to run the test set again before reading the report. A model or effort in `review.json` that is not text is refused like one the
-engine would refuse. Limits, recorded and not closed: a refusal is recorded on the exit alone, so the reason the file expects
+to run the test set again before reading the report. Limits, recorded and not closed: a refusal is recorded on the exit alone, so the reason the file expects
 (`refusal_contains`) is not compared, and a scratch project broken so that the engine refuses everything still records the seven
 expected refusals (every other case then does not run, which the summary and the exit status show); a case that unexpectedly reached
 the model, or reached it twice, is recorded and shown ("the model was asked; the file expects the opposite"), not left out; the two
@@ -881,9 +871,9 @@ run, and the installer's copying of the module was not run (the first test throu
 `describe` through the launcher, the fourteen code checks for `commit` and `remove`, the rubric and the reply schema, the
 bridge call, the verdict object, the exit table, the log row and the pins of the shipped data files. **What did not, when
 the engine was built:** the rule and checks for `push`, the owner's hook, the writer of the log, the labelled set, the report and the
-shadow period (plan 4), cutover and the removal of `claude-workflow` (plan 5), and the owner's personal setting, which the owner's profile file replaces (below). Plan 4
+shadow period (plan 4), cutover and the removal of `claude-workflow` (plan 5), and the owner's personal setting, which the owner's profile file replaced (built by plan `2026-11-04-review-profiles`, increment F). Plan 4
 (`2026-10-29-action-review-shadow-hook`) has since built the shadow side ("The shadow hook"); the push rule, a hook that decides,
-the cutover and the owner's profile file (`review-profiles.md`) are still not built.
+and the cutover are still not built.
 
 **Where the build departs from the text Increment A wrote.** Each is written into the sections above; the list is here so
 the owner can find them.
@@ -939,7 +929,7 @@ was reviewed by the approver and declines under `describe` (`safe-git.md`).
   is refused earlier as `path_refused`, as observed in Increment G; the 5-second `describe` budget is a guess; `find_root` takes the nearest project, so a nested project
   under the working directory would supply its own rules (pinned, so a changed rule is refused); the hook must start `review`
   in the directory where the command will run.
-- The owner's profile file, which replaces the personal setting, is not built (see "Settings and the bridge" and
+- The owner's profile file replaced the personal setting and is read by this engine (see "Settings and the bridge" and
   `review-profiles.md`).
 
 **The owner's steps.** The agent does not run these, and nothing below is done until the owner does it. The shadow hook records and
@@ -952,7 +942,7 @@ file `~/.claude/settings.json`.
 
 1. **Install the module into a project you work in, and keep it current** (this repository first). The hook runs `wb run action-review
    review`, so the project needs the module installed and pinned, a `safe-git` and a `model-bridge` module (`ask-codex`) installed and
-   pinned, and `.workbench/review.json` naming the bridge. First time: `python3 -m workbench preview add --dir <checkout> --package
+   pinned, and the `action-review` ladder of your `review-profiles.json` naming the bridge. First time: `python3 -m workbench preview add --dir <checkout> --package
    packages/workbench --select action-review`, then the same with `add` instead of `preview add`. **The engine the hook starts is the
    installed copy under `.workbench/`, not the one in `packages/`**, so after any change to the module, in this order: `wb
    release-approvals`; `acknowledge` if it lists changes (the project must be known on this machine and every difference acknowledged);
@@ -1038,7 +1028,7 @@ file `~/.claude/settings.json`.
    must be there, and **`wb` runs the first `python3` on that path**, which on macOS is the system `/usr/bin/python3` (3.9.6 on the
    machine this was written on) unless `/usr/local/bin` has another: the installer and the three helpers load under 3.9.6 (checked by
    loading their top level) but the engine has not been run under it; if it fails, make `/usr/local/bin/python3` a link to the Python
-   you trust, or ask for the hook's `PATH` to change; (b) the project's `.workbench/review.json` names a bridge that is installed and
+   you trust, or ask for the hook's `PATH` to change; (b) the `action-review` rung of your `review-profiles.json` names a bridge that is installed and
    pinned; (c) Codex is signed in; (d) the installed engine is the current one (step 1); (e) the report finds no rows because it looks
    under `HOME` and the hook writes under the home directory of the account database: they are the same on a normal login and differ if
    `HOME` was changed (`sudo`, a wrapper, another account), in which case run the report with the same `HOME` the account database

@@ -205,16 +205,25 @@ the owner's release.
 ### Increment F — The action-review engine reads its one-rung ladder
 
 **Outcome:** the action-review helper reads the `action-review` ladder through the kit reader, runs that one rung, refuses a longer
-ladder, and no longer reads `review.json`. The time budget is unchanged.
+ladder, and no longer reads `review.json`; the owner's test-set runner takes its model and effort from the same rung. The time budget
+is unchanged.
 **Dependencies:** B and D.
-**Affected areas:** `packages/workbench/action-review/helper/action-review` (its own `read_setting`), its tests,
-`docs/specs/action-review.md`.
+**Affected areas:** `packages/workbench/action-review/helper/action-review` (its own `read_setting`), the owner's test-set runner
+`packages/workbench/action-review/tools/run_testset.py`, their tests (including the scaffold of
+`tests/test_actionreview_dangerous.py`, which writes the setting into each scratch project), `docs/specs/action-review.md`.
+*(The runner was added to this increment on 2026-11-04, when the build found that it reads `.workbench/review.json` and that its
+cases would all be refused once the engine stops reading that file.)*
 **Steps:**
 1. Read the helper's reader, its bridge call and the time budget.
 2. Write the tests first: the one rung is used; a longer ladder, a missing ladder and a missing file are refused as no verdict; an
    uninstalled bridge is a refusal; the call still gets the time left of the budget.
 3. Replace the reader and update the specification.
-**Verification:** the action-review tests for the bridge, the module and the parser.
+4. The runner reads the owner's real `action-review` rung through the kit reader (the checkout's own kit), requires that rung's bridge to
+   be `ask-codex` (the only sign-in plumbing it has) and otherwise ends the run before anything is sent, and writes that profile as
+   the `review-profiles.json` of each scratch home in place of a `review.json`. Its own copy of the model and effort patterns goes
+   away, and the scaffold writes the profile file into the scratch home.
+**Verification:** the action-review tests for the bridge, the module and the parser, the runner's tests and the end-to-end tests of
+the dangerous cases.
 **Evidence:** the one local commit, with the trailer `Plan: 2026-11-04-review-profiles#F`. The package edit needs a scripted pass and
 the owner's release. The shadow hook is not changed.
 
@@ -363,6 +372,20 @@ the second came back with no meaningful finding.
   the class is what the bridge reports and cannot be checked (spec and skill); the engine never opens the endpoint file but the bridge
   does when it runs `check`; `next` names the profile by place in the window and does not say a round is allowed (an unsealed state or
   an undecided finding refuses it). **Rejected:** none. **Limits of its evidence:** it ran nothing and did not open the new tests.
+- **Increment F widened (2026-11-04, before it was built).** Reading the code showed that `tools/run_testset.py` also reads
+  `.workbench/review.json` and that the scaffold of the dangerous-case tests writes it, so every case would have been refused once the
+  engine stopped reading the file. The owner chose to widen F to the runner and its tests and approved the changed plan through the
+  `ask` flow (region `f50c585d...5c3a`); the build stopped for that choice before any edit.
+- **Review of increment F (2026-11-04, a `reviewer` agent, one exchange).** No blocking finding. By reading it confirmed that nothing reads
+  `.workbench/review.json`, that no project file can choose the bridge, model, effort or options, that the time budget and `--confine`
+  are unchanged and come first, that a profile option cannot override a reserved option, that `read_setting` cannot fail open, and that
+  the runner refuses before it sends anything. **Applied:** the stale sentence of `action-review.md` about a pulled change to the
+  setting file; the two "decided" tags of `review-profiles.md`; a rung with options is refused by the runner before the prompt (a test
+  first: it ran the whole test set before the change). **Rejected:** the note that the test "the runner reads the review.json of
+  nothing" is a weak negative, because the runner has no other route to a project path and the positive tests (the rung is the
+  owner's) carry the claim; the note that `kit()` could fail to import inside the `except` clause, because `project_setting()` calls
+  it first and an `ImportError` there already ends the run with nothing sent. **Limits of its evidence:** it ran no test and did not
+  read the launcher.
 
 ## Deferred work
 
@@ -607,3 +630,33 @@ the second came back with no meaningful finding.
   after them, the commit and the push. The corrected sentence in `module-contract.md` (deferred from D-A) is still not in any
   increment's listed areas and needs the owner's choice.
 - **Left for the owner:** the copy, the release and the verdict.
+
+### Increment F
+
+- **Done (in a scratch clone, not yet in the live tree):** the action-review helper reads the one rung of the `action-review` ladder
+  through the kit (`read_setting()`, no argument; `LADDER_KEYS`, `SINGLE_RUNG`), refuses a missing file, a missing ladder (`default`
+  never serves) and a longer ladder, and passes the model, effort and options after `--confine` in the order of their names; the
+  time budget (25 and 20 seconds) is unchanged. `.workbench/review.json` is read by nothing in the module. The test-set runner reads the
+  same rung through the checkout's kit, requires `ask-codex` and no options, and ends the run before sending anything otherwise;
+  its copy of the model and effort patterns is gone. The shadow hook is not changed. `action-review.md` ("Settings and the bridge",
+  the runner paragraph, the not-built lists) and two tags of `review-profiles.md` are updated in the live tree.
+- **Tests first:** the `Setting` class of `test_actionreview_bridge.py` rewritten to the profile file (rung, options order, missing file,
+  project file read by nothing, longer ladder, no `action-review` ladder with a `default`, kit refusals, reserved names and prefixes,
+  no quoting of the file), two tests of the options in the call, the output, pins and dangerous-case scaffolds moved to the profile file,
+  the runner's tests moved to the owner's rung (eleven refused files, a missing file, another bridge, a rung with options, the store
+  holds only the test-set file and the unchanged profile file), and the drift test of the ladder keys of the review engine, this
+  engine and the runner (new `test_actionreview_ladder_keys.py`, new `support_profile.py`). Before the code the edited folder ran red:
+  84 failures and 32 errors of 769.
+- **Verification, as run (clone):** the whole action-review folder, 773 tests, 2 failures that F did not cause: the shadow hook's
+  environment test (`__CF_USER_TEXT_ENCODING` is in the environment of this shell; it fails the same way on the unchanged live tree)
+  and the hook store's thread test (flaky: on the unchanged live tree it failed 6 of 10 runs, and 4 of 10 in the clone made before F).
+  After the last change the runner's tests, 41, pass; the bridge, output and pins files pass.
+- **The owner's steps, as done (2026-11-04):** the owner ran the copy script (all nine files in the live tree match the recorded
+  hashes, checked by the agent) and the release; the preview then read `record recorded` for the package and all 13 modules and listed
+  exactly two stale records (the old `action-review` module record and the package record that increment E committed), which the owner
+  approved from a dry-run list and the agent removed; `stale records: 0`.
+- **Verification after the release (live tree):** the whole action-review folder, 774 tests, the same two known failures and no other;
+  `wb check` and `wb run code-work check` report no problems; `git diff --check` is clean.
+- **Not done:** the commit and the push. `.workbench/review.json` stays until the owner has checked a live review on the new engines; the plan says
+  it can be deleted after F ships.
+- **Left for the owner:** the copy, the release and the verdict; the two failing hook tests are known and not part of F.

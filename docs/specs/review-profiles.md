@@ -119,7 +119,7 @@ increment D.)* A module's command declaration may carry `review_options`, an obj
 
 ### The ladder
 
-*(Built by increment D for the review engine; increment F builds it for the action-review engine.)*
+*(Built by increment D for the review engine and by increment F for the action-review engine.)*
 
 - The nth round of the review's current window uses rung n. The last rung is used for every later round of the window. `extend` raises
   the bound by 1 to 5 up to the ceiling of 5 rounds in a window (`review-engine.md`), which the ceiling of 5 rungs covers.
@@ -158,7 +158,7 @@ increment D.)* A module's command declaration may carry `review_options`, an obj
 
 ### The action-review engine
 
-*(Decided; built by increment F.)* The helper reads the `action-review` ladder through the kit reader and runs its one rung. A longer
+*(Built by increment F.)* The helper reads the `action-review` ladder through the kit reader and runs its one rung. A longer
 ladder, a missing one and a missing file are refused as no verdict. The time budget does not change: 25 seconds for one judgement, with the
 bridge given `--timeout` 20 and the rest of the time left, and a profile cannot change either, so a profile too slow for the budget
 fails as a timeout and yields no verdict.
