@@ -67,6 +67,7 @@ BACKEND = ("--backend", "chroma")  # the one local backend; the program would ot
 _NAME = r"[A-Za-z0-9_][A-Za-z0-9_.:-]{0,63}"
 _DATE = r"[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}:[0-9]{2}(:[0-9]{2})?)?"
 OPTIONS = ("--wing", "--room", "--results", "--since", "--before")
+SEARCH_FORM = ", ".join(OPTIONS[:-1]) + " and " + OPTIONS[-1]  # said by the refusal of an argument that is not one of them
 MAX_SETTING = 4096
 MAX_CONFIG = 262144
 MODES = ("projects", "convos")
@@ -259,7 +260,8 @@ def parse_search(args):
     while position < len(args) and args[position] != "--":
         name = args[position]
         if name not in OPTIONS:
-            raise Refused("%s is not an option of search" % display.ascii_text(name)[:60])
+            raise Refused("%s is not an option of search; the options are %s, each with a value, then -- and one query, as in: "
+                          "wb run mempalace search -- \"your question\"" % (display.ascii_text(name)[:60], SEARCH_FORM))
         if name in found:
             raise Refused("%s is given twice" % name)
         if position + 1 >= len(args) or args[position + 1] == "--":
