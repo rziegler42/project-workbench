@@ -38,7 +38,8 @@ Selection = collections.namedtuple("Selection", "modules packages")
 # already exists, as ``(path, slot, block id)``.
 Plan = collections.namedtuple(
     "Plan", "target_identity state actions modules manifest seed project_id store_writes "
-            "git_init digest harness pins command not_filled profile_notes", defaults=(None, (), "install", (), ()))
+            "git_init digest harness pins command not_filled profile_notes optional_store",
+    defaults=(None, (), "install", (), (), ()))
 # What `adopt` found at the paths the install plan would write: `kept` maps a seeded path that
 # exists to ``(sha256, size)``; `reused` holds the planned directories that already exist.
 Adopted = collections.namedtuple("Adopted", "kept reused")
@@ -277,7 +278,9 @@ def build(target, selection, snapshots, base, seed, workbench_version, harness=N
     build, so the plan the owner confirms and the plan that is written are the same bytes.
 
     `profile` is a ``profiledefault.Default`` or None: its bytes, when it has any, are one more store write (so the digest binds
-    them) and its notes are shown in the preview and are not part of the digest.
+    them) and its notes are shown in the preview and are not part of the digest. That write alone is ``optional_store``: when the
+    path is occupied at write time the install leaves it as it is and goes on, where any other store write that finds its path
+    occupied stops the install.
 
     `harness` is the ``harnessstage.Staged`` attached after the install, or None. It is not an
     action: the files are per-clone and written once the install itself is complete, but the
@@ -385,7 +388,8 @@ def build(target, selection, snapshots, base, seed, workbench_version, harness=N
     return Plan(target.identity, target.state, tuple(actions), modules, document, seed,
                 project, store_writes, git_init, digest_of(fields), harness, tuple(made),
                 "adopt" if adopted is not None else "install", not_filled,
-                () if profile is None else tuple(profile.notes))
+                () if profile is None else tuple(profile.notes),
+                (profiledefault.FILE,) if profile is not None and profile.data is not None else ())
 
 
 def _local_manifest(harness):

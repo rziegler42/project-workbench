@@ -167,18 +167,20 @@ fails as a timeout and yields no verdict.
 
 ### The default `wb install` writes
 
-*(Decided; built by increment J. The first text of this section named two vendors and gave an effort ramp and a profile per endpoint
+*(Built by increments J and J-A. The first text of this section named two vendors and gave an effort ramp and a profile per endpoint
 record; the installer may not name a module (`module-boundary.md`; `tests/test_boundary.py` allows no exemption), and the owner chose
 the generic default below on 2026-11-05.)*
 
 - It writes the file only when it is absent, as part of the install's preview; the preview prints the file exactly as it will be
   written, and the digest at `ask` binds its bytes as one of the plan's store writes; an existing file is never overwritten or changed,
-  whatever it holds, and the write refuses at once when the path is occupied. The write is a check followed by a rename, like every
-  other store write of the install, so a file that the owner creates in the milliseconds between the last look and the write is replaced:
-  only the owner's own account can create it, and the loss is a hand edit made in the same instant. The command is the owner's at the
-  level the owner set.
+  whatever it holds. If the path is occupied when the install comes to write it, after the plan was shown, the install leaves the file as it is,
+  says so and goes on; it does not stop partway (every other store write of the install still stops the install when its path is
+  occupied). The write itself is a check followed by a rename, like every store write of the install, so a file that the owner creates in
+  the microseconds between that check and the rename is replaced: only the owner's own account can create it, and the loss is a hand edit
+  made in the same instant. The kit's write is not changed for this. The command is the owner's at the level the owner set.
 - It builds the default only from the modules that are installed and pinned and provide `model-bridge`, and from nothing else: one
-  profile for each, named by the bridge's command and holding `bridge` only. No model, no effort and no option is named, so each bridge's
+  profile for each, named by the bridge's command and holding `bridge` only (the preview names the module of each bridge, and says so when
+  two selected modules give one command, which makes one profile). No model, no effort and no option is named, so each bridge's
   own default stands (a bridge to a server uses the default model of the endpoint record the owner configured). A bridge whose command
   is not a valid profile name makes no profile, and the install says so.
 - The ladder `default` is written only when exactly one profile was made, and names it. With several profiles it is not written, and the
@@ -186,9 +188,8 @@ the generic default below on 2026-11-05.)*
   written: the key of a ladder that only one engine reads (the action-review engine's, for one) is that module's, and the installer
   names no module, so the owner adds it when they use that engine. The ramp from a quicker profile to a stronger one, a second model
   and a profile per endpoint are the owner's to add; the file is the owner's.
-- The preview prints what an old `.workbench/review.json` said, as data, so the owner can carry it into a profile: only the four
-  known fields, each as ASCII with escapes and cut at 128 characters, and one line saying so when the file is over 4,096 bytes or
-  malformed. The text changes nothing that is written, so it is not part of the digest. The default is never seeded from that file.
+- The default is never seeded from an old `.workbench/review.json`, and the preview shows none of it: `wb install` and `wb adopt` refuse a
+  target that has a `.workbench` directory, so such a file is never in their way. `wb doctor` names it as read by nothing.
 
 ### `wb doctor`
 
@@ -199,7 +200,8 @@ declares for a review, a value does not fit the grammar, or an excluded pair is 
 bridge is installed. It reports, as a note, a file at `.workbench/review.json` as read by nothing. For a `delegate-profiles` list it
 reports a listed name that is not in the file (a problem) and a listed profile that names no model, which follows the vendor's own
 default and can change under the gate (a risk). When the installed modules cannot be read, the profiles are not checked against them and
-the other checks of the report say why.
+the other checks of the report say why. A fault of the guarded store or of the installed modules while it reads them is one problem line,
+and the rest of the report is still printed.
 
 ### The `convergence` report and `delegate-profiles`
 

@@ -701,6 +701,32 @@ class ProfileDefaultInstall(InstallBase):
         self.assertNotEqual(0, code)
         self.assertEqual(appearing, self.stored())
 
+    def test_a_file_that_appears_after_the_plan_was_recorded_is_left_as_it_is_and_the_install_finishes(self):
+        path, select = self.with_bridges("bridge-one")
+        place = self.place()
+        appearing = b"the owner wrote this meanwhile\n"
+        real = install.record_of
+
+        def late(plan):
+            recorded = real(plan)
+            self.guarded.write(self.FILE, appearing)
+            return recorded
+
+        with unittest.mock.patch.object(install, "record_of", late):
+            code, out, err = self.run_install(place, path, select=select)
+        self.assertEqual(0, code, (out, err))
+        self.assertEqual(appearing, self.stored())
+        self.assertIn("left as it is", out)
+        self.assertFalse(os.path.exists(os.path.join(place, MARKER)))
+        self.assertTrue(os.path.isfile(os.path.join(place, ".workbench", "manifest.json")))
+        self.assertTrue(self.guarded.kind("projects") == "dir" and os.listdir(os.path.join(self.store_root, "projects")))
+
+    def test_the_preview_ties_the_profile_to_its_module(self):
+        path, select = self.with_bridges("bridge-one")
+        code, out, err = self.run_install(self.place(), path, select=select)
+        line = next(line for line in out.splitlines() if "profile bridge-one" in line or "profile 'bridge-one'" in line)
+        self.assertIn("module", line)
+
     def test_the_written_file_is_read_by_the_installers_reader_and_the_kit(self):
         path, select = self.with_bridges("bridge-one")
         self.run_install(self.place(), path, select=select)

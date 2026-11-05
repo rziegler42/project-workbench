@@ -91,6 +91,19 @@ class Builder(unittest.TestCase):
         parsed = profiles.parse(one.data, ("default",), ())
         self.assertEqual(("bridge-one",), parsed.ladders["default"])
 
+    def test_a_profile_line_names_the_module_as_well_as_the_command(self):
+        got = profiledefault.build([verified("module-one", commands=[command("bridge-one")])])
+        line = next(line for line in got.notes if line.startswith("profile "))
+        self.assertIn("bridge-one", line)
+        self.assertIn("module-one", line)
+
+    def test_two_modules_with_one_bridge_command_make_one_profile_and_a_note_naming_both(self):
+        got = profiledefault.build([verified("module-a", commands=[command("same")]),
+                                    verified("module-b", commands=[command("same")])])
+        self.assertEqual(["same"], list(document(got)["profiles"]))
+        line = next(line for line in got.notes if "module-a" in line and "module-b" in line)
+        self.assertIn("same", line)
+
     def test_the_notes_show_the_file_exactly_as_it_will_be_written(self):
         for chosen in ([verified("bridge-one")], [verified("bridge-a"), verified("bridge-b")]):
             got = profiledefault.build(chosen)
@@ -104,7 +117,7 @@ class Builder(unittest.TestCase):
         self.assertLess(len(got.data), profiles.MAX_BYTES)
         got.data.decode("ascii")
 
-    def test_nothing_is_taken_from_the_environment_or_the_old_project_file(self):
+    def test_nothing_is_taken_from_the_environment(self):
         with unittest.mock.patch.dict("os.environ", {"HOME": "/nonexistent-home"}):
             first = profiledefault.build([verified("bridge-one")])
         self.assertEqual(first.data, profiledefault.build([verified("bridge-one")]).data)
@@ -120,37 +133,10 @@ class Existing(unittest.TestCase):
         self.assertIsNotNone(profiledefault.plan([verified("bridge-one")], present=False).data)
 
 
-class OldSetting(unittest.TestCase):
-    def test_the_four_known_fields_are_printed_as_data(self):
-        lines = profiledefault.old_setting_lines(b'{"format": 1, "bridge": "b", "model": "m-1", "effort": "low"}')
-        text = "\n".join(lines)
-        for word in ("format", "bridge", "model", "effort", "'b'", "'m-1'", "'low'"):
-            self.assertIn(word, text)
-        self.assertIn("read by nothing", text)
-
-    def test_nothing_is_printed_when_there_is_no_file(self):
-        self.assertEqual((), profiledefault.old_setting_lines(None))
-
-    def test_values_are_escaped_ascii_cut_at_128_and_cannot_add_a_line(self):
-        hostile = {"format": 1, "bridge": "b\nplanted: line\x1b[2J", "model": "m" * 500, "effort": "‮low"}
-        lines = profiledefault.old_setting_lines(json.dumps(hostile).encode())
-        for line in lines:
-            self.assertNotIn("\n", line)
-            self.assertTrue(all(" " <= char <= "~" for char in line), repr(line))
-            self.assertLess(len(line), 400)
-        self.assertNotIn("m" * 129, "\n".join(lines))
-
-    def test_other_fields_and_other_types_are_not_shown(self):
-        lines = profiledefault.old_setting_lines(b'{"format": 1, "bridge": "b", "retries": 3, "model": 5, "effort": ["x"]}')
-        text = "\n".join(lines)
-        self.assertNotIn("retries", text)
-        self.assertNotIn("5", text.replace("128", ""))
-
-    def test_a_file_over_4096_bytes_or_malformed_gives_one_line_that_says_so(self):
-        for data in (b"x" * 5000, b"{", b"[]", b"", b'{"a": 1, "a": 2}', b"\xff", b'{"bridge": NaN}'):
-            lines = profiledefault.old_setting_lines(data)
-            self.assertEqual(1, len(lines), (data, lines))
-            self.assertIn("not read", lines[0])
+class Removed(unittest.TestCase):
+    def test_the_code_that_showed_an_old_project_file_is_gone_because_a_target_with_one_is_refused(self):
+        for name in ("read_old", "old_setting_lines", "OLD", "MAX_OLD", "MAX_SHOWN"):
+            self.assertFalse(hasattr(profiledefault, name), name)
 
 
 if __name__ == "__main__":

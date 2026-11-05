@@ -43,7 +43,7 @@ import stat
 
 from . import (__version__, approvalcmd, check, declarations, delegation, firstparty, floor, gatelog, harnesses, installed,
                levels,
-               localmanifest, manifest, projectfs, rendering, rules, settings, target)
+               localmanifest, manifest, projectfs, rendering, rules, settings, store, target)
 from .wbkit import display, profiles, safefs
 
 Finding = collections.namedtuple("Finding", "severity line")
@@ -529,26 +529,31 @@ def _review_profiles(guarded, root):
     """The findings of ``review_profile_findings`` for the project at `root`: the file is read from the guarded store, and the profiles
     are held to the bridge modules the project has installed, with the delegated-approval check's rules. When the installed modules
     cannot be read, the profiles are not checked against them (the other checks of the report say why)."""
-    exists = guarded.kind(profiles.FILE) is not None
-    outcome = None
-    if exists:
-        try:
-            outcome = settings.read_profiles(guarded)
-        except profiles.ProfileError as exc:
-            outcome = exc
     try:
-        _, ident, modules = approvalcmd.installed_modules(root)
-    except approvalcmd.ApprovalError:
-        ident, modules = None, None
-    has_bridge = bool(modules) and any("model-bridge" in item.module.provides for item in modules)
-    if modules is None:
-        def unusable_of(profile):
-            return None
-    else:
-        def unusable_of(profile):
-            return delegation.unusable(guarded, ident, modules, profile)
-    old = os.path.lexists(os.path.join(root, ".workbench", "review.json"))
-    return review_profile_findings(exists, outcome, has_bridge, unusable_of, old)
+        exists = guarded.kind(profiles.FILE) is not None
+        outcome = None
+        if exists:
+            try:
+                outcome = settings.read_profiles(guarded)
+            except profiles.ProfileError as exc:
+                outcome = exc
+        try:
+            _, ident, modules = approvalcmd.installed_modules(root)
+        except approvalcmd.ApprovalError:
+            ident, modules = None, None
+        has_bridge = bool(modules) and any("model-bridge" in item.module.provides for item in modules)
+        if modules is None:
+            def unusable_of(profile):
+                return None
+        else:
+            def unusable_of(profile):
+                return delegation.unusable(guarded, ident, modules, profile)
+        old = os.path.lexists(os.path.join(root, ".workbench", "review.json"))
+        return review_profile_findings(exists, outcome, has_bridge, unusable_of, old)
+    except (safefs.SafeFsError, store.StoreError, OSError, ValueError):
+        # a fault of the owner's store or of the installed modules: one line, and the rest of the report is still printed
+        return [Finding(PROBLEM, "problem: review-profiles: the guarded store or the installed modules could not be read, so the "
+                        "profiles were not checked")]
 
 
 def examine(guarded, writer, root, distribution=None, which=None):
@@ -566,7 +571,12 @@ def examine(guarded, writer, root, distribution=None, which=None):
                 profile_file = settings.read_profiles(guarded)
             except profiles.ProfileError as exc:
                 profile_file = exc
-            found += delegate_profile_findings(loaded.delegate_profiles, profile_file)
+            except (safefs.SafeFsError, store.StoreError, OSError, ValueError):
+                profile_file = None
+                found.append(Finding(PROBLEM, "problem: delegate-profiles: the guarded store could not be read, so the listed profiles "
+                                     "were not checked"))
+            if profile_file is not None:
+                found += delegate_profile_findings(loaded.delegate_profiles, profile_file)
     else:
         found += [Finding(PROBLEM, "problem: settings: %s" % text) for text in loaded.problems]
     found += floor_findings(_raw_floor(guarded))

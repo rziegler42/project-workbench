@@ -567,6 +567,16 @@ the second came back with no meaningful finding.
 - **Increment J-A (added 2026-11-05, after the plan was approved and after increment J).** Drafted from the review's findings; the owner
   chose the nested increment that skips an occupied path at write time, removes the dead code and keeps the kit's write as it is, and
   approved the changed plan through the `ask` flow (region `4521bcd6...d49e`).
+- **Review of increment J-A (2026-11-05, a `reviewer` agent, one exchange).** No blocking finding. By reading it confirmed that the
+  skipped write covers the default profile file and nothing else (`plan.optional_store`), that any other occupied store path still stops
+  the install, that the profile write is the last of the plan's store writes so a skip leaves nothing missing after it, that a link, a
+  directory or a FIFO at the path counts as occupied and is not followed, that the skip message is printed for an install and an adoption
+  before the attach step, and that nothing refers to the removed code. **Applied:** the read of the profile file for a `delegate-profiles`
+  list in `examine` caught only the kit's refusal, so a store fault there still stopped `wb doctor`; it now reports one
+  `delegate-profiles` problem line and the report goes on (a test first, shown red by weakening the fix on purpose and green again);
+  `installer-interface.md` says that a file that appears after the preview is left as it is. **Rejected, with a reason:** that the doctor
+  should not catch `ValueError`: the security review proposed it, the doctor only reads, and a crash that hides the whole report is a
+  worse outcome than a mislabelled line. **Limits of its evidence:** it ran nothing and did not read `ProfileDefaultInstall`.
 
 ## Deferred work
 
@@ -976,4 +986,30 @@ the second came back with no meaningful finding.
   problems; `git diff --check` is clean. No package changed, so there is no release. The full set ran 672 tests, OK.
 - **Not done:** the commit and the push. The preview's lines about an old `.workbench/review.json` are tested on the function, not
   through an adoption of a project that has one. The walk-through of a real install is increment K.
+- **Left for the owner:** the verdict and the word to commit.
+
+### Increment J-A
+
+- **Done:** (1) a profile line of the default file names the module as well as the command, and two selected modules that give one
+  bridge command make one profile and a note that names both (the first by module name owns it); (2) the default profile file is the one
+  store write that is skipped when its path is occupied at write time (`Plan.optional_store`): `_write` leaves the owner's file as it
+  is, `_finish` says so, the install goes on and finishes without a marker, and every other occupied store path still stops the install;
+  (3) `wb doctor` reports a fault of the guarded store or of the installed modules, in the profile checks and in the read for a
+  `delegate-profiles` list, as one problem line each and prints the rest of the report; (4) the code that was to show an old
+  `.workbench/review.json` in the preview (`read_old`, `old_setting_lines` and their constants, and their tests) is removed, because
+  `wb install` and `wb adopt` refuse a target that has a `.workbench` directory, so it could never run. `wb doctor` still names the old
+  file as read by nothing. `review-profiles.md` and `installer-interface.md` say all of this, including that the kit's write (a check
+  and then a rename) is not changed and leaves a window of microseconds that only the owner's account can use.
+- **Correction of an earlier claim:** the Result of increment J said the old-file lines were "tested on the function, not through an
+  adoption"; the reason was not a gap in the tests but that the code could not run. It is removed here.
+- **Tests first:** the profile line and the one-profile note, the absence of the old-file code, `Plan.optional_store`, an install in
+  which the file appears after the plan was recorded (exit 0, the owner's bytes kept, the message printed, the manifest written, no
+  marker), the doctor with five kinds of fault from the store, the installed modules and the check, and with a fault from the read for a
+  list. They ran red before the code (6 failures and 5 errors; the last fix by weakening it on purpose).
+- **Verification, as run:** the install, preview, adopt, recover, unfinished, doctor, delegation, approvalcmd and kit-profile modules with
+  `tests/test_boundary.py`, 674 tests, OK (before the last fix); the doctor, profile-default, install-plan, install, boundary and
+  delegation modules again after it, 330 tests, OK; `test_settings` (115) by file; `wb check` and `wb run code-work check` report no
+  problems; `git diff --check` is clean. No package changed.
+- **Not done:** the commit and the push (J and J-A go out together). The shown-file block of the preview and the written file are
+  compared by the existing tests; a run of a real install is increment K.
 - **Left for the owner:** the verdict and the word to commit.

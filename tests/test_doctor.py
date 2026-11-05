@@ -13,8 +13,8 @@ import unittest
 import unittest.mock
 
 from tests import support_harness, test_permissions_drift, test_rendering
-from workbench import cli, doctor, gatelog, levels, rendering, rules, settings
-from workbench.wbkit import profiles
+from workbench import approvalcmd, cli, delegation, doctor, gatelog, levels, rendering, rules, settings, store
+from workbench.wbkit import profiles, safefs
 
 KEYS = levels.registry()
 FLOOR = [stop.id for stop in __import__("workbench.floor", fromlist=["FLOOR"]).FLOOR]
@@ -535,6 +535,47 @@ class InAProject(test_rendering.Rendered):
         self.assertEqual(1, code)
         self.assertIn("problem: review-profiles: the profile 'quick' cannot be used: its bridge 'bridge-a' is not an installed module",
                       out)
+
+    def test_a_fault_of_the_store_or_the_installed_modules_is_one_problem_line_and_the_rest_of_the_report(self):
+        self.attached()
+        self.guarded.write("review-profiles.json", json.dumps({"format": 1, "profiles": {"quick": {"bridge": "bridge-a"}},
+                                                               "ladders": {"first": ["quick"]}}).encode())
+        real_kind = store.Store.kind
+
+        def kind(self, rel):
+            if rel == "review-profiles.json":
+                raise store.StoreError("cannot look at it")
+            return real_kind(self, rel)
+
+        faults = (("reading the file", unittest.mock.patch.object(settings, "read_profiles", side_effect=OSError("x"))),
+                  ("reading the file again", unittest.mock.patch.object(settings, "read_profiles", side_effect=safefs.SafeFsError("x"))),
+                  ("the installed modules", unittest.mock.patch.object(approvalcmd, "installed_modules", side_effect=ValueError("x"))),
+                  ("the usable-profile check", unittest.mock.patch.object(delegation, "unusable", side_effect=ValueError("x"))),
+                  ("the store", unittest.mock.patch.object(store.Store, "kind", kind)))
+        for label, patch in faults:
+            with self.subTest(label), patch:
+                got = doctor._review_profiles(self.guarded, self.place)
+                self.assertEqual(1, len(got), (label, got))
+                self.assertTrue(got[0].line.startswith("problem: review-profiles: "), got[0].line)
+                self.assertIn("could not be read", got[0].line)
+        # and the whole report still prints, for a fault that only this check reads
+        with unittest.mock.patch.object(settings, "read_profiles", side_effect=OSError("x")):
+            code, out, err = self.doctor()
+        self.assertEqual("", err)
+        self.assertEqual(1, out.count("problem: review-profiles: "), out)
+        self.assertIn("doctor found", out)
+
+    def test_a_store_fault_reading_the_file_for_a_delegate_profiles_list_is_a_problem_line_and_the_report_is_printed(self):
+        self.attached()
+        self.guarded.write("settings", json.dumps({"version": 4, "floor": [], "levels": {},
+                                                   "delegate_profiles": ["quick"]}).encode())
+        for error in (OSError("x"), safefs.SafeFsError("x"), store.StoreError("x"), ValueError("x")):
+            with self.subTest(error=error), unittest.mock.patch.object(settings, "read_profiles", side_effect=error):
+                code, out, err = self.doctor()
+                self.assertEqual("", err)
+                self.assertEqual(1, out.count("problem: delegate-profiles: "), out)
+                self.assertIn("could not be read", out)
+                self.assertIn("doctor found", out)
 
     def test_a_missing_file_with_no_model_bridge_installed_says_nothing(self):
         self.attached()

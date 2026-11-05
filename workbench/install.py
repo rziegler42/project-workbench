@@ -135,8 +135,12 @@ def _write(guarded, held, plan, progress, record):
             writer.create_file(action.path, record)
         else:
             writer.create_file(action.path, action.data, executable=action.mode == "x")
+    progress.skipped = []
     for path, data in plan.store_writes:
         if guarded.kind(path) is not None:
+            if path in plan.optional_store:
+                progress.skipped.append(path)  # the owner made it after the plan was shown: it is theirs, and the install goes on
+                continue
             raise safefs.SafeFsError("the guarded store already holds %s" % path)
         guarded.write(path, data)
         progress.stored.append(path)
@@ -162,6 +166,9 @@ def _finish(held, progress, out, plan=None):
         else:
             out.write("wrote %d paths in %s\nnothing was committed\n"
                       % (len(done), display.ascii_text(held.path)))
+        for path in getattr(progress, "skipped", ()):
+            out.write("%s appeared in the guarded store after the plan was shown, and is left as it is\n"
+                      % display.ascii_text(path)[:80])
         out.flush()
     except BrokenPipeError:
         pass

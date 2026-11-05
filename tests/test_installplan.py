@@ -101,6 +101,14 @@ class PlanTest(unittest.TestCase):
         self.assertNotEqual(one.digest, other.digest)
         self.assertEqual(one.digest, again.digest, "the notes are shown and are not part of the digest")
 
+    def test_the_default_file_is_the_one_store_write_that_is_skipped_when_its_path_is_occupied(self):
+        path = self.package("p", {"h": (HARNESS, {}), "notes": self.NOTES})
+        selection, snaps = self.select(path, ["h", "notes"])
+        self.assertEqual((), self.build(selection, snaps).optional_store)
+        planned = self.build(selection, snaps, profile=profiledefault.Default(b"{}\n", ()))
+        self.assertEqual(("review-profiles.json",), planned.optional_store)
+        self.assertEqual((), self.build(selection, snaps, profile=profiledefault.Default(None, ("left",))).optional_store)
+
     def test_notes_without_bytes_change_nothing_that_is_written_or_bound(self):
         path = self.package("p", {"h": (HARNESS, {}), "notes": self.NOTES})
         selection, snaps = self.select(path, ["h", "notes"])
