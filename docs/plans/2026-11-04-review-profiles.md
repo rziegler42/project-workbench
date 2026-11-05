@@ -350,6 +350,37 @@ doctor), `tests/test_install_levels.py`, `tests/test_install.py`, `tests/test_do
 `tests/test_boundary.py`.
 **Evidence:** the one local commit, with the trailer `Plan: 2026-11-04-review-profiles#J`.
 
+### Increment J-A — Close the findings of the security review of increment J
+
+**Outcome:** the preview ties each profile of the default file to the module that provides its bridge; an install whose profile file
+path becomes occupied after the plan was made finishes with the file left as it is and does not stop partway; `wb doctor` reports a
+store fault in one line and prints the rest of its report; and the code that was meant to show an old `.workbench/review.json` in the
+preview, which can never run because `wb install` and `wb adopt` refuse a target that has a `.workbench` directory, is removed. This
+answers the security review of increment J (2026-11-05): no Critical, High or Medium finding and five small ones.
+**Dependencies:** J.
+**Affected areas:** `workbench/profiledefault.py`, `workbench/preview.py`, `workbench/installplan.py`, `workbench/install.py` (`_write`),
+`workbench/doctor.py`, `tests/test_profiledefault.py`, `tests/test_install.py`, `tests/test_installplan.py`, `tests/test_doctor.py`,
+`docs/specs/review-profiles.md`, `docs/specs/installer-interface.md`. No package changes.
+**Steps:**
+1. Read the review's findings 1 to 5 and the code they name.
+2. Write the tests first:
+   - the profile line names the module and the command, and two selected modules whose bridge commands share a name make a note and one
+     profile;
+   - a profile file that appears after the plan was made, injected where the install records its plan, is not overwritten: the install
+     ends with exit 0, the owner's bytes are kept, the output says the file was left as it is, the other store files are written, and
+     no marker is left;
+   - the doctor, with `SafeFsError`, `OSError` and `ValueError` raised from the store, the installed-module reader and the usable-profile
+     check, reports one `review-profiles` problem line each time and the rest of its report;
+   - the preview prints no line about an old project file, and no function for it remains.
+3. Build the changes. For the occupied path: the plan marks the files whose write is skipped when the path is occupied at write time
+   (the default profile file), `_write` skips them and says so, and every other store write keeps its refusal. The window between the
+   check and the rename inside the kit's write (microseconds, and only the owner's account can create the file) is not closed here; the
+   spec says so.
+4. Update the specs: remove the old-file bullet, name the module in the profile line, state the write-time skip.
+**Verification:** the new tests, `tests/test_profiledefault.py`, `tests/test_install.py`, `tests/test_installplan.py`, `tests/test_doctor.py`,
+`tests/test_boundary.py`, and the wide set of install, adopt, preview, recover and unfinished tests.
+**Evidence:** the one local commit, with the trailer `Plan: 2026-11-04-review-profiles#J-A`.
+
 ### Increment K — Walk-through and the specs as built
 
 **Outcome:** a walk-through in a scratch store with a scratch `HOME` shows the install default, a review that climbs its ladder, the
@@ -517,6 +548,25 @@ the second came back with no meaningful finding.
   changed:** a file that the owner creates in the milliseconds between the install's last look and its write is replaced, like any other
   store write of the install; the write refuses at once when the path is occupied (a test covers a file created after the preview).
   **Limits of its evidence:** it ran nothing and read no test.
+- **Security review of increment J (2026-11-05, at the owner's request; a `security-reviewer` agent working on copies with a temporary
+  store, made-up packages and a patched first-party check, nothing real started).** No Critical, High or Medium finding. Hostile
+  package, module and command names (newlines, escapes, bidi marks, look-alikes, overlong text, 32 and 33 bridges, two `ask` commands),
+  the preview (every line ASCII; the `| ` block hashes to exactly the bytes the digest binds; no text of a package or a file can forge
+  the `digest:` line or a write line), an existing path of every kind at the store path (a FIFO, a link, a dangling link, a file, a
+  directory), a hostile profile file under `wb doctor` (14 variants) and the written file (ASCII, 1,399 bytes at 32 profiles, mode
+  0644 under umask 022) were refused or accepted as the spec says. A third-party package cannot provide the unprefixed `model-bridge`,
+  so it cannot become the default bridge. **Five small findings,** all answered in the nested increment J-A: (1) a file that appears
+  between the existence check inside the kit's write and its rename is replaced (microseconds, the owner's account only, the shape of
+  every store write of the install), and a file that appears after the digest recheck aborts the install partway so that `wb recover`
+  refuses; (2) the preview lines about an old `.workbench/review.json` can never appear, because `wb install` and `wb adopt` refuse a
+  target that has a `.workbench` directory, so the code is dead (the Result of J said it was tested on the function; the cause was
+  this, which the agent had not seen); (3) a very long integer `format` in those lines is unbounded, moot with (2); (4) the preview
+  names the bridge's command and not its module; (5) `wb doctor` stops on a store fault it does not catch. **Limits of the evidence:**
+  first-party status was patched in the tests; `pins` and `installed_modules` were not read in full; the doctor fault cases were
+  injected; `wb recover` was not run end to end on a partial install; the overwrite race was injected, not timed.
+- **Increment J-A (added 2026-11-05, after the plan was approved and after increment J).** Drafted from the review's findings; the owner
+  chose the nested increment that skips an occupied path at write time, removes the dead code and keeps the kit's write as it is, and
+  approved the changed plan through the `ask` flow (region `4521bcd6...d49e`).
 
 ## Deferred work
 
