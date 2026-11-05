@@ -316,6 +316,21 @@ diff of the three package files, the diff of the two specs and the verification 
 - **Not checked by the reviewer:** that the tests fail and pass as reported (I ran them), that the copied files equal the clone's, and
   whether Claude follows the skill.
 
+**Increment B.** Reviewer: the `reviewer` agent (read-only), one round of the cap of 3, no blocking finding. It was given the plan, the diff of
+the three package files, the diff of the spec edit and the verification as run, and not my conclusions.
+
+- **Applied:** "once" is now "once per task" in the block and the skill, because a session may draft a plan and then a spec; the test that
+  the skill names no other module's skill is tightened as the reviewer suggested (remove the one phrase "to brainstorm a design" and require
+  that no `brainstorm` remains, in any case or form) and the same check is made on the block; the test that the block asks for no write uses
+  word boundaries for `init` and `mine`, so "determine" cannot trip it; the spec bullet no longer cites the plan or a third party's claim, and
+  says that the clause about a search that finds nothing is the skill's and not the block's.
+- **Rejected, with the reason:** none.
+- **Noted:** the block is exactly 14 lines, the test's limit, so the next sentence added to it needs a shorter one elsewhere or a new limit
+  decided then; the new text disagrees with the five drafting skills until Increment C, as the plan says, which the release order (no
+  `wb upgrade` before C) answers; whether Claude follows the new sentence is for Increment F.
+- **Not checked by the reviewer:** the test results as reported (I ran them), and whether another test in the repository pins the old first
+  bullet (a search of the repository found none).
+
 ## Deferred work
 
 - A way to file what an agent proposes to keep, without letting the agent write (an inbox and an owner-run command), including a short record
@@ -359,4 +374,32 @@ record, not edited), the installed copy under `.workbench/` and the rendered `AG
 
 **Review:** one round with the `reviewer` agent, no blocking finding (see the review record).
 
-**Not done in A:** the owner's copy and release, the commit, and Increments B to F.
+**Not done in A:** Increments B to F. A was copied and released by the owner, the stale shipped records were removed after the owner approved
+the list, and A is committed as `0b450a6`.
+
+**Increment B, built in a scratch clone (2026-11-05); not yet copied into the project, released or committed.** Base commit of the clone:
+`0b450a6`. Changed in the clone: `policy.md` (the first bullet now reads "…only when an earlier decision, preference or lesson could change
+the work, or, once per task and with the topic, before you draft a plan, a spec, a decision record or a roadmap candidate, or brainstorm a
+design. Do not search at session start for its own sake, and not for what the current files answer."; still 14 lines, the test's limit),
+`SKILL.md` (the opening says the same in the skill's words with "search once per task for that, with the topic"; step 1 says how to word the
+question for a drafting task; step 3 says that a search that finds nothing is an answer and the agent goes on and says so in one line) and
+`test_mempalace_guidance.py` (the pins of the first bullet changed to the new sentences; two new block tests and one new skill test for the
+moments and for the block asking for no write; the existing test that the skill names no other module's skill is tightened, see below). In the
+project, docs only: the first bullet of "The policy block and the skill" in `docs/specs/mempalace.md`.
+
+**Verification as run.** Tests first: three of the new or changed tests failed on the unchanged text. After the change all 157 tests of the
+`mempalace` test directory pass. One existing test failed on the first run: it forbade the word `brainstorm` anywhere in the skill, to keep the
+skill from naming another module's skill, and the new sentence uses it as a verb. It now removes the one phrase "to brainstorm a design" from the
+whitespace-normalised text and requires that no `brainstorm`, in any case or form, remains, which is stricter about references to the skill than
+a list of spellings; the same check is made on the block. `wb run code-work check`: 93 plans, no problems. Not run: the whole suite and
+`tests/test_boundary.py`, because no installer file changes.
+
+**Hashes of the three package files at the end of the clone's work** (SHA-256): `policy.md`
+`7a2b33d73083eb7c96e34ecc41c0b2d77755e1c80a22bae8bf9cbe85c489da3d`, `SKILL.md`
+`0b17ffd47ee8eb1497506213b6fbf6f1b1c98cd760c891488ce1f975fdb1a9b2`, `test_mempalace_guidance.py`
+`743aae873bb63223269b58fa4f4e6e7539843a5e198e8e8f2a34c0b6ff3d14e6`.
+
+**Review:** one round with the `reviewer` agent, no blocking finding (see the review record).
+
+**Not done in B:** the owner's copy and release, the commit, and Increments C to F. The owner does not run `wb upgrade` for B alone: the new
+sentence disagrees with the five drafting skills until C is released.
