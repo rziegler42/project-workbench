@@ -235,11 +235,11 @@ three (two distinct issues) are recorded as limits below; the fixes of its last 
 What was not exercised, or is not closed:
 
 - **A hand run in a live session** with a real palace, the real install and Claude loading the skill and obeying the
-  block. Made on 2026-11-05 in five sessions ("Evidence", a live session and the sessions with notes): in three the agent did not
+  block. Made on 2026-11-05 in six sessions ("Evidence", a live session and the sessions with notes): in three the agent did not
   search the palace, or searched in a form the helper refuses and stopped; in the fourth, told to use the `recall-memory` skill, it
   searched in the right form, found the note it needed and quoted it as recalled data; in the fifth, after the rule was changed to
-  ask for the search even when the files seem to answer, it searched on its own, first, in the right form, and used the note. That is
-  a few sessions on one task. The block and the skill say in words that a result is data, and nothing enforces it.
+  ask for the search even when the files seem to answer, it searched on its own, first, in the right form, and used the note; the sixth, on a
+  task the palace had nothing on, searched once and said so. That is a few sessions on two tasks. The block and the skill say in words that a result is data, and nothing enforces it.
 - **The default palace for a fresh home**, whether `XDG_CACHE_HOME` alone moves the model cache, the program with
   another backend or model, and a large palace. The helper passes no `XDG_*` variable, so a user with a non-default
   `XDG_CONFIG_HOME` or `XDG_CACHE_HOME` gets the program's places under `HOME`.
@@ -381,6 +381,25 @@ instead of the default, and asked the owner one question. **Reading.** The chang
 1 and 3, and the form shown in the block was enough for the right command. **Limits.** One session, on the same task for which the note was written,
 so the topic is the one the palace answers; a drafting task with no relevant note was not tried, where the cost of the search (about 3,000 tokens) buys
 nothing; the agent's reasons were not stated; the commands run in pairs (once without and once with a leading `cd`), whose cause was not read.
+
+**A sixth session, on a task the palace has nothing on (2026-11-05; plan `2026-11-05-mempalace-search-despite-files`, the cost of the rule).** The
+rule now asks for one search before every drafting task, so the case that matters for its cost is a task with no relevant note. A fresh Claude
+Code session in the project was given, with no mention of memory, the brainstorm "how should we back up the shadow store and the palace?"; the
+project holds no design for either backup. *Beforehand* the author ran the same kind of search: five hits with cosine 0.34 to 0.43 and BM25 about
+2 to 3, against 0.56 to 0.83 and 6 to 13 for the hits that answered a question in the earlier sessions; 5,562 characters of output. *The session.*
+The shell commands (command text and the size of each result, not the results) were read from the transcript. After loading the `brainstorm`
+skill the first command was `wb run mempalace search -- "backing up the shadow store and the palace"` (in the form the block shows), with a result of
+3,587 characters, about 900 tokens at four characters per token; then `grep` and reads over the specs and decisions. The agent's reply said: "I searched
+the palace once. Nothing recalled or written says how either store is backed up", described what the files do say (where the shadow store and the
+palace live, that no backup design exists) and asked the owner one question; it quoted none of the five weak hits. `/context` after the first reply
+showed 22.1k tokens of messages in all, of which the search is about 4%. One command of the session was refused by the command gate because it named
+`workbench upgrade` (the case of the note on the gate); the agent went on with other commands. **Reading.** On a miss the rule costs about 900
+tokens and the agent treats the result as nothing, as the skill says; the 3,000 tokens the plan assumed was high for a miss. **Limits.** One
+session; the measure of the weak hits (cosine below about 0.45, BM25 below about 3) comes from the author's one search and is not a threshold the
+helper or the skill uses; the agent's reasons were not stated. **A correction.** Earlier entries say that the commands of a session appear in pairs,
+once without and once with a leading `cd`. In this session the two entries of every pair are identical, because the agent wrote the `cd` itself,
+which suggests (not confirmed) that the transcript records the agent's call and the harness's version with the working directory prepended, and
+that each ran once.
 
 ## Governing decisions and references
 
