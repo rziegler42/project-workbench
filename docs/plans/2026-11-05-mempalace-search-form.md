@@ -1,6 +1,6 @@
 # Show the form of a palace search where an agent would guess it
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-05
 Candidate: workbench-v1#mempalace-search-form
 Specs: mempalace
