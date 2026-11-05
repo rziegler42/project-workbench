@@ -26,7 +26,7 @@ import secrets
 import sys
 import time
 
-from wbkit import call, jsonstrict, project, safefs
+from wbkit import call, jsonstrict, profiles, project, safefs
 
 USAGE = "usage: action-review review [--log-row] [--collect] <command text>"
 MAX_TEXT = 4096
@@ -34,7 +34,7 @@ MAX_TEXT = 4096
 # most DESCRIBE_LIMIT bytes, and its ASCII-escaped canonical form is longer; a line over this bound is left out.
 MAX_FACTS_LINE = 2 * 196608
 # The installed place of the rule files, below the project root. The helper runs as a private copy with nothing beside
-# it, so it cannot find them "beside itself"; like the review setting, they are read from the project.
+# it, so it cannot find them "beside itself"; they are read from the project (the setting is not: it is the owner's file).
 RULES_DIR = ".workbench/workbench/action-review/rules"
 # The launcher pins this helper's bytes but not the data it reads from the project tree, which a repository (or the
 # assistant under review) can edit. So the helper holds the SHA-256 of each data file this release ships, keyed by its
@@ -926,14 +926,16 @@ def run_checks(rule, document, positionals=None):
 
 
 # -- the setting, the rubric, the prompt and the bridge -------------------------------------------------------------
-# The bridge, the model and the effort come from `.workbench/review.json`, the file the review engine reads (decision
-# `2026-10-26-action-review-reads-the-review-setting`): a request, never an authorization. The rubric and the reply
-# schema are shipped data, read from where the installer puts them, below the project root.
+# The bridge, the model, the effort and the options come from the one rung of the `action-review` ladder in the owner's
+# `review-profiles.json` in the guarded store (decision `2026-11-04-review-profiles-in-the-guarded-store`; it replaced the
+# project file `.workbench/review.json`): a request, never an authorization. The rubric and the reply schema are shipped data,
+# read from where the installer puts them, below the project root.
 
-SETTING = ".workbench/review.json"
-MAX_SETTING = 4096
-SETTING_MODEL = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,63}")
-EFFORTS = ("low", "medium", "high")
+# The ladder keys this reader accepts and the keys whose ladder holds one rung. The review engine and the test-set runner name
+# the same sets, and a test compares them (`tests/test_actionreview_ladder_keys.py`).
+LADDER_KEYS = ("plan", "spec", "roadmap", "adr", "action-review", "default")
+SINGLE_RUNG = ("action-review",)
+ACTION_REVIEW = "action-review"
 INSTALLED = ".workbench/workbench/action-review"
 RUBRIC_FILE = INSTALLED + "/rubric/rubric.md"
 SCHEMA_FILE = INSTALLED + "/reply-schema.json"
@@ -961,7 +963,8 @@ USAGE_FIELDS = {1: ("input_tokens", "output_tokens", "total_tokens"),
                     "reasoning_output_tokens")}
 VERDICTS = ("approve", "decline")
 MAX_REASON = 300
-Setting = collections.namedtuple("Setting", ("bridge", "model", "effort"))
+# `options` are the profile's option names and values as pairs in the order of their names; a setting made without them has none.
+Setting = collections.namedtuple("Setting", ("bridge", "model", "effort", "options"), defaults=((),))
 Rubric = collections.namedtuple("Rubric", ("text", "sha256"))
 Answer = collections.namedtuple("Answer", ("reply", "model"))
 Verdict = collections.namedtuple("Verdict", ("verdict", "failed_checks", "reason"))
@@ -970,7 +973,7 @@ Judgement = collections.namedtuple("Judgement", ("verdict", "failed_checks", "re
 
 
 class SettingError(Exception):
-    """`.workbench/review.json` cannot be used, so no bridge is named and none is guessed. The reason is fixed text."""
+    """The owner's profile file cannot be used, so no bridge is named and none is guessed. The reason is fixed text."""
 
 
 class RubricError(Exception):
@@ -995,37 +998,17 @@ class BridgeTimeout(BridgeFailed):
     """The bridge did not answer in the time the review had left."""
 
 
-def read_setting(root):
-    """The `Setting` of ``.workbench/review.json``: strict, bounded, and only a request. There is no default bridge,
-    because the engine will not guess a vendor to send content to. The reason never quotes the file."""
-    def bad(why):
-        return SettingError("%s %s" % (SETTING, why))
-
+def read_setting():
+    """The `Setting` of the one rung of the `action-review` ladder in the owner's ``review-profiles.json``: read by the kit, whole or
+    refused whole, and only a request. There is no default bridge and no other ladder serves (``default`` never does), because the
+    engine will not guess a vendor to send content to; a ladder of more than one rung is refused by the reader. The reason names
+    the file and a fixed rule and never quotes the file."""
     try:
-        with safefs.Root(root, "project root") as tree:
-            data = tree.read_if_present(SETTING, MAX_SETTING)
-    except safefs.SafeFsError:
-        raise bad("cannot be read, or is larger than %d bytes" % MAX_SETTING) from None
-    if data is None:
-        raise bad("is missing; it names the bridge command to ask, as {\"format\": 1, \"bridge\": \"<command>\"}")
-    try:
-        body = jsonstrict.parse_object(data, MAX_SETTING)
-    except ValueError:
-        raise bad("is not strict JSON") from None
-    if not set(body) <= {"format", "bridge", "model", "effort"}:
-        raise bad("has a field that is not format, bridge, model or effort")
-    if type(body.get("format")) is not int or body["format"] != 1:
-        raise bad("must have format 1")
-    if "bridge" not in body:
-        raise bad("names no bridge (the field bridge is required)")
-    if not isinstance(body["bridge"], str) or not re.fullmatch(call.NAME, body["bridge"]):
-        raise bad("must give bridge as one command name")
-    model, effort = body.get("model"), body.get("effort")
-    if "model" in body and not (isinstance(model, str) and SETTING_MODEL.fullmatch(model)):
-        raise bad("must give model as letters, digits and ._:- of at most 64 characters, starting with a letter or digit")
-    if "effort" in body and (not isinstance(effort, str) or effort not in EFFORTS):
-        raise bad("must give effort as low, medium or high")
-    return Setting(body["bridge"], model, effort)
+        found = profiles.read(LADDER_KEYS, SINGLE_RUNG)
+        _, profile = profiles.for_round(found, ACTION_REVIEW, 1, False)
+    except profiles.ProfileError as exc:
+        raise SettingError(str(exc)) from None
+    return Setting(profile.bridge, profile.model, profile.effort, tuple(sorted(profile.options.items())))
 
 
 def read_rubric(root, rule):
@@ -1218,7 +1201,8 @@ def parse_verdict(text, rule):
 
 def ask_bridge(root, setting, prompt, seconds):
     """The `Answer` of the bridge the setting names, asked as exactly ``<bridge> ask --timeout 20 --schema <the shipped
-    reply schema> --confine [--model <m>] [--effort <e>]`` with `prompt` on standard input, through the kit's `run_command` with
+    reply schema> --confine [--model <m>] [--effort <e>] [--<option> <value>]...`` (the options in the order of their names) with
+    `prompt` on standard input, through the kit's `run_command` with
     the capability `model-bridge`, and stopped after `seconds`. The launcher refuses a bridge that is not installed,
     pinned and unchanged, and that is `BridgeRefused`: no other vendor is tried."""
     if not seconds > 0:
@@ -1238,6 +1222,8 @@ def ask_bridge(root, setting, prompt, seconds):
         arguments += ["--model", setting.model]
     if setting.effort:
         arguments += ["--effort", setting.effort]
+    for option, value in setting.options:
+        arguments += ["--" + option, value]
     try:
         got = call.run_command(root, setting.bridge, arguments, stdin=prompt, limit=MAX_BRIDGE_OBJECT,
                                timeout=seconds, provides=CAPABILITY)
@@ -1355,7 +1341,7 @@ def review(text, cwd, notes, trace=None):
         if failed:
             judgement = code_decline(failed)
         else:
-            setting = read_setting(root)
+            setting = read_setting()
             rubric = read_rubric(root, rule)
             judgement = judge(root, rule, document, setting, rubric, REVIEW_SECONDS - (time.monotonic() - started),
                               positionals)
