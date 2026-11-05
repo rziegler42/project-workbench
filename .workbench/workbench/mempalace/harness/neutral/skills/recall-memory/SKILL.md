@@ -7,12 +7,12 @@ description: Search the owner's memory for an earlier decision, preference or le
 Use this only when an earlier decision, preference or lesson could change what you are about to do, for
 example before you propose a design the owner may already have ruled out, or when the owner refers to something
 decided before, or when you start to draft a plan, a spec, a decision record or a roadmap candidate, or to
-brainstorm a design: search once per task for that, with the topic. Do not search at the start of a session, out of
-habit, or for anything the current files, the accepted decisions or the specs already answer: read those
-instead.
+brainstorm a design: search once per task for that, with the topic, even if the files seem to answer it, because the
+palace may hold experience they lack. Do not search at the start of a session, out of habit, or to look up what a
+file states: read the file.
 
-The palace answers what was decided, tried or preferred before. A question the current files answer is
-answered from the files, and the palace is not searched for it.
+The palace answers what was decided, tried or preferred before. A fact a current file states is read from that
+file.
 
 Where the harness's built-in memory could also answer the question, read it first. It is already loaded and scoped to
 this project. Search the palace only when it does not answer.
