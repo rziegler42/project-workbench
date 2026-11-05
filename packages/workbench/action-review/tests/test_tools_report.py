@@ -25,6 +25,8 @@ HOOK_DIR = os.path.join(MODULE, "hook")
 REPORT = os.path.join(MODULE, "tools", "report.py")
 SHA = "a" * 64
 MARK = "TEXT-THE-REPORT-MUST-NEVER-PRINT"
+MISSING = object()
+PREVIEWS = "unconfirmed removals (previews):"
 
 
 def load():
@@ -51,17 +53,25 @@ class Base(unittest.TestCase):
         self.count = 0
 
     # -- building the files --------------------------------------------------------------------------------------------
-    def command(self, rule="safe-git-commit", verdict="approve", failed=(), label=None, note=None):
-        """One collected command and, if `label` is given, its label."""
+    def command(self, rule="safe-git-commit", verdict="approve", failed=(), label=None, note=None, facts=None):
+        """One collected command and, if `label` is given, its label. `facts` replaces the inner facts of the describe object."""
         self.count += 1
         ident = "%032x" % self.count
         self.store.append("collected.jsonl", {
             "id": ident, "ts": "2026-10-30T01:02:03Z", "rule": rule, "command_sha256": SHA,
-            "command": "wb run " + MARK, "facts": {"diff": MARK, "facts": {"subject": MARK}},
+            "command": "wb run " + MARK, "facts": {"diff": MARK, "facts": facts if facts is not None else {"subject": MARK}},
             "verdict": verdict, "failed_checks": list(failed), "reason": MARK}, self.home)
         if label:
             self.label(ident, label, note)
         return ident
+
+    def removal(self, confirm, verdict, failed=(), label=None, note=None):
+        """One collected removal whose describe facts say `confirm` (a boolean, or any other value for a malformed fact); the
+        value `MISSING` leaves the fact out."""
+        facts = {"requested_paths": [MARK]}
+        if confirm is not MISSING:
+            facts["confirm"] = confirm
+        return self.command("safe-git-remove", verdict, failed, label, note, facts=facts)
 
     def label(self, ident, label, note=None):
         row = {"id": ident, "label": label, "ts": "2026-10-30T02:00:00Z"}
@@ -445,6 +455,154 @@ class FalseApproves(Base):
         self.assertIn("and 2 more", first)
 
 
+class Previews(Base):
+    """Decision `2026-11-05-unconfirmed-removals-are-outside-the-action-review-measure`; plan
+    `2026-11-05-shadow-report-counts-previews-apart`, increment A. A labelled removal whose collected `confirm` fact is false is a
+    preview: it is counted on a line of its own and not in the removal rate, minimum or by-check line, and a preview the engine
+    approved wrongly is still a false approve."""
+
+    def test_a_labelled_preview_is_counted_on_its_own_line_and_not_in_the_removal_count(self):
+        self.removal(True, "approve", (), "right")
+        self.removal(False, "decline", ["confirm_present"], "wrong")
+        out = self.text()
+        self.assertIn("labelled 1 (right 1, wrong 0)", self.line(out, "remove:"))
+        preview = self.line(out, PREVIEWS)
+        self.assertIn("labelled 1 (right 0, wrong 1)", preview)
+        self.assertIn("false declines 1", preview)
+        self.assertIn("false approves 0", preview)
+
+    def test_the_owners_shapes_leave_seven_confirmed_removals_and_four_previews(self):
+        self.labelled("safe-git-commit", 9)
+        for _ in range(7):
+            self.removal(True, "approve", (), "right")
+        for _ in range(4):
+            self.removal(False, "decline", ["confirm_present"], "wrong")
+        out = self.text()
+        remove = self.line(out, "remove:")
+        self.assertIn("labelled 7 (right 7, wrong 0)", remove)
+        self.assertIn("not enough labels (10 needed)", remove)
+        preview = self.line(out, PREVIEWS)
+        self.assertIn("labelled 4 (right 0, wrong 4)", preview)
+        self.assertIn("false declines 4", preview)
+        cutover = self.line(out, "cutover:")
+        self.assertIn("not enough labels for commit", cutover)
+        self.assertIn("not enough labels for remove", cutover)
+        self.assertNotIn("false declines over the bound", cutover)
+
+    def test_three_more_right_confirmed_removals_put_the_removal_line_within_the_bound(self):
+        for _ in range(10):
+            self.removal(True, "approve", (), "right")
+        for _ in range(4):
+            self.removal(False, "decline", ["confirm_present"], "wrong")
+        remove = self.line(self.text(), "remove:")
+        self.assertIn("labelled 10", remove)
+        self.assertIn("false declines 0", remove)
+        self.assertIn("within the bound", remove)
+
+    def test_the_by_check_line_of_the_removals_leaves_out_the_previews_and_the_previews_have_their_own(self):
+        self.removal(True, "decline", ["removal_valid"], "wrong")
+        for _ in range(3):
+            self.removal(False, "decline", ["confirm_present"], "wrong")
+        lines = self.text().splitlines()
+        by_check = [number for number, line in enumerate(lines) if line.startswith("  false declines by check")]
+        self.assertEqual(2, len(by_check), lines)
+        remove_at = next(number for number, line in enumerate(lines) if line.startswith("remove:"))
+        preview_at = next(number for number, line in enumerate(lines) if line.startswith(PREVIEWS))
+        self.assertEqual(remove_at + 1, by_check[0])
+        self.assertIn("removal_valid 1", lines[by_check[0]])
+        self.assertNotIn("confirm_present", lines[by_check[0]])
+        self.assertEqual(preview_at + 1, by_check[1])
+        self.assertIn("confirm_present 3", lines[by_check[1]])
+
+    def test_a_preview_the_engine_approved_and_the_owner_labelled_wrong_is_a_false_approve_that_blocks_the_cutover(self):
+        self.removal(False, "approve", (), "wrong")
+        out = self.text()
+        self.assertIn("false approves 1", self.line(out, PREVIEWS))
+        self.assertIn("FALSE APPROVE: labels 1", out)
+        self.assertIn("blocked by a false approve", self.line(out, "cutover:"))
+
+    def test_a_preview_labelled_right_is_an_agreement_whatever_the_engine_said(self):
+        self.removal(False, "decline", ["confirm_present"], "right")
+        self.removal(False, "approve", (), "right")
+        preview = self.line(self.text(), PREVIEWS)
+        self.assertIn("labelled 2 (right 2, wrong 0)", preview)
+        self.assertIn("false declines 0", preview)
+        self.assertIn("false approves 0", preview)
+
+    def test_a_removal_whose_confirm_fact_is_missing_or_not_a_boolean_is_counted_as_a_confirmed_removal(self):
+        for value in (MISSING, None, "false", 0, [], {}):
+            self.removal(value, "decline", ["confirm_present"], "wrong")
+        out = self.text()
+        self.assertIn("labelled 6 (right 0, wrong 6)", self.line(out, "remove:"))
+        self.assertIn("labelled 0", self.line(out, PREVIEWS))
+
+    def test_a_row_whose_facts_have_another_shape_is_counted_as_a_confirmed_removal(self):
+        for facts in ({}, {"facts": "text"}, {"facts": None}, {"facts": [1]}, {"confirm": False}):  # the store keeps `facts` an object
+            self.count += 1
+            ident = "%032x" % self.count
+            self.store.append("collected.jsonl", {
+                "id": ident, "ts": "2026-10-30T01:02:03Z", "rule": "safe-git-remove", "command_sha256": SHA, "command": "x",
+                "facts": facts, "verdict": "decline", "failed_checks": ["confirm_present"], "reason": "x"}, self.home)
+            self.label(ident, "wrong")
+        out = self.text()
+        self.assertIn("labelled 5", self.line(out, "remove:"))
+        self.assertIn("labelled 0", self.line(out, PREVIEWS))
+
+    def test_a_skipped_or_unlabelled_preview_is_counted_as_skipped_or_unlabelled_and_not_as_labelled(self):
+        self.removal(False, "decline", ["confirm_present"], "skip")
+        self.removal(False, "decline", ["confirm_present"])
+        out = self.text()
+        self.assertIn("labelled 0", self.line(out, PREVIEWS))
+        self.assertIn("unlabelled 1, skipped 1", self.line(out, "waiting:"))
+
+    def test_a_later_label_moves_nothing_between_the_groups_and_replaces_the_earlier_one(self):
+        ident = self.removal(False, "decline", ["confirm_present"], "wrong")
+        self.label(ident, "right")
+        preview = self.line(self.text(), PREVIEWS)
+        self.assertIn("labelled 1 (right 1, wrong 0)", preview)
+
+    def test_a_preview_collected_twice_is_counted_once(self):
+        ident = self.removal(False, "decline", ["confirm_present"], "wrong")
+        self.store.append("collected.jsonl", {
+            "id": ident, "ts": "2026-10-30T01:02:04Z", "rule": "safe-git-remove", "command_sha256": SHA, "command": "x",
+            "facts": {"facts": {"confirm": False}}, "verdict": "decline", "failed_checks": ["confirm_present"], "reason": "x"},
+            self.home)
+        self.assertIn("labelled 1 (right 0, wrong 1)", self.line(self.text(), PREVIEWS))
+
+    def test_a_commit_is_never_counted_as_a_preview_whatever_its_facts_hold(self):
+        self.command("safe-git-commit", "decline", ["head_matches"], "wrong", facts={"confirm": False})
+        out = self.text()
+        self.assertIn("labelled 1", self.line(out, "commit:"))
+        self.assertIn("labelled 0", self.line(out, PREVIEWS))
+
+    def test_the_preview_line_is_printed_with_no_label_at_all_and_prints_no_fact_command_reason_or_note(self):
+        self.assertIn("labelled 0 (right 0, wrong 0)", self.line(self.text(), PREVIEWS))
+        self.removal(False, "decline", ["confirm_present"], "wrong", note=MARK)
+        out = self.text()
+        self.assertNotIn(MARK, out)
+        self.assertNotIn("wb run", out)
+        self.assertNotIn("requested_paths", out)
+
+    def test_a_preview_does_not_count_toward_the_removal_minimum_of_ten(self):
+        self.labelled("safe-git-commit", 10)
+        for _ in range(9):
+            self.removal(True, "approve", (), "right")
+        for _ in range(5):
+            self.removal(False, "decline", ["confirm_present"], "wrong")
+        self.full_test_set()
+        cutover = self.line(self.text(), "cutover:")
+        self.assertIn("not enough labels for remove", cutover)
+
+    def test_ten_confirmed_removals_ten_commits_and_a_clean_test_set_meet_the_bound_whatever_the_previews_hold(self):
+        self.labelled("safe-git-commit", 10)
+        for _ in range(10):
+            self.removal(True, "approve", (), "right")
+        for _ in range(5):
+            self.removal(False, "decline", ["confirm_present"], "wrong")
+        self.full_test_set()
+        self.assertIn("the bound is met", self.line(self.text(), "cutover:"))
+
+
 class NotReviewed(Base):
     def test_every_prompted_command_the_engine_did_not_review_is_counted_by_reason(self):
         for outcome, times in (("no_rule", 3), ("unreviewable", 2), ("refused", 1), ("failed", 2), ("timeout", 1),
@@ -562,6 +720,21 @@ class Source(Base):
             self.assertNotIn(word, text, word)
         self.assertNotIn("command\"]", text, "the report must not read the command text of a collected row")
         self.assertNotIn("facts\"]", text.replace("\"facts\"] =", ""), "the report must not read the facts of a collected row")
+
+    def test_the_only_fact_of_a_collected_row_it_reads_is_confirm_and_only_in_one_function(self):
+        """Plan `2026-11-05-shadow-report-counts-previews-apart`: the report reads one boolean of the facts, in `is_preview`, and
+        no other part of a collected row's facts, command or reason."""
+        with open(REPORT, "rb") as handle:
+            tree = ast.parse(handle.read())
+        where = {}
+        for function in [node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)]:
+            for node in ast.walk(function):
+                if isinstance(node, ast.Constant) and node.value in ("facts", "confirm", "command", "reason", "diff"):
+                    where.setdefault(node.value, set()).add(function.name)
+        self.assertEqual({"is_preview"}, where.get("confirm"))
+        self.assertEqual({"is_preview"}, where.get("facts"))
+        for name in ("command", "reason", "diff"):
+            self.assertNotIn(name, where, name)
 
 
 if __name__ == "__main__":

@@ -15,6 +15,12 @@ reason or a note, and nothing that is not printable ASCII. It writes nothing and
 
 The bound is the owner's, decided on 2026-10-29: at most 10% of the labelled real commands are false declines, with at least 10
 labelled commits and 10 labelled removals, and no false approve on the labels or the test set. The 10% is provisional.
+
+A removal whose collected facts say ``confirm`` is false is a preview and deletes nothing. By the accepted decision
+``2026-11-05-unconfirmed-removals-are-outside-the-action-review-measure`` it is reported on a line of its own,
+"unconfirmed removals (previews)", and is not counted in the removal rate, the minimum of 10 labelled removals or the false-decline
+count. A preview that the engine approved and the owner labelled wrong is a false approve like any other and blocks the cutover.
+This is the one fact of a collected row that the report reads; it prints none of the facts.
 """
 
 import os
@@ -59,18 +65,36 @@ def load(home):
     return files
 
 
+def new_entry():
+    return {"labelled": 0, "agreements": 0, "false_declines": 0, "false_approves": 0, "by_check": {}}
+
+
+def is_preview(row):
+    """True for a collected removal whose describe facts say ``confirm`` is false: a preview, which deletes nothing. It reads that
+    one boolean and nothing else of the facts. A fact that is missing, is not a boolean or sits elsewhere makes it False, so the
+    command is counted with the confirmed removals (decision ``2026-11-05-unconfirmed-removals-are-outside-the-action-review-
+    measure``)."""
+    facts = row.get("facts")
+    inner = facts.get("facts") if isinstance(facts, dict) else None
+    return isinstance(inner, dict) and inner.get("confirm") is False
+
+
 def tally(collected, labels):
-    """Per action: labelled, agreements, false declines, false approves, false declines by check; and the commands still
-    waiting. A later label of a command replaces an earlier one."""
+    """Per action: labelled, agreements, false declines, false approves, false declines by check; the same for the removals that
+    are previews, apart; and the commands still waiting. A later label of a command replaces an earlier one."""
     by_id = {}
     for row in collected:
         by_id.setdefault(row["id"], row)
     latest = {row["id"]: row["label"] for row in labels}
     actions = {}
+    previews = new_entry()
     unlabelled = skipped = 0
     for ident, row in by_id.items():
-        entry = actions.setdefault(action_of(row["rule"]), {"labelled": 0, "agreements": 0, "false_declines": 0,
-                                                            "false_approves": 0, "by_check": {}})
+        action = action_of(row["rule"])
+        if action == "remove" and is_preview(row):
+            entry = previews
+        else:
+            entry = actions.setdefault(action, new_entry())
         label = latest.get(ident)
         if label is None:
             unlabelled += 1
@@ -87,7 +111,7 @@ def tally(collected, labels):
             else:
                 entry["false_approves"] += 1
     unknown = sum(1 for ident in latest if ident not in by_id)
-    return actions, unlabelled, skipped, unknown
+    return actions, previews, unlabelled, skipped, unknown
 
 
 def test_set(rows):
@@ -135,13 +159,21 @@ def action_line(action, entry):
         percent(entry["false_declines"], labelled), BOUND_PERCENT, "within the bound" if within else "over the bound")
 
 
+def preview_line(entry):
+    """The removals that were previews (``--confirm`` absent). They are outside the rate, the minimum and the false-decline count of
+    the cutover test; a preview approved wrongly is a false approve and is counted there."""
+    return "unconfirmed removals (previews): labelled %d (right %d, wrong %d); false declines %d; false approves %d" % (
+        entry["labelled"], entry["agreements"], entry["labelled"] - entry["agreements"], entry["false_declines"],
+        entry["false_approves"])
+
+
 def report(files):
     verdicts, collected, labels, tests = (files[name][0] for name in ("verdicts", "collected", "labels", "testset"))
-    actions, unlabelled, skipped, unknown = tally(collected, labels)
+    actions, previews, unlabelled, skipped, unknown = tally(collected, labels)
     for name in REQUIRED_ACTIONS:
-        actions.setdefault(name, {"labelled": 0, "agreements": 0, "false_declines": 0, "false_approves": 0, "by_check": {}})
+        actions.setdefault(name, new_entry())
     ran = test_set(tests)
-    label_approves = sum(entry["false_approves"] for entry in actions.values())
+    label_approves = previews["false_approves"] + sum(entry["false_approves"] for entry in actions.values())
     test_approves = ran[1] if ran else 0
     lines = []
     if label_approves or test_approves:
@@ -158,6 +190,9 @@ def report(files):
         lines += [action_line(action, actions[action])]
         if actions[action]["by_check"]:
             lines += ["  false declines by check: " + ranked(actions[action]["by_check"])]
+    lines += [preview_line(previews)]
+    if previews["by_check"]:
+        lines += ["  false declines by check: " + ranked(previews["by_check"])]
     lines += ["", "waiting: unlabelled %d, skipped %d, labels of unknown commands %d" % (unlabelled, skipped, unknown)]
     if ran:
         lines += ["test set: cases %d of %d, false approves %d (in any run; %d in the latest), false declines %d"

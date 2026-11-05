@@ -703,7 +703,12 @@ the owner would not have. A **false decline** is a decline the owner marks `wron
 marks `wrong`, and is the worse error. The report prints counts and check names only, never a command or a fact. It prints, per
 action (commit, remove), the labelled count, the false declines and false approves, the false-decline rate against the bound,
 the false declines grouped by failed check, the count of commands not reviewed by `no_review_reason`, and the unlabelled and
-skipped counts; any false approve on the labels or the test set is printed first and blocks the cutover line.
+skipped counts; any false approve on the labels or the test set is printed first and blocks the cutover line. A labelled `remove`
+whose collected `confirm` fact is false (a preview) is not in the `remove` line: it is on the line "unconfirmed removals (previews)",
+with its labelled, right, wrong, false-decline and false-approve counts and its own false declines by check, and its false approves
+still count toward the alarm and the cutover line (the accepted decision `2026-11-05-unconfirmed-removals-are-outside-the-action-review-measure`).
+The report reads that one boolean of a collected row's facts and no other; a fact that is missing or not a boolean leaves the
+removal in the `remove` line.
 
 *As built (Increment E, `tools/label.py`).* `python3 -B label.py [--skipped]`, copied with `shadow_store.py` to a directory outside
 the project, runs only when standard input and output are both terminals (otherwise it prints one line to standard error and exits
@@ -852,8 +857,9 @@ preview, which deletes nothing) is reported on its own line, "unconfirmed remova
 the engine judged them, and is not counted in the false-decline rate, in the minimum of 10 labelled removals or in the false-decline
 count. It stays visible: a preview the engine approves is a false approve and blocks cutover like any other. The labels already
 made do not change, and the report classifies a command by its `confirm` fact. The bound and the other minimums are unchanged.
-What the hook does with a preview at cutover is decided in the plan for the hook, not here. Not built: the report still counts
-previews in the removal rate until the report is changed.
+What the hook does with a preview at cutover is decided in the plan for the hook, not here. Built in plan
+`2026-11-05-shadow-report-counts-previews-apart`, increment A: the report classifies a removal as a preview by the `confirm` fact
+of its collected row, and a fact that is missing or not a boolean leaves the removal counted with the confirmed ones.
 
 ### What moves, and what does not
 

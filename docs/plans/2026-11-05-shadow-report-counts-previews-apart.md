@@ -134,7 +134,23 @@ copy step and the owner's own run in B show.
 
 ## Review record
 
-Empty until a review is asked for.
+**Increment A.** Reviewer: the `reviewer` agent (read-only), one round of the cap of 3, no blocking finding. It was given the plan, the
+decision, the diff, the verification as run and the spec sections, and not my conclusions.
+
+- **Applied:** none needed. It found no way to leave a false approve out of the alarm or the cutover line (`label_approves` takes the
+  previews' false approves first), no way to move a command out of the measure with a malformed `confirm` fact (only a dict `facts` with a
+  dict `facts` and `confirm is False` makes a preview), nothing printed but counts and check names, and no mismatch between the plan,
+  the decision and the code.
+- **Rejected, with the reason:** *Finding 1, the guard test on the allowed reads is too weak* (it looks at string constants in function
+  bodies only, so `inner.get("requested_paths")` or `dict(row)` would pass). Not blocking, and the plan asks for a printing check, which
+  `test_the_preview_line_is_printed_with_no_label_at_all_and_prints_no_fact_command_reason_or_note` makes with a marker string. A stricter
+  guard (no string key outside `is_preview`) would fail on the report's own `row["id"]` and `row["label"]`, and the reviewer itself
+  calls the present test acceptable. Left as it is.
+- **Noted:** *Finding 2*, `by_id.setdefault` keeps the first collected row of an id, so a later duplicate cannot flip a command's
+  group. Existing behaviour, tested by `test_a_preview_collected_twice_is_counted_once`.
+- **Not checked by the reviewer:** that the owner's steps and copy were done; `test_tools_label.py` and `label.py` (I ran the label tests
+  myself; `label.py` is unchanged); the decision file itself.
+- **Left for the owner:** the copy, the release and the decision to go on to B.
 
 ## Deferred work
 
@@ -144,4 +160,28 @@ Empty until a review is asked for.
 
 ## Result
 
-Empty until work starts.
+**Increment A, built in a scratch clone (2026-11-05); not yet copied into the project, released or committed.** Base commit of the clone:
+`445529f`. Changed in the clone: `packages/workbench/action-review/tools/report.py` (+ `is_preview`, `new_entry`, `preview_line`; `tally`
+returns the previews apart; `report` prints the preview line and keeps `label_approves` over every group; docstring) and
+`packages/workbench/action-review/tests/test_tools_report.py` (a `Previews` class of 14 tests, a `removal` helper, and one more
+`Source` test). The spec's report paragraph and the "Clarified 2026-11-05" paragraph in `docs/specs/action-review.md` were edited in the
+project (docs only); "Not built" was replaced by what is built.
+
+**Verification as run.** Tests first: the 16 new or changed tests failed on the unchanged report (the first showed the live output,
+`remove: labelled 11 (right 7, wrong 4)`, where 7 was expected); one fixture was wrong (the store requires `facts` to be an object) and
+was corrected before the code change. After the change `tests/test_tools_report.py` and `tests/test_tools_label.py`: 102 tests OK. The
+copied script on a synthetic store (9 right commits, 7 right confirmed removals, 4 wrong previews declined by `confirm_present`) printed
+`remove: labelled 7 (right 7, wrong 0) ... not enough labels (10 needed)`, `unconfirmed removals (previews): labelled 4 (right 0, wrong 4);
+false declines 4; false approves 0`, `false declines by check: confirm_present 4`, and a cutover line naming the commit and removal
+minimums only (and the test set, which the synthetic store lacks). The existing test that the report reads no `facts["..."]` of a row
+still passes because the new read is `.get("facts")` in one function; a new test pins that the constants `facts` and `confirm` occur in
+`is_preview` only and that `command`, `reason` and `diff` occur nowhere. Not run: the whole suite and `tests/test_boundary.py`, because
+the change is in one tool that nothing imports and touches no installer file.
+
+**Hashes of the two files at the end of the clone's work** (SHA-256): `report.py`
+`feceff72bdd1bf26185b9c96f42929f0402ceb5166e87dd4c99238becc14f815`, `test_tools_report.py`
+`0d448b5e62cbd10479825bbbdf1fa2e0e568b5a9631abe6a703eb5bcb5c506ee`.
+
+**Review:** one round, no blocking finding (see the review record).
+
+**Not done:** the owner's copy and release (below), the commit, and Increment B.
