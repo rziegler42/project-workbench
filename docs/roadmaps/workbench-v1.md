@@ -986,6 +986,19 @@ and the sentences of `mempalace.md` that describe them. Not part of it: the argu
 automatically, a retry rule for the agent, the messages of `init` and `mine`, and any change to the palace.
 **Promotion trigger:** the owner chooses to begin (met on 2026-11-05).
 
+### mempalace-search-despite-files — The search before drafting is made even when the files seem to answer
+
+**Outcome:** the policy and the `recall-memory` skill ask for the one search before a drafting task even when the agent has found the answer in
+the project's files, because the palace may hold experience the files lack, and keep the rule not to search at session start for its own sake or to
+look up what a file states. In live sessions on 2026-11-05 an agent declined to search "because the files answer what the current setup is",
+twice; the palace held a note on which model worked for the entity step, which the files did not mention and which changed the answer once the
+agent was told to search.
+**Dependencies:** `memory-recall-use` and `mempalace-search-form`, whose block and skill this edits.
+**Boundary:** the two bullets of the `mempalace` policy block and the two paragraphs of the `recall-memory` skill that say not to search for what the
+files answer, their tests, and the sentences of `mempalace.md` and `knowledge-tools.md` that repeat the clause. Not part of it: the helper, the
+arguments of `search`, the allowance clause of the five drafting skills, a retry rule for the agent, and what is filed in the palace.
+**Promotion trigger:** the owner chooses to begin (met on 2026-11-05).
+
 ### module-hook-rendering — Hooks that a module declares, rendered by the installer
 
 **Outcome:** a module that ships a hook for a harness declares it (the event, the matcher, the timeout and the shipped file), and
