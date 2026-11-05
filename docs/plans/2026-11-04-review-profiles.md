@@ -384,17 +384,28 @@ answers the security review of increment J (2026-11-05): no Critical, High or Me
 ### Increment K — Walk-through and the specs as built
 
 **Outcome:** a walk-through in a scratch store with a scratch `HOME` shows the install default, a review that climbs its ladder, the
-refusals, `status`, and a delegated approval limited by `delegate-profiles`; the specs say what is built.
+refusals, `status`, and a delegated approval limited by `delegate-profiles`; the specs say what is built; the sentence of
+`module-contract.md` on the reserved option names says that their prefixes are refused too; and the accepted record of the delegated
+check carries a dated note about the one place the build differs from its wording.
 **Dependencies:** A to J.
 **Affected areas:** the Result of this plan, `docs/specs/review-profiles.md` (to `Accepted` by the owner), the sections the earlier
-increments marked not built, `docs/development.md`.
+increments marked not built, `docs/development.md`, and, added on 2026-11-05 after the builds of D-A to J-A: `docs/specs/module-contract.md`
+(the one sentence on the names that `commands[].review_options` refuses) and a dated note after the unchanged body of
+`docs/decisions/2026-11-04-delegated-approval-checks-the-profile-of-the-last-round.md`, written only with the owner's approval of its
+text. The roadmap candidate `review-profiles` is not edited: a roadmap does not record completion, and this plan's Result does.
 **Steps:**
 1. Write the walk-through script. It sets a scratch `HOME` for every command and uses a fake bridge, so no model is called, nothing is
    spent and the owner's store is not touched.
-2. Run it; the owner runs any step that needs a terminal.
+2. Run it; the owner runs any step that needs a terminal (an install is owner-run).
 3. Record the evidence with its limits and provenance, and update the specs to what is built.
-**Verification:** the document check and the plan check. A wider run is named only with the specific risk: increment B changed the kit
-that every module imports, so the owner decides whether the module test roots that use the kit are run.
+4. Correct the sentence of `module-contract.md`.
+5. Draft the dated note for the decision record and show its text to the owner. It says one thing: the installer, which may not name a
+   module or a kind of review, takes the ladder keys from the profile file, so its reading of the file checks the profiles and the names a
+   ladder uses and does not refuse an unknown ladder key or an `action-review` ladder of more than one rung; each engine still does
+   (increments I and J). Write it only after the owner approves the text.
+**Verification:** the document check and the plan check, and `tests/test_boundary.py` and `tests/test_kit_profiles.py` for the
+neutral names. A wider run is named only with the specific risk: increment B changed the kit that every module imports, so the owner
+decides whether the module test roots that use the kit are run.
 **Evidence:** the one local commit, with the trailer `Plan: 2026-11-04-review-profiles#K`.
 
 ## Verification for the plan as a whole
