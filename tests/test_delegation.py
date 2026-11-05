@@ -16,6 +16,7 @@ import unittest.mock
 
 from tests import support, support_project
 from tests.support_project import HELPER_PATH, tool
+from workbench.wbkit import profiles
 from workbench import approvalcmd, cli, delegation, gate_hook, levellog, planapprovals, rules, settings, settingscmd, verify
 
 PLAN = "docs/plans/a.md"
@@ -791,6 +792,70 @@ class ProfileGate(Delegated):
                 with self.assertRaises(approvalcmd.ApprovalError) as caught:
                     delegation._profile_gate(self.guarded, self.real, review, process)
                 self.assertIn("approve-plan is not set to delegate", str(caught.exception))
+
+    def asked(self, **changes):
+        request = {"bridge": "bridge-one", "model": "model-one", "effort": "low", "options": {"server": "lab"}, "profile": "quick"}
+        request.update(changes)
+        return approvalcmd.Convergence(True, "0" * 64, 2, 3, "bridge-one", None, REVIEW, False, approvalcmd.Requested(
+            request["bridge"], request["model"], request["effort"], request["options"], request["profile"]))
+
+    def test_the_gate_reads_the_settings_once_so_that_one_state_decides_both_questions(self):
+        self.ready_to_match()
+        process = approvalcmd.resolve(self.guarded, self.real)
+        with unittest.mock.patch.object(settings, "load", wraps=settings.load) as load:
+            delegation._profile_gate(self.guarded, self.real, self.asked(), process)
+        self.assertEqual(1, load.call_count)
+
+    def test_a_later_read_that_would_differ_cannot_change_what_the_first_decided(self):
+        """The reading the gate takes lists a profile that the request does not match; a second reading, if there were one, is a
+        damaged file, which reads as no entry and so as `any`. The decision must be the refusal of the first."""
+        self.ready_to_match()
+        process = approvalcmd.resolve(self.guarded, self.real)
+        first = settings.load(self.guarded)
+        self.guarded.write("settings", b"{")
+        damaged = settings.load(self.guarded)
+        self.guarded.write("settings", json.dumps(
+            {"checkpoints": {"approve-plan": "delegate"}, "delegate_profiles": ["quick"], "floor": [], "version": 4}).encode())
+        readings = iter([first, damaged, damaged, damaged])
+        with unittest.mock.patch.object(settings, "load", lambda store: next(readings)):
+            with self.assertRaises(approvalcmd.ApprovalError) as caught:
+                delegation._profile_gate(self.guarded, self.real, self.asked(effort="high"), process)
+        self.assertIn("no listed profile asks", str(caught.exception))
+
+    def test_a_reading_that_does_not_delegate_refuses_before_the_profile_is_looked_at(self):
+        self.ready_to_match()
+        process = approvalcmd.resolve(self.guarded, self.real)
+        for later in (b"{", b"", b'{"version": 4, "version": 4}', b'{"version": 5, "delegate_profiles": "any"}',
+                      b'{"version": true}', b"[]", json.dumps({"version": 4, "floor": [], "delegate_profiles": ["quick"]}).encode()):
+            with self.subTest(later=later):
+                self.guarded.write("settings", later)
+                with unittest.mock.patch.object(settings, "read_profiles", side_effect=AssertionError("looked at the profiles")):
+                    with self.assertRaises(approvalcmd.ApprovalError) as caught:
+                        delegation._profile_gate(self.guarded, self.real, self.asked(), process)
+                self.assertIn("approve-plan is not set to delegate", str(caught.exception))
+
+    def test_a_file_that_still_delegates_but_lost_the_entry_or_holds_any_is_the_owners_current_setting(self):
+        """With one reading the gate uses the file as it then stands: an owner who removed the limit has chosen none, and the same file
+        would have been accepted at the first check. Only a state that does not delegate is refused (the test above)."""
+        self.ready_to_match()
+        process = approvalcmd.resolve(self.guarded, self.real)
+        for entry in ({}, {"delegate_profiles": "any"}):
+            with self.subTest(entry=entry):
+                self.guarded.write("settings", json.dumps(dict({"checkpoints": {"approve-plan": "delegate"}, "floor": [],
+                                                                "version": 4}, **entry)).encode())
+                with unittest.mock.patch.object(settings, "read_profiles", side_effect=AssertionError("looked at the profiles")):
+                    self.assertIsNone(delegation._profile_gate(self.guarded, self.real, self.asked(effort="high"), process))
+
+    def test_two_installed_modules_that_could_be_the_bridge_make_the_profile_unusable(self):
+        self.ready_to_match()
+        _, ident, modules = approvalcmd.installed_modules(self.real)
+        bridge = next(item for item in modules if "model-bridge" in item.module.provides)
+        profile = profiles.Profile("bridge-one", "model-one", "low", {"server": "lab"})
+        self.assertIsNone(delegation._unusable(self.guarded, ident, modules, profile))
+        twin = bridge._replace(package="other-package")
+        problem = delegation._unusable(self.guarded, ident, modules + [twin], profile)
+        self.assertIn("more than one", problem)
+        self.assertIn("bridge-one", problem)
 
     def test_the_check_is_made_after_the_review_converged_and_before_anything_is_recorded(self):
         self.ready_to_match()

@@ -70,14 +70,13 @@ def _unusable(guarded, ident, modules, profile):
     pinned module that provides ``model-bridge`` and has a command of its name; each option must be one the command declares for a
     review, with a value that fits the declared grammar; and no option may exclude the effort or another option that is present
     (``docs/specs/review-profiles.md``, "Where each check runs"). The review engine checks none of this at run time."""
-    for item in modules:
-        if "model-bridge" not in item.module.provides:
-            continue
-        command = next((c for c in item.module.commands if c.name == profile.bridge), None)
-        if command is not None:
-            break
-    else:
+    matches = [(item, command) for item in modules if "model-bridge" in item.module.provides
+               for command in item.module.commands if command.name == profile.bridge]
+    if not matches:
         return "its bridge %s is not an installed module that provides model-bridge" % _quoted(profile.bridge)
+    if len(matches) > 1:
+        return "more than one installed module provides model-bridge with a command named %s" % _quoted(profile.bridge)
+    item, command = matches[0]
     declared = commands.Declared(item.package, item.module.name, command, item.declaration, tuple(item.module.provides))
     try:
         commands.check_pin(guarded, ident, declared)
@@ -103,14 +102,16 @@ def _profile_gate(guarded, start, review, process):
     on the normal form of the record (bridge, model, effort and options; an absent model or effort equals a null one, absent options
     equal the empty map, the options compare as unordered maps; the name is not compared). An invalid entry, a profile file that
     cannot be used, an unknown request and no match each refuse. It is made once, here
-    (``2026-11-04-delegated-approval-checks-the-profile-of-the-last-round``). The settings are read again here, so the gate first asks
-    again whether the checkpoint still reads ``delegate`` for the process module `process`: a file that was damaged or changed since the
-    first read reads as not delegating and refuses, and is never taken for an entry that is absent."""
-    if not planapprovals.delegating(guarded, process):
+    (``2026-11-04-delegated-approval-checks-the-profile-of-the-last-round``). The settings are read once, here, and that one reading
+    decides both questions: whether the checkpoint still reads ``delegate`` for the process module `process` (a file that was damaged,
+    replaced or changed since the first read reads as not delegating and refuses) and what ``delegate_profiles`` holds. A damaged
+    file has no checkpoint, so its absent entry is never taken for ``any``."""
+    loaded = settings.load(guarded)
+    if settings.effective(loaded, process.checkpoints, ()).checkpoints.get(settings.APPROVE_PLAN) != settings.DELEGATE:
         raise approvalcmd.ApprovalError(
             "the checkpoint approve-plan is not set to delegate in the owner's personal settings (it changed during the checks), so the "
             "owner approves a plan with `wb approve-plan <plan>`; nothing was recorded")
-    reading = settings.load(guarded).delegate_profiles
+    reading = loaded.delegate_profiles
     if reading is None or reading == settings.ANY:
         return
     if reading == settings.INVALID:

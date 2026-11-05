@@ -471,6 +471,16 @@ the second came back with no meaningful finding.
   recorded and not what ran, and the sealed state can be forged by the agent, the trust level `converged` already has.
 - **Increment I-A (added 2026-11-05, after the plan was approved and after increment I).** Drafted from the review's findings; the owner
   chose a nested increment and approved the changed plan through the `ask` flow (region `38206554...6249`).
+- **Review of increment I-A (2026-11-05, a `reviewer` agent, one exchange).** No blocking finding. By reading it confirmed that the gate
+  has exactly one `settings.load` and that no other call in it loads the settings; that `settings.effective(loaded, process.checkpoints,
+  ())` is the expression `planapprovals.delegating` used; that every damaged, duplicate-key, unsupported-version, non-file, emptied or
+  changed state refuses before the entry is looked at; that `_unusable` refuses on none or on more than one match and cannot accept two;
+  and that the loader still keeps its note for a misspelt key, an unknown key at version 4 and `profile` in a file older than 3.
+  **Applied:** the spec wording ("read once by this check", with the command's earlier check of the setting named as a separate read);
+  a test that pins the accepted case (below). **Judged right, as asked:** a file that still delegates but lost the entry, or holds `any`,
+  is the owner's current setting and is accepted as `any`; refusing it would need a comparison with the first reading, which brings the
+  second-read problem back. **Rejected:** none. **Limits of its evidence:** it ran nothing and did not confirm the duplicate-module cases
+  of the manifest.
 
 ## Deferred work
 
@@ -824,4 +834,30 @@ the second came back with no meaningful finding.
   `wb check` and `wb run code-work check` report no problems; `git diff --check` is clean. No package changed, so there is no release.
 - **Not done:** the commit and the push. `wb doctor` does not run `_unusable`, as the plan did not ask for it. The walk-through of a real
   delegated approval with a list is increment K.
+- **Left for the owner:** the verdict and the word to commit.
+
+### Increment I-A
+
+- **Done:** `_profile_gate` reads the settings once (`settings.load`) and decides from that one reading both whether the checkpoint still
+  reads `delegate` for the process module (`settings.effective(...)`, the expression `planapprovals.delegating` used) and what
+  `delegate_profiles` holds; a state that does not delegate (a damaged, emptied, duplicate-key, unsupported-version or non-file settings
+  file, or a checkpoint that was changed) refuses before the entry or the profile file is looked at, and an absent entry is `any` only
+  for a file that delegates. `_unusable` refuses unless exactly one installed module provides `model-bridge` with a command of the
+  bridge's name. The loader no longer adds "unknown entry ... ignored" for `delegate_profiles`, so an entry in a file older than
+  version 4 prints one problem. `trust-and-approval.md` says so.
+- **Deviations from the plan's wording, recorded here because the plan text cannot change without a new approval:** (1) step 2 and step 3
+  say the gate takes the loaded settings as an argument and that a file which "loses the entry or holds `any`" after the first read
+  refuses. The gate loads the settings itself, once, and such a file is the owner's current setting and is accepted as `any` (the
+  reviewer judged this right; a test pins it); what the gate refuses is a state that does not delegate. The command's earlier check of
+  the setting (`_setting`) remains a separate read that runs before any helper. (2) Step 3 says an absent entry is `any` "only when the
+  reading had no problem". The code does not test the problems: every state the loader cannot read gives no checkpoint and refuses
+  first, and a delegating file with an unrelated problem (an unknown entry, a bad cap) delegated before and still does.
+- **Tests first:** five in `ProfileGate` (one reading; a later reading that would differ cannot change the decision; each state that does
+  not delegate refuses before the profile is looked at; two modules that could be the bridge; a file that delegates but lost the entry or
+  holds `any` is accepted), one assertion in `test_settings.py` and one changed test in `test_settingscmd.py`. They ran red before the
+  code (3 failures and 1 error, and 3 in the settings test).
+- **Verification, as run:** `ProfileGate`, 26 OK; a wider set of 906 tests (delegation, settingscmd, doctor, boundary, kit profiles,
+  approvalcmd, levels, levelrun, the gates, approve levels, rendering, planapprovals, permissions drift and check), OK; `test_settings`
+  (115), OK; `wb check` and `wb run code-work check` report no problems; `git diff --check` is clean. No package changed.
+- **Not done:** the commit and the push. `wb doctor` still does not run the bridge checks (finding I2; increment J).
 - **Left for the owner:** the verdict and the word to commit.

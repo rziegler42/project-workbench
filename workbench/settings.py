@@ -148,7 +148,7 @@ def load(store):
         + (("profile",) if version in PROFILE_VERSIONS else ()) \
         + ((DELEGATE_PROFILES,) if version == DELEGATE_PROFILES_VERSION else ())
     for key in sorted(document):
-        if key not in known:
+        if key not in known and key != DELEGATE_PROFILES:  # in an older file that entry has its own, stronger problem (below)
             problems.append("settings have an unknown entry %s, which is ignored"
                             % declarations._shown(key))
     checkpoints = {}

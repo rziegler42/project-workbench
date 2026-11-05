@@ -542,8 +542,9 @@ rounds and its findings are fixed.)*
   installer also requires the last round's recorded request to equal a listed profile, and fails closed otherwise. With the
   default `any` nothing changes (`review-profiles.md`, "The `convergence` report and `delegate-profiles`"). The check is made once, in
   `delegate-approve-plan`, after the review is known to have converged on the bytes of the plan and before anything is recorded, in this
-  order: the setting (an invalid one refuses), the profile file read with the kit's rules (the ladder keys are the file's own), every listed name present, every
-  listed profile usable (its bridge an installed, pinned module that provides `model-bridge`, each option declared for a review by that
+  order: the setting, read once by this check (the command's earlier check of the setting is a separate read), so that one state decides both whether the checkpoint still reads `delegate`
+  (a file damaged or replaced since the first read refuses) and what the entry holds (an invalid one refuses), the profile file read with the kit's rules (the ladder keys are the file's own), every listed name present, every
+  listed profile usable (its bridge the one installed, pinned module that provides `model-bridge` with a command of that name, each option declared for a review by that
   bridge with a value that fits its grammar, and no excluded pair set), the recorded request known, and one listed profile equal to it.
   Each refusal names its reason and leaves nothing recorded and nothing logged.
 - **The command.** `wb delegate-approve-plan <plan>` takes one argument and no option, runs from anywhere inside the

@@ -133,9 +133,11 @@ class DelegateProfilesPrinted(Settings):
             self.assertIn("delegate-profiles approve-plan: invalid\n", out, value)
             self.assertEqual(1, problem_lines(out), out)
 
-    def test_the_entry_in_an_older_file_is_printed_as_invalid(self):
+    def test_the_entry_in_an_older_file_is_printed_as_invalid_with_one_problem(self):
         self.owner({"version": 3, "floor": [], "delegate_profiles": ["quick"]})
-        self.assertIn("delegate-profiles approve-plan: invalid\n", self.settings()[1])
+        out = self.settings()[1]
+        self.assertIn("delegate-profiles approve-plan: invalid\n", out)
+        self.assertEqual(1, problem_lines(out), out)
 
     def test_a_name_that_was_chosen_by_the_file_cannot_add_a_line(self):
         self.owner({"version": 4, "floor": [], "delegate_profiles": ["a\nsettings: planted"]})

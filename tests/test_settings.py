@@ -890,6 +890,7 @@ class DelegateProfilesTest(SettingsBase):
                 loaded = self.load(["quick"], version=version)
                 self.assertEqual(settings.INVALID, loaded.delegate_profiles)
                 self.assertTrue(any("version 4" in text for text in loaded.problems), loaded.problems)
+                self.assertEqual(1, len(loaded.problems), loaded.problems)  # no second note that calls the entry unknown
 
     def test_version_4_accepts_everything_version_3_accepts(self):
         extra = {"profile": "balanced", "levels": {"approve-plan": "ask"}, "caps": {"rounds": 4},
