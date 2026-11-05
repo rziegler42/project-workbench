@@ -1,6 +1,6 @@
 # Make the shadow report count removal previews apart
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-05
 Candidate: workbench-v1#action-review-engine
 Specs: action-review
