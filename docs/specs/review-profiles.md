@@ -192,15 +192,16 @@ listed profile that names no model, which follows the vendor's own default and c
 
 ### The `convergence` report and `delegate-profiles`
 
-*(Decided; built by increments G, H and I.)*
+*(Decided; the installer's reader is built by increment G, the engine's report by H and the setting by I.)*
 
 - `converged` keeps its meaning (`review-engine.md`, "Convergence").
 - The report's `format` becomes 2 and it gains `last_requested`: the bridge, the model asked for, the effort, the options (a map of
   strings) and the profile name of the last stored round; a value the round did not record, and everything for a round stored before the
   profiles are built, is `null`. The installer reads formats 1 and 2, and a report of format 1 reads as an unknown request. The cap on
-  the size of the report (`MAX_CONVERGENCE_REPORT`, 4,096 bytes in `workbench/approvalcmd.py`) is raised to **8,192** by increment G. A
+  the size of the report (`MAX_CONVERGENCE_REPORT` in `workbench/approvalcmd.py`) was 4,096 bytes and is **8,192** since increment G. A
   worst-case `last_requested` is 8 options of at most about 170 characters each (a name of 32, a value of 128, and the quoting), about
-  1.4 KB, with the other fields about 0.3 KB more; increment G measures today's report and may refine the figure. The existing `model` is the model the bridge
+  1.4 KB, with the other fields about 0.3 KB more; increment G measured it: today's report is 267 bytes, the worst case of format 2 is 2,172 bytes, and with every character of the option values escaped in
+  the JSON (a quote or a backslash doubles) it can pass 4,096, so the raised cap stays. The existing `model` is the model the bridge
   reported; `last_requested.model` is the model asked for.
 - The owner's settings file gains the entry `delegate_profiles` in a new version, 4 (the reader accepts versions 1 to 3 today and refuses
   an entry it does not know). Version 4 accepts everything version 3 accepts, and `delegate_profiles` only at version 4, as `levels`

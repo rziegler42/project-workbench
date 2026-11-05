@@ -125,6 +125,8 @@ list. It answers the question the installer's delegated approval asks and record
   meaningful finding of an earlier round does not make a later round clean, and the last round must itself be clean.
 - `document_sha256` is the hash of the file as that round read it, the value the round stored. The installer compares it
   with its own hash of the file; the engine knows nothing of plan sections.
+- *(The installer reads this report in format 1 and, since increment G of plan `2026-11-04-review-profiles`, in format 2, which adds
+  `last_requested`; the report is read within 8,192 bytes. The engine still prints format 1 until increment H.)*
 - A closed review is answered as a closed one (`closed: true`), not refused.
 
 ### The findings schema

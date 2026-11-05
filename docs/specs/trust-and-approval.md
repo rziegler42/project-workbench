@@ -572,10 +572,15 @@ rounds and its findings are fixed.)*
     `{"format": 1, "delegable": true | false, "reason": "<at most 200 printable characters>", "document_sha256":
     "<64 lowercase hex>"}`. The installer refuses unless the hash equals the one it took of the plan, so the answer is
     bound to the bytes that were reviewed, as `convergence` is.
-  - `convergence` (the provider's argument, at most 4,096 bytes): `{"format": 1, "kind": "plan", "converged": true |
+  - `convergence` (the provider's argument, at most 8,192 bytes): `{"format": 1 or 2, "kind": "plan", "converged": true |
     false, "document_sha256": "<64 lowercase hex>", "rounds_used": <1 to 5>, "bound": <1 to 5>, "bridge": "<name of at
     most 64 characters>", "model": "<at most 200 printable characters>" | null, "review": "plan-<16 lowercase hex>",
-    "closed": true | false}`. The provider reads its own sealed state and refuses with a `refused:` line when the
+    "closed": true | false}`, and in format 2 one more field, `last_requested`: null, or
+    `{"bridge": <command name>, "model": <text> | null, "effort": "low" | "medium" | "high" | null, "options": <object of at most 8
+    names and values> | null, "profile": <profile name> | null}`, the request of the last round (what was asked of the bridge, never what
+    ran), held to the rules of the owner's profile file (`review-profiles.md`). The installer reads both formats and refuses any other, a
+    missing or extra field in either, and a `last_requested` outside those rules; format 1 reads as an unknown request, and nothing in
+    the installer uses the request until the owner's `delegate-profiles` is a list (increment I). The provider reads its own sealed state and refuses with a `refused:` line when the
     review is missing, unsealed, rolled back or unreadable, has no round in its current window, or is not of a plan. `converged` is true only when the last
     round has no `blocker` or `major` finding, no meaningful finding of the window has no decision, the reviewer's
     verdict and the provider's reading both say no meaningful changes, and the rounds used do not exceed the bound.

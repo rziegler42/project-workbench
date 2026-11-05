@@ -32,7 +32,7 @@ import collections
 import re
 
 from . import commands, launch, manifest
-from .wbkit import display, jsonstrict, project, safefs
+from .wbkit import display, jsonstrict, profiles, project, safefs
 
 MAX_REPORT = 4096
 TIMEOUT = 30
@@ -42,7 +42,7 @@ MAX_ACTIVE_REPORT = 8192
 MAX_ACTIVE = 32
 MAX_ACTIVE_PATH = 240
 MAX_DELEGABLE_REPORT = 1024
-MAX_CONVERGENCE_REPORT = 4096
+MAX_CONVERGENCE_REPORT = 8192
 MAX_REASON = 200
 MAX_BRIDGE = 64
 MAX_MODEL = 200
@@ -55,8 +55,12 @@ Provider = collections.namedtuple(
     "Provider", "root project_id package module declaration helper_sha256 command argument kit")
 Report = collections.namedtuple("Report", "region_hash unhashed")
 Delegability = collections.namedtuple("Delegability", "delegable reason document_sha256")
+# The request of the last round of a review, as a report of format 2 gives it (plan `2026-11-04-review-profiles`, increment G): what
+# was asked of the bridge, never what ran. `last_requested` of a `Convergence` is one of these, or None where the request is unknown
+# (a report of format 1, a round stored before profiles, or a null).
+Requested = collections.namedtuple("Requested", "bridge model effort options profile")
 Convergence = collections.namedtuple(
-    "Convergence", "converged document_sha256 rounds_used bound bridge model review closed")
+    "Convergence", "converged document_sha256 rounds_used bound bridge model review closed last_requested", defaults=(None,))
 
 _HASH = re.compile(r"[0-9a-f]{64}\Z")
 _REVIEW = re.compile(r"plan-[0-9a-f]{16}\Z")
@@ -325,12 +329,61 @@ def parse_delegable(data):
     return Delegability(_flag(report, what, "delegable"), _text(report, what, "reason", MAX_REASON, empty=True), digest)
 
 
+_CONVERGENCE_FIELDS = ("kind", "converged", "document_sha256", "rounds_used", "bound", "bridge", "model", "review", "closed")
+_REQUEST_FIELDS = ("bridge", "model", "effort", "options", "profile")
+
+
+def _requested(value, what):
+    """The ``Requested`` in the `last_requested` of a report, None for a null, or ``ApprovalError``. The rules are the ones the owner's
+    profile file is held to (``wbkit.profiles``), so a report that no profile could have produced is refused."""
+    if value is None:
+        return None
+    where = "%s's last_requested" % what
+    if not isinstance(value, dict) or set(value) != set(_REQUEST_FIELDS):
+        raise ApprovalError("%s must be null or hold exactly %s" % (where, ", ".join(_REQUEST_FIELDS)))
+    bridge = value["bridge"]
+    if not isinstance(bridge, str) or not re.fullmatch(profiles.BRIDGE_NAME, bridge):
+        raise ApprovalError("%s names a bridge that is not one command name" % where)
+    model = value["model"]
+    if model is not None and not (isinstance(model, str) and len(model) <= MAX_MODEL and re.fullmatch(profiles.TEXT, model)):
+        raise ApprovalError("%s holds a model that is not null or printable text without a space or a leading -" % where)
+    effort = value["effort"]
+    if effort is not None and not (isinstance(effort, str) and effort in profiles.EFFORTS):
+        raise ApprovalError("%s holds an effort that is not null, low, medium or high" % where)
+    profile = value["profile"]
+    if profile is not None and not (isinstance(profile, str) and re.fullmatch(profiles.PROFILE_NAME, profile)):
+        raise ApprovalError("%s holds a profile name outside the name rule" % where)
+    options = value["options"]
+    if options is not None:
+        if not isinstance(options, dict) or len(options) > profiles.MAX_OPTIONS:
+            raise ApprovalError("%s holds options that are not null or an object of at most %d entries"
+                                % (where, profiles.MAX_OPTIONS))
+        for name, text in options.items():
+            if re.fullmatch(profiles.OPTION_NAME, name) is None or profiles.reserved_or_prefix(name):
+                raise ApprovalError("%s holds an option whose name is outside the name rule, is reserved or begins a reserved name"
+                                    % where)
+            if not (isinstance(text, str) and re.fullmatch(profiles.TEXT, text)):
+                raise ApprovalError("%s holds an option whose value is not printable text without a space or a leading -" % where)
+        options = dict(options)
+    return Requested(bridge, model, effort, options, profile)
+
+
 def parse_convergence(data):
-    """The ``Convergence`` in the bytes `data` a convergence command printed, or ``ApprovalError``."""
+    """The ``Convergence`` in the bytes `data` a convergence command printed, or ``ApprovalError``. Format 1 reads as an unknown
+    request. Format 2 adds exactly one field, ``last_requested`` (null, or the five fields of ``Requested``)."""
     what = "the convergence command"
-    report = _object(data, what, MAX_CONVERGENCE_REPORT, (
-        "format", "kind", "converged", "document_sha256", "rounds_used", "bound", "bridge", "model", "review",
-        "closed"))
+    if not data.endswith(b"\n") or data.count(b"\n") != 1:
+        raise ApprovalError("%s's report is not one line ending in a newline" % what)
+    try:
+        report = jsonstrict.parse_object(data[:-1], MAX_CONVERGENCE_REPORT)
+    except ValueError as exc:
+        raise ApprovalError("%s's report is not one JSON object: %s" % (what, _shown(exc, 80)))
+    version = report.get("format")
+    if type(version) is not int or version not in (1, 2):
+        raise ApprovalError("%s's report has a format this workbench does not read" % what)
+    fields = ("format",) + _CONVERGENCE_FIELDS + (("last_requested",) if version == 2 else ())
+    if set(report) != set(fields):
+        raise ApprovalError("%s's report must hold exactly %s" % (what, ", ".join(fields)))
     if report["kind"] != "plan":
         raise ApprovalError("%s's report is not of a plan" % what)
     digest = report["document_sha256"]
@@ -340,6 +393,7 @@ def parse_convergence(data):
     if not isinstance(review, str) or not _REVIEW.match(review):
         raise ApprovalError("%s's review is not plan- and 16 lowercase hexadecimal characters" % what)
     model = None if report["model"] is None else _text(report, what, "model", MAX_MODEL)
+    last = _requested(report["last_requested"], what) if version == 2 else None
     return Convergence(_flag(report, what, "converged"), digest, _count(report, what, "rounds_used"),
                        _count(report, what, "bound"), _text(report, what, "bridge", MAX_BRIDGE), model, review,
-                       _flag(report, what, "closed"))
+                       _flag(report, what, "closed"), last)

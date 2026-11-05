@@ -244,6 +244,130 @@ class Run(Approval):
                 self.refused("", lambda: approvalcmd.region(self.guarded, found, plan))
 
 
+class ConvergenceReport(unittest.TestCase):
+    """`parse_convergence`: format 1, and format 2 with `last_requested` (plan `2026-11-04-review-profiles`, increment G)."""
+
+    BASE = {"kind": "plan", "converged": True, "document_sha256": DIGEST, "rounds_used": 2, "bound": 3, "bridge": "ask-codex",
+            "model": "m-1", "review": "plan-0123456789abcdef", "closed": False}
+    FULL = {"bridge": "ask-codex", "model": "gpt-x", "effort": "low", "options": {"alpha": "1"}, "profile": "quick"}
+
+    def one(self, report):
+        return json.dumps(report).encode() + b"\n"
+
+    def v1(self, **changes):
+        return self.one(dict(self.BASE, format=1, **changes))
+
+    def v2(self, last="absent", **changes):
+        report = dict(self.BASE, format=2, **changes)
+        if last != "absent":
+            report["last_requested"] = last
+        return self.one(report)
+
+    def parse(self, data):
+        return approvalcmd.parse_convergence(data)
+
+    def refused(self, data, contains=""):
+        with self.assertRaises(approvalcmd.ApprovalError) as caught:
+            self.parse(data)
+        self.assertIn(contains, str(caught.exception))
+        return str(caught.exception)
+
+    def test_format_1_reads_as_an_unknown_request(self):
+        got = self.parse(self.v1())
+        self.assertIsNone(got.last_requested)
+        self.assertEqual((True, DIGEST, 2, 3, "ask-codex", "m-1", "plan-0123456789abcdef", False), tuple(got)[:8])
+
+    def test_format_2_with_a_null_request_reads_as_unknown(self):
+        self.assertIsNone(self.parse(self.v2(None)).last_requested)
+
+    def test_format_2_with_every_field(self):
+        got = self.parse(self.v2(self.FULL)).last_requested
+        self.assertEqual(approvalcmd.Requested("ask-codex", "gpt-x", "low", {"alpha": "1"}, "quick"), got)
+
+    def test_a_value_the_round_did_not_record_is_null(self):
+        for field in ("model", "effort", "options", "profile"):
+            got = self.parse(self.v2(dict(self.FULL, **{field: None}))).last_requested
+            self.assertIsNone(getattr(got, field), field)
+
+    def test_the_other_fields_of_the_report_are_read_as_before_in_both_formats(self):
+        for data in (self.v1(), self.v2(self.FULL)):
+            got = self.parse(data)
+            self.assertEqual(("ask-codex", "m-1", False), (got.bridge, got.model, got.closed))
+
+    def test_format_1_may_not_carry_the_new_field_and_format_2_must(self):
+        self.refused(self.one(dict(self.BASE, format=1, last_requested=None)), "exactly")
+        self.refused(self.v2(), "exactly")
+
+    def test_other_formats_are_not_read(self):
+        for value in (0, 3, True, "1", "2", None, [2], -1):
+            self.refused(self.one(dict(self.BASE, format=value)), "format")
+        self.refused(self.one(dict(self.BASE, format=1.0)))  # a fraction is refused by the strict JSON layer first
+
+    def test_an_extra_or_missing_field_is_refused_in_both_formats(self):
+        self.refused(self.v1(extra=1), "exactly")
+        self.refused(self.v2(self.FULL, extra=1), "exactly")
+        report = dict(self.BASE, format=2, last_requested=self.FULL)
+        del report["closed"]
+        self.refused(self.one(report), "exactly")
+
+    def test_the_request_is_an_object_with_exactly_its_five_fields(self):
+        for value in ([], "ask-codex", 1, True, [self.FULL]):
+            self.refused(self.v2(value), "last_requested")
+        for field in self.FULL:
+            self.refused(self.v2({k: v for k, v in self.FULL.items() if k != field}), "last_requested")
+        self.refused(self.v2(dict(self.FULL, extra="x")), "last_requested")
+
+    def test_the_bridge_is_one_command_name(self):
+        for value in (None, "", "a b", "../x", "-x", "a/b", "x" * 65, 1, ["b"]):
+            self.refused(self.v2(dict(self.FULL, bridge=value)), "last_requested")
+
+    def test_the_model_asked_for_is_text_or_null(self):
+        for value in (1, "", "a b", "-x", "a\u0001b", "m" * 201, ["m"], True):
+            self.refused(self.v2(dict(self.FULL, model=value)), "last_requested")
+
+    def test_the_effort_is_one_of_three_levels_or_null(self):
+        for value in ("xhigh", "Low", "", 1, ["low"], True):
+            self.refused(self.v2(dict(self.FULL, effort=value)), "last_requested")
+        for value in ("low", "medium", "high"):
+            self.assertEqual(value, self.parse(self.v2(dict(self.FULL, effort=value))).last_requested.effort)
+
+    def test_the_profile_is_a_name_or_null(self):
+        for value in ("", "Quick", "a b", "../x", "x" * 33, 1, ["p"], True):
+            self.refused(self.v2(dict(self.FULL, profile=value)), "last_requested")
+
+    def test_the_options_are_at_most_eight_names_and_values_of_the_profile_rules(self):
+        eight = {"o%d" % n: "v" for n in range(8)}
+        self.assertEqual(eight, self.parse(self.v2(dict(self.FULL, options=eight))).last_requested.options)
+        self.refused(self.v2(dict(self.FULL, options=dict(eight, o8="v"))), "last_requested")
+        for options in ([], "a=b", 1, True, {"Bad": "v"}, {"a_b": "v"}, {"": "v"}, {"x" * 33: "v"}, {"a": ""},
+                        {"a": "a b"}, {"a": "-x"}, {"a": "v" * 129}, {"a": 1}, {"a": None}, {"a": ["v"]}, {"a": "caf\u00e9"}):
+            self.refused(self.v2(dict(self.FULL, options=options)), "last_requested")
+
+    def test_a_reserved_option_name_and_a_prefix_of_one_are_refused(self):
+        for name in ("model", "effort", "timeout", "schema", "root", "confine", "mod", "eff", "t", "conf"):
+            self.refused(self.v2(dict(self.FULL, options={name: "v"})), "last_requested")
+
+    def test_the_cap_is_8192_bytes(self):
+        self.assertEqual(8192, approvalcmd.MAX_CONVERGENCE_REPORT)
+
+    def test_the_worst_case_request_fits_the_cap_with_room_to_spare(self):
+        worst = {"bridge": "b" * 64, "model": "m" * 128, "effort": "medium",
+                 "options": {("n" * 31 + str(n)): "v" * 128 for n in range(8)}, "profile": "p" * 32}
+        data = self.v2(worst, model="m" * 200, bridge="b" * 64)
+        self.assertLess(len(data), 4096 * 2 - 1024)
+        self.assertEqual(8, len(self.parse(data).last_requested.options))
+
+    def test_a_report_over_the_cap_is_refused(self):
+        data = self.v2(self.FULL)
+        padded = data[:-2] + b" " * 8300 + b"}\n"
+        self.refused(padded)
+
+    def test_the_request_is_not_taken_from_a_nested_duplicate_or_a_nan(self):
+        text = self.v2(self.FULL).decode()
+        self.refused(text.replace('"alpha": "1"', '"alpha": "1", "alpha": "2"').encode())
+        self.refused(text.replace('"low"', "NaN").encode())
+
+
 class Report(unittest.TestCase):
     def parse(self, **changes):
         report = {"format": 1, "region_hash": DIGEST, "unhashed": []}

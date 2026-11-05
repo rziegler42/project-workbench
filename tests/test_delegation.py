@@ -647,14 +647,33 @@ class Convergence(Delegated):
                 self.assertEqual(self.convergence_calls(), self.calls())
                 os.remove(os.path.join(self.real, "calls.log"))
 
-    def test_more_than_4096_bytes_is_no_approval(self):
+    def test_more_than_8192_bytes_is_no_approval(self):
         good = json.dumps({"format": 1, "kind": "plan", "converged": True, "document_sha256": hashlib.sha256(TEXT).hexdigest(),
                            "rounds_used": 2, "bound": 3, "bridge": "bridge-one", "model": None, "review": REVIEW,
                            "closed": False})
+        self.control(convergence={"stdout": good[:-1] + " " * 8300 + "}\n"})
+        self.refuses("more than 8192 bytes")
         self.control(convergence={"stdout": good[:-1] + " " * 4200 + "}\n"})
-        self.refuses("more than 4096 bytes")
-        self.control(convergence={"stdout": good[:-1] + " " * 100 + "}\n"})
         self.approved()
+
+    def test_a_report_of_format_2_with_a_request_is_read_and_the_approval_is_the_same(self):
+        request = {"bridge": "bridge-one", "model": "model-one", "effort": "low", "options": {"alpha": "1"},
+                   "profile": "quick"}
+        self.control(convergence={"set": {"format": 2, "last_requested": request}})
+        self.approved()
+        self.assertEqual("bridge-one", self.recorded()[0].delegate["bridge"])
+
+    def test_a_report_of_format_2_with_a_null_request_is_read_and_the_approval_is_the_same(self):
+        self.control(convergence={"set": {"format": 2, "last_requested": None}})
+        self.approved()
+
+    def test_a_report_of_format_2_without_the_request_is_no_approval(self):
+        self.control(convergence={"set": {"format": 2}})
+        self.refuses("convergence")
+
+    def test_a_report_of_format_2_with_a_bad_request_is_no_approval(self):
+        self.control(convergence={"set": {"format": 2, "last_requested": {"bridge": "bridge-one"}}})
+        self.refuses("last_requested")
 
     def test_a_review_that_has_not_converged_is_refused(self):
         self.control(convergence={"set": {"converged": False}})

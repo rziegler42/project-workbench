@@ -386,6 +386,15 @@ the second came back with no meaningful finding.
   owner's) carry the claim; the note that `kit()` could fail to import inside the `except` clause, because `project_setting()` calls
   it first and an `ImportError` there already ends the run with nothing sent. **Limits of its evidence:** it ran no test and did not
   read the launcher.
+- **Review of increment G (2026-11-04, a `reviewer` agent, one exchange).** No blocking finding. By reading it confirmed that every
+  field of `last_requested` is held to the rules of the owner's profile file and matched with `fullmatch`, that the field set is exact
+  in both formats and a format-1 report behaves as before, that `last_requested` is stored and printed nowhere yet, that no other
+  caller of `Convergence(` or `parse_convergence` is affected, and that the three specs match the code. **Rejected, with reasons:** the
+  note that `parse_convergence` checks the format before the field set (both orders refuse; the message for a wrong format is the more
+  useful one); that `len(model) <= MAX_MODEL` repeats the profile rule's cap of 128 (harmless defence kept beside the report's own
+  limit); that `_object` is now used only by `parse_delegable` and its preamble is repeated in `parse_convergence` (the delegable
+  report stays untouched, and a shared helper would change a reader that this increment does not own). **Limits of its evidence:** it
+  ran no test and did not open the new tests or the decision record.
 
 ## Deferred work
 
@@ -660,3 +669,28 @@ the second came back with no meaningful finding.
 - **Not done:** the commit and the push. `.workbench/review.json` stays until the owner has checked a live review on the new engines; the plan says
   it can be deleted after F ships.
 - **Left for the owner:** the copy, the release and the verdict; the two failing hook tests are known and not part of F.
+
+### Increment G
+
+- **Done:** `workbench/approvalcmd.py` reads a `convergence` report of format 1 or 2. Format 1 has exactly the old fields and reads as an
+  unknown request (`last_requested` is `None`); format 2 has exactly those fields and `last_requested`, which is null or an object of
+  exactly `bridge`, `model`, `effort`, `options` and `profile`, each held to the rules of the owner's profile file through the kit's
+  `profiles` (a command name; printable text of at most 128 characters with no space and no leading `-`; low, medium or high; at most
+  eight options with names and values of the profile rules, a reserved name or a prefix of one refused; a profile name). Any other
+  format, a missing or extra field in either format and a bad request are refused. `Convergence` gains the last field
+  `last_requested` with a default of `None`, and `Requested` is new. `MAX_CONVERGENCE_REPORT` is 8,192. Nothing uses the request yet:
+  `delegation.py` reads the report by attribute, is unchanged and still stores the same fields, so a delegated approval behaves as
+  before until the engine emits format 2 (H) and the setting exists (I).
+- **Measured:** today's report is 267 bytes; the worst case of format 2 is 2,172 bytes, and with every character of the option values
+  escaped it can pass 4,096, so the raised cap stays (recorded in `review-profiles.md`).
+- **Tests first:** `ConvergenceReport` in `tests/test_approvalcmd.py` (formats, the exact field sets, each field of the request and its
+  refusals, reserved names and prefixes, the cap, the worst case, a duplicate key and NaN) and four tests in `tests/test_delegation.py`
+  (format 2 with a request and with a null request is approved as before; without the request, or with a bad one, it is refused); the
+  cap test now sends 8,300 bytes. They ran red before the code: 13 failures and 7 errors of 145.
+- **Specs:** `trust-and-approval.md` (the report, both formats, 8,192 bytes), `review-engine.md` ("Convergence": the installer reads
+  format 2; the engine still prints format 1 until H), `review-profiles.md` (the measurement and the status tag).
+- **Verification, as run:** `tests.test_approvalcmd`, `test_delegation` and `test_kit_profiles`, 216 OK; `test_approve_levels`,
+  `test_planapprovals`, `test_settingscmd`, `test_gate_hook`, `test_rendering` and `test_declarations`, 384 OK; `wb check` and `wb run
+  code-work check` report no problems; `git diff --check` is clean. No package changed, so there is no release.
+- **Not done:** the commit and the push.
+- **Left for the owner:** the verdict and the word to commit.
