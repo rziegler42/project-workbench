@@ -61,6 +61,33 @@ class SearchArguments(support_mempalace.Palace):
                      "--WING", "--llm-provider"):
             self.refused_search(name, "x", contains="is not an option")
 
+    def test_the_refusal_of_an_argument_that_is_not_an_option_shows_the_form(self):
+        """Plan `2026-11-05-mempalace-search-form`, increment A. A fresh agent ran `search "<question>"` without the dashes, was refused
+        with only "is not an option of search", and gave up; the refusal now says what the form is, in the same one line."""
+        cases = (("a bare sentence", ("model-assisted entity step during setup",)),
+                 ("a bare word, the dashes and a query", ("why", "--", "a query")),
+                 ("an option the helper does not allow", ("--include-media", "x", "--", "q")))
+        for label, args in cases:
+            err = self.refused("search", *args, contains="is not an option of search")   # one line, and no program was started
+            for part in self.helper.OPTIONS + ("each with a value, then -- and one query", 'search -- "'):   # every option the helper allows
+                self.assertIn(part, err, (label, part))
+            self.assertEqual(5, len(self.helper.OPTIONS))   # a sixth option makes the author read the message again
+
+    def test_the_text_echoed_by_that_refusal_is_cut_and_printable(self):
+        err = self.refused("search", "x" * 100 + "\x1b[31m caf\u00e9", contains="is not an option of search")
+        self.assertNotIn("x" * 61, err)
+        for char in err:
+            self.assertTrue(char == "\n" or " " <= char <= "~", repr(char))
+
+    def test_the_other_refusals_of_search_keep_their_messages(self):
+        self.refused_search("--wing", "a", "--wing", "b", contains="given twice")
+        self.refused("search", "--wing", contains="needs a value")
+        self.refused("search", contains="needs -- and then the query")
+        self.refused("search", "--", "a", "b", contains="exactly one query")
+        for err in (self.refused("search", "--", contains="exactly one query"),
+                    self.refused("search", "--wing", contains="needs a value")):
+            self.assertNotIn("then -- and one query", err)
+
     def test_an_option_given_twice_or_without_a_value_is_refused(self):
         self.refused_search("--wing", "a", "--wing", "b", contains="given twice")
         self.refused("search", "--wing", contains="needs a value")

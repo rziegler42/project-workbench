@@ -62,7 +62,9 @@ comes back as data.
 [--before <date>] -- <query>`. It passes only those options, with `--results` capped (default 5, ceiling 20),
 and never `--include-media`; the caller cannot pass `--backend` or `--palace` (the helper fixes the first and the
 project setting supplies the second). The query is one argument after `--`, never parsed as an option, at
-most 1000 characters. The output is returned inside a block that says it is recalled data.
+most 1000 characters. An argument that is not one of the options is refused with a one-line message that names the five options, says
+that each takes a value, and shows the form (`wb run mempalace search -- "your question"`). The output is returned inside a block that says
+it is recalled data.
 
 - **What "agent-safe" means here.** A search never changes a stored drawer, an embedding or a document. It is not
   free of writes: on 2026-10-24 every search rewrote the palace's own bookkeeping, one row added to the lock table

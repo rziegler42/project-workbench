@@ -117,7 +117,22 @@ The wider suite is not run: the change is a message, a line of text and their te
 
 ## Review record
 
-Empty until a review is asked for.
+**Increment A.** Reviewer: the `reviewer` agent (read-only), one round of the cap of 3, no blocking finding. It was given the plan, the diff of the
+helper and its test, the diff of the spec sentence, the verification as run, and the points to attack, and not my conclusions. It confirmed that
+the message still starts with the echoed argument and keeps "is not an option of search", that the echoed part is cut after the escaping so it
+is at most 60 printable characters, that the refusal stays one line, that the example in the message is accepted by the helper as written, that
+no other refusal of `search` changed, and that no other test or document matches the old whole message.
+
+- **Applied:** the option list in the message is now built from `OPTIONS`, and the test compares the message with every entry of `OPTIONS` and
+  asserts that there are five, so a sixth option cannot be left out of the message unnoticed; the message now says that each option takes a
+  value ("…, each with a value, then -- and one query"); the spec sentence no longer carries the history of the live session (a spec states
+  what is true now), which is kept in this plan's Goal and goes into the spec's evidence with the live check.
+- **Rejected, with the reason:** none.
+- **Noted:** the plan's step 1 asks for tests that accepted forms reach the program unchanged; the existing tests for the argument list
+  (`test_a_plain_search_passes_…`, `test_every_option_reaches_…`, `test_a_query_that_looks_like_an_option_is_only_a_query`) already do, and the
+  full directory of 172 tests passes, so none was added; the case `search "free text" --wing x` of criterion 1 takes the same path as the bare
+  sentence and has no case of its own.
+- **Not checked by the reviewer:** the test counts as reported (I ran them) and that the clone's other files equal the project's.
 
 ## Deferred work
 
@@ -127,4 +142,22 @@ Empty until a review is asked for.
 
 ## Result
 
-Empty until work starts.
+**Increment A, built in a scratch clone (2026-11-05); not yet copied into the project, released or committed.** Base commit of the clone:
+`e1487d8`. Changed in the clone: `helper/mempalace` (a constant `SEARCH_FORM`, built from `OPTIONS`, and the refusal of an argument that is not an
+option now reads "… is not an option of search; the options are --wing, --room, --results, --since and --before, each with a value, then -- and one
+query, as in: wb run mempalace search -- "your question""; one line, constant words, the echoed argument still escaped and cut at 60 characters) and
+`tests/test_mempalace_run.py` (three tests: the form is shown for a bare sentence, for a bare word followed by the dashes and a query and for a
+disallowed option; the echoed text is cut and printable; the other refusals keep their messages). In the project, docs only: the sentence in the
+paragraph on `search` of `docs/specs/mempalace.md`.
+
+**Verification as run.** Tests first: the form test failed on the unchanged helper; the other two new tests passed at once and stay as guards. After
+the change all 172 tests of the `mempalace` test directory pass (169 before, 3 new), run as the repository's runner does. `wb run code-work check`:
+94 plans, no problems. Not run: the whole suite and `tests/test_boundary.py`, because no installer file changes.
+
+**Hashes of the two files at the end of the clone's work** (SHA-256): `helper/mempalace`
+`30e7cf428f6e09cfb62c9ef19ec578760fd8f73d9245d308b305741d578c3820`, `test_mempalace_run.py`
+`000b45941fa894a891a490d3dc1511066ff7488a14183d9761d3fd8119fb2ca8`.
+
+**Review:** one round with the `reviewer` agent, no blocking finding (see the review record).
+
+**Not done in A:** the owner's copy and release, the commit, and Increment B.
