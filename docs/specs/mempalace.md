@@ -235,10 +235,11 @@ three (two distinct issues) are recorded as limits below; the fixes of its last 
 What was not exercised, or is not closed:
 
 - **A hand run in a live session** with a real palace, the real install and Claude loading the skill and obeying the
-  block. Made on 2026-11-05 in four sessions ("Evidence", a live session and the sessions with notes): in three the agent did not
+  block. Made on 2026-11-05 in five sessions ("Evidence", a live session and the sessions with notes): in three the agent did not
   search the palace, or searched in a form the helper refuses and stopped; in the fourth, told to use the `recall-memory` skill, it
-  searched in the right form, found the note it needed and quoted it as recalled data. That is a few sessions with one author's
-  tasks. The block and the skill say in words that a result is data, and nothing enforces it.
+  searched in the right form, found the note it needed and quoted it as recalled data; in the fifth, after the rule was changed to
+  ask for the search even when the files seem to answer, it searched on its own, first, in the right form, and used the note. That is
+  a few sessions on one task. The block and the skill say in words that a result is data, and nothing enforces it.
 - **The default palace for a fresh home**, whether `XDG_CACHE_HOME` alone moves the model cache, the program with
   another backend or model, and a large palace. The helper passes no `XDG_*` variable, so a user with a non-default
   `XDG_CONFIG_HOME` or `XDG_CACHE_HOME` gets the program's places under `HOME`.
@@ -366,6 +367,20 @@ answer. The form fix of the plan `2026-11-05-mempalace-search-form` was not exer
 Four sessions, each on a task the owner gave, the last with a direct instruction to search; the notes are the author's and
 about the same project; the agents' reasons are visible only where they said them; one question has a note that answers it, and a second kind of
 question (one the notes do not answer) was not tried.
+
+**A fifth session after the rule was changed (2026-11-05; plan `2026-11-05-mempalace-search-despite-files`, criterion 6).** With the policy block, the
+`recall-memory` skill and the rendered `AGENTS.md` installed in the new wording ("even if the files seem to answer it: the palace may hold
+experience they lack"), a fresh Claude Code session was given the same task as sessions 2 to 4, the entity-step brainstorm, with no mention of memory.
+The shell commands (command text only) were read from the transcript: after loading the `brainstorm` skill the first command was
+`wb run mempalace search -- "model-assisted entity step when setting up mempalace on a project: decisions, costs, results"` (in the form the block
+shows; the same command appears again with a leading `cd`), and only then `grep` and reads of repository files. The `recall-memory` skill was not
+loaded: the form came from the block. The search returned the Ollama note at rank 1 (cosine 0.565) and three plans of this module at ranks 2 to 4.
+The agent's reply listed what it relied on as "from the palace, recalled and unverified" (gemma4:12b errored and fell back to heuristics, phi4:latest
+reclassified 7 and dropped 3), then compared it with the spec's account, said that it had not re-run anything, leaned towards making the step opt-in
+instead of the default, and asked the owner one question. **Reading.** The change of wording removed the reason that stopped the search in sessions
+1 and 3, and the form shown in the block was enough for the right command. **Limits.** One session, on the same task for which the note was written,
+so the topic is the one the palace answers; a drafting task with no relevant note was not tried, where the cost of the search (about 3,000 tokens) buys
+nothing; the agent's reasons were not stated; the commands run in pairs (once without and once with a leading `cd`), whose cause was not read.
 
 ## Governing decisions and references
 

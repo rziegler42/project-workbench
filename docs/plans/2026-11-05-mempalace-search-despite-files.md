@@ -162,5 +162,15 @@ suite and `tests/test_boundary.py`, because no installer file changes.
 
 **Review:** one round with the `reviewer` agent, no blocking finding (see the review record).
 
-**Not done in A:** the owner's copy and release, the commit, the owner's `wb upgrade` and `wb rerender` (the skill is also installed under
-`.claude/skills/recall-memory/`), and criterion 6, the live check in a fresh session.
+**Done after the build.** The owner copied and released the files, the stale shipped records were removed after the owner approved the list, and A
+is committed as `f168400`. The owner ran `wb upgrade` and `wb rerender`; the rendered `AGENTS.md`, the installed block and the installed skill under
+`.claude/skills/recall-memory/` carry the new wording and not the old clause (checked with whitespace normalised), `wb doctor` found no problems, and the
+four install-state files are committed as `1cab107`.
+
+**Criterion 6, the live check (2026-11-05), recorded in `docs/specs/mempalace.md` ("Evidence", a fifth session).** In a fresh session on the entity-step
+brainstorm, with no mention of memory, the first command after the `brainstorm` skill loaded was
+`wb run mempalace search -- "model-assisted entity step when setting up mempalace on a project: decisions, costs, results"`, in the form the block shows
+(the `recall-memory` skill was not loaded). The note on which Ollama model works came at rank 1; the agent quoted it as recalled and unverified,
+compared it with the spec, and leaned towards making the step opt-in. So the exception removed the reason that stopped the search in the sessions before
+it. Limits: one session, on the task for which the note was written; a task with no relevant note, where the search costs about 3,000 tokens and buys
+nothing, was not tried. The plan is met on its criteria; marking it completed is the owner's.
