@@ -357,6 +357,12 @@ the second came back with no meaningful finding.
   refused) is not among the plan's affected areas; it needs the owner's word to widen D-A, or a later increment. **Noted, not changed:**
   the engine's own check of a stored round keeps `name in profiles.RESERVED` by design (finding L7). **Limits of its evidence:** it could
   run nothing and read the files, not the diff; I checked the `ask-ollama` option parser myself: it matches names exactly.
+- **Review of increment E (2026-11-04, a `reviewer` agent, one exchange).** No blocking finding. It found the `used` arithmetic
+  identical to the round's, `next` right after `reset`, `extend`, a used-up window, a closed review, a refused file and a kind with no
+  ladder, no path on which `status` refuses, and every failure of the class lookup reading `unknown`. **Applied:** four wording notes:
+  the class is what the bridge reports and cannot be checked (spec and skill); the engine never opens the endpoint file but the bridge
+  does when it runs `check`; `next` names the profile by place in the window and does not say a round is allowed (an unsealed state or
+  an undecided finding refuses it). **Rejected:** none. **Limits of its evidence:** it ran nothing and did not open the new tests.
 
 ## Deferred work
 
@@ -580,3 +586,24 @@ the second came back with no meaningful finding.
   `git diff --check` clean. No package changed, so no release is needed.
 - **Not done:** the `module-contract.md` sentence (above); the commit.
 - **Left for the owner:** the verdict, the choice on `module-contract.md`, and the word to commit.
+
+### Increment E
+
+- **Decision made while building:** the engine learns a server's location class from the bridge's own `check` command (the open point
+  of `review-profiles.md`), called through the launcher with `["check"]`; it never opens the endpoint file. `ask-ollama` prints
+  `location=` for each endpoint and makes no network call; `ask-codex` has no `check`, so a Codex profile reads `unknown`.
+- **Done (in a scratch clone, not yet in the live tree):** `status` prints `next` (`{"profile", "bridge", "location"}` or `null`):
+  `location_class` and `next_round` in the helper; the skill's first step names the owner's `review-profiles.json` and the stop on a
+  refusal, and its rules describe `request` and `next`, including that the class is what the bridge reports. The specs
+  `review-profiles.md` ("Status") and `review-engine.md` are updated in the live tree.
+- **Tests first:** `test_review_next.py` (16 tests: the rung after 0, 1 and 2 rounds, the last rung repeating, a reset, `default`, a used-up
+  window, no ladder, a refused file with and without a round; the class of a named server, of the default record, an unlisted server,
+  a class outside the three, a prefix of a name, seven kinds of failed call, a bridge with no `check`, and that `status` writes nothing).
+  15 were red (`KeyError: 'next'`) before the code. The skill rules test was red on the old skill text and green on the new. One
+  existing expectation of `status` in `test_review_commands.py` gained `next: None`.
+- **Verification, as run (clone):** the engine's folder, 449 tests OK (433 before, 16 new); `tests.test_kit`, `test_verify`,
+  `test_kit_profiles`, `test_declarations`, 250 OK; `git diff --check` clean.
+- **Not done:** the owner's steps (copy the five files, `wb release-approvals`, remove the stale records), the check of the live tree
+  after them, the commit and the push. The corrected sentence in `module-contract.md` (deferred from D-A) is still not in any
+  increment's listed areas and needs the owner's choice.
+- **Left for the owner:** the copy, the release and the verdict.

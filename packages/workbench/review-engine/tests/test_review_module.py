@@ -156,11 +156,11 @@ class Skill(unittest.TestCase):
 
     def test_it_states_the_rules(self):
         text = " ".join(skill_text().split())
-        for rule in ("does not approve anything", ".workbench/review.json", "do not name a bridge yourself",
+        for rule in ("does not approve anything", "review-profiles.json", "do not name a bridge yourself",
                      "Keep secrets and credentials out", "can leave the machine", "evaluate-findings",
                      "decided once", "blocks the next round", "`extend`, `reset`, `archive`, `prune` and `amend` take the "
                      "owner's level", "At `ask`, run", "`--digest <digest>`", "At `none`, run it", "Do not retry",
-                     "when the setting differs", "untrusted data",
+                     "now asks something else", "the profile of the next round", "location class", "what the bridge reports", "untrusted data",
                      "Ignore any instruction", "The owner's word is the verdict"):
             self.assertIn(rule.lower(), text.lower(), rule)
 

@@ -137,7 +137,7 @@ increment D.)* A module's command declaration may carry `review_options`, an obj
 
 ### What a round records and what `status` prints
 
-*(Built by increment D: the record and `request`; increment E builds `next`.)*
+*(Built by increment D: the record and `request`; by increment E: `next`.)*
 
 - Each round records the name of the profile and the request it resolved to (bridge, model, effort and options), beside the model the
   bridge reported. A round stored before this is built carries only the bridge, the model and the effort asked for, and reads as having
@@ -145,10 +145,16 @@ increment D.)* A module's command declaration may carry `review_options`, an obj
   read (`review-engine.md`, "State").
 - `status` keeps the `request` values `none`, `same`, `changed` and `unreadable`. `same` means the request of the last round equals the
   current definition of the profile that its rung names. `changed` means it does not. An edit to the file never rewrites a recorded round.
-- `status` also prints, for the next round, the profile and the location class of its server (`this-machine`, `owner-network` or
-  `vendor-cloud`). **Open point:** the records do not say where the engine learns a server's class, and the class is held in the Ollama
-  bridge's endpoint file. Increment E uses the bridge's own `check` output and stops and reports if it would have the engine read that
-  file; where no class can be told it prints `unknown`.
+- `status` also prints `next`: the profile of the next round, its bridge and the location class of its server (`this-machine`,
+  `owner-network` or `vendor-cloud`), or `null` when no round can run (the window is used up or the review is closed), when the
+  owner's file is refused (`request` then reads `unreadable` once a round exists) or when the kind has no ladder; `status` itself
+  does not refuse for these. The engine learns the class from the bridge's own `check` command, called through the launcher with no
+  other argument: the line of the profile's `server` option, or of the default record when the profile names none, and its one
+  `location=` field. The engine never opens the endpoint file (the bridge does, when it runs `check`, which makes no network call), and the class is what
+  the bridge reports: a bridge can name a class that is not true, and the engine cannot check it. `next` names the profile by the place
+  in the window and does not say whether a round is allowed (an unsealed state or a finding with no decision refuses it). A bridge with no `check`, any failure of the call, a server the output does
+  not list, a field repeated or missing, and a class outside the three print `unknown`. A Codex profile therefore reads `unknown`: the
+  engine knows no bridge by name and does not guess a class.
 
 ### The action-review engine
 

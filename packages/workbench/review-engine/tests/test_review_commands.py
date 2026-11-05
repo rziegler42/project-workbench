@@ -58,7 +58,7 @@ class Init(support_review.Review):
 class Status(support_review.Review):
     def test_it_prints_the_object_of_init_and_says_no_round_has_asked_yet(self):
         made = self.document("init", PLAN)
-        self.assertEqual(dict(made, request="none"), self.document("status", PLAN))
+        self.assertEqual(dict(made, request="none", next=None), self.document("status", PLAN))
 
     def test_it_counts_the_rounds_of_the_window_and_the_decisions(self):
         self.document("init", PLAN)

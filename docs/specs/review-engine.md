@@ -241,7 +241,9 @@ changes nothing here (the action-review engine reads it until its increment F).
   the owner's file never rewrites a round already stored.
 - **`status`.** Its `request` says whether the profile the last round ran on still asks what that round asked: `same`, or `changed` (a
   different bridge, model, effort or options, a profile that is gone, or a round from before profiles, which names none), `none` when no
-  round has asked yet, or `unreadable` when the file is refused (`status` itself does not refuse).
+  round has asked yet, or `unreadable` when the file is refused (`status` itself does not refuse). Its `next` is the profile and
+  bridge of the next round with the location class of the profile's server, learned by calling the bridge's `check` (`review-profiles.md`,
+  "Status"), or `null` when no round can run.
 
 ## Owner-run commands
 

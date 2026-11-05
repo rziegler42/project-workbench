@@ -55,6 +55,9 @@ MAX_ROUNDS = 1000
 MAX_DECISIONS = 5000
 DEFAULT_BOUND = 3
 CEILING = 5
+LOCATIONS = ("this-machine", "owner-network", "vendor-cloud")
+CHECK_LIMIT = 16384
+CHECK_TIMEOUT = 15
 KEY_BYTES = 32
 NAMESPACE = ".workbench/workbench/review-engine"
 STORE_NAME = "review-engine"
@@ -1276,6 +1279,49 @@ def request_standing(root, state):
         profile.bridge, profile.model, profile.effort, profile.options) else "changed"
 
 
+def location_class(root, profile):
+    """Where the server of `profile` is, as the bridge's own ``check`` says it: ``this-machine``, ``owner-network`` or
+    ``vendor-cloud``, else ``unknown``. The line of the profile's ``server`` option, or the default record when it has none, is
+    read; the endpoint file is never opened here, a bridge with no ``check`` is refused by the launcher, and every failure,
+    a class outside the three and a repeated field read ``unknown``."""
+    try:
+        got = call.run_command(root, profile.bridge, ["check"], limit=CHECK_LIMIT, timeout=CHECK_TIMEOUT, provides=CAPABILITY)
+    except call.CallError:
+        return "unknown"
+    if got.code != 0 or got.over or got.timed_out:
+        return "unknown"
+    try:
+        text = got.stdout.decode("utf-8")
+    except UnicodeDecodeError:
+        return "unknown"
+    wanted = profile.options.get("server")
+    for line in text.splitlines():
+        fields = line.split(" ")
+        if len(fields) < 2 or fields[0] == "model":
+            continue
+        if (wanted is not None and fields[0] != wanted) or (wanted is None and "default=yes" not in fields):
+            continue
+        found = [field[len("location="):] for field in fields[1:] if field.startswith("location=")]
+        return found[0] if len(found) == 1 and found[0] in LOCATIONS else "unknown"
+    return "unknown"
+
+
+def next_round(root, state, document):
+    """What ``status`` prints as ``next``: the profile the next round would run on, its bridge and the location class of its
+    server; ``None`` when no round can run (the window is used up or the review is closed), when the owner's file is refused or
+    when the kind has no ladder. ``status`` itself never refuses for these."""
+    window = state["window"]
+    used = len(state["rounds"]) - (window["first"] - 1)
+    if state["closed"] or used >= window["bound"]:
+        return None
+    try:
+        owner = read_profiles()
+        name, profile = profiles.for_round(owner, document.kind, used + 1, True)
+    except (Refused, profiles.ProfileError):
+        return None
+    return {"profile": name, "bridge": profile.bridge, "location": location_class(root, profile)}
+
+
 def convergence(root, project_id, argument, out):
     """What the installer's delegated plan approval asks of a review (`docs/specs/review-engine.md`, "Convergence"):
     whether the last round of the plan's review converged, with the hash of the file that round read. It is read
@@ -1362,6 +1408,7 @@ def run(argv, cwd, out):
         found = describe(document, loaded)
         if loaded.state is not None:
             found["request"] = request_standing(root, loaded.state)
+            found["next"] = next_round(root, loaded.state, document)
         return emit(out, found)
     with guarded.locked():
         if load(root, guarded, document) is not None:
