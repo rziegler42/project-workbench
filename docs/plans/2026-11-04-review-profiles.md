@@ -1,6 +1,6 @@
 # Review profiles in the guarded store
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-04
 Candidate: workbench-v1#review-profiles
 Specs: review-engine, action-review, model-bridge, module-contract, command-permissions, installer-interface, trust-and-approval
