@@ -1,6 +1,6 @@
 # Make the search before drafting even when the files seem to answer
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-05
 Candidate: workbench-v1#mempalace-search-despite-files
 Specs: mempalace, knowledge-tools
