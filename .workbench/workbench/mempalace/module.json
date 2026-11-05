@@ -26,11 +26,9 @@
       "arguments": [
         "status",
         "search",
-        "init",
         "mine"
       ],
       "owner": [
-        "init",
         "mine"
       ]
     }
