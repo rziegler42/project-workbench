@@ -846,6 +846,15 @@ approve is the harm, so it has no bound: any false approve on either set blocks 
 declines by check, so a few fixable checks are not hidden in a count. The 10% and the minimums are the author's judgment (the 30 of the earlier text became the two minimums of 10),
 not measured.
 
+*Clarified 2026-11-05, by the accepted decision `2026-11-05-unconfirmed-removals-are-outside-the-action-review-measure`:* the
+labelled real commands that the bound counts are the commands that would change something. A `remove` without `--confirm` (a
+preview, which deletes nothing) is reported on its own line, "unconfirmed removals (previews)", with how many were labelled and how
+the engine judged them, and is not counted in the false-decline rate, in the minimum of 10 labelled removals or in the false-decline
+count. It stays visible: a preview the engine approves is a false approve and blocks cutover like any other. The labels already
+made do not change, and the report classifies a command by its `confirm` fact. The bound and the other minimums are unchanged.
+What the hook does with a preview at cutover is decided in the plan for the hook, not here. Not built: the report still counts
+previews in the removal rate until the report is changed.
+
 ### What moves, and what does not
 
 | today | after |
