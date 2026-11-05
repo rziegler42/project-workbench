@@ -1,7 +1,7 @@
 # Roadmap: workbench-v1
 
 Status: Active
-Updated: 2026-11-02
+Updated: 2026-11-05
 
 This roadmap is direction only. It does not authorize implementation and does not
 change any plan. A candidate is referred to as `workbench-v1#<id>`. Candidates are
@@ -933,6 +933,25 @@ disposition of each `diverged` seeded file recorded by `self-hosting` is decided
 **Boundary:** renaming only. Each renamed module is checked against its specification. Nothing here is required by
 `code-work`.
 **Promotion trigger:** the owner chooses to begin the rename pass.
+
+### compaction-support — Recovery after a compaction, and advice on when to compact
+
+**Outcome:** after a compaction in Claude Code the agent starts again from the plan's state and not from the summary alone, and the
+owner is told when a compaction would be cheap. A read-only command of the process module prints what must survive (the active plan's
+path and increment, the approvals and checkpoints reached, the next action); a Claude hook that runs after a compaction hands that to
+the agent; and a status-line advisor shows, when the context is large and a unit of work has just ended (an increment committed and
+its result written, no review round or finding open, no failing check), the `/compact` line to use. Compacting stays the owner's act.
+**Dependencies:** `compaction-guidance` and `claude-harness` complete. The facts about Claude Code's hooks and status line that the
+design rests on (what a hook receives after a compaction, what the status line is given about the size of the context, whether it may
+call the workbench) are checked against the current documentation and an installed version before the plan is written.
+**Boundary:** the neutral state command in `code-work`; the Claude-specific hook and advisor, shipped as files under `harness/claude/`
+of a module (in `code-work`, or in a small module that requires it, which the plan decides) and registered by the owner by hand, as the
+shadow hook is; and the rule that says when a moment is good. What the hook hands the agent is read from the approval records and the
+plan's header (paths, increment labels, statuses), never the text of a plan, which may have been written by someone else. Not part of
+it: anything that triggers a compaction, a hook that blocks an automatic compaction (a later candidate, if measuring the size at which
+compaction happens shows a need), a change to the thresholds of automatic compaction, a rendered "Compact Instructions" section,
+installer rendering of a `SessionStart` or status-line entry, and opencode.
+**Promotion trigger:** the owner chooses to begin and the documentation facts above are checked.
 
 ## Deferred
 
