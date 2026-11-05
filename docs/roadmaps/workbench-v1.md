@@ -974,6 +974,18 @@ searched, a `wb doctor` note for an empty project wing, mining finished sessions
 helper beyond those two, to the arguments the commands accept or to the palace.
 **Promotion trigger:** the owner chooses to begin (met on 2026-11-05).
 
+### mempalace-search-form — The form of a palace search is shown where an agent would guess it
+
+**Outcome:** an agent that has not loaded the `recall-memory` skill still writes a palace search in the form the helper accepts, because the
+policy line that names the command shows the form and because a refusal for an argument that is not an option says what the form is. In a live
+session on 2026-11-05 an agent that was told by the policy to search before a brainstorm tried `wb run mempalace search "<question>"` without
+the `--`, was refused with "is not an option of search", and gave up; the form is in the skill, which it had not loaded.
+**Dependencies:** `memory-recall-use`, whose policy block and helper this touches.
+**Boundary:** the refusal message of `search` for an argument that is not an option, the one policy line that names the command, their tests,
+and the sentences of `mempalace.md` that describe them. Not part of it: the arguments the commands accept (unchanged), loading a skill
+automatically, a retry rule for the agent, the messages of `init` and `mine`, and any change to the palace.
+**Promotion trigger:** the owner chooses to begin (met on 2026-11-05).
+
 ### module-hook-rendering — Hooks that a module declares, rendered by the installer
 
 **Outcome:** a module that ships a hook for a harness declares it (the event, the matcher, the timeout and the shipped file), and
