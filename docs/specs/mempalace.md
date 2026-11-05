@@ -114,6 +114,18 @@ captured run could not serve it (`Evidence`, 2026-10-24).
 - Neither takes `--llm-api-key`, `--llm-provider`, `--llm-endpoint`, `--accept-external-llm`, `--daemon`,
   `--background` or `--palace` (the project setting supplies that).
 
+**First use in a project (as found on 2026-11-05; "Evidence", first use).** (1) Write `.workbench/mempalace.json` with the project's wing,
+`{"format": 1, "wing": "<project>"}`; add a `palace` only to keep this project's notes in a palace of their own, outside the project tree.
+(2) In the owner's own terminal, not in an agent session (a command run from a session has no terminal and `init` and `mine` refuse it):
+`wb run mempalace mine <directory>`, which is a dry run, and then the same with `--confirm`. (3) Do not run `init`: `mine` does not need
+it. Without a `mempalace.yaml` the program files every file of the directory in one room, `general`, under the wing it is given, prints
+the hint "No mempalace.yaml found … using auto-detected defaults", and writes nothing into the directory. `init` adds room names guessed
+from file names, a list of people and projects (`entities.json`, and the program's registry in the home directory), a note on the kind of
+corpus, and per-directory patterns that exclude files from mining (the one capability that needs a `mempalace.yaml`); it writes the first
+two files into the directory it scans, the program offers no option to put them elsewhere, and the config is read only from the directory
+being mined. Run `init` only for those features, knowing that two files will sit in that directory. A `mine` of a directory is not
+repeated for changed files by anything: it is run again by the owner.
+
 **How the program runs.** As `knowledge-tools.md` states: found in an absolute `PATH` entry that exists and, with every
 link resolved, is outside the repository (the resolved entries and the resolved program are what is used, and what the
 child gets as its `PATH`; a containment check that cannot examine a path counts it as inside), no shell, a fixed argument shape, a time limit (60 seconds for `status` and `search`; none for `init` and `mine`, which the owner watches on their
@@ -219,8 +231,9 @@ three (two distinct issues) are recorded as limits below; the fixes of its last 
 What was not exercised, or is not closed:
 
 - **A hand run in a live session** with a real palace, the real install and Claude loading the skill and obeying the
-  block. Nothing here shows an agent uses the memory well, or that it does not read a result as authority; the block
-  and the skill say so in words and nothing enforces it.
+  block. Made once on 2026-11-05 ("Evidence", a live session): in two brainstorms the agent did not search the palace. Nothing
+  here shows an agent uses the memory well, or that it does not read a result as authority; the block and the skill say so in
+  words and nothing enforces it.
 - **The default palace for a fresh home**, whether `XDG_CACHE_HOME` alone moves the model cache, the program with
   another backend or model, and a large palace. The helper passes no `XDG_*` variable, so a user with a non-default
   `XDG_CONFIG_HOME` or `XDG_CACHE_HOME` gets the program's places under `HOME`.
@@ -291,6 +304,36 @@ so an error path, another command, the compiled core on a path not run, or anoth
 deprecated by the operating system but was present and worked. **What the helper does about it:** it sets
 `ANONYMIZED_TELEMETRY=False` for every run of the program, status, search, init and mine, so the setting does not depend on the program's
 own `setdefault` or on a future ChromaDB default; a test pins the value and that a value the caller exported is replaced.
+
+**Filling the palace and a live session (2026-11-05; plan `2026-11-05-mempalace-use-and-independence`, increment F).** On the owner's machine,
+`mempalace` 3.11.0, the project at commit `541b462` with the owner's upgrade of that day installed. *First use.* The owner wrote
+`.workbench/mempalace.json` with the wing `project-workbench`, ran `wb run mempalace init docs/decisions --yes` once (which left
+`mempalace.yaml` and `entities.json` in that directory, three headings of the decision records as "people", an entry in the program's home
+registry and a corpus note that says "likely AI dialogue, confidence 0.4, weak signal"; the two files were then removed), and then, in a
+terminal, `wb run mempalace mine` with a dry run and `--confirm` for `docs/decisions` (77 files, 966 drawers) and, without `init`, for
+`docs/plans` (94 files, 5,749 drawers), into the palace that already held 54 drawers of other wings. A `mine` without `init` was tested
+first on scratch data (an empty directory initialised, or no `init` at all: the same palace files, the same search result, nothing written
+into the mined directory). *Searches by the author.* With no `--wing`, a search is limited to the project's wing. A probe of eight
+questions whose answer record the author knew, each worded as a story and in the words of the decision, found the record in the top five
+for 6 and for 7 of the 8; the decision wording moved four records up and none down; the decision on the tracked-pointer rule was missed
+in both because many plans quote it. Eight questions written by the author who knew the answers show the size of the wording effect and
+not an accuracy rate. A story-worded question also returned plans that describe a design a later decision replaced, so the palace holds
+history as well as what is true now. *A live session.* A fresh Claude Code session in the project, with the new policy and the five
+drafting skills installed, was given two brainstorming tasks one after the other, neither mentioning memory, the palace or the decisions:
+whether the action-review hook should pass removal previews automatically, and what delegated plan approval should do when the plan was
+reviewed on a profile the owner does not list. The transcript's shell commands (command text only) were read: 18, all `grep`, `sed`, `cat`
+and `ls` over repository files, in pairs (each once without and once with a leading `cd`; the results were not read); none named
+`mempalace`; the session loaded the `brainstorm` skill and not `recall-memory`; its replies cite the specs, the decision records and a
+skill, and quote nothing as recalled. **Reading.** The rule "once per task and with the topic, before you … brainstorm a design" did not
+lead to a search. The same bullet says not to search for what the current files answer, and the files did answer both topics. **What this
+shows and does not.** It does not show that the moments rule works, nor that it fails where the files lack the answer: both tasks were
+ones the files answer, and the palace holds nothing the files lack, because everything in it for this project was mined from the same
+documents. A palace filled only from the project's own documents duplicates what a search over the current files returns, and adds the
+staleness of the copy. **Limits.** Two tasks in one session, chosen by the author; the agent's reasons are not visible; the pairs of
+commands were not explained. **What would give the palace a use here:** content that is not in the files, such as the reasons behind a
+choice that only the conversation holds, the owner's corrections and preferences, and lessons across projects. Filing such content (by an
+inbox the owner reviews, or by mining finished sessions with redaction) is deferred work of the plan, and Claude Code keeps a session for
+about 30 days (the oldest transcript of this project dates from 29 October).
 
 ## Governing decisions and references
 

@@ -387,6 +387,29 @@ the cited lines itself, and not my conclusions. It checked the cited source line
 - **Not checked by the reviewer:** the test results as reported (I ran them), that the clone's helper is the file the owner will copy, and
   the probe by running it.
 
+**Security review of Increments D and E, 2026-11-05 (asked for by the owner).** Reviewer: the `security-reviewer` agent, on a clone of the project at
+`541b462`, with a scratch home and a fake program that records its arguments, environment and working directory. It found no Critical, High
+or Medium issue and two Low ones.
+
+- **Tested and found sound:** 31 shapes of `.workbench/mempalace.json`. A wing that starts with `-` or `.`, is empty, null, a list, has a space,
+  a newline, a trailing newline, an escape sequence, a non-ASCII digit, a BOM or a lone surrogate, or is longer than 64 characters is refused and
+  the program is never started; so are duplicate keys, a boolean or float `format`, an extra key, a null palace, a palace with `..`, an
+  oversize file, and a link, hard link or directory in place of the file; `{"format": 1}` alone is refused. The accepted shapes (wing only, wing
+  and palace, palace only) pass the wing as its own argument after `--results`, and palace only gives the argument list it gave before. A caller's
+  `--wing` replaces the project's for `search` and for `mine`, and `init` and `status` get none. The note of `mine` holds only the validated wing, so
+  no control character reaches the terminal. Started with `ANONYMIZED_TELEMETRY=True` in its own environment, the helper gave the child `False`
+  every time. Read only: the setting is read once per command and the same values feed the overlap check and the argument list.
+- **Low 1, accepted by the owner.** A hostile repository's setting file can choose the wing, so `mine --confirm` would file the owner's content
+  into a wing it names, and a `search` would be narrowed to it. Limits: `mine` is a dry run unless `--confirm` is given, and the dry run prints
+  the same note naming the wing and the file it came from; filing goes only into the owner's own palace; a hostile repository could already
+  choose the palace, which the review of 2026-10-24 accepted. The reviewer's suggestion (name the wing in the search output, give the note more
+  weight) was not adopted: the program's own result header names the wing it searched when one is given (seen in an earlier search of this
+  project's palace), which the fake program the reviewer used does not do, and a stricter prompt would add friction to the owner's own use.
+- **Low 2, accepted by the owner (information only).** One invalid wing makes `status`, `search` and `mine` refuse in that project, because the
+  whole file is validated. A hostile repository can stop the helper from running there; that is a nuisance and not an escalation.
+- **Not checked by the reviewer:** what the real program does with `--wing` (for example a wing in a `mempalace.yaml` in the mined directory), a
+  race on the setting file between check and use (read-once by the structure of the code), and the repository's own test suite.
+
 ## Deferred work
 
 - A way to file what an agent proposes to keep, without letting the agent write (an inbox and an owner-run command), including a short record
@@ -550,4 +573,30 @@ no installer file changes.
 
 **Review:** one round with the `reviewer` agent, no blocking finding (see the review record).
 
-**Not done in E:** the owner's copy and release, the commit, the security review of D and E (the owner's to ask for), and Increment F.
+**Not done in E:** Increment F. E was copied and released by the owner, the stale shipped records were removed after the owner approved the list,
+and E is committed as `541b462`. The security review of D and E was asked for by the owner and is in the review record: no Critical, High or
+Medium finding, two Low findings accepted.
+
+**Increment F, a live run (2026-11-05); docs only, not committed.** The owner upgraded the project (the installed helper, skill and policy
+carry A to E), wrote `.workbench/mempalace.json` with the wing `project-workbench`, filled the palace and ran a fresh session. What was done,
+in order: the first `init` of `docs/decisions` (run once, which left two files that were then removed; the plan's finding is that `init`
+is not needed), then `mine` of `docs/decisions` (966 drawers) and of `docs/plans` (5,749 drawers) without `init`; searches by the author;
+a probe of eight questions each worded two ways; a fresh session given two brainstorming tasks. The entry in `docs/specs/mempalace.md`
+("Evidence", filling the palace and a live session) and the new paragraph "First use in a project" in "Behavior" record it.
+
+**What the live run showed.** In the fresh session the agent did not search the palace in either task: its 18 shell commands were all
+reads of repository files and none named `mempalace`; the `recall-memory` skill was not loaded. Both topics were answered by the current
+files, and the same policy bullet that asks for a search before drafting also says not to search for what the files answer. The palace for
+this project holds only what was mined from the same documents, so it adds nothing the files lack and adds the staleness of the copy (a
+story-worded search returned plans for a design a later decision replaced). The moments rule is therefore not shown to work, and not shown
+to fail where the files lack the answer: that case was not tested because the palace has no such content. The recall probe: top five for 6
+of 8 with a story wording and 7 of 8 with the decision's wording, no record moved down by the better wording.
+
+**Completion criteria.** 1 to 3 (no other tool named; the moments rule and the unchanged rules; the specs) met by A and B; 4 (the five skills)
+met by C and checked on the installed skills; 5 (this project's rendered text) met after the owner's upgrade; 6 (the wing default) met by D;
+7 (telemetry) met by E, with its limits recorded; 8 (the live run recorded) met by this entry, which records that the run did not show the
+benefit the plan aimed at.
+
+**Not done, and for the owner to decide:** content for the palace that the files lack (a way to file what an agent proposes to keep, or
+mining of finished sessions with redaction), the "one reworded retry" rule (not needed until the agent searches at all), and whether to
+keep or empty the mined copy of the project's documents. Marking the plan completed, and committing, are the owner's.
