@@ -91,6 +91,46 @@ class DelegateProfiles(unittest.TestCase):
         self.assertNotIn("\n", got[0].line)
 
 
+class ReviewProfiles(unittest.TestCase):
+    """``review_profile_findings``: the owner's profile file, each profile against its bridge, and the old project file."""
+
+    FOUND = profiles.Profiles({"quick": profiles.Profile("bridge-a", None, "low", {}),
+                               "deep": profiles.Profile("bridge-b", "model-x", "high", {"server": "lab"})}, {"first": ("quick",)})
+
+    def findings(self, exists=True, outcome=None, has_bridge=True, unusable=None, old=False):
+        return doctor.review_profile_findings(exists, self.FOUND if outcome is None else outcome, has_bridge,
+                                              unusable or (lambda profile: None), old)
+
+    def test_a_good_file_with_usable_profiles_says_nothing(self):
+        self.assertEqual([], self.findings())
+
+    def test_a_missing_file_is_a_risk_when_a_model_bridge_is_installed_and_nothing_otherwise(self):
+        got = lines(self.findings(exists=False, outcome=False))
+        self.assertEqual(1, len(got), got)
+        self.assertTrue(got[0].startswith("risk: review-profiles: review-profiles.json is missing"), got)
+        self.assertEqual([], self.findings(exists=False, outcome=False, has_bridge=False))
+
+    def test_a_file_the_kit_refuses_is_a_problem_with_the_kits_words(self):
+        error = profiles.ProfileError("review-profiles.json is not strict JSON")
+        got = lines(self.findings(outcome=error))
+        self.assertEqual(["problem: review-profiles: review-profiles.json is not strict JSON"], got)
+
+    def test_a_profile_that_cannot_be_used_is_a_problem_naming_it_and_the_reason(self):
+        got = lines(self.findings(unusable=lambda profile: "its bridge is not installed" if profile.bridge == "bridge-b" else None))
+        self.assertEqual(["problem: review-profiles: the profile 'deep' cannot be used: its bridge is not installed"], got)
+
+    def test_the_old_project_file_is_a_note_that_it_is_read_by_nothing(self):
+        got = lines(self.findings(old=True))
+        self.assertEqual(1, len(got), got)
+        self.assertTrue(got[0].startswith("note: review-profiles: .workbench/review.json is read by nothing"), got)
+
+    def test_a_name_or_a_reason_cannot_add_a_line_or_carry_a_control_character(self):
+        found = profiles.Profiles({"x": profiles.Profile("bridge-a", None, None, {})}, {})
+        got = doctor.review_profile_findings(True, found, True, lambda profile: "bad\nproblem: planted\x1b[2J", False)
+        self.assertEqual(1, len(got))
+        self.assertTrue(all(" " <= char <= "~" for char in got[0].line), got[0].line)
+
+
 class Floor(unittest.TestCase):
     def test_the_seeded_floor_is_unchanged(self):
         self.assertEqual([], doctor.floor_findings(FLOOR))
@@ -479,6 +519,35 @@ class InAProject(test_rendering.Rendered):
         self.guarded.write("settings", json.dumps({"version": 4, "floor": [], "levels": {}, "delegate_profiles": "any"}).encode())
         code, out, err = self.doctor()
         self.assertNotIn("delegate-profiles", out)
+
+    def test_an_invalid_profile_file_is_a_problem_in_the_report(self):
+        self.attached()
+        self.guarded.write("review-profiles.json", b"{")
+        code, out, err = self.doctor()
+        self.assertEqual(1, code)
+        self.assertIn("problem: review-profiles: review-profiles.json", out)
+
+    def test_a_profile_whose_bridge_is_not_installed_is_a_problem_in_the_report(self):
+        self.attached()
+        self.guarded.write("review-profiles.json", json.dumps({"format": 1, "profiles": {"quick": {"bridge": "bridge-a"}},
+                                                               "ladders": {"first": ["quick"]}}).encode())
+        code, out, err = self.doctor()
+        self.assertEqual(1, code)
+        self.assertIn("problem: review-profiles: the profile 'quick' cannot be used: its bridge 'bridge-a' is not an installed module",
+                      out)
+
+    def test_a_missing_file_with_no_model_bridge_installed_says_nothing(self):
+        self.attached()
+        code, out, err = self.doctor()
+        self.assertNotIn("review-profiles", out)
+
+    def test_the_old_project_file_is_a_note(self):
+        self.attached()
+        os.makedirs(os.path.join(self.place, ".workbench"), exist_ok=True)
+        with open(os.path.join(self.place, ".workbench", "review.json"), "w") as handle:
+            handle.write('{"format": 1, "bridge": "bridge-a"}')
+        code, out, err = self.doctor()
+        self.assertIn("note: review-profiles: .workbench/review.json is read by nothing", out)
 
     def test_a_changed_floor_is_a_risk(self):
         self.attached()

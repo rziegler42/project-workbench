@@ -65,7 +65,7 @@ def _quoted(text, limit=64):
     return shown if len(shown) <= limit + 2 else shown[:limit + 1] + "..." + shown[0]
 
 
-def _unusable(guarded, ident, modules, profile):
+def unusable(guarded, ident, modules, profile):
     """Why the bridge of `profile` could not be asked for a review with that profile, or ``None``: the bridge must be an installed,
     pinned module that provides ``model-bridge`` and has a command of its name; each option must be one the command declares for a
     review, with a value that fits the declared grammar; and no option may exclude the effort or another option that is present
@@ -128,7 +128,7 @@ def _profile_gate(guarded, start, review, process):
                                             "themselves" % _quoted(name))
     _, ident, modules = approvalcmd.installed_modules(start)
     for name in reading:
-        problem = _unusable(guarded, ident, modules, found.profiles[name])
+        problem = unusable(guarded, ident, modules, found.profiles[name])
         if problem:
             raise approvalcmd.ApprovalError("the listed profile %s cannot be used: %s; the owner approves the plan themselves"
                                             % (_quoted(name), problem))

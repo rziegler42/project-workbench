@@ -41,7 +41,8 @@ import re
 import shutil
 import stat
 
-from . import (__version__, approvalcmd, check, declarations, firstparty, floor, gatelog, harnesses, installed, levels,
+from . import (__version__, approvalcmd, check, declarations, delegation, firstparty, floor, gatelog, harnesses, installed,
+               levels,
                localmanifest, manifest, projectfs, rendering, rules, settings, target)
 from .wbkit import display, profiles, safefs
 
@@ -105,6 +106,31 @@ def delegate_profile_findings(reading, found):
         elif profile.model is None:
             findings.append(Finding(RISK, "risk: delegate-profiles: the listed profile %s names no model, so it follows the vendor's "
                                     "default, which can change under the gate" % _quoted(name)))
+    return findings
+
+
+def review_profile_findings(exists, outcome, has_bridge, unusable_of, old):
+    """The owner's ``review-profiles.json`` (`exists`; `outcome` is its ``Profiles``, or the ``ProfileError`` that reading it raised),
+    each of its profiles against its bridge, and an old project file. A file the kit refuses, and a profile that cannot be used
+    (`unusable_of` gives the reason, or None), are problems because a review on it is refused; a missing file is a risk only when a
+    model bridge is installed (`has_bridge`); the old ``.workbench/review.json`` (`old`) is a note, as nothing reads it. Names and
+    reasons come from files and are shown quoted or cleaned."""
+    findings = []
+    if not exists:
+        if has_bridge:
+            findings.append(Finding(RISK, "risk: review-profiles: %s is missing, so a review is refused until it exists (`wb install` "
+                                    "writes a default when it is absent, or write it by hand)" % profiles.FILE))
+    elif isinstance(outcome, profiles.ProfileError):
+        findings.append(Finding(PROBLEM, "problem: review-profiles: %s" % _name(str(outcome), 200)))
+    else:
+        for name in sorted(outcome.profiles):
+            reason = unusable_of(outcome.profiles[name])
+            if reason:
+                findings.append(Finding(PROBLEM, "problem: review-profiles: the profile %s cannot be used: %s"
+                                        % (_quoted(name), _name(reason, 240))))
+    if old:
+        findings.append(Finding(NOTE, "note: review-profiles: .workbench/review.json is read by nothing; %s in the guarded store is the "
+                                "only source of the bridge, model, effort and options of a review" % profiles.FILE))
     return findings
 
 
@@ -499,6 +525,32 @@ def _registry(guarded, root):
                          % _name(str(exc), 200))])
 
 
+def _review_profiles(guarded, root):
+    """The findings of ``review_profile_findings`` for the project at `root`: the file is read from the guarded store, and the profiles
+    are held to the bridge modules the project has installed, with the delegated-approval check's rules. When the installed modules
+    cannot be read, the profiles are not checked against them (the other checks of the report say why)."""
+    exists = guarded.kind(profiles.FILE) is not None
+    outcome = None
+    if exists:
+        try:
+            outcome = settings.read_profiles(guarded)
+        except profiles.ProfileError as exc:
+            outcome = exc
+    try:
+        _, ident, modules = approvalcmd.installed_modules(root)
+    except approvalcmd.ApprovalError:
+        ident, modules = None, None
+    has_bridge = bool(modules) and any("model-bridge" in item.module.provides for item in modules)
+    if modules is None:
+        def unusable_of(profile):
+            return None
+    else:
+        def unusable_of(profile):
+            return delegation.unusable(guarded, ident, modules, profile)
+    old = os.path.lexists(os.path.join(root, ".workbench", "review.json"))
+    return review_profile_findings(exists, outcome, has_bridge, unusable_of, old)
+
+
 def examine(guarded, writer, root, distribution=None, which=None):
     """The findings for the project `writer` holds at `root`. Reads only."""
     which = which or shutil.which
@@ -508,6 +560,7 @@ def examine(guarded, writer, root, distribution=None, which=None):
         found += settings_findings(loaded, effective)
         found += relaxed_findings(keys, effective.levels)
         found += profile_findings(loaded.profile, effective.profiled)
+        found += _review_profiles(guarded, root)
         if isinstance(loaded.delegate_profiles, tuple):
             try:
                 profile_file = settings.read_profiles(guarded)

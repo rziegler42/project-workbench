@@ -167,30 +167,39 @@ fails as a timeout and yields no verdict.
 
 ### The default `wb install` writes
 
-*(Decided; built by increment J.)*
+*(Decided; built by increment J. The first text of this section named two vendors and gave an effort ramp and a profile per endpoint
+record; the installer may not name a module (`module-boundary.md`; `tests/test_boundary.py` allows no exemption), and the owner chose
+the generic default below on 2026-11-05.)*
 
-- It writes the file only when it is absent, as part of the install's preview; the digest at `ask` binds the bytes; an existing file is
-  never overwritten or changed. The command is the owner's at the level the owner set.
-- It builds the default only from what is installed and pinned and from the owner's endpoint file. For `ask-codex`: the profiles `quick`,
-  `standard` and `deep` at `low`, `medium` and `high` with no model named, so the bridge's own default stands. For `ask-ollama`: one
-  profile for the `default_model` of each record of a valid `bridge-endpoints.json`, named `local` when there is one record and
-  `local-<record name>` when there are several, with
-  `options.server` set to the record's name; a record with no `default_model` gets none, and neither does a record whose name makes
-  `local-<record name>` longer than the 32 characters a profile name may have (the install names it and says why).
-- Ladders are written only when exactly one bridge family is installed. For `ask-codex`, `default` is `quick, quick, deep` and
-  `action-review` is `quick`, so that a judgement fits the time budget. For `ask-ollama`, `default` and `action-review` are the single
-  `local` profile, and only when that profile was made; a record with no `default_model` makes no profile and no ladder, and the install
-  says that the owner must configure a chat model. With several families or several local profiles the profiles are written and the
-  ladders are not, and the install says that a review is refused until the owner chooses. With no bridge installed no file is written.
+- It writes the file only when it is absent, as part of the install's preview; the preview prints the file exactly as it will be
+  written, and the digest at `ask` binds its bytes as one of the plan's store writes; an existing file is never overwritten or changed,
+  whatever it holds, and the write refuses at once when the path is occupied. The write is a check followed by a rename, like every
+  other store write of the install, so a file that the owner creates in the milliseconds between the last look and the write is replaced:
+  only the owner's own account can create it, and the loss is a hand edit made in the same instant. The command is the owner's at the
+  level the owner set.
+- It builds the default only from the modules that are installed and pinned and provide `model-bridge`, and from nothing else: one
+  profile for each, named by the bridge's command and holding `bridge` only. No model, no effort and no option is named, so each bridge's
+  own default stands (a bridge to a server uses the default model of the endpoint record the owner configured). A bridge whose command
+  is not a valid profile name makes no profile, and the install says so.
+- The ladder `default` is written only when exactly one profile was made, and names it. With several profiles it is not written, and the
+  install says that a review is refused until the owner chooses. With no bridge installed no file is written. No other ladder is
+  written: the key of a ladder that only one engine reads (the action-review engine's, for one) is that module's, and the installer
+  names no module, so the owner adds it when they use that engine. The ramp from a quicker profile to a stronger one, a second model
+  and a profile per endpoint are the owner's to add; the file is the owner's.
 - The preview prints what an old `.workbench/review.json` said, as data, so the owner can carry it into a profile: only the four
   known fields, each as ASCII with escapes and cut at 128 characters, and one line saying so when the file is over 4,096 bytes or
   malformed. The text changes nothing that is written, so it is not part of the digest. The default is never seeded from that file.
 
 ### `wb doctor`
 
-*(Built by increment I for the `delegate-profiles` findings and by increment J for the rest.)* It reports a missing or invalid file; a ladder that names a profile the file lacks; a profile
-whose bridge is not installed; a file at `.workbench/review.json` as unused; a `delegate-profiles` name that is not in the file; and a
-listed profile that names no model, which follows the vendor's own default and can change under the gate.
+*(Built by increments I and J.)* It reports, as a problem, a file that the kit's reader refuses (which covers a ladder that names a
+profile the file lacks) and each profile that cannot be used with its bridge, by the rules of the delegated-approval check: the bridge
+is not an installed, pinned module that provides `model-bridge` with exactly one command of that name, an option is not one the bridge
+declares for a review, a value does not fit the grammar, or an excluded pair is set. It reports, as a risk, a missing file when a model
+bridge is installed. It reports, as a note, a file at `.workbench/review.json` as read by nothing. For a `delegate-profiles` list it
+reports a listed name that is not in the file (a problem) and a listed profile that names no model, which follows the vendor's own
+default and can change under the gate (a risk). When the installed modules cannot be read, the profiles are not checked against them and
+the other checks of the report say why.
 
 ### The `convergence` report and `delegate-profiles`
 
@@ -259,8 +268,8 @@ Each is checkable by the increment named.
    accepted only on a match of the bridge, model, effort and options. A settings file at version 4 is read, one at version 3 without
    the entry reads as `any`, and an older reader stops safely at version 4 (I).
 9. `wb install` writes the default only when the file is absent, shows it in its preview, binds it to the digest and never overwrites it;
-   it writes no ladder for several families or several local profiles, none for a profile that was not made, and no profile for a
-   record whose name is too long; `wb doctor` reports the problems above (I, J).
+   it names no vendor, writes one profile for each installed model bridge and the `default` ladder only when exactly one profile was made;
+   `wb doctor` reports the problems above, each profile against its bridge's declaration included (I, J).
 10. The Result of increment K records a walk-through in a scratch store of each criterion above, with its limits (K).
 
 ## Governing decisions and references

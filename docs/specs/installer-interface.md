@@ -289,9 +289,10 @@ publishes, and none edits a living or historical document** (`repository-boundar
   where the project was first seen; the acknowledgement baselines for the files written; and
   last, attach for the chosen harness, which writes the per-clone harness files, the
   `.git/info/exclude` entries and the local manifest. Everything is left uncommitted.
-- **The review profile file** *(decided, not built; plan `2026-11-04-review-profiles`, increment J)*: when the guarded store holds no
-  `review-profiles.json`, the install also writes the default one, shows it in its preview, binds it to the `ask` digest, never
-  overwrites an existing file and chooses no vendor (`review-profiles.md`, "The default `wb install` writes").
+- **The review profile file** *(built by plan `2026-11-04-review-profiles`, increment J)*: when the guarded store holds no
+  `review-profiles.json`, the install also writes the default one (one profile for each installed model bridge, and the `default`
+  ladder when there is exactly one), shows it in its preview, binds it to the `ask` digest as one of the plan's store writes, never
+  overwrites an existing file, even one that appears after the preview, and chooses no vendor (`review-profiles.md`, "The default `wb install` writes").
 - **The attach step** *(owner; `base-and-manifests`, built by `claude-harness`)*: `install`
   requires, verifies and approves the harness module as above, and attaches as its last step,
   after its own unfinished-write marker is gone. The preview lists the harness files, the

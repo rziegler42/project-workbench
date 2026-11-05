@@ -27,7 +27,7 @@ import json
 import re
 
 from . import base as base_module
-from . import approvals, localmanifest, manifest, pinplan, pins
+from . import approvals, localmanifest, manifest, pinplan, pins, profiledefault
 from .wbkit import display, safefs
 
 Action = collections.namedtuple("Action", "kind path owner_class mode size hash detail data")
@@ -38,7 +38,7 @@ Selection = collections.namedtuple("Selection", "modules packages")
 # already exists, as ``(path, slot, block id)``.
 Plan = collections.namedtuple(
     "Plan", "target_identity state actions modules manifest seed project_id store_writes "
-            "git_init digest harness pins command not_filled", defaults=(None, (), "install", ()))
+            "git_init digest harness pins command not_filled profile_notes", defaults=(None, (), "install", (), ()))
 # What `adopt` found at the paths the install plan would write: `kept` maps a seeded path that
 # exists to ``(sha256, size)``; `reused` holds the planned directories that already exist.
 Adopted = collections.namedtuple("Adopted", "kept reused")
@@ -265,7 +265,7 @@ def json_store(document):
 
 
 def build(target, selection, snapshots, base, seed, workbench_version, harness=None, now=None,
-          adopted=None):
+          adopted=None, profile=None):
     """Build the whole plan. Raises PlanError; nothing is read or written.
 
     `adopted` (an ``Adopted``) makes it the plan of ``wb adopt``: the seeded paths in `adopted.kept`
@@ -275,6 +275,9 @@ def build(target, selection, snapshots, base, seed, workbench_version, harness=N
 
     `now` is the time the pins record. The caller fixes it once for the command and passes it to every
     build, so the plan the owner confirms and the plan that is written are the same bytes.
+
+    `profile` is a ``profiledefault.Default`` or None: its bytes, when it has any, are one more store write (so the digest binds
+    them) and its notes are shown in the preview and are not part of the digest.
 
     `harness` is the ``harnessstage.Staged`` attached after the install, or None. It is not an
     action: the files are per-clone and written once the install itself is complete, but the
@@ -355,6 +358,8 @@ def build(target, selection, snapshots, base, seed, workbench_version, harness=N
     if made:
         store_writes += (("projects/%s/pins" % project,
                           pins.serialize(pinplan.apply({}, made))),)
+    if profile is not None and profile.data is not None:
+        store_writes += ((profiledefault.FILE, profile.data),)
     modules = tuple({
         "declaration": v.declaration_hash, "name": v.name, "package": v.package,
         "tree": v.tree_hash, "type": v.type, "version": v.version} for v in selection.modules)
@@ -379,7 +384,8 @@ def build(target, selection, snapshots, base, seed, workbench_version, harness=N
         fields["not_filled"] = [list(row) for row in not_filled]
     return Plan(target.identity, target.state, tuple(actions), modules, document, seed,
                 project, store_writes, git_init, digest_of(fields), harness, tuple(made),
-                "adopt" if adopted is not None else "install", not_filled)
+                "adopt" if adopted is not None else "install", not_filled,
+                () if profile is None else tuple(profile.notes))
 
 
 def _local_manifest(harness):
@@ -483,6 +489,9 @@ def render(plan, target_path, show_digest=False):
     lines.append("guarded store:")
     for path, data in plan.store_writes:
         lines.append("  write %s sha256 %s" % (path, _sha(data)))
+    if plan.profile_notes:
+        lines.append("review profiles:")
+        lines.extend("  %s" % _show(note) for note in plan.profile_notes)
     if plan.pins:
         lines.append("pins (the confirmed helpers the launcher may run, made by the installer):")
         lines.extend(pinplan.lines(plan.pins, _show))

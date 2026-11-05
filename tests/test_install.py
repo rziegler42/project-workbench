@@ -11,7 +11,7 @@ import unittest.mock
 
 from tests import support
 from tests.test_preview import HARNESS, NOTES, decl
-from workbench import (approvals, approve, cli, fetch, install, manifest, preview, projectfs,
+from workbench import (approvals, approve, cli, fetch, firstparty, install, manifest, preview, projectfs, settings,
                        sources, store, verify)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -598,6 +598,120 @@ class InstallTest(InstallBase):
         self.assertRegex(package["commit"], r"^[0-9a-f]{40}$")
         self.assertEqual(1, len(os.listdir(os.path.join(self.store_root, "cache"))))
         self.assertEqual(b"# Notes\n", self.read(place, "docs", "notes.md"))
+
+
+class ProfileDefaultInstall(InstallBase):
+    """``wb install`` writes the default ``review-profiles.json`` when the guarded store has none (plan
+    `2026-11-04-review-profiles`, increment J). The bridges are made-up modules: the installer names no real one."""
+
+    FILE = "review-profiles.json"
+
+    def setUp(self):
+        InstallBase.setUp(self)
+        original = verify.verify_package
+        first = unittest.mock.patch.object(verify, "verify_package", lambda *a, **k: original(*a, **dict(k, first_party=True)))
+        first.start()
+        self.addCleanup(first.stop)
+        # the made-up bridges stand for first-party modules, which alone may provide the unprefixed capability
+        inside = unittest.mock.patch.object(firstparty, "is_first_party", lambda *a, **k: True)
+        inside.start()
+        self.addCleanup(inside.stop)
+
+    def with_bridges(self, *names):
+        modules = {"h": (HARNESS, {}), "notes": NOTES}
+        for name in names:
+            modules[name] = ({"provides": ["model-bridge"], "ships": ["scripts/ask"],
+                              "commands": {name: {"helper": "scripts/ask", "arguments": ["ask"]}}},
+                             {"scripts/ask": b"#!/bin/sh\n"})
+        path = self.package(modules=modules)
+        for name in ("notes",) + names:
+            os.chmod(os.path.join(path, name, "scripts", "run.sh" if name == "notes" else "ask"), 0o755)
+        self.approve(path)
+        return path, ("h", "notes") + names
+
+    def stored(self):
+        return self.guarded.read(self.FILE) if self.guarded.kind(self.FILE) == "file" else None
+
+    def test_one_bridge_gives_the_file_with_the_profile_and_the_default_ladder_and_the_preview_shows_it(self):
+        path, select = self.with_bridges("bridge-one")
+        code, out, err = self.run_install(self.place(), path, select=select)
+        self.assertEqual(0, code, (out, err))
+        body = json.loads(self.stored())
+        self.assertEqual({"format": 1, "profiles": {"bridge-one": {"bridge": "bridge-one"}},
+                          "ladders": {"default": ["bridge-one"]}}, body)
+        self.assertIn("write review-profiles.json sha256 %s" % hashlib.sha256(self.stored()).hexdigest(), out)
+        self.assertIn("review profiles:", out)
+        self.assertIn('| {', out)
+        self.assertIn('|       "bridge": "bridge-one"', out)
+
+    def test_several_bridges_give_profiles_and_no_ladder(self):
+        path, select = self.with_bridges("bridge-a", "bridge-b")
+        self.assertEqual(0, self.run_install(self.place(), path, select=select)[0])
+        body = json.loads(self.stored())
+        self.assertEqual(["bridge-a", "bridge-b"], sorted(body["profiles"]))
+        self.assertEqual({}, body["ladders"])
+
+    def test_no_bridge_writes_no_file_and_the_preview_has_no_such_line(self):
+        code, out, err = self.run_install(self.place(), self.good())
+        self.assertEqual(0, code, (out, err))
+        self.assertIsNone(self.stored())
+        self.assertNotIn("write review-profiles.json", out)
+
+    def test_any_other_text_than_the_digest_writes_no_file(self):
+        path, select = self.with_bridges("bridge-one")
+        place = self.place()
+        code, out, err = self.run_install(place, path, reply=lambda text: "no", select=select)
+        self.assertEqual(1, code)
+        self.assertIsNone(self.stored())
+        self.assertFalse(os.path.exists(place))
+
+    def test_an_existing_file_is_never_changed_whatever_it_holds(self):
+        path, select = self.with_bridges("bridge-one")
+        for number, content in enumerate((b'{"format": 1, "profiles": {"mine": {"bridge": "x"}}, "ladders": {}}\n', b"{", b"\xff", b"")):
+            with self.subTest(content=content):
+                self.guarded.write(self.FILE, content)
+                code, out, err = self.run_install(self.place("proj%d" % number), path, select=select)
+                self.assertEqual(0, code, (out, err))
+                self.assertEqual(content, self.stored())
+                self.assertIn("left as it is", out)
+                self.assertNotIn("write review-profiles.json", out)
+                os.unlink(os.path.join(self.store_root, self.FILE))
+
+    def test_an_existing_directory_or_link_at_the_path_is_left_alone(self):
+        path, select = self.with_bridges("bridge-one")
+        os.mkdir(os.path.join(self.store_root, self.FILE))
+        self.assertEqual(0, self.run_install(self.place("a"), path, select=select)[0])
+        self.assertTrue(os.path.isdir(os.path.join(self.store_root, self.FILE)))
+        os.rmdir(os.path.join(self.store_root, self.FILE))
+        os.symlink(os.path.join(self.root, "elsewhere"), os.path.join(self.store_root, self.FILE))
+        self.assertEqual(0, self.run_install(self.place("b"), path, select=select)[0])
+        self.assertTrue(os.path.islink(os.path.join(self.store_root, self.FILE)))
+        self.assertFalse(os.path.exists(os.path.join(self.root, "elsewhere")))
+
+    def test_a_file_that_appears_between_the_preview_and_the_write_is_not_overwritten(self):
+        path, select = self.with_bridges("bridge-one")
+        place = self.place()
+        appearing = b"the owner wrote this meanwhile\n"
+
+        def reply(text):
+            self.guarded.write(self.FILE, appearing)
+            return correct(text)
+
+        code, out, err = self.run_install(place, path, reply=reply, select=select)
+        self.assertNotEqual(0, code)
+        self.assertEqual(appearing, self.stored())
+
+    def test_the_written_file_is_read_by_the_installers_reader_and_the_kit(self):
+        path, select = self.with_bridges("bridge-one")
+        self.run_install(self.place(), path, select=select)
+        found = settings.read_profiles(self.guarded)
+        self.assertEqual(("bridge-one",), found.ladders["default"])
+
+    def test_the_file_is_not_world_readable_beyond_the_stores_own_rules(self):
+        path, select = self.with_bridges("bridge-one")
+        self.run_install(self.place(), path, select=select)
+        mode = os.stat(os.path.join(self.store_root, self.FILE)).st_mode & 0o777
+        self.assertEqual(0, mode & 0o022, oct(mode))
 
 
 class InstallTerminalTest(InstallBase):

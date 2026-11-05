@@ -10,7 +10,7 @@ and the write cannot differ.
 import os
 import shutil
 
-from . import (__version__, adoptplan, askdigest, base, declarations, firstparty, gate, harnessstage, installplan, manifest,
+from . import (__version__, adoptplan, askdigest, base, declarations, firstparty, gate, harnessstage, installplan, manifest, profiledefault,
                projectfs, refusal, snapshot, sources, target, verify)
 from .wbkit import digest as kitdigest, display, safefs
 
@@ -74,6 +74,14 @@ def _gather(guarded, resolved, select, distribution, which):
     return modules, snaps, loaded_base, packages, origins, list(result.warnings)
 
 
+def _profile(guarded, held, modules):
+    """The default profile file for the plan: what ``profiledefault.plan`` builds from the selected modules when the guarded store
+    holds nothing at its path, and the lines about an old project file, which are shown and change nothing that is written."""
+    made = profiledefault.plan(modules, guarded.kind(profiledefault.FILE) is not None)
+    old = profiledefault.old_setting_lines(profiledefault.read_old(held.path))
+    return profiledefault.Default(made.data, made.notes + old)
+
+
 def prepare(guarded, held, resolved, select, distribution, seed, version, which=shutil.which,
             home=None, now=None):
     """Verify, gate, snapshot and plan, the harness files included. Returns ``(plan, warnings)``;
@@ -95,7 +103,7 @@ def prepare(guarded, held, resolved, select, distribution, seed, version, which=
             raise Refused([".git/info/exclude: %s" % exc])
     try:
         plan = installplan.build(held, installplan.Selection(modules, packages), snaps,
-                                 loaded_base, seed, version, staged, now)
+                                 loaded_base, seed, version, staged, now, profile=_profile(guarded, held, modules))
     except (installplan.PlanError, manifest.ManifestError) as exc:
         raise Refused([str(exc)])
     return plan, warnings
@@ -116,7 +124,7 @@ def prepare_adopt(guarded, held, resolved, select, distribution, seed, version,
     try:
         found = adoptplan.inspect(held, selection, snaps, loaded_base)
         plan = installplan.build(held, selection, snaps, loaded_base, seed, version, None, now,
-                                 adopted=found)
+                                 adopted=found, profile=_profile(guarded, held, modules))
     except adoptplan.Conflicts as exc:
         raise Refused(exc.lines)
     except (installplan.PlanError, manifest.ManifestError, safefs.SafeFsError) as exc:

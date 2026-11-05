@@ -851,9 +851,9 @@ class ProfileGate(Delegated):
         _, ident, modules = approvalcmd.installed_modules(self.real)
         bridge = next(item for item in modules if "model-bridge" in item.module.provides)
         profile = profiles.Profile("bridge-one", "model-one", "low", {"server": "lab"})
-        self.assertIsNone(delegation._unusable(self.guarded, ident, modules, profile))
+        self.assertIsNone(delegation.unusable(self.guarded, ident, modules, profile))
         twin = bridge._replace(package="other-package")
-        problem = delegation._unusable(self.guarded, ident, modules + [twin], profile)
+        problem = delegation.unusable(self.guarded, ident, modules + [twin], profile)
         self.assertIn("more than one", problem)
         self.assertIn("bridge-one", problem)
 

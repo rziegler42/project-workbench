@@ -313,20 +313,41 @@ bridge) belongs to increment J.
 
 ### Increment J — The install default and `wb doctor`
 
-**Outcome:** `wb install` writes the default `review-profiles.json` when it is absent, shown in the preview and bound to the `ask`
-digest. `wb doctor` reports the file's problems of criterion 7 (the checks of the delegated setting are increment I's).
-**Dependencies:** B, C and D.
+**Outcome:** `wb install` writes a default `review-profiles.json` when it is absent, built only from the model-bridge modules that are
+installed and naming no vendor, shown in the preview and bound to the `ask` digest. `wb doctor` reports the problems of the file, of
+each profile against its bridge, and of an old `.workbench/review.json`. *(Changed on 2026-11-05, before J was built: the first text
+had the installer write an effort ramp for one bridge and a profile for each record of another bridge's endpoint file, which names
+those modules in the installer's code and so breaks `tests/test_boundary.py`, which allows no exemption. The owner chose the generic
+default, in the spirit of the earlier decision "default model only": one profile that names its bridge and nothing else, so that each
+bridge's own default model stands. The effort ramp and per-endpoint profiles are the owner's to add by hand.)*
+**Dependencies:** B, C, D and I.
 **Affected areas:** `workbench/install.py`, `workbench/installplan.py`, `workbench/preview.py`, `workbench/askdigest.py` if the digest
-inputs change, `workbench/doctor.py`, `workbench/store.py`, `tests/test_install_levels.py`, `tests/test_install.py`, `tests/test_doctor.py`,
-`docs/specs/installer-interface.md`, `docs/specs/command-permissions.md`.
+inputs change, `workbench/doctor.py`, `workbench/store.py`, `workbench/delegation.py` (the usable-profile check is shared with the
+doctor), `tests/test_install_levels.py`, `tests/test_install.py`, `tests/test_doctor.py`, `tests/test_boundary.py` (run, not changed),
+`docs/specs/installer-interface.md`, `docs/specs/command-permissions.md`, `docs/specs/review-profiles.md`.
 **Steps:**
 1. Read how install writes to the store, the preview and the digest it binds, and `doctor.py`.
-2. Write the tests first: a default for `ask-codex`; a default for `ask-ollama` from a valid endpoint file; no profile for a record
-   with no `default_model`; ladders only for one family and only for a profile that was made; no file when no bridge is installed;
-   an existing file never changed; the digest changes with the bytes; the preview prints what an old `review.json` said as data.
-3. Build the writer, the preview lines and the checks.
-4. Update the specs. If this grows beyond one reviewable commit, stop and report.
-**Verification:** the install, preview and doctor tests named above and the drift test.
+2. Write the tests first, with made-up bridge modules (the installer's tests name none of the real ones):
+   - the default: one profile for each installed, pinned module that provides `model-bridge`, named by the bridge's command and
+     holding `bridge` only (no model, no effort, no options); a bridge whose name is not a profile name makes no profile and the install
+     says why; the two ladders `default` and `action-review` are written only when exactly one profile was made, each naming it; with
+     several bridges the profiles are written and no ladder is, and the install says that a review is refused until the owner chooses;
+     with no bridge no file is written;
+   - the file: written only when absent; an existing file is never changed, whether valid, invalid, a link or a directory; what is
+     written passes `settings.read_profiles` and the kit reader; nothing outside the guarded store root is touched;
+   - the preview and the digest: the preview prints the bytes that will be written (or says none will be), the digest at `ask` changes
+     with the bytes and with nothing else of this feature, and a run with the wrong digest writes nothing;
+   - the old file: the preview prints what an old `.workbench/review.json` said, as data, only the four known fields, each as ASCII
+     with escapes and cut at 128 characters, and one line saying so when it is over 4,096 bytes or malformed; the text is not part of
+     the digest and changes nothing that is written;
+   - `wb doctor`: a missing file when a model bridge is installed, an invalid file, a ladder that names an absent profile, a profile whose
+     bridge is not installed, each profile against its bridge's pinned declaration with the delegated-approval check's rules (an
+     undeclared option, a value outside its grammar, a broken exclusion), and a file at `.workbench/review.json` reported as unused.
+3. Build the writer, the preview lines and the checks; share the usable-profile check with `delegation.py` rather than copying it.
+4. Update the specs, including the acceptance criterion 9 of `review-profiles.md`. If this grows beyond one reviewable commit, stop and
+   report.
+**Verification:** the install, preview and doctor tests named above, `tests/test_delegation.py` (the shared check) and
+`tests/test_boundary.py`.
 **Evidence:** the one local commit, with the trailer `Plan: 2026-11-04-review-profiles#J`.
 
 ### Increment K — Walk-through and the specs as built
@@ -481,6 +502,21 @@ the second came back with no meaningful finding.
   is the owner's current setting and is accepted as `any`; refusing it would need a comparison with the first reading, which brings the
   second-read problem back. **Rejected:** none. **Limits of its evidence:** it ran nothing and did not confirm the duplicate-module cases
   of the manifest.
+- **Increment J changed (2026-11-05, before it was built).** Reading the installer showed that the first text of J (an effort ramp for
+  one bridge and a profile per endpoint record for another) names those modules in the installer, which `tests/test_boundary.py` forbids
+  without exemption. The owner chose a generic default, in the spirit of the earlier decision "default model only", and approved the
+  changed plan through the `ask` flow (region `7818ca2d...a155`).
+- **Review of increment J (2026-11-05, a `reviewer` agent, one exchange).** No blocking finding. By reading it confirmed that an existing
+  file of any kind (valid, invalid, a link, a directory) is left as it is and planned as nothing; that the bytes written are the bytes
+  bound by the digest and the notes are not; that nothing a module, a command or the old project file contains can add a line or a
+  control character to the preview; that the old file is read for display only, with no link followed and no blocking on a FIFO; that
+  the doctor fails quiet and not false when the installed modules cannot be read; and that `wb recover` and `wb adopt` take the same
+  path. **Applied:** the preview now prints the file exactly as it will be written (a test first), where it had printed a hash and a
+  description; the spec names the per-profile doctor checks and says that the store write is a check followed by a rename. **Answered:**
+  the bridges named are pinned, because `installplan.build` pins the helpers of every selected module in the same step. **Accepted, not
+  changed:** a file that the owner creates in the milliseconds between the install's last look and its write is replaced, like any other
+  store write of the install; the write refuses at once when the path is occupied (a test covers a file created after the preview).
+  **Limits of its evidence:** it ran nothing and read no test.
 
 ## Deferred work
 
@@ -860,4 +896,34 @@ the second came back with no meaningful finding.
   approvalcmd, levels, levelrun, the gates, approve levels, rendering, planapprovals, permissions drift and check), OK; `test_settings`
   (115), OK; `wb check` and `wb run code-work check` report no problems; `git diff --check` is clean. No package changed.
 - **Not done:** the commit and the push. `wb doctor` still does not run the bridge checks (finding I2; increment J).
+- **Left for the owner:** the verdict and the word to commit.
+
+### Increment J
+
+- **Done:** `wb install` and `wb adopt` write a default `review-profiles.json` into the guarded store when nothing is at that path,
+  built by the new `workbench/profiledefault.py` from the selected modules alone: one profile for each module that provides
+  `model-bridge` and has exactly one command that takes `ask`, named by that command and holding `bridge` only (no model, effort or
+  option), and the `default` ladder when exactly one profile was made. It is one more store write of the plan, so the existing digest
+  binds its bytes; the preview prints the file exactly as it will be written and notes for the rest (a bridge that was not named and
+  why, no ladder for several profiles, an existing file left as it is, no model bridge, more than 32). An existing file of any kind is
+  never changed, and the write refuses at once when the path is occupied. The preview also prints what an old `.workbench/review.json`
+  said, as data (the four known fields, ASCII with escapes, cut at 128 characters; one line when it is over 4,096 bytes or malformed),
+  which changes nothing that is written and is not in the digest. `wb doctor` reports a file the kit refuses (a problem), each profile that
+  cannot be used with its bridge by the delegated-approval check's rules (a problem; `delegation.unusable` is the one shared check), a
+  missing file when a model bridge is installed (a risk) and the old project file as read by nothing (a note).
+- **Deviations from the approved plan's wording, recorded here because the plan text cannot change without a new approval:** (1) the plan
+  says the install writes "the two ladders `default` and `action-review`". Only `default` is written: `action-review` is the key of one
+  module, the installer may not name a module, and the owner adds that ladder when they use that engine; the spec says so. (2) The plan's
+  affected areas list `askdigest.py`, `store.py`, `command-permissions.md` and `test_install_levels.py`; none needed a change, because
+  the store write is bound by the digest's existing `store_writes` field.
+- **Tests first:** `tests/test_profiledefault.py` (new: the builder, the existing-file case and the old-file lines), three in
+  `tests/test_installplan.py` (one more store write, the digest binds the bytes and not the notes, the preview), `ProfileDefaultInstall`
+  in `tests/test_install.py` (9 tests with made-up bridges: one bridge, several, none, a wrong digest, an existing file of four kinds, a
+  directory and a link, a file that appears after the preview, the installer's reader and the kit read what was written, the file's
+  mode) and `ReviewProfiles` and four in-project tests in `tests/test_doctor.py`. They ran red before the code.
+- **Verification, as run:** J's modules and the install, preview, adopt, recover, unfinished, doctor, delegation, approvalcmd and kit-profile
+  modules, with `tests/test_boundary.py`, which passes; `test_settings` (115) by file; `wb check` and `wb run code-work check` report no
+  problems; `git diff --check` is clean. No package changed, so there is no release. The full set ran 672 tests, OK.
+- **Not done:** the commit and the push. The preview's lines about an old `.workbench/review.json` are tested on the function, not
+  through an adoption of a project that has one. The walk-through of a real install is increment K.
 - **Left for the owner:** the verdict and the word to commit.

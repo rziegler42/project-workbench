@@ -5,7 +5,7 @@ import tempfile
 import unittest
 import unittest.mock
 
-from workbench import base, installplan, manifest, snapshot, target, verify
+from workbench import base, installplan, manifest, profiledefault, snapshot, target, verify
 from workbench.installplan import PlanError
 
 HARNESS = {"type": "harness", "layout": {}}
@@ -68,7 +68,7 @@ class PlanTest(unittest.TestCase):
         selection, snaps = self.select(path, names)
         return self.build(selection, snaps, state=state, **kwargs)
 
-    def build(self, selection, snaps, state="missing", seed=SEED, version="0.1.0"):
+    def build(self, selection, snaps, state="missing", seed=SEED, version="0.1.0", **more):
         place = os.path.join(self.root, "proj")
         if state != "missing":
             os.makedirs(place, exist_ok=True)
@@ -76,7 +76,7 @@ class PlanTest(unittest.TestCase):
                 os.mkdir(os.path.join(place, ".git"))
         held = target.open_target(place, self.store, home=self.root + "/nohome")
         self.addCleanup(held.close)
-        return installplan.build(held, selection, snaps, self.base, seed, version)
+        return installplan.build(held, selection, snaps, self.base, seed, version, **more)
 
     def paths(self, plan, kind=None):
         return [a.path for a in plan.actions if kind is None or a.kind == kind]
@@ -86,6 +86,41 @@ class PlanTest(unittest.TestCase):
 
     NOTES = ({"writes": ["docs/notes.md"], "ships": ["scripts/run.sh"]}, {"files/docs/notes.md": b"# Notes\n",
                                               "scripts/run.sh": b"#!/bin/sh\n"})
+
+    def test_a_default_profile_file_is_one_more_store_write_and_the_digest_binds_its_bytes(self):
+        path = self.package("p", {"h": (HARNESS, {}), "notes": self.NOTES})
+        selection, snaps = self.select(path, ["h", "notes"])
+        none = self.build(selection, snaps)
+        one = self.build(selection, snaps, profile=profiledefault.Default(b'{"a": 1}\n', ("note one",)))
+        other = self.build(selection, snaps, profile=profiledefault.Default(b'{"a": 2}\n', ("note one",)))
+        again = self.build(selection, snaps, profile=profiledefault.Default(b'{"a": 1}\n', ("a different note",)))
+        self.assertEqual(len(none.store_writes) + 1, len(one.store_writes))
+        self.assertIn(("review-profiles.json", b'{"a": 1}\n'), one.store_writes)
+        self.assertNotIn("review-profiles.json", [path for path, _ in none.store_writes])
+        self.assertNotEqual(none.digest, one.digest)
+        self.assertNotEqual(one.digest, other.digest)
+        self.assertEqual(one.digest, again.digest, "the notes are shown and are not part of the digest")
+
+    def test_notes_without_bytes_change_nothing_that_is_written_or_bound(self):
+        path = self.package("p", {"h": (HARNESS, {}), "notes": self.NOTES})
+        selection, snaps = self.select(path, ["h", "notes"])
+        none = self.build(selection, snaps)
+        noted = self.build(selection, snaps, profile=profiledefault.Default(None, ("left as it is",)))
+        self.assertEqual(none.store_writes, noted.store_writes)
+        self.assertEqual(none.digest, noted.digest)
+
+    def test_the_preview_shows_the_bytes_that_will_be_written_and_the_notes(self):
+        path = self.package("p", {"h": (HARNESS, {}), "notes": self.NOTES})
+        selection, snaps = self.select(path, ["h", "notes"])
+        data = b'{"format": 1}\n'
+        plan = self.build(selection, snaps, profile=profiledefault.Default(data, ("one profile made",)))
+        text = installplan.render(plan, "/target")
+        self.assertIn("write review-profiles.json sha256 %s" % hashlib.sha256(data).hexdigest(), text)
+        self.assertIn("review profiles:", text)
+        self.assertIn("  one profile made", text)
+        quiet = installplan.render(self.build(selection, snaps), "/target")
+        self.assertNotIn("review profiles:", quiet)
+        self.assertNotIn("review-profiles.json", quiet)
 
     def test_plan_order_and_markers(self):
         plan = self.plan({"h": (HARNESS, {}), "notes": self.NOTES}, ["h", "notes"])
