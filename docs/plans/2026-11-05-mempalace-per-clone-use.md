@@ -278,3 +278,30 @@ E, which the plan asks again at D. The last change (R3-F1) was not read by the r
 - Left for the owner: the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/pc_install_files.py`,
   which writes three files only if their hashes are those recorded), the release approvals, the removal of the tracked `.workbench/mempalace.json`
   and the acknowledgement. Until the copy and release, `.workbench/mempalace.json` stays and is read by the installed (old) helper.
+
+**Increment A was committed as `7c8a241`** (the owner copied and released it; the upgrade and the removal of the tracked `.workbench/mempalace.json` are still the owner's steps).
+
+**Increment B (2026-11-05), done in a scratch clone at commit `7c8a241`; not yet copied, released or committed.**
+
+- Changed in the clone: `helper/mempalace` (`NOT_SET_UP`, the message of `query_program` when no trusted program is found; `search` looks for the program before the
+  cached model), `harness/neutral/skills/recall-memory/SKILL.md` (the skip rule), `tests/test_mempalace_run.py` (a class `Absent`, 7 tests) and
+  `tests/test_mempalace_guidance.py` (one test that pins the quoted words in the skill and the helper). Changed in the live tree: `docs/specs/mempalace.md` (the line
+  about a missing program). `run_owner` is unchanged on purpose: the owner's `mine` keeps "mempalace was not found in a trusted PATH entry …", since a skipped
+  search is not what it does. The plan's affected-areas list names `run_owner`; this is why it was read and left alone.
+- Verification as run: before the change the two skip-message tests and the guidance test failed for the right reason; after it,
+  `PYTHONPATH=. python3 -B -W error -m unittest discover -s packages/workbench/mempalace/tests -t packages/workbench/mempalace/tests` gave `Ran 194 tests ... OK`
+  (186 before). `wb run code-work check` passed. Not run: the repository's own tests (no installer file changed), the real `mempalace`.
+- Review: the `reviewer` agent, two exchanges (cap 6). First read: one blocking finding, applied. `search` refused with "the embedding model is not cached" before it
+  looked for the program, so a clone with neither the program nor the model (the usual case for a developer who does not use the palace) was still told to report a
+  refusal; my tests missed it because their setup always creates the model files. Fixed by looking for the program first, with a test that removes both. Applied:
+  `test_the_owners_mine_keeps_its_own_words` ran without a terminal and so passed whatever `run_owner` said (it now uses a terminal and asserts the old words);
+  `test_a_program_in_an_untrusted_place…` planted no program (it now plants a working fake inside the project and on a relative entry and asserts it is never run).
+  Second read of the fix: no blocking finding.
+- Open for the owner, not decided by this increment: a program that exists but sits in an untrusted `PATH` entry (inside the repository, on a relative entry, behind a
+  link) gets the same "not set up on this machine, so the search is skipped" message, so the agent goes on silently and the owner is never told the program was
+  refused for being untrusted. The bracketed words still say so, and `wb run mempalace status` from a terminal shows them. Giving that case its own, reportable wording
+  would need the helper to look in untrusted entries to tell the two apart, which it does not do today. Recommendation: leave it.
+- Not checked by the reviewers: any test run (they only read), the real program, the repository's own tests.
+- Left for the owner: the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/pcb_install_files.py`,
+  four files, only if their hashes are those recorded), the release approvals, and, after the commit, `wb upgrade` and `wb rerender` (the skill is installed under
+  `.claude/skills/`; the installed copy still has the old rule until then).

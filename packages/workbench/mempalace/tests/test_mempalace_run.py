@@ -389,6 +389,80 @@ class Program(support_mempalace.Palace):
         self.assertEqual(["plan.md"], os.listdir(os.path.join(self.root, "docs")))
 
 
+class Absent(support_mempalace.Palace):
+    """Plan `2026-11-05-mempalace-per-clone-use`, increment B: a clone without the `mempalace` program is told the search is skipped. Only
+    the agent's two commands say so; the owner's `mine` and every other refusal keep their own words."""
+
+    PHRASE = "mempalace is not set up on this machine"
+
+    def absent(self):
+        os.remove(os.path.join(self.outside, "mempalace"))
+
+    def test_status_and_search_say_the_search_is_skipped_and_start_nothing(self):
+        self.absent()
+        for err in (self.refused("status", contains=self.PHRASE), self.refused_search(contains=self.PHRASE)):
+            self.assertIn("skipped", err)
+            self.assertIn("not found in a trusted PATH entry", err)
+            self.assertEqual(1, err.count("\n"))
+
+    def test_a_machine_with_neither_the_program_nor_the_model_gets_the_skip_and_not_the_model_refusal(self):
+        """Found by the review of increment B: a clone that does not use the palace usually has no cached model either, and `search`
+        checked the model first, so the agent was told to report a refusal the owner cannot act on."""
+        self.absent()
+        for name in self.helper.MODEL_FILES:
+            os.remove(os.path.join(self.home, *self.helper.MODEL_DIR, name))
+        for err in (self.refused("status", contains=self.PHRASE), self.refused_search(contains=self.PHRASE)):
+            self.assertNotIn("not cached", err)
+
+    def test_the_program_present_and_the_model_missing_is_still_the_model_refusal(self):
+        for name in self.helper.MODEL_FILES:
+            os.remove(os.path.join(self.home, *self.helper.MODEL_DIR, name))
+        err = self.refused_search(contains="not cached")
+        self.assertNotIn(self.PHRASE, err)
+
+    def test_a_program_in_an_untrusted_place_is_never_run_and_gets_the_same_skip_message(self):
+        self.absent()
+        inside = os.path.join(self.root, "bin")
+        os.makedirs(inside)
+        self.fake(inside)
+        self.control(inside, stdout="INSIDE\n")
+        for entries in ([inside], ["bin"], [""]):
+            self.path(entries, TMPDIR=self.temp, HOME=self.home)
+            self.refused("status", contains=self.PHRASE)
+        self.assertEqual([], self.calls(inside))
+
+    def test_the_owners_mine_keeps_its_own_words(self):
+        self.absent()
+        code, shown = self.owner("mine", self.root, "--allow-project-root")
+        self.assertEqual(1, code, shown)
+        self.assertIn("mempalace was not found in a trusted PATH entry", shown)
+        self.assertNotIn("skipped", shown)
+        self.assertNotIn(self.PHRASE, shown)
+
+    def test_no_other_refusal_says_the_program_is_not_set_up(self):
+        os.makedirs(os.path.join(self.root, ".workbench", "local"))
+        with open(os.path.join(self.root, ".workbench", "local", "mempalace.json"), "w") as handle:
+            handle.write("{")
+        refusals = [self.refused("status", contains="mempalace.json")]
+        os.remove(os.path.join(self.root, ".workbench", "local", "mempalace.json"))
+        refusals.append(self.refused("status", "extra", contains="takes no argument"))
+        refusals.append(self.refused_search("--bogus", "x", contains="--bogus"))
+        os.remove(os.path.join(self.home, *self.helper.MODEL_DIR, self.helper.MODEL_FILES[0]))
+        refusals.append(self.refused_search(contains="not cached"))
+        for err in refusals:
+            self.assertNotIn(self.PHRASE, err)
+            self.assertNotIn("skipped", err)
+
+    def test_a_program_that_cannot_be_started_is_not_the_skip(self):
+        script = os.path.join(self.outside, "mempalace")
+        with open(script, "w") as handle:
+            handle.write("#!/nonexistent/interpreter\n")
+        os.chmod(script, 0o755)
+        code, out, err = self.run_helper("status")
+        self.assertEqual(1, code)
+        self.assertNotIn(self.PHRASE, err)
+
+
 class Output(support_mempalace.Palace):
     def test_text_is_returned_cleaned_and_between_the_markers(self):
         self.control(stdout="line one\n\tindented\n")

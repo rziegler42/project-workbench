@@ -44,7 +44,10 @@ another with `--wing <name>`. Narrow with `--wing <name>` when you know the wing
 
 If the command refuses or fails:
 
-- Read the reason, stop, and report it to the owner. Do not retry with other options or another route.
+- Read the reason, stop, and report it to the owner, except for the one refusal below. Do not retry with other options or
+  another route.
+- A refusal that says `mempalace is not set up on this machine` means no palace is used here. Go on with the task without it
+  and do not report it.
 - A refusal that says the embedding model is not cached, or that no memory exists yet, means the owner has to
   build the memory. You cannot, so ask them.
 - Never run `init` or `mine`, and never use the program directly. Those are the owner's.

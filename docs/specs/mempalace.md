@@ -207,7 +207,14 @@ tracked document.
 - The module verifies, and its approval request lists the helper, the command and the `owner` arguments.
 - With a fake `mempalace` on `PATH`, `status` and `search` return its text bounded and marked as data. A missing
   program is a refusal; a non-zero exit, a timeout and output over the bound are failures that start from the
-  program's words or none.
+  program's words or none. For `status` and `search` the refusal says "mempalace is not set up on this machine, so the search is skipped"
+  and, in brackets, that no program was found in a trusted `PATH` entry; a clone that does not use the palace is not nagged: the
+  `recall-memory` skill quotes the first words, tells the agent to go on without it and not to report it, and keeps "read the reason, stop,
+  and report it to the owner" for every other refusal (a malformed setting, an unknown option, a missing model, a program that cannot be
+  started, a failure). A program in an untrusted place (inside the project, on a relative entry) gets the same message, which is still true:
+  none is run. `search` looks for the program before it looks for the cached model, because a machine without the program has no cached
+  model either and would otherwise be told to report a refusal the owner cannot act on. The owner's `mine` keeps its own wording, since a
+  skipped search is not what it does. A test pins the quoted words in both.
 - `search` refuses an unknown option (`--include-media`, `--backend` and `--palace` among them), an empty query, a
   query over the limit and `--results` over the ceiling; a query that begins with `-` is passed as a query.
 - `search` refuses, and starts no program, when any of the six model files is absent (the refusal tells the owner

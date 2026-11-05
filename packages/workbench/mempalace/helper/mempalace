@@ -308,6 +308,13 @@ def wrap(command, text, notes=""):
             % (token, command, text.strip("\n"), notes, token))
 
 
+# What `status` and `search` say when there is no trusted program: the clone does not use the palace, so the search is skipped. The
+# `recall-memory` skill quotes the first words (a test pins both), and tells the agent to go on without reporting it. The owner's
+# `mine` has its own message.
+NOT_SET_UP = ("mempalace is not set up on this machine, so the search is skipped (it was not found in a trusted PATH entry, "
+              "an absolute one outside the repository)")
+
+
 def query_program(command, argv_tail, cwd, palace=None):
     """The cleaned text of one run of the program, or ``Failed`` / ``Refused``. `palace` is the project's
     setting, passed as the program's own ``--palace`` option, which goes before the command, after the fixed
@@ -316,7 +323,7 @@ def query_program(command, argv_tail, cwd, palace=None):
     entries = trusted_entries(boundary)
     program = trusted_which(PROGRAM, entries, boundary)
     if program is None:
-        raise Refused("mempalace was not found in a trusted PATH entry (an absolute one outside the repository)")
+        raise Refused(NOT_SET_UP)
     temp = os.environ.get("TMPDIR") or tempfile.gettempdir()
     if is_inside(temp, boundary):
         raise Refused("the temporary directory is inside the project; set TMPDIR outside it")
@@ -454,6 +461,9 @@ def search(args, out, cwd):
     palace, wing = project_setting(find_root(cwd))
     if wing and "--wing" not in options:
         options = dict(options, **{"--wing": wing})  # the project's wing, unless the caller names another
+    boundary = outermost_boundary(cwd)
+    if trusted_which(PROGRAM, trusted_entries(boundary), boundary) is None:
+        raise Refused(NOT_SET_UP)  # before the model: a clone with no program has no cached model either, and has nothing to build
     if not model_cached():
         raise Refused("the embedding model is not cached, and a search would start a download; "
                       "the owner runs `wb run mempalace mine` once first")

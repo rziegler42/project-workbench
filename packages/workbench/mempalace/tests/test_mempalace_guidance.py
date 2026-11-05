@@ -222,6 +222,19 @@ class Skill(unittest.TestCase):
                      "Never run `init` or `mine`, and never use the program directly"):
             self.assertIn(rule, text, rule)
 
+    def test_it_tells_the_agent_to_skip_quietly_when_the_program_is_absent_and_the_helper_says_the_same_words(self):
+        """Plan `2026-11-05-mempalace-per-clone-use`, increment B: a clone without the program is not nagged. The skill quotes the helper's
+        words, so a change to one without the other fails here."""
+        phrase = "mempalace is not set up on this machine"
+        text = flat(skill_text())
+        for rule in ("A refusal that says `%s` means no palace is used here" % phrase,
+                     "Go on with the task without it and do not report it",
+                     "Read the reason, stop, and report it to the owner"):
+            self.assertIn(rule, text, rule)
+        with open(os.path.join(MODULE, "helper", "mempalace"), encoding="utf-8") as handle:
+            self.assertIn(phrase, handle.read())
+        self.assertEqual(1, text.count("do not report it"))
+
     def test_it_says_an_agent_cannot_file_and_the_owner_does(self):
         text = flat(skill_text())
         for rule in ("You cannot add to or change the palace", "tell the owner what it is and let them file it",
