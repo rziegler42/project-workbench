@@ -66,7 +66,7 @@ ambiguous blank.
 | Owner-run: the shadow report (counts only; needs no terminal) | `python3 -B <dir>/report.py` with a copy of `tools/report.py` and `hook/shadow_store.py` beside it; prints the false declines and false approves against the labels and the test set, the bound, and the cutover line |
 | Owner-run: run the dangerous cases against a real model (terminal only; from a trusted checkout; sends 3 synthetic prompts to Codex after you type `send 3`) | `python3 -B packages/workbench/action-review/tools/run_testset.py [--codex-dir <absolute path>]`; writes `testset.jsonl`; exit 3 on a false approve |
 | Search the owner's memory (agent-safe) | `python3 -m workbench run mempalace status`, and `python3 -m workbench run mempalace search [--wing <name>] [--room <name>] [--results <1-20>] [--since <date>] [--before <date>] -- <query>` (the `mempalace` module's command; needs a `mempalace` program and its cached embedding model; see "The mempalace module") |
-| Owner-run: build the memory (terminal only) | `python3 -m workbench run mempalace init <dir> [--yes] [--allow-project-root]`, and `python3 -m workbench run mempalace mine <dir> [--confirm] [--wing <name>] [--mode projects\|convos] [--allow-project-root]` (refuse unless standard input and output are terminals; `mine` is a dry run without `--confirm`) |
+| Owner-run: build the memory (terminal only) | `python3 -m workbench run mempalace mine <dir> [--confirm] [--wing <name>] [--mode projects\|convos] [--allow-project-root]` (refuses unless standard input and output are terminals; a dry run without `--confirm`; the module has no `init`) |
 | Show a project's remote job profiles | `python3 -m workbench run remote-runner profiles` (the `remote-runner` module's command; reads `.workbench/remote-runner.toml`, starts no program; `wb check` also reports a refused file and a leftover `.claude/remote-runner.toml`; see `docs/specs/remote-runner.md`) |
 | Fetch a finished job's files into the project | `python3 -m workbench run remote-runner fetch <job> <path> ... [--dest <folder>] [--as <name>]` (1 to 16 paths; refuses a target that exists or goes through a link; never overwrites; fetched files are untrusted). `fetch-overwrite` (same arguments, passes the program's `--force`) is owner-run only and is denied to the agent in the rendered Claude settings |
 | Ask for runners, check a job, list its artifacts, submit a declared profile | `python3 -m workbench run remote-runner recommend --profile <name>`, `... status <job> [--expect <40 hex>]`, `... artifacts <job>`, `... submit (--remote <name> \| --best) --profile <name> [--ref <ref> \| --snapshot]` (starts only the external `remote-runner` program, found in an absolute `PATH` entry outside the project; prints one JSON line; submit only on the owner's word; tests use a fake program) |
@@ -225,16 +225,16 @@ on exit 0 together with a whole, valid object.
 
 ## The mempalace module
 
-`wb run mempalace status` and `wb run mempalace search` let an agent read the owner's MemPalace; `init` and `mine` are the
-owner's, and build it (`docs/specs/mempalace.md`). The module runs the owner's `mempalace` program and holds no memory of
+`wb run mempalace status` and `wb run mempalace search` let an agent read the owner's MemPalace; `mine` is the
+owner's, and builds it (`docs/specs/mempalace.md`). The module runs the owner's `mempalace` program and holds no memory of
 its own.
 
 - **What a real call needs.** A `mempalace` program in an absolute `PATH` entry outside the repository (installed with
   `uv`; the module neither installs nor updates it), and for a search its embedding model in the cache, which only `mine`
   downloads. The tests need neither: they use a fake `mempalace`, send nothing and never start a real one.
-- **Building the memory (the owner, from a terminal).** `wb run mempalace init <dir>` asks about the detected rooms and
-  writes `mempalace.yaml` into `<dir>`; `wb run mempalace mine <dir>` shows what it would file, and
-  `mine <dir> --confirm` files it. The first real `mine` downloads about 79 MB (the model, from the
+- **Building the memory (the owner, from a terminal).** `wb run mempalace mine <dir>` shows what it would file, and
+  `mine <dir> --confirm` files it. There is no `init`: `mine` needs none of what the program's `init` writes into the
+  folder it scans (`mempalace.yaml`, `entities.json`, and a block appended to the `.gitignore` of a git repository). The first real `mine` downloads about 79 MB (the model, from the
   `chroma-onnx-models` bucket on Amazon S3) and writes `$HOME/hallways.json`. `<dir>` is a directory you name: not the
   project root unless you add `--allow-project-root`, not one that holds or lies inside the palace, and not one in
   which a configuration file the program writes through is a link.

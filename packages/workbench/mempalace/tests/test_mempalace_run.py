@@ -237,7 +237,7 @@ class Environment(support_mempalace.Palace):
         self.assertEqual(os.path.join(self.root, "pwn"), os.path.realpath(sneaky))
 
     def test_the_git_the_program_runs_cannot_be_told_by_a_repository_to_run_a_program_or_fetch(self):
-        """Found by the security review of 2026-10-24: `init` runs git in repositories it finds, and a repository
+        """Found by the security review of 2026-10-24: `init` runs git in repositories it finds (3.11.0: `mine` does not; the settings stay for every command in case a later version does), and a repository
         can select a signature verifier or a monitor. Configuration in the environment ranks above the repository's."""
         caller = {"GIT_CONFIG_COUNT": "9", "GIT_CONFIG_KEY_0": "core.hooksPath", "GIT_CONFIG_VALUE_0": "/x",
                   "GIT_DIR": "/x", "GIT_SSH_COMMAND": "evil", "GIT_EXEC_PATH": "/x"}

@@ -1121,7 +1121,7 @@ approval command is reached at all; a project, a plan or a review cannot supply 
 - `delegated` for `accept-decision` and for the other seven keys that do not offer it (every key but `approve-plan`). The plan
   `2026-10-29-accept-decision-at-ask` built `ask` for `accept-decision` and left `delegated` reading `block`: the accepted record leaves
   undecided what a delegated review's subject is for a decision, and the roadmap candidate `checkpoint-levels-beyond-block` stays open.
-- `ask` and `none` for the owner-run arguments of the other module commands (`wb run mempalace init`, `mine`, and
+- `ask` and `none` for the owner-run arguments of the other module commands (`wb run mempalace mine` and
   `wb run remote-runner fetch-overwrite`). The declaration fields (`levels` and `preview`), the launcher that reads the level and logs the run,
   and the review engine's five (`extend`, `reset`, `archive`, `amend`, `prune`, each with a preview and a digest) are built by the plan
   `2026-10-27-levels-for-the-review-workflow`, Increments C to F. A module that wants them declares `levels` and a `preview` argument

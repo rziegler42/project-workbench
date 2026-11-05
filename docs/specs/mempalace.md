@@ -21,10 +21,10 @@ MemPalace the owner has installed, and gives the owner commands to build it. It 
 | fills | `policy` (a short block) |
 | writes | nothing outside its namespace |
 | ships | `helper/mempalace`; the module also holds one neutral skill, `recall-memory`, and the policy block |
-| commands | `mempalace`, runtime `python`, kit 1; `arguments`: `status`, `search`, `init`, `mine`; `owner`: `init`, `mine` |
+| commands | `mempalace`, runtime `python`, kit 1; `arguments`: `status`, `search`, `mine`; `owner`: `mine` |
 
-It is run as `wb run mempalace status` and `wb run mempalace search ...` by an agent, and `init` and `mine` by
-the owner. The installer pins the helper when the owner confirms the install.
+It is run as `wb run mempalace status` and `wb run mempalace search ...` by an agent, and `mine` by
+the owner. There is no `init` (see "mine" below). The installer pins the helper when the owner confirms the install.
 
 ## Non-goals
 
@@ -86,52 +86,56 @@ it is recalled data.
   palace database and for an error, with its message on standard output. The helper reads the exit code and
   treats the text as data on either stream.
 
-**`init`** and **`mine`** (owner-run). Listed under `owner`, so the harness denies them to the agent. The helper
-also runs them only when standard input and output are terminals (the rule `approve` follows), so that a harness
-with no deny rule does not let an agent run them; that test is friction and not authentication. It then hands the
-terminal to the program, which asks its questions and prints its progress, and waits with no time limit. Without
-`--yes`, `init` asks the owner to accept the detected rooms; the program crashes on end of input, which is why a
-captured run could not serve it (`Evidence`, 2026-10-24).
+**`mine`** (owner-run). Listed under `owner`, so the harness denies it to the agent. The helper
+also runs it only when standard input and output are terminals (the rule `approve` follows), so that a harness
+with no deny rule does not let an agent run it; that test is friction and not authentication. It then hands the
+terminal to the program, which prints its progress, and waits with no time limit.
 
-- `init <dir>` writes `mempalace.yaml` **into `<dir>`**, so an `init` of the project root leaves an untracked file
-  in the project. It also saves the palace path in `$HOME/.config/mempalace/config.json`. It always passes `--no-llm`, so that no provider is contacted. MemPalace's default is to refine
-  entities with a language model, and its providers include remote ones (`ollama`, `openai-compat`,
-  `anthropic`); the owner who wants one runs `mempalace init` directly and sees what it sends.
+- **There is no `init`** (removed by plan `2026-11-05-mempalace-per-clone-use`, increment C).
+  The program's `init` writes `mempalace.yaml` **into the directory it scans**, and `entities.json` when it detects people or projects, and, in a
+  git repository, appends a block to that folder's `.gitignore` (`cli/cmd_init.py`, `_ensure_mempalace_files_gitignored`), so an
+  `init` leaves untracked files and can change a tracked one; it also saves the palace path in `$HOME/.config/mempalace/config.json` and a registry in
+  `~/.mempalace/known_entities.json`, and on the owner's decision records it guessed headings as "people" (`Evidence`, 2026-11-05). `mine` needs
+  none of that: without a `mempalace.yaml` it files every file of the directory in one room and writes nothing into the directory (3.11.0: from the program's command line, the code that
+  writes the two files and the `.gitignore` block is called only from `init`, read from its source on 2026-11-05, and neither file appeared in the three folders mined). An owner who wants what `init` adds runs the program's `init` directly, knowing that two
+  files will sit in that directory and that, by default, it refines entities with a language model whose providers include remote ones
+  (`ollama`, `openai-compat`, `anthropic`). The helper's refusals below still protect `mine` from a planted configuration.
 - `mine <dir>` passes `--dry-run` unless `--confirm` is given, so the owner sees what would be filed first. The
   first real `mine` downloads the embedding model, and it writes `$HOME/hallways.json` directly in the home
   directory. The helper says both before it runs without `--dry-run`.
   `mine` also takes `--wing <name>` and `--mode projects|convos`, and nothing else.
-- For both, the directory is refused when any of `mempalace.yaml`, `mempalace.yml`, `mempal.yaml`, `mempal.yml`,
+- The directory is refused when any of `mempalace.yaml`, `mempalace.yml`, `mempal.yaml`, `mempal.yml`,
   `entities.json` and `.gitignore`, or a backup of one (a name that begins with one of them, compared without regard to
-  case), is not a plain file with one name. The program opens those names for writing and follows a link, so a planted
+  case), is not a plain file with one name. The program's `init` opens those names for writing and follows a link, so a planted
   one made the real `init` overwrite a file outside the directory (reproduced 2026-10-24 for the configuration; the
-  entities file and the `.gitignore` append are read from the program's source; security review).
-- For both, the directory is refused when it is, holds or lies inside a palace the program may use here: the
+  entities file and the `.gitignore` append are read from the program's source; security review). The module no longer runs `init`; `mine`
+  reads the configuration it finds there (and would follow a link to it), so the refusal stays as a precaution with the other folder rules.
+- The directory is refused when it is, holds or lies inside a palace the program may use here: the
   project's setting, the `palace_path` the program saved in its own configuration, or its two default places.
-  `init` writes `.mempalace/origin.json` under the palace, and `mine` would index the palace's own files.
-- For both, the directory is one the owner names: it exists, is not a link and has no link in its path, and is not
+  `mine` would index the palace's own files (the program's `init` also wrote `.mempalace/origin.json` under it).
+- The directory is one the owner names: it exists, is not a link and has no link in its path, and is not
   inside `.git` or `.workbench`. It is refused when it is the project root or holds it, unless
   `--allow-project-root` is also given, so the default does not make the project's tree a second index
-  (`knowledge-tools.md`). `init` takes only `--yes` and `--allow-project-root`.
-- Neither takes `--llm-api-key`, `--llm-provider`, `--llm-endpoint`, `--accept-external-llm`, `--daemon`,
+  (`knowledge-tools.md`). `mine` takes `--confirm`, `--wing`, `--mode` and `--allow-project-root`, and nothing else.
+- It takes none of `--llm-api-key`, `--llm-provider`, `--llm-endpoint`, `--accept-external-llm`, `--daemon`,
   `--background` or `--palace` (the project setting supplies that).
 
 **First use in a project (as found on 2026-11-05; "Evidence", first use).** (1) Write nothing: the wing defaults to the project folder's name. Write
 `.workbench/local/mempalace.json` (untracked, this clone's own) only to name another wing, `{"format": 1, "wing": "<name>"}`, or to keep this
 project's notes in a palace of their own outside the project tree, with a `palace`.
-(2) In the owner's own terminal, not in an agent session (a command run from a session has no terminal and `init` and `mine` refuse it):
-`wb run mempalace mine <directory>`, which is a dry run, and then the same with `--confirm`. (3) Do not run `init`: `mine` does not need
+(2) In the owner's own terminal, not in an agent session (a command run from a session has no terminal and `mine` refuses it):
+`wb run mempalace mine <directory>`, which is a dry run, and then the same with `--confirm`. (3) There is no `init`: `mine` does not need
 it. Without a `mempalace.yaml` the program files every file of the directory in one room, `general`, under the wing it is given, prints
 the hint "No mempalace.yaml found … using auto-detected defaults", and writes nothing into the directory. `init` adds room names guessed
 from file names, a list of people and projects (`entities.json`, and the program's registry in the home directory), a note on the kind of
 corpus, and per-directory patterns that exclude files from mining (the one capability that needs a `mempalace.yaml`); it writes the first
 two files into the directory it scans, the program offers no option to put them elsewhere, and the config is read only from the directory
-being mined. Run `init` only for those features, knowing that two files will sit in that directory. A `mine` of a directory is not
+being mined. The owner who wants those features runs the program's `init` directly, knowing that two files will sit in that directory. A `mine` of a directory is not
 repeated for changed files by anything: it is run again by the owner.
 
 **How the program runs.** As `knowledge-tools.md` states: found in an absolute `PATH` entry that exists and, with every
 link resolved, is outside the repository (the resolved entries and the resolved program are what is used, and what the
-child gets as its `PATH`; a containment check that cannot examine a path counts it as inside), no shell, a fixed argument shape, a time limit (60 seconds for `status` and `search`; none for `init` and `mine`, which the owner watches on their
+child gets as its `PATH`; a containment check that cannot examine a path counts it as inside), no shell, a fixed argument shape, a time limit (60 seconds for `status` and `search`; none for `mine`, which the owner watches on their
 own terminal), an output cap (for `status` and `search`, whose output is returned to the caller), the caller's
 `HOME` used because MemPalace reads its configuration from it. No environment variable of the caller is passed on except `HOME`, `PATH`,
 `LANG` and `LC_*`; in particular none that selects a backend or an API key. The installed program reads, among
@@ -146,7 +150,8 @@ makes the program refuse the read, and the module supports MiniLM only (the owne
 directly). It also fixes the program's backend to `chroma` with the program's own `--backend` option, which ranks
 above its configuration file, so that no read goes to a remote store the home configuration might name. And it sets
 git's own configuration through the environment (`log.showSignature=false`, `core.fsmonitor=false`, no lazy fetch, no
-prompt), which ranks above a repository's: `init` runs git inside the repositories it finds, and a repository can
+prompt), which ranks above a repository's: the program's `init` runs git inside the repositories it finds (3.11.0: `mine` does not, and the
+module no longer starts `init`; the settings stay for every command in case a later version of `mine` does), and a repository can
 select a program for git to run. The helper reads one file of the project, the setting below (through a held descriptor that refuses a link at
 any component), and the
 palace's `mempalace_embedder.json`, and writes nothing in the project. Every command runs from a project and
@@ -160,10 +165,10 @@ a planted link to a secret was not ingested in a run), which limits what a link 
 signal stops the program but not what it started. The program stays in the helper's process group; moving it to a group
 of its own is possible, but it needs the helper to hand the terminal to that group and take it back (and to survive the
 signals that follow) or the program is stopped when it reads the owner's answers, and a mistake leaves the owner's
-terminal stopped. That cost was judged larger than the risk of a worker outliving an interrupted `init` or `mine`, and
+terminal stopped. That cost was judged larger than the risk of a worker outliving an interrupted `mine`, and
 the read commands, which run in a session of their own, kill everything they started. The git settings above cover
 the two settings known to run a program on a read; a repository can select others for commands the program does not
-run today, so the owner who runs `init` on a tree they did not write is trusting git and the program to that extent.
+run today, so the owner who runs the program's `init` by hand, or `mine`, on a tree they did not write is trusting git and the program to that extent.
 
 **Palace location.** The helper does not choose one. MemPalace picks its own: `--palace` is honoured, and `init
 --palace` saves the path in `$HOME/.config/mempalace/config.json`. Its `--help` names `~/.mempalace/palace`, which
@@ -172,7 +177,7 @@ decides the default for a fresh home was not isolated (the evidence run passed `
 saved path). A clone may set another with
 `.workbench/local/mempalace.json` (`{"format": 1, "palace": "<absolute path>", "wing": "<name>"}`, with the palace, the wing or both),
 which the helper passes as `--palace` and, for `search` and `mine`, as the default `--wing`; a `--wing` the caller gives replaces it,
-and `status` and `init` take none. The file is optional and per clone: `.workbench/local` is the untracked area (`/local/` in
+and `status` takes none. The file is optional and per clone: `.workbench/local` is the untracked area (`/local/` in
 `.workbench/.gitignore`), so a developer who does not use the palace has neither the file nor the directory, and the helper creates neither.
 With no file, or a file that names no wing, the default wing is the name of the project folder (the last part of its real path, so a folder
 reached through a link is named by its target) when that is a valid wing name, and with no
@@ -222,7 +227,8 @@ tracked document.
 - The child's environment holds only `HOME`, `LANG`, `LC_*`, the resolved `PATH`, `PYTHONDONTWRITEBYTECODE=1`,
   `MEMPALACE_EMBEDDING_MODEL=minilm`, `ANONYMIZED_TELEMETRY=False` and the fixed git settings; the program is started with
   `--backend chroma`.
-- `init` and `mine` are listed under `owner` and run only from a terminal; `init` always passes `--no-llm`; `mine`
+- `mine` is listed under `owner` and runs only from a terminal; the module has no `init`, and `init` is refused as an unknown command with the
+  usage line; `mine`
   without `--confirm` passes `--dry-run`; a project-root target, a target that overlaps a palace, and a target holding
   a link, a directory or a shared file under a name the program writes through are refused.
 - The helper writes nothing in the project, and no test starts a real `mempalace` or reaches a network.
@@ -258,7 +264,7 @@ What was not exercised, or is not closed:
   `XDG_CONFIG_HOME` or `XDG_CACHE_HOME` gets the program's places under `HOME`.
 - **A real interrupt at a terminal** (`Ctrl-C`) during `mine`, and a program that starts workers: a terminate signal
   stops the program and not what it started ("Limits of the owner commands").
-- **A concurrent writer in the owner's tree** during `init` or `mine`, which no check made beforehand can stop.
+- **A concurrent writer in the owner's tree** during `mine`, which no check made beforehand can stop.
 - **`search` is not free of writes**: it rewrites the palace's own bookkeeping, and the lock table grows by a row a
   search. A palace on a read-only file system, or a `search` during a `mine`, fails or contends.
 - **MiniLM only.** A palace filed with another model is refused for a search when the project names it, and

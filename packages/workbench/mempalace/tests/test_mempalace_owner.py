@@ -1,4 +1,4 @@
-"""`mempalace init` and `mempalace mine`, the owner's commands, and the project's palace setting, with a fake
+"""`mempalace mine`, the owner's command (the module has no `init`), and the project's palace setting, with a fake
 `mempalace` (criteria 5 to 7 of plan `2026-10-24-mempalace-module`, increment C). No test starts a real
 `mempalace`; the terminal is a pseudo-terminal."""
 
@@ -29,41 +29,35 @@ class Owner(support_mempalace.Palace):
         return call["argv"]
 
 
-class Init(Owner):
-    def test_init_passes_the_directory_and_no_llm_and_nothing_else(self):
+class NoInit(Owner):
+    """Plan `2026-11-05-mempalace-per-clone-use`, increment C: the module has no `init`. `mine` needs none of what `init` writes
+    into the folder it scans (two files, and a block appended to a git repository's `.gitignore`), and a command that offers it is a way to leave
+    them in the working tree."""
+
+    def test_init_is_refused_as_an_unknown_command_with_the_usage_line_and_starts_nothing(self):
+        for argv in (("init", self.corpus), ("init", self.corpus, "--yes"), ("init",)):
+            err = self.refused(*argv, contains="usage: mempalace status")
+            self.assertNotIn("init", err)
         code, shown = self.owner("init", self.corpus)
-        self.assertEqual(0, code, shown)
-        self.assertEqual(["init", self.corpus, "--no-llm"], self.started())
-        self.assertIn("note: init writes mempalace.yaml into %s" % self.corpus, shown)
+        self.assertEqual(1, code, shown)
+        self.assertIn("usage: mempalace status", shown)
+        self.assertNotIn("init", shown.replace("note:", ""))
+        self.assertEqual([], self.calls())
 
-    def test_yes_is_passed_only_when_the_owner_gives_it(self):
-        self.assertEqual(0, self.owner("init", self.corpus, "--yes")[0])
-        self.assertEqual(["init", self.corpus, "--no-llm", "--yes"], self.started())
+    def test_the_helper_names_no_init_and_no_language_model_option(self):
+        self.assertNotIn("init", self.helper.USAGE)
+        self.assertEqual({"mine"}, set(self.helper.OWNER_FLAGS) | set(self.helper.OWNER_VALUES))
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "helper", "mempalace"), encoding="utf-8") as handle:
+            text = handle.read()
+        self.assertNotIn("--no-llm", text)
+        self.assertNotIn('"init"', text)
 
-    def test_a_relative_directory_is_read_against_the_current_directory(self):
-        os.makedirs(os.path.join(self.root, "docs", "deep"))
-        self.assertEqual(0, self.owner("init", "deep", cwd=os.path.join(self.root, "docs"))[0])
-        self.assertEqual(os.path.join(self.root, "docs", "deep"), self.started()[1])
-
-    def test_the_terminal_is_handed_to_the_program(self):
-        self.assertEqual(0, self.owner("init", self.corpus)[0])
-        self.assertEqual([True, True, True], self.calls()[0]["tty"])
-
-    def test_the_program_exit_code_is_the_commands(self):
-        self.control(code=3, stdout="partial\n")
-        code, shown = self.owner("init", self.corpus)
-        self.assertEqual(3, code)
-        self.assertIn("partial", shown)
-
-    def test_an_option_that_selects_a_provider_a_key_a_daemon_or_a_background_job_is_refused(self):
-        for name in FORBIDDEN + ("--confirm", "--wing", "--mode", "--dry-run", "-y", "--YES"):
-            self.refused("init", self.corpus, name, "x", contains="is not an option")
-
-    def test_the_directory_is_required_once(self):
-        self.refused("init", contains="needs the directory")
-        self.refused("init", "--yes", contains="needs the directory")
-        self.refused("init", self.corpus, self.corpus, contains="exactly one directory")
-        self.refused("init", self.corpus, "--yes", "--yes", contains="given twice")
+    def test_the_program_is_never_started_with_init_by_any_command(self):
+        self.assertEqual(0, self.run_helper("status")[0])
+        self.assertEqual(0, self.search()[0])
+        self.assertEqual(0, self.owner("mine", self.corpus)[0])
+        self.assertEqual(0, self.owner("mine", self.corpus, "--confirm")[0])
+        self.assertEqual(["status", "search", "mine", "mine"], [call["argv"][0] for call in self.calls()])
 
 
 class Mine(Owner):
@@ -102,6 +96,21 @@ class Mine(Owner):
         self.refused("mine", self.corpus, "--wing", "a", "--wing", "b", contains="given twice")
         self.refused("mine", self.corpus, "--confirm", "--confirm", contains="given twice")
 
+    def test_a_relative_directory_is_read_against_the_current_directory(self):
+        os.makedirs(os.path.join(self.root, "docs", "deep"))
+        self.assertEqual(0, self.owner("mine", "deep", cwd=os.path.join(self.root, "docs"))[0])
+        self.assertEqual(os.path.join(self.root, "docs", "deep"), self.started()[1])
+
+    def test_the_terminal_is_handed_to_the_program(self):
+        self.assertEqual(0, self.owner("mine", self.corpus)[0])
+        self.assertEqual([True, True, True], self.calls()[0]["tty"])
+
+    def test_the_program_exit_code_is_the_commands(self):
+        self.control(code=3, stdout="partial\n")
+        code, shown = self.owner("mine", self.corpus)
+        self.assertEqual(3, code)
+        self.assertIn("partial", shown)
+
     def test_the_program_may_run_for_longer_than_a_search_may(self):
         self.control(sleep=2, stdout="done\n")
         with unittest.mock.patch.object(self.helper, "TIMEOUT", 1):
@@ -112,7 +121,7 @@ class Mine(Owner):
 
 class Terminal(Owner):
     def test_a_command_that_is_not_run_from_a_terminal_starts_nothing(self):
-        for argv in (("init", self.corpus), ("mine", self.corpus), ("mine", self.corpus, "--confirm")):
+        for argv in (("mine", self.corpus), ("mine", self.corpus, "--confirm")):
             self.refused(*argv, contains="only from a terminal")
 
     def test_a_terminal_for_input_alone_is_not_enough(self):
@@ -120,7 +129,7 @@ class Terminal(Owner):
         _, tin, tout, terr = self.terminal()
         for stdin, out in ((tin, io.StringIO()), (io.BytesIO(b""), tout)):
             err = io.StringIO()
-            self.assertEqual(1, self.helper.main(["init", self.corpus], stdin, out, err, self.root))
+            self.assertEqual(1, self.helper.main(["mine", self.corpus], stdin, out, err, self.root))
             self.assertIn("only from a terminal", err.getvalue())
         self.assertEqual([], self.calls())
 
@@ -129,7 +138,7 @@ class Terminal(Owner):
         _, tin, tout, terr = self.terminal()
         tin.close()
         err = io.StringIO()
-        self.assertEqual(1, self.helper.main(["init", self.corpus], tin, tout, err, self.root))
+        self.assertEqual(1, self.helper.main(["mine", self.corpus], tin, tout, err, self.root))
         self.assertIn("only from a terminal", err.getvalue())
         self.assertEqual([], self.calls())
 
@@ -145,14 +154,14 @@ class Directory(Owner):
         self.assertEqual([], self.calls(), "the program was started")
 
     def test_a_directory_that_does_not_exist_or_is_not_one_is_refused(self):
-        self.owner_refused("init", os.path.join(self.base, "nothing"), contains="does not exist")
-        self.owner_refused("init", os.path.join(self.root, "docs", "plan.md"), contains="not a directory")
-        self.owner_refused("init", "", contains="not a usable path")
-        self.owner_refused("init", self.corpus + "\0x", contains="not a usable path")
+        self.owner_refused("mine", os.path.join(self.base, "nothing"), contains="does not exist")
+        self.owner_refused("mine", os.path.join(self.root, "docs", "plan.md"), contains="not a directory")
+        self.owner_refused("mine", "", contains="not a usable path")
+        self.owner_refused("mine", self.corpus + "\0x", contains="not a usable path")
 
     def test_a_link_to_a_directory_or_a_link_in_the_path_is_refused(self):
         os.symlink(self.corpus, os.path.join(self.base, "linked"))
-        self.owner_refused("init", os.path.join(self.base, "linked"), contains="link")
+        self.owner_refused("mine", os.path.join(self.base, "linked"), contains="link")
         os.makedirs(os.path.join(self.corpus, "deep"))
         self.owner_refused("mine", os.path.join(self.base, "linked", "deep"), contains="link")
 
@@ -163,7 +172,6 @@ class Directory(Owner):
 
     def test_the_project_root_and_a_directory_that_holds_it_need_the_explicit_flag(self):
         for target in (self.root, self.base, "."):
-            self.owner_refused("init", target, contains="--allow-project-root")
             self.owner_refused("mine", target, contains="--allow-project-root")
         self.assertEqual(0, self.owner("mine", self.root, "--allow-project-root")[0])
 
@@ -172,8 +180,9 @@ class Directory(Owner):
         self.assertEqual(os.path.join(self.root, "docs"), self.calls()[0]["argv"][1])
 
     def test_a_project_config_that_is_a_link_a_directory_or_shared_is_refused_so_the_program_cannot_write_through_it(self):
-        """Found by the security review of 2026-10-24 and reproduced against the real program: `init` opens
-        `mempalace.yaml` for writing and follows a link, so a planted one overwrote a file outside the directory."""
+        """Found by the security review of 2026-10-24 and reproduced against the real program: `init` opened
+        `mempalace.yaml` for writing and followed a link, so a planted one overwrote a file outside the directory. The module no longer
+        runs `init`, but the owner may run the program by hand, and `mine` reads the configuration it finds, so the refusal stays."""
         victim = os.path.join(self.base, "victim.yaml")
         with open(victim, "w") as handle:
             handle.write("ORIGINAL\n")
@@ -198,8 +207,7 @@ class Directory(Owner):
                     os.mkdir(path)
                 else:
                     os.link(victim, path)
-                for command in ("init", "mine"):
-                    self.owner_refused(command, folder, contains="would write through it")
+                self.owner_refused("mine", folder, contains="would write through it")
         self.assertEqual([], self.calls())
         with open(victim) as handle:
             self.assertEqual("ORIGINAL\n", handle.read())
@@ -212,12 +220,11 @@ class Directory(Owner):
             with open(os.path.join(folder, name), "w") as handle:
                 handle.write("x\n")
         os.symlink(os.path.join(self.base, "nothing"), os.path.join(folder, "link-to-nothing.md"))
-        self.assertEqual(0, self.owner("init", folder, "--yes")[0])
         self.assertEqual(0, self.owner("mine", folder)[0])
 
     def test_a_directory_that_is_the_palace_or_holds_it_or_is_inside_it_is_refused(self):
-        """Found by the security review of 2026-10-24: `init` writes `.mempalace/origin.json` under the palace, so a
-        palace inside the directory makes a planted link there a way to overwrite a file; `mine` would index the
+        """Found by the security review of 2026-10-24: `init` wrote `.mempalace/origin.json` under the palace, so a
+        palace inside the directory made a planted link there a way to overwrite a file; `mine` would index the
         palace's own files."""
         palace = os.path.join(self.corpus, "store")
         os.makedirs(os.path.join(palace, ".mempalace"))
@@ -227,10 +234,8 @@ class Directory(Owner):
         os.makedirs(os.path.join(self.root, ".workbench", "local"))
         with open(os.path.join(self.root, ".workbench", "local", "mempalace.json"), "w") as handle:
             json.dump({"format": 1, "palace": palace}, handle)
-        for command in ("init", "mine"):
-            self.owner_refused(command, self.corpus, contains="same place or one holds the other")
-            self.owner_refused(command, palace, contains="same place or one holds the other")
-            self.owner_refused(command, os.path.join(palace, ".mempalace"), contains="same place or one holds the other")
+        for target in (self.corpus, palace, os.path.join(palace, ".mempalace")):
+            self.owner_refused("mine", target, contains="same place or one holds the other")
         self.assertEqual([], self.calls())
         with open(os.path.join(self.base, "victim.txt")) as handle:
             self.assertEqual("ORIGINAL\n", handle.read())
@@ -247,15 +252,15 @@ class Directory(Owner):
         for default in ((".config", "mempalace", "palace"), (".mempalace", "palace")):
             inside = os.path.join(self.home, *default)
             os.makedirs(inside, exist_ok=True)
-            self.owner_refused("init", inside, contains="same place or one holds the other")
-            self.owner_refused("init", os.path.dirname(inside), contains="same place or one holds the other")
+            self.owner_refused("mine", inside, contains="same place or one holds the other")
+            self.owner_refused("mine", os.path.dirname(inside), contains="same place or one holds the other")
         self.assertEqual([], self.calls())
 
     def test_a_palace_elsewhere_does_not_get_in_the_way(self):
         os.makedirs(os.path.join(self.root, ".workbench", "local"))
         with open(os.path.join(self.root, ".workbench", "local", "mempalace.json"), "w") as handle:
             json.dump({"format": 1, "palace": os.path.join(self.base, "palace-elsewhere")}, handle)
-        self.assertEqual(0, self.owner("init", self.corpus, "--yes")[0])
+        self.assertEqual(0, self.owner("mine", self.corpus)[0])
         self.assertEqual(os.path.join(self.base, "palace-elsewhere"), self.calls()[0]["front"]["--palace"])
 
     def test_a_directory_that_cannot_be_entered_is_refused(self):
@@ -291,21 +296,20 @@ class Environment(Owner):
         os.makedirs(inside)
         self.fake(inside)
         self.path([inside], TMPDIR=self.temp, HOME=self.home)
-        code, shown = self.owner("init", self.corpus)
+        code, shown = self.owner("mine", self.corpus)
         self.assertEqual(1, code)
         self.assertIn("not found in a trusted PATH entry", shown)
         self.assertEqual([], self.calls(inside))
 
     def test_a_temporary_directory_inside_the_project_is_refused(self):
         self.path([self.outside], TMPDIR=os.path.join(self.root, "docs"), HOME=self.home)
-        code, shown = self.owner("init", self.corpus)
+        code, shown = self.owner("mine", self.corpus)
         self.assertEqual(1, code)
         self.assertIn("temporary directory", shown)
         self.assertEqual([], self.calls())
 
     def test_the_project_is_the_same_after_every_kind_of_call(self):
         before = self.tree()
-        self.owner("init", self.corpus, "--yes")
         self.owner("mine", self.corpus)
         self.owner("mine", self.corpus, "--confirm")
         self.control(code=2)
@@ -369,10 +373,9 @@ class Setting(Owner):
         self.write(json.dumps(document))
 
     def every_command(self):
-        """The four commands, each as (what to call it with, how to run it)."""
+        """The three commands, each as (what to call it with, how to run it)."""
         return (("status", lambda: self.run_helper("status")),
                 ("search", lambda: self.search()),
-                ("init", lambda: self.owner("init", self.corpus)),
                 ("mine", lambda: self.owner("mine", self.corpus)))
 
     def test_with_no_setting_the_program_is_not_told_a_palace(self):
@@ -381,12 +384,12 @@ class Setting(Owner):
         for call in self.calls():
             self.assertEqual({"--backend": "chroma"}, call["front"])
 
-    def test_a_valid_setting_is_passed_before_the_command_for_all_four(self):
+    def test_a_valid_setting_is_passed_before_the_command_for_all_three(self):
         self.setting()
         palace = os.path.join(self.base, "palace")
         for name, run in self.every_command():
             self.assertEqual(0, run()[0], name)
-        for call, name in zip(self.calls(), ("status", "search", "init", "mine")):
+        for call, name in zip(self.calls(), ("status", "search", "mine")):
             self.assertEqual({"--backend": "chroma", "--palace": palace}, call["front"])
             self.assertEqual(name, call["argv"][0])
 
@@ -406,7 +409,7 @@ class Setting(Owner):
         for label, text in bad.items():
             self.write(text)
             for name, run in self.every_command():
-                if name in ("init", "mine"):
+                if name == "mine":
                     code, shown = run()
                     self.assertIn("mempalace.json", shown, (label, name))
                 else:
@@ -457,7 +460,7 @@ class Setting(Owner):
 
 class Wing(Owner):
     """Plan `2026-11-05-mempalace-use-and-independence`, increment D: the project names its wing in `.workbench/local/mempalace.json`, and
-    `search` and `mine` use it unless the caller names another. `status` and `init` take no wing. It borrows the three helpers of
+    `search` and `mine` use it unless the caller names another. `status` takes no wing. It borrows the three helpers of
     `Setting` and does not inherit its tests, which would run twice."""
 
     WING = "project-workbench"
@@ -524,15 +527,12 @@ class Wing(Owner):
         self.assertEqual(0, self.owner("mine", self.corpus, "--mode", "convos", "--confirm")[0])
         self.assertEqual(["mine", self.corpus, "--wing", self.WING, "--mode", "convos"], self.started())
 
-    def test_status_and_init_pass_no_wing(self):
+    def test_status_passes_no_wing(self):
         self.with_wing()
         code, out, err = self.run_helper("status")
         self.assertEqual(0, code, err)
-        code, shown = self.owner("init", self.corpus)
-        self.assertEqual(0, code, shown)
-        self.assertEqual(2, len(self.calls()))
-        for call in self.calls():
-            self.assertNotIn("--wing", call["argv"])
+        self.assertEqual(1, len(self.calls()))
+        self.assertNotIn("--wing", self.calls()[0]["argv"])
 
     def test_a_wing_that_is_not_a_name_stops_every_command_before_the_program_starts(self):
         for label, value in (("empty", ""), ("dash", "-x"), ("dot", ".x"), ("space", "a b"), ("long", "x" * 65),
@@ -540,7 +540,7 @@ class Wing(Owner):
                              ("newline", "a\nb"), ("non-ascii", "caf\u00e9"), ("semicolon", "a;ls")):
             self.write(json.dumps({"format": 1, "wing": value}))
             for name, run in self.every_command():
-                if name in ("init", "mine"):
+                if name == "mine":
                     code, shown = run()
                     self.assertIn("mempalace.json", shown, (label, name))
                 else:
@@ -635,9 +635,8 @@ class Location(Owner):
         self.assertEqual(["mine", self.corpus, "--wing", "project", "--dry-run"], self.calls()[-1]["argv"])
         self.assertIn("the wing is project, from the folder name", shown)
 
-    def test_status_and_init_pass_no_wing_whatever_the_folder_is_called(self):
+    def test_status_passes_no_wing_whatever_the_folder_is_called(self):
         self.assertEqual(0, self.run_helper("status")[0])
-        self.assertEqual(0, self.owner("init", self.corpus)[0])
         for call in self.calls():
             self.assertNotIn("--wing", call["argv"])
 

@@ -50,7 +50,7 @@ If the command refuses or fails:
   and do not report it.
 - A refusal that says the embedding model is not cached, or that no memory exists yet, means the owner has to
   build the memory. You cannot, so ask them.
-- Never run `init` or `mine`, and never use the program directly. Those are the owner's.
+- Never run `mine`, and never use the program directly. Those are the owner's.
 
 You cannot add to or change the palace. When something you learn should be kept, such as a decision, a preference
 or a lesson, tell the owner what it is and let them file it. Do not file a secret, and do not ask the owner to.

@@ -39,8 +39,8 @@ class Declaration(unittest.TestCase):
     def test_the_command_takes_the_two_read_commands_and_the_owners_two(self):
         self.assertEqual(["mempalace"], list(declaration()["commands"]))
         command = declaration()["commands"]["mempalace"]
-        self.assertEqual(["status", "search", "init", "mine"], command["arguments"])
-        self.assertEqual(["init", "mine"], command["owner"])
+        self.assertEqual(["status", "search", "mine"], command["arguments"])
+        self.assertEqual(["mine"], command["owner"])
         self.assertEqual((HELPER, "python", 1), (command["helper"], command["runtime"], command["kit"]))
 
     def test_it_fills_the_policy_slot_and_nothing_else(self):

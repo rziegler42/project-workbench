@@ -219,8 +219,9 @@ class Skill(unittest.TestCase):
         for rule in ("Read the reason, stop, and report it to the owner",
                      "Do not retry with other options or another route",
                      "the embedding model is not cached", "the owner has to build the memory",
-                     "Never run `init` or `mine`, and never use the program directly"):
+                     "Never run `mine`, and never use the program directly"):
             self.assertIn(rule, text, rule)
+        self.assertIsNone(re.search(r"\binit\b", text))   # plan `2026-11-05-mempalace-per-clone-use`, increment C: the module has no `init`
 
     def test_it_tells_the_agent_to_skip_quietly_when_the_program_is_absent_and_the_helper_says_the_same_words(self):
         """Plan `2026-11-05-mempalace-per-clone-use`, increment B: a clone without the program is not nagged. The skill quotes the helper's

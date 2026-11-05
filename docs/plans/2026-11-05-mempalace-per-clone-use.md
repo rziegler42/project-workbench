@@ -305,3 +305,30 @@ E, which the plan asks again at D. The last change (R3-F1) was not read by the r
 - Left for the owner: the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/pcb_install_files.py`,
   four files, only if their hashes are those recorded), the release approvals, and, after the commit, `wb upgrade` and `wb rerender` (the skill is installed under
   `.claude/skills/`; the installed copy still has the old rule until then).
+
+**Increment B was committed as `8cc697b`** (copied and released by the owner).
+
+**Increment C (2026-11-05), done in a scratch clone at commit `8cc697b`; not yet copied, released or committed.**
+
+- Changed in the clone (seven files): `helper/mempalace` (no `init` argument, flag table, usage, branch or `--no-llm`; the terminal refusal now reads "mine is the owner's
+  command and runs only from a terminal"; `owner()` is `mine` only), `module.json` (`arguments`: `status`, `search`, `mine`; `owner`: `mine`),
+  `harness/neutral/skills/recall-memory/SKILL.md` ("Never run `mine`, and never use the program directly"), and four test files. In `test_mempalace_owner.py` the old `Init`
+  class is gone: three of its tests that were not about `init` moved to `Mine` (relative directory, terminal handed on, exit code), the others were `init`-only or
+  duplicated `Mine`; every test that used `init` as a vehicle for a folder rule now uses `mine`; a new class `NoInit` (3 tests) pins that `init` is refused with the usage
+  line, that the helper's tables and source name no `init` and no `--no-llm`, and that no command starts the program with `init`. Changed in the live tree:
+  `docs/specs/mempalace.md`, `docs/specs/command-permissions.md` (the deferred item) and `docs/development.md`; the dated evidence entries were left as history.
+- Verification as run: before the helper change the 4 new tests failed; after it `PYTHONPATH=. python3 -B -W error -m unittest discover -s packages/workbench/mempalace/tests
+  -t packages/workbench/mempalace/tests` gave `Ran 193 tests ... OK` (194 before), and in the clone `tests/test_owner_argument_run.py` (25), `test_rendering.py` (85),
+  `test_settingscmd.py` (44) and `test_permissions_drift.py` (22) passed. `wb run code-work check` passed. Not run: the real `mempalace`.
+- Review: the `reviewer` agent, one exchange. No blocking finding. It checked each removed or changed test and found no check lost, that `mine` keeps every folder rule and the wing
+  default, and that the `NoInit` tests are not vacuous. Applied, all wording: the planted-config refusal stays as a precaution because `mine` reads the configuration it finds
+  (my "for a hand-run program" was wrong: the helper's check cannot protect a program the owner starts directly); `init` also appends a block to a git repository's `.gitignore`
+  (`cli/cmd_init.py`, `_ensure_mempalace_files_gitignored`, which I confirmed in the source), so the "two files" statements now say so; the claim about the program was narrowed to
+  "from the program's command line"; the git sentence is in the present tense; the skill test uses `\binit\b`; the deferred-item sentence in `command-permissions.md` is plain.
+  Not applied: the roadmap file still describes `init` at lines 180, 517 and 986 as what was planned and built; I read criterion 4 as covering tests, specs and the guide, and left the
+  roadmap, which line 1006 already corrects. The reviewer ran nothing.
+- A correction of my own: I first changed the helper comment and a test docstring to say `mine` runs git. I checked the program's source (`project_scanner`, the only module
+  that runs git, is imported by `cli/cmd_init.py` and not by `mine`), found that wrong, and wrote what is true. The git settings stay for every command.
+- Left for the owner: the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/pcc_install_files.py`,
+  seven files, only if their hashes are those recorded), the release approvals, and after the commit `wb upgrade` and `wb rerender`: the rendered permission rules in
+  `.claude/settings.local.json` still list `mempalace init` until the rerender, and the installed helper still has `init` until the upgrade.
