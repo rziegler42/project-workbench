@@ -195,5 +195,13 @@ installer file changes.
 
 **Review:** one round with the `reviewer` agent, no blocking finding (see the review record).
 
-**Not done in B:** the owner's copy and release, the commit, the owner's `wb upgrade`, and completion criterion 4 (a fresh session whose agent
-searches, with what it typed recorded in the spec's evidence).
+**Not done in B:** the plan's last step is criterion 4, below. B was copied and released by the owner, the stale shipped records were removed after
+the owner approved the list, and B is committed as `f8e1591`; the owner ran `wb upgrade` and the installed files are committed as `d46b8e6`.
+
+**Criterion 4, the live check (2026-11-05), recorded in `docs/specs/mempalace.md` ("Evidence", the sessions with notes).** In a fresh session on the
+entity-step brainstorm, with the new refusal and the policy line installed, the agent ran six shell commands, none a palace search, and said it had
+not searched "because the files answer what the current setup is". So the form fix was not exercised: no agent searched without the skill after
+it. When the owner then told the agent to use the `recall-memory` skill, it searched in the right form, found the note it needed at rank 1 and quoted
+it as recalled data. The criterion asks that what the agent typed be recorded whether or not it found the form, and it is recorded. What remains is
+the decision to search, which this plan does not address; a separate plan (`2026-11-05-mempalace-search-despite-files`) takes it up. Marking this
+plan completed is the owner's.

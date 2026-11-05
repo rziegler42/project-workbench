@@ -234,9 +234,10 @@ three (two distinct issues) are recorded as limits below; the fixes of its last 
 What was not exercised, or is not closed:
 
 - **A hand run in a live session** with a real palace, the real install and Claude loading the skill and obeying the
-  block. Made once on 2026-11-05 ("Evidence", a live session): in two brainstorms the agent did not search the palace. Nothing
-  here shows an agent uses the memory well, or that it does not read a result as authority; the block and the skill say so in
-  words and nothing enforces it.
+  block. Made on 2026-11-05 in four sessions ("Evidence", a live session and the sessions with notes): in three the agent did not
+  search the palace, or searched in a form the helper refuses and stopped; in the fourth, told to use the `recall-memory` skill, it
+  searched in the right form, found the note it needed and quoted it as recalled data. That is a few sessions with one author's
+  tasks. The block and the skill say in words that a result is data, and nothing enforces it.
 - **The default palace for a fresh home**, whether `XDG_CACHE_HOME` alone moves the model cache, the program with
   another backend or model, and a large palace. The helper passes no `XDG_*` variable, so a user with a non-default
   `XDG_CONFIG_HOME` or `XDG_CACHE_HOME` gets the program's places under `HOME`.
@@ -337,6 +338,33 @@ commands were not explained. **What would give the palace a use here:** content 
 choice that only the conversation holds, the owner's corrections and preferences, and lessons across projects. Filing such content (by an
 inbox the owner reviews, or by mining finished sessions with redaction) is deferred work of the plan, and Claude Code keeps a session for
 about 30 days (the oldest transcript of this project dates from 29 October).
+
+**Notes the files lack, and four sessions (2026-11-05; plans `2026-11-05-mempalace-use-and-independence` and `2026-11-05-mempalace-search-form`).**
+*The notes.* Because a palace filled from the project's documents holds nothing the files lack, the author wrote six short notes from a design
+discussion (why the stock MCP servers are not offered to agents, where a hook is registered by its role, why compaction cannot be triggered by the
+agent, which Ollama model works for the entity step, command-gate and terminal lessons, and what the owner asked of the knowledge tools),
+the owner read and corrected them, and filed them with `wb run mempalace mine` from a folder outside the project, under the project's wing,
+without `init` (6 files, 19 drawers; the palace then held 6,788). *Searches by the author.* A question worded as the user would ask it found the
+Ollama note at rank 1 and 2 (cosine 0.70) and the MCP note at rank 1 (0.66); a story-worded question about the command-gate note returned older
+plans on the same subject and missed it in the top three, and the note's own wording found it at rank 1 (0.67). *The sessions.* Each was a fresh
+Claude Code session in the project with the policy and the drafting skills installed; the shell commands (command text only) were read from the
+session's transcript. **(2)** Task: whether to run the model-assisted entity step when setting up mempalace on a new project. The agent ran
+`wb run mempalace search "<question>"` with no `--`, twice (once with a leading `cd`), was refused with "is not an option of search", said so,
+and did not search again; the `recall-memory` skill was not loaded. **(3)** The same task after the refusal was changed to show the form and the
+policy line was changed to show it too (plan `2026-11-05-mempalace-search-form`, installed): six shell commands, all reads of repository files,
+none a palace search; the agent said it had not searched "because the files answer what the current setup is". **(4)** In the same session
+the owner told the agent to use the `recall-memory` skill and search the palace. The agent checked the built-in memory first and found nothing,
+ran one search in the form `--results 5 -- "<question>"`, got the Ollama note at rank 1 and the owner-requirements note at ranks 2 and 3 (ranks 4
+and 5 were the old module plan, which it ignored), quoted what it relied on as recalled with the source file of each point, said what it had not
+checked (the notes are from the same day; it had not re-run `phi4:latest`), and changed its lean from the spec's account alone to include the
+trial that the spec did not mention. It also saw the program's warning, printed with every search, that the collection has no recorded embedder
+identity (`mempalace palace set-embedder --model <name>` records it) and left it alone. **Reading.** The search, the quoting and the checking
+work once the agent searches. The weak link is the decision to search: in session 3 the agent named the clause "not for what the current files answer" as its reason, and
+in session 1 it gave none while both of its topics were answered by the files; the notes show that the palace can hold, besides what the files say, the experience that bears on a question the files
+answer. The form fix of the plan `2026-11-05-mempalace-search-form` was not exercised: no agent searched without the skill after it. **Limits.**
+Four sessions, each on a task the owner gave, the last with a direct instruction to search; the notes are the author's and
+about the same project; the agents' reasons are visible only where they said them; one question has a note that answers it, and a second kind of
+question (one the notes do not answer) was not tried.
 
 ## Governing decisions and references
 
