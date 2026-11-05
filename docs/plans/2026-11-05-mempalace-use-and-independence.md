@@ -1,6 +1,6 @@
 # Use mempalace when a palace is available, and make it independent of the other knowledge modules
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-05
 Candidate: workbench-v1#memory-recall-use
 Specs: mempalace, knowledge-tools
