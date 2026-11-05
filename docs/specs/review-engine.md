@@ -113,9 +113,14 @@ A round is one call to the bridge and, if the reply is valid, one recorded set o
 installer, `module-contract.md`.)* `convergence <document>` is read-only and agent-safe; it is not in the owner-run
 list. It answers the question the installer's delegated approval asks and records no approval and nothing else: `trust-and-approval.md`, "Delegated plan approval records", gives the object and says who reads it.
 
-- It prints one object with exactly `format` (1), `kind` (`plan`), `converged`, `document_sha256`, `rounds_used`,
-  `bound`, `bridge`, `model` (text of at most 200 characters, or null), `review` (the review's key, `plan-` and 16
-  lowercase hex digits) and `closed`. `rounds_used` and `bound` are those of the current window, from 1 to 5.
+- It prints one object with exactly `format` (2), `kind` (`plan`), `converged`, `document_sha256`, `rounds_used`,
+  `bound`, `bridge`, `model` (the model the bridge reported: text of at most 200 characters, or null), `review` (the review's key,
+  `plan-` and 16 lowercase hex digits), `closed` and `last_requested`. `rounds_used` and `bound` are those of the current window,
+  from 1 to 5. `format` is the report's own number and not the state's (the state stays at 1).
+- `last_requested` is what the last stored round asked of the bridge, never what ran: `{"bridge", "model" (the model asked for, or
+  null), "effort" (or null), "options" (an object, empty when there were none), "profile" (the name of the profile the round ran
+  on)}`, as the round recorded them and not as the owner's file defines the profile today. For a round stored before the profiles
+  were built it is `null`, because that round recorded no profile and no options. It has no part in `converged`.
 - It refuses, with a `refused:` line, a document that is not a plan, has no review, has no round in its current window
   (so there is no hash to report), or whose state is unsealed, rolled back or unreadable, and it runs no model, takes
   no lock and writes nothing, in the project or in the guarded store.
@@ -125,8 +130,8 @@ list. It answers the question the installer's delegated approval asks and record
   meaningful finding of an earlier round does not make a later round clean, and the last round must itself be clean.
 - `document_sha256` is the hash of the file as that round read it, the value the round stored. The installer compares it
   with its own hash of the file; the engine knows nothing of plan sections.
-- *(The installer reads this report in format 1 and, since increment G of plan `2026-11-04-review-profiles`, in format 2, which adds
-  `last_requested`; the report is read within 8,192 bytes. The engine still prints format 1 until increment H.)*
+- *(Format 2 and `last_requested` were built by increment H of plan `2026-11-04-review-profiles`; the installer reads formats 1 and 2 since
+  increment G, within 8,192 bytes, and a report of format 1 reads there as an unknown request.)*
 - A closed review is answered as a closed one (`closed: true`), not refused.
 
 ### The findings schema

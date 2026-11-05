@@ -8,10 +8,12 @@ import json
 import os
 import unittest
 
-from support_review import NAMESPACE, OTHER_PLAN, PLAN, SPEC, Review, decision_entry, key_of, round_entry
+from support_review import (NAMESPACE, OTHER_PLAN, PLAN, SPEC, Review, decision_entry, key_of, profile_entry,
+                            round_entry)
+from workbench import approvalcmd
 
 FIELDS = {"format", "kind", "converged", "document_sha256", "rounds_used", "bound", "bridge", "model", "review",
-          "closed"}
+          "closed", "last_requested"}
 
 
 class Convergence(Review):
@@ -34,15 +36,15 @@ class Convergence(Review):
         self.sealed([round_entry(1)])
         got = self.converge()
         self.assertEqual(FIELDS, set(got))
-        self.assertEqual({"format": 1, "kind": "plan", "converged": True, "document_sha256": "%064x" % 1001,
+        self.assertEqual({"format": 2, "kind": "plan", "converged": True, "document_sha256": "%064x" % 1001,
                           "rounds_used": 1, "bound": 3, "bridge": "ask-codex", "model": None,
-                          "review": key_of("plan", PLAN), "closed": False}, got)
+                          "review": key_of("plan", PLAN), "closed": False, "last_requested": None}, got)
 
     def test_the_object_is_one_line_within_the_bound_and_types_are_exact(self):
         self.sealed([round_entry(1, model="gpt-5.6-luna")])
         code, out, err = self.call("convergence", PLAN)
         self.assertEqual((0, ""), (code, err))
-        self.assertLessEqual(len(out.encode("utf-8")), 4096)
+        self.assertLessEqual(len(out.encode("utf-8")), 8192)
         got = json.loads(out)
         self.assertIs(True, got["converged"])
         self.assertIs(False, got["closed"])
@@ -62,6 +64,84 @@ class Convergence(Review):
         self.assertEqual("m" * 200, self.converge()["model"])
         self.sealed([round_entry(1, model=None)])
         self.assertIsNone(self.converge()["model"])
+
+    # --- what was asked (plan `2026-11-04-review-profiles`, increment H) ----------------------------
+
+    ASKED = {"model": "phi4:latest", "effort": "low", "options": {"server": "lab", "context": "8192"}}
+
+    def test_a_round_since_profiles_reports_the_request_and_the_profile(self):
+        self.sealed([profile_entry(1, profile="quick", bridge="ask-ollama", requested=dict(self.ASKED))])
+        self.assertEqual({"bridge": "ask-ollama", "model": "phi4:latest", "effort": "low",
+                          "options": {"server": "lab", "context": "8192"}, "profile": "quick"},
+                         self.converge()["last_requested"])
+
+    def test_what_was_not_asked_is_null_and_no_options_is_the_empty_object(self):
+        self.sealed([profile_entry(1, profile="bare")])
+        self.assertEqual({"bridge": "ask-codex", "model": None, "effort": None, "options": {}, "profile": "bare"},
+                         self.converge()["last_requested"])
+
+    def test_a_round_stored_before_profiles_reports_a_null_request_and_converges_as_before(self):
+        self.sealed([round_entry(1, requested={"model": "gpt-x", "effort": "low"})])
+        got = self.converge()
+        self.assertIsNone(got["last_requested"])
+        self.assertIs(True, got["converged"])
+        self.assertEqual(2, got["format"])
+
+    def test_the_request_is_that_of_the_last_round_only(self):
+        newer = profile_entry(2, profile="deep", requested={"model": "m-2", "effort": "high", "options": {}})
+        self.sealed([round_entry(1), newer])
+        self.assertEqual("deep", self.converge()["last_requested"]["profile"])
+        self.sealed([profile_entry(1, profile="quick"), round_entry(2)])
+        self.assertIsNone(self.converge()["last_requested"])
+
+    def test_the_request_is_the_model_asked_for_and_not_the_one_the_bridge_reported(self):
+        self.sealed([profile_entry(1, requested={"model": "asked", "effort": None, "options": {}}, model="reported")])
+        got = self.converge()
+        self.assertEqual(("reported", "asked"), (got["model"], got["last_requested"]["model"]))
+
+    def test_the_request_is_the_profile_as_it_ran_and_not_the_one_the_file_names_today(self):
+        self.setting(bridge="ask-codex", model="changed-since", effort="high")
+        self.sealed([profile_entry(1, profile="p", requested={"model": "was", "effort": "low", "options": {}})])
+        self.assertEqual(("was", "low"), tuple(self.converge()["last_requested"][k] for k in ("model", "effort")))
+
+    def test_converged_does_not_depend_on_the_request(self):
+        for entry in (round_entry(1), profile_entry(1), profile_entry(1, ("major",), verdict="changes_needed",
+                                                                        reading="changes_needed", mismatch=False)):
+            self.sealed([entry])
+            self.assertEqual("major" not in [f["severity"] for f in entry["findings"]], self.converge()["converged"])
+
+    def test_the_installer_reads_what_the_engine_prints_in_both_shapes(self):
+        for entry in (round_entry(1), profile_entry(1, profile="quick", requested=dict(self.ASKED), bridge="ask-ollama")):
+            self.sealed([entry])
+            code, out, err = self.call("convergence", PLAN)
+            self.assertEqual((0, ""), (code, err))
+            read = approvalcmd.parse_convergence(out.encode("utf-8"))
+            self.assertEqual(entry["bridge"], read.bridge)
+            if "profile" in entry:
+                self.assertEqual(("ask-ollama", "phi4:latest", "low", self.ASKED["options"], "quick"),
+                                 tuple(read.last_requested))
+            else:
+                self.assertIsNone(read.last_requested)
+
+    def test_the_worst_case_report_fits_the_installers_cap(self):
+        # every character of every value is one that the JSON text doubles, and the reported model is non-ASCII
+        options = {("n" * 31 + str(n)): '"' * 64 + "\\" * 64 for n in range(8)}
+        self.sealed([profile_entry(1, profile="p" * 32, bridge="b" * 64, model="\u00e9" * 300,
+                                   requested={"model": '"' * 64 + "\\" * 64, "effort": "medium", "options": options})])
+        code, out, err = self.call("convergence", PLAN)
+        self.assertEqual((0, ""), (code, err))
+        self.assertLessEqual(len(out.encode("utf-8")), approvalcmd.MAX_CONVERGENCE_REPORT)
+        self.assertEqual(options, approvalcmd.parse_convergence(out.encode("utf-8")).last_requested.options)
+
+    def test_a_forged_request_the_state_check_refuses_gives_no_report(self):
+        for asked in ({"model": "a b", "effort": None, "options": {}}, {"model": None, "effort": "max", "options": {}},
+                      {"model": None, "effort": None, "options": {"model": "x"}},
+                      {"model": None, "effort": None, "options": {"a": "x y"}},
+                      {"model": None, "effort": None, "options": {"o%d" % n: "v" for n in range(9)}},
+                      {"model": None, "effort": None}):
+            self.sealed([round_entry(1)])
+            self.forge(dict(self.state(), rounds=[profile_entry(1, requested=asked)]))
+            self.refused("convergence", PLAN, contains="convergence")
 
     # --- what converges --------------------------------------------------------------------------
 

@@ -192,7 +192,7 @@ listed profile that names no model, which follows the vendor's own default and c
 
 ### The `convergence` report and `delegate-profiles`
 
-*(Decided; the installer's reader is built by increment G, the engine's report by H and the setting by I.)*
+*(Built by increments G (the installer's reader) and H (the engine's report); the setting and the check are decided and built by increment I.)*
 
 - `converged` keeps its meaning (`review-engine.md`, "Convergence").
 - The report's `format` becomes 2 and it gains `last_requested`: the bridge, the model asked for, the effort, the options (a map of

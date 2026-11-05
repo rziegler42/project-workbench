@@ -395,6 +395,15 @@ the second came back with no meaningful finding.
   limit); that `_object` is now used only by `parse_delegable` and its preamble is repeated in `parse_convergence` (the delegable
   report stays untouched, and a shared helper would change a reader that this increment does not own). **Limits of its evidence:** it
   ran no test and did not open the new tests or the decision record.
+- **Review of increment H (2026-11-04, a `reviewer` agent, one exchange).** No blocking finding. By reading it confirmed that
+  `last_requested` shows only what the sealed state recorded (the model asked for, not the one the bridge reported, and not today's
+  profile), that `"profile" in last` is the same test `check_round` uses for the old shape and cannot be fooled because the key set is
+  exact, that `converged` and every other field are computed as before, that the state format and the report format are kept apart, and
+  that the installer's reader accepts what the engine prints in both shapes. **Applied:** the docstring of `last_requested` now says
+  exactly what `check_round` checks (the engine refuses a reserved option name but not a prefix of one, by design: finding L7 of the
+  security review) and that the installer refuses what the profile rules refuse; the worst-case test now doubles every character of
+  every option value and uses a non-ASCII reported model. **Rejected:** none. **Limits of its evidence:** it ran nothing and did not
+  diff the trees.
 
 ## Deferred work
 
@@ -694,3 +703,25 @@ the second came back with no meaningful finding.
   code-work check` report no problems; `git diff --check` is clean. No package changed, so there is no release.
 - **Not done:** the commit and the push.
 - **Left for the owner:** the verdict and the word to commit.
+
+### Increment H
+
+- **Done (in a scratch clone, not yet in the live tree):** the review engine's `convergence` prints `format` 2 (a new constant
+  `CONVERGENCE_FORMAT`; the state's `FORMAT` stays 1) and `last_requested`: the bridge, the model asked for, the effort, the options
+  and the profile name of the last stored round, or `null` for a round stored before the profiles were built. `converged`, `model`,
+  `bridge` and the other fields are computed as before. `docs/specs/review-engine.md` ("Convergence") and a status tag of
+  `review-profiles.md` are updated in the live tree.
+- **Tests first:** ten new tests in `test_review_convergence.py` (the request and profile of a round since profiles; nulls and the empty
+  options; a round before profiles reads null and converges as before; only the last round counts; the model asked for and not the
+  reported one; the profile as it ran and not as the file reads today; `converged` independent of the request; the installer's
+  `parse_convergence` reads what the engine prints in both shapes; the worst case with every option character doubled stays within the
+  installer's 8,192; a forged request is refused at load) and the existing expectations moved to format 2. Eight errors and one
+  failure before the code.
+- **Verification, as run (clone):** `test_review_convergence.py`, 51 OK; the engine's whole folder, 459 OK (449 before, 10 new); and, in
+  the live tree, `tests.test_delegation`, 95 OK (the installer is unchanged since G); `git diff --check` clean.
+- **The owner's steps, as done (2026-11-04):** the owner copied the two files (both match the recorded hashes in the live tree, checked
+  by the agent) and ran the release; the preview then listed exactly two stale records (the package record that increment F committed
+  and the `review-engine` module record that E committed), which the owner approved from a dry-run list and the agent removed;
+  `stale records: 0`. The engine's whole folder then ran in the live tree: 459 OK; `wb check` reports no problems.
+- **Not done:** the commit and the push; `wb upgrade` of the installed copy, which is what makes a live engine print format 2.
+- **Left for the owner:** the copy, the release and the verdict.

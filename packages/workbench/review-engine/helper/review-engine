@@ -46,6 +46,8 @@ import unicodedata
 from wbkit import call, digest, display, jsonstrict, profiles, project, safefs
 
 FORMAT = 1
+# The format of the report `convergence` prints, which is not the format of the state: 2 adds `last_requested`.
+CONVERGENCE_FORMAT = 2
 KINDS = (("plan", "docs/plans"), ("spec", "docs/specs"), ("roadmap", "docs/roadmaps"), ("adr", "docs/decisions"))
 MAX_DOCUMENT = 1048576
 MAX_STATE = 4194304
@@ -1322,6 +1324,19 @@ def next_round(root, state, document):
     return {"profile": name, "bridge": profile.bridge, "location": location_class(root, profile)}
 
 
+def last_requested(last):
+    """What the last round asked of the bridge, as the installer's check reads it: the bridge, the model asked for (not the one the
+    bridge reported), the effort, the options and the name of the profile the round ran on. A round stored before profiles recorded
+    no profile and no options, so its request is ``None``. The values are those `check_round` checked when the state was loaded
+    (the form of each, and a reserved option name); the installer holds the same report to the profile file's whole rules, a prefix
+    of a reserved name included, and refuses what they refuse, so a forged round the engine lets through is refused there."""
+    if "profile" not in last:
+        return None
+    asked = last["requested"]
+    return {"bridge": last["bridge"], "model": asked["model"], "effort": asked["effort"], "options": dict(asked["options"]),
+            "profile": last["profile"]}
+
+
 def convergence(root, project_id, argument, out):
     """What the installer's delegated plan approval asks of a review (`docs/specs/review-engine.md`, "Convergence"):
     whether the last round of the plan's review converged, with the hash of the file that round read. It is read
@@ -1345,10 +1360,10 @@ def convergence(root, project_id, argument, out):
     model = plain(last["model"])[:200] or None if last["model"] is not None else None
     clean = last["verdict"] == last["reading"] == "no_meaningful_changes" and not any(
         item["severity"] in MEANINGFUL for item in last["findings"])
-    return emit(out, {"format": FORMAT, "kind": document.kind, "converged": clean and not pending(state)
+    return emit(out, {"format": CONVERGENCE_FORMAT, "kind": document.kind, "converged": clean and not pending(state)
                       and used <= window["bound"], "document_sha256": last["document_sha256"],
                       "rounds_used": used, "bound": window["bound"], "bridge": last["bridge"],
-                      "model": model,
+                      "model": model, "last_requested": last_requested(last),
                       "review": document.key, "closed": state["closed"] is not None})
 
 
