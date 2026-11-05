@@ -171,16 +171,20 @@ class Environment(support_mempalace.Palace):
                "MEMPALACE_HUB_FORWARD": "1", "MEMPALACE_LOG_FILE": "/x", "MEMPALACE_QDRANT_API_KEY": "k",
                "OPENAI_API_KEY": "k", "ANTHROPIC_API_KEY": "k", "GITHUB_TOKEN": "t", "GIT_DIR": "/x",
                "XDG_CONFIG_HOME": "/x", "XDG_CACHE_HOME": "/x", "TMPDIR_EXTRA": "x", "PYTHONPATH": "/x",
-               "PYTHONSTARTUP": "/x", "LD_PRELOAD": "/x", "MEMPALACE_EMBEDDING_MODEL": "embeddinggemma2"}
+               "PYTHONSTARTUP": "/x", "LD_PRELOAD": "/x", "MEMPALACE_EMBEDDING_MODEL": "embeddinggemma2",
+               "ANONYMIZED_TELEMETRY": "True"}
 
     def test_only_the_listed_variables_and_a_trusted_path_reach_the_program(self):
         with unittest.mock.patch.dict(os.environ, dict(self.SECRETS, LANG="C.UTF-8", LC_ALL="C", LC_TIME="C")):
             self.assertEqual(0, self.search()[0])
         (call,) = self.calls()
         self.assertEqual({"HOME", "LANG", "LC_ALL", "LC_TIME", "PATH", "PYTHONDONTWRITEBYTECODE",
-                          "MEMPALACE_EMBEDDING_MODEL", "GIT_CONFIG_COUNT", "GIT_CONFIG_KEY_0", "GIT_CONFIG_VALUE_0", "GIT_CONFIG_KEY_1", "GIT_CONFIG_VALUE_1", "GIT_NO_LAZY_FETCH", "GIT_TERMINAL_PROMPT"}, set(call["env"]))
+                          "MEMPALACE_EMBEDDING_MODEL", "ANONYMIZED_TELEMETRY", "GIT_CONFIG_COUNT", "GIT_CONFIG_KEY_0", "GIT_CONFIG_VALUE_0", "GIT_CONFIG_KEY_1", "GIT_CONFIG_VALUE_1", "GIT_NO_LAZY_FETCH", "GIT_TERMINAL_PROMPT"}, set(call["env"]))
         self.assertEqual(self.helper.GIT_SETTINGS, {k: v for k, v in call["env"].items() if k.startswith("GIT_")})
         self.assertEqual("minilm", call["env"]["MEMPALACE_EMBEDDING_MODEL"])  # the model whose cache was checked
+        # Plan `2026-11-05-mempalace-use-and-independence`, increment E: the program's own switch for usage reporting is set by the
+        # helper, whatever the caller exported
+        self.assertEqual("False", call["env"]["ANONYMIZED_TELEMETRY"])
         self.assertEqual(self.home, call["env"]["HOME"])
         self.assertEqual(self.outside, call["env"]["PATH"])
         self.assertEqual("1", call["env"]["PYTHONDONTWRITEBYTECODE"])

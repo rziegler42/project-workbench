@@ -124,7 +124,9 @@ others, `MEMPALACE_PALACE_PATH`, `MEMPALACE_BACKEND`, `MEMPALACE_EMBEDDING_API_U
 embeddings), `MEMPALACE_HUB_FORWARD`, `MEMPALACE_LOG_FILE` and URL and token variables for other stores, and none
 of them reaches the child. The helper sets `PYTHONDONTWRITEBYTECODE=1`, so that running the program writes no
 bytecode into its own install directory. The helper fixes `MEMPALACE_EMBEDDING_MODEL` to `minilm`, which the program reads before its
-configuration file, so that the model it uses is the one whose cache was checked; a palace filed with another model
+configuration file, so that the model it uses is the one whose cache was checked; it sets `ANONYMIZED_TELEMETRY=False`, ChromaDB's own
+switch for usage reporting, which ChromaDB leaves on by default and the program sets for itself only as a default ("Evidence", usage
+reporting); a palace filed with another model
 makes the program refuse the read, and the module supports MiniLM only (the owner who wants another runs the program
 directly). It also fixes the program's backend to `chroma` with the program's own `--backend` option, which ranks
 above its configuration file, so that no read goes to a remote store the home configuration might name. And it sets
@@ -190,7 +192,8 @@ cited from a document.
 - `search` refuses, and starts no program, when any of the six model files is absent (the refusal tells the owner
   to run `mine`) or, with a palace named by the project, when it was recorded with a model other than `minilm`.
 - The child's environment holds only `HOME`, `LANG`, `LC_*`, the resolved `PATH`, `PYTHONDONTWRITEBYTECODE=1`,
-  `MEMPALACE_EMBEDDING_MODEL=minilm` and the fixed git settings; the program is started with `--backend chroma`.
+  `MEMPALACE_EMBEDDING_MODEL=minilm`, `ANONYMIZED_TELEMETRY=False` and the fixed git settings; the program is started with
+  `--backend chroma`.
 - `init` and `mine` are listed under `owner` and run only from a terminal; `init` always passes `--no-llm`; `mine`
   without `--confirm` passes `--dry-run`; a project-root target, a target that overlaps a palace, and a target holding
   a link, a directory or a shared file under a name the program writes through are refused.
@@ -260,6 +263,34 @@ Python and locale data outside scratch, and nothing of the owner's real configur
 
 Not determined: whether `XDG_CACHE_HOME` alone moves the model cache, the default palace for a fresh home, the
 behavior with another backend, and the behavior against a large palace.
+
+**Usage reporting (2026-11-05; plan `2026-11-05-mempalace-use-and-independence`, increment E).** A report on the web said that ChromaDB's
+usage reporting might still be on in MemPalace. Run on the machine of the owner (Darwin 25.6.0), against `mempalace` 3.11.0 with ChromaDB
+1.5.9 (a `uv` tool on Python 3.13), from the project at commit `d0a81bb`, the helper under test being the one of the increment.
+*Source reading (the Python source only; ChromaDB's compiled core was not read).* ChromaDB's `Settings` has `anonymized_telemetry: bool = True` (`chromadb/config.py`), so its default is on, and the switch is
+that setting, which the environment variable `ANONYMIZED_TELEMETRY` sets. In this version the client it would use,
+`chromadb.telemetry.product.posthog.Posthog`, has a `capture` that does nothing, and the `posthog` package is not installed. MemPalace turns
+the setting off in two places: `mempalace/__init__.py` sets `ANONYMIZED_TELEMETRY` to `False` with `os.environ.setdefault` at import (so a
+value the caller exported wins), and `mempalace/backends/chroma.py` passes `Settings(anonymized_telemetry=False)` to every client it opens;
+both comments cite an advisory (GHSA-8h77) and say that ChromaDB's default would otherwise apply. *Probes.* A script (Python 3.15.0) ran the program itself, with
+its own command line and not the one the helper builds, in a scratch home with a scratch palace and a copy of the owner's cached embedding
+model, with the helper's own environment less `ANONYMIZED_TELEMETRY`, inside `sandbox-exec` (part of the operating system; it has no version
+of its own). Its profiles confine the network and not the file system, so what the program wrote outside the scratch directory was not
+checked; the scratch directory was removed at the end. Canaries first: under a profile that allows the loopback address only, a
+connection to the documentation address `192.0.2.1` was refused with an error and did not time out; a client that honours the proxy variables was seen by a loopback
+listener (`GET http://example.invalid/`); and under a profile that ends the process on any outbound attempt, a loopback connection ended it
+with SIGKILL. Then the four commands `init <dir> --yes --no-llm`, `mine <dir>`, `search` and `status`, once under each profile; the whole script was run
+twice with the same result, and the output of the second run is the one kept. Under the
+loopback-only profile, with the proxy variables for every scheme pointing at the listener: all four exited 0 and the listener saw no
+connection. Under the profile that ends the process on any outbound attempt: all four exited 0 and none was ended. **Result.** The source shows the setting off whenever the program opens a ChromaDB
+client, and the probes saw no outbound connection by these four commands, on this input, under either profile. The two are separate
+findings: the probes ran without the variable and observed connections, not the setting, and the case of a caller who exports the variable
+as `True` rests on the source reading alone. **Limits.** "None seen" is not proof that nothing is sent. The proxy listener sees only a client
+that honours the proxy variables; the kill profile sees any outbound attempt by any client in the process, but only on the paths that ran,
+so an error path, another command, the compiled core on a path not run, or another version is not shown to be silent. `sandbox-exec` is
+deprecated by the operating system but was present and worked. **What the helper does about it:** it sets
+`ANONYMIZED_TELEMETRY=False` for every run of the program, status, search, init and mine, so the setting does not depend on the program's
+own `setdefault` or on a future ChromaDB default; a test pins the value and that a value the caller exported is replaced.
 
 ## Governing decisions and references
 

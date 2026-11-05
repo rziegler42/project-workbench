@@ -158,13 +158,15 @@ def environment(entries):
     """What the program sees: ``HOME`` (it reads its configuration from there), ``LANG``, the ``LC_*``
     variables, the trusted PATH, a setting that stops it writing bytecode into its own installation, and the
     embedding model, which is fixed to the one whose cache is checked (the program takes it from this variable
-    before its configuration file). Nothing else is passed, so no variable that selects a backend, a remote
+    before its configuration file), and the switch that turns off ChromaDB's usage reporting, which the program also
+    sets for itself but only as a default. Nothing else is passed, so no variable that selects a backend, a remote
     embedding service, a log file or a credential reaches it."""
     env = {name: os.environ[name] for name in ("HOME", "LANG") if name in os.environ}
     env.update({name: value for name, value in os.environ.items() if name.startswith("LC_")})
     env["PATH"] = os.pathsep.join(entries)
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     env["MEMPALACE_EMBEDDING_MODEL"] = "minilm"
+    env["ANONYMIZED_TELEMETRY"] = "False"  # ChromaDB's own default is on; the program sets it only with setdefault
     env.update(GIT_SETTINGS)
     return env
 

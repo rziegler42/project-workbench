@@ -267,14 +267,16 @@ class Directory(Owner):
 class Environment(Owner):
     def test_the_program_gets_the_same_short_environment_and_a_private_directory_that_is_removed(self):
         secrets = {"MEMPALACE_PALACE_PATH": "/x", "MEMPALACE_EMBEDDING_API_URL": "http://x", "OPENAI_API_KEY": "k",
-                   "ANTHROPIC_API_KEY": "k", "GITHUB_TOKEN": "t", "GIT_DIR": "/x", "XDG_CONFIG_HOME": "/x", "MEMPALACE_EMBEDDING_MODEL": "embeddinggemma2"}
+                   "ANTHROPIC_API_KEY": "k", "GITHUB_TOKEN": "t", "GIT_DIR": "/x", "XDG_CONFIG_HOME": "/x", "MEMPALACE_EMBEDDING_MODEL": "embeddinggemma2",
+                   "ANONYMIZED_TELEMETRY": "True"}
         with unittest.mock.patch.dict(os.environ, dict(secrets, LANG="C.UTF-8", LC_ALL="C")):
             self.assertEqual(0, self.owner("mine", self.corpus, "--confirm")[0])
         (call,) = self.calls()
         self.assertEqual({"HOME", "LANG", "LC_ALL", "PATH", "PYTHONDONTWRITEBYTECODE", "MEMPALACE_EMBEDDING_MODEL",
-                          "GIT_CONFIG_COUNT", "GIT_CONFIG_KEY_0", "GIT_CONFIG_VALUE_0", "GIT_CONFIG_KEY_1", "GIT_CONFIG_VALUE_1", "GIT_NO_LAZY_FETCH", "GIT_TERMINAL_PROMPT"}, set(call["env"]))
+                          "ANONYMIZED_TELEMETRY", "GIT_CONFIG_COUNT", "GIT_CONFIG_KEY_0", "GIT_CONFIG_VALUE_0", "GIT_CONFIG_KEY_1", "GIT_CONFIG_VALUE_1", "GIT_NO_LAZY_FETCH", "GIT_TERMINAL_PROMPT"}, set(call["env"]))
         self.assertEqual(self.helper.GIT_SETTINGS, {k: v for k, v in call["env"].items() if k.startswith("GIT_")})
         self.assertEqual("minilm", call["env"]["MEMPALACE_EMBEDDING_MODEL"])
+        self.assertEqual("False", call["env"]["ANONYMIZED_TELEMETRY"])  # increment E: also for the owner commands
         self.assertEqual(self.outside, call["env"]["PATH"])
         self.assertTrue(os.path.realpath(call["cwd"]).startswith(self.temp + os.sep), call["cwd"])
         self.assertEqual([], os.listdir(self.temp))

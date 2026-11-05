@@ -368,6 +368,25 @@ deviation from the plan, and not my conclusions.
   `safefs`, which this change does not touch.
 - **Left for the owner:** whether to ask for a security review of D and E together, once E is built.
 
+**Increment E.** Reviewer: the `reviewer` agent (read-only), one round of the cap of 3, no blocking finding. It was given the plan, the diff of
+the three package files, the diff of the spec, the probe script and its saved output, and the paths of the installed program's source to check
+the cited lines itself, and not my conclusions. It checked the cited source lines, the versions, the commit, the probe output and that
+`environment()` is the only builder of the program's environment (both call sites use it).
+
+- **Applied:** the spec's "Result" sentence said the source and the probes agreed that the setting is off whether or not the caller exported
+  it; the probes ran without the variable and saw connections, not the setting, and the exported-`True` case rests on the source reading, so
+  the paragraph now keeps the two findings apart and says that "none seen" is not proof; the source reading is marked "the Python source only"
+  (ChromaDB's compiled core was not read); the paragraph says that the probe script used the program's own command line and not the one the
+  helper builds, that its profiles confine the network and not the file system so writes outside the scratch directory were not checked, that
+  the canary was refused with an error and did not time out (no timing was taken), that the whole script was run twice and the second output
+  kept, and gives the probe's Python version (3.15.0) and says that `sandbox-exec` has no version of its own.
+- **Rejected, with the reason:** none.
+- **Noted:** the script has no `try/finally` around the removal of its scratch directory (cosmetic, and the script is not part of the
+  repository); precedence between an explicit `Settings` argument and the environment variable was not shown in anything read, and the spec
+  does not claim it.
+- **Not checked by the reviewer:** the test results as reported (I ran them), that the clone's helper is the file the owner will copy, and
+  the probe by running it.
+
 ## Deferred work
 
 - A way to file what an agent proposes to keep, without letting the agent write (an inbox and an owner-run command), including a short record
@@ -502,4 +521,33 @@ check`: 93 plans, no problems. Not run: the whole suite and `tests/test_boundary
 
 **Review:** one round with the `reviewer` agent, no blocking finding (see the review record). A security review of D and E is the owner's to ask for.
 
-**Not done in D:** the owner's copy and release, the commit, the security review (not asked for), and Increments E and F.
+**Not done in D:** Increments E and F, and the security review, which is asked for once, for D and E together (see E). D was copied and released by
+the owner, the stale shipped records were removed after the owner approved the list, and D is committed as `d0a81bb`.
+
+**Increment E, built in a scratch clone (2026-11-05); not yet copied into the project, released or committed.** Base commit of the clone:
+`d0a81bb`. Changed in the clone: `helper/mempalace` (`environment()` now also sets `ANONYMIZED_TELEMETRY` to `False`, with a comment and a
+sentence in its docstring), `tests/test_mempalace_run.py` and `tests/test_mempalace_owner.py` (the two tests that pin the program's exact
+environment add the variable to the set, assert its value for the agent commands and the owner commands, and export `ANONYMIZED_TELEMETRY=True`
+to show that the caller's value is replaced). In the project, docs only: `docs/specs/mempalace.md` (the sentence about the child's
+environment, the acceptance bullet, and a new paragraph "Usage reporting" at the end of "Evidence").
+
+**What step 1 found.** The source names the switch: ChromaDB 1.5.9's `Settings.anonymized_telemetry` defaults to on, the environment variable
+`ANONYMIZED_TELEMETRY` sets it, ChromaDB's client for it is a no-op in this version and `posthog` is not installed, and MemPalace 3.11.0
+already turns it off at import (with `setdefault`) and in the settings it gives every client. The step 1 stop condition (no switch named) did
+not apply. **What the probes found (step 4).** Canaries first (an outside address refused, a proxy-honouring client seen by the loopback
+listener, a loopback connection ended under the kill profile); then `init`, `mine`, `search` and `status` of the real program in a scratch
+home under each profile: all exited 0, the listener saw no connection, and the kill profile ended none. Run twice, same result. The probes
+inform and do not gate; "none seen" is not proof, and the spec paragraph says what each profile can and cannot see.
+
+**Verification as run.** Tests first: the two environment tests failed on the unchanged helper. After the change all 169 tests of the
+`mempalace` test directory pass. `wb run code-work check`: 93 plans, no problems. Not run: the whole suite and `tests/test_boundary.py`, because
+no installer file changes.
+
+**Hashes of the three files at the end of the clone's work** (SHA-256): `helper/mempalace`
+`c982f1e43f8da20a135074bbcd377a6de2bfd18caa101a980e87f361e2d6a727`, `test_mempalace_run.py`
+`e566986e9ef6c9962482675ec1462f6cf208ca9c59f667eb06b710dd8a42266a`, `test_mempalace_owner.py`
+`61f965e2afdca46d61395e05cb1210862d2353f91ffb7798fc58b6e6179b0b8a`.
+
+**Review:** one round with the `reviewer` agent, no blocking finding (see the review record).
+
+**Not done in E:** the owner's copy and release, the commit, the security review of D and E (the owner's to ask for), and Increment F.
