@@ -68,7 +68,8 @@ In:
    `block` (increment A-A), and the pairing of the `remote-runner` commands `submit` and `fetch` with the two remote checkpoints is
    decided by an accepted record (increment A) and built as it says (increment A-A).
 3. `wb verify` stays a check that runs nothing of the module: it refuses a declaration that does not fit the permission system (a
-   declared `preview` that names no argument or an owner-run argument, `ask` offered without a preview, an unknown danger class)
+   declared `preview` that names no argument or an owner-run argument and `ask` offered without a preview, which the declaration
+   reader already refuses, and an unknown danger class, which is new)
    and warns on a shipped skill or agent that says to never run an argument whose declared levels include `ask` or `none`. The
    behaviour of a module's preview (a `digest:` line of 32 lowercase hex, a wrong or missing digest refused) is checked by a
    conformance test in the kit that the module's own tests run against its own helper, before the module is offered for approval.
@@ -146,10 +147,13 @@ a minimal example module in `docs/`.
    `2026-11-02-one-permission-registry-and-key-model` requires, and `reset` and `prune` as `governs`), then declare it in the
    `review-engine` module and update `tests/test_levels_facts.py`, whose pinned divergence changes on purpose.
 1. **What `wb verify` checks, without running anything of the module** (it takes a package directory and has no effect today, and
-   verification precedes approval and pinning, so no candidate code may run in it). Write the tests first: refuse a declared
-   `preview` that names no argument, or names an owner-run one; refuse `ask` in `levels` without a `preview`; warn on a shipped skill
-   or agent that says to never run an argument whose declared levels include `ask` or `none`; warn on a closed command list that
-   leaves out `wb settings` while the skill depends on a level.
+   verification precedes approval and pinning, so no candidate code may run in it). The refusals of a declared `preview`
+   that names no argument or an owner-run one, of `ask` in `levels` without a `preview` and of a `preview` without `ask` are already
+   made by the declaration reader that `wb verify` runs (`_argument_levels`, from `2026-10-27-owner-run-arguments-take-a-level`) and
+   are tested in `tests/test_owner_argument_levels.py`; this step adds no test for them (found by the author's reading of
+   2026-11-05). Write the tests first for what is new: warn on a shipped skill or agent that says to never run an argument whose
+   declared levels include `ask` or `none`; warn on a closed command list that leaves out `wb settings` while the skill depends on a
+   level.
 2. **The behaviour of a preview is a test the module runs itself.** Add to the kit a conformance test (a `unittest` mixin in
    `workbench/wbkit/` that takes the helper's path and a throwaway project the test makes): the preview prints a `digest:` last line of
    32 lowercase hex, the command refuses a wrong and a missing digest, and the digest changes when the content changes. A module's
@@ -238,22 +242,29 @@ what could break outside the tested area; module test roots are part of that sta
 - **Earlier review.** This plan was split out of `2026-11-02-permission-levels-for-every-command` (2026-11-03), whose review (4 rounds on
   the bridge, 9 findings) covered the earlier text, including the pairing step (round 3 and 4 findings, applied here) and the
   non-executing `wb verify` (round 2, applied here); it did not cover this split.
-- **Review of this plan (2026-11-05, the review engine on the owner's `standard` profile, model `gpt-5.6-terra`; round 1 of 3, which found
-  `changes_needed`).** Two findings, both checked against the plan and the project's rules and both applied:
-  - **Major.** Increment A asked for "one or two local commits" although an increment is one verified, reviewed local commit. Increment A
-    is now the pairing decision record alone, and its build is the nested increment A-A; B now depends on A-A, and the places that named
-    A for the build (the package-edit assumptions and risk, completion criterion 2) name A-A.
-  - **Minor.** The sentence that A, B and C are separable contradicted the chain of dependencies. It now says that the plan may be
-    stopped after any increment and that no increment can be dropped from the middle.
-  - **Also corrected on reading (not a finding of the engine):** the shadow hook is no longer "not yet installed by the owner".
-- **Read against the code of 2026-11-05 by the author,** after the review profiles plan was built: the plans and records this plan depends
-  on are completed or accepted (`2026-11-02-permission-system-consistency`, `2026-11-03-delegated-levels-and-risk-profiles` and its
-  record), and `tests/test_owner_argument_levels.py`, `tests/test_levels_facts.py` and `tests/test_gate_corpus.py` exist. Not checked: the
-  text of each increment against the current `declarations.py` and `module-contract.md`, which gained `review_options` and its prefix
-  rule; increment B's tests must keep the installer's tests free of module names (`tests/test_boundary.py`, which allows only
-  `tests/test_levels_facts.py` and `tests/test_permissions_drift.py` to name them).
-- **Left for the owner:** a second round (it runs on `standard`; a third would run on `second-opinion`), or the
-  owner's approval of the plan as it stands. This plan is not approved.
+- **Review of this plan (2026-11-05, the review engine on the owner's `standard` profile, model `gpt-5.6-terra`; rounds 1 and 2 of 3,
+  both `changes_needed`).** Three findings, each checked against the plan, the project's rules and the evidence, and all applied:
+  - **Round 1, major.** Increment A asked for "one or two local commits" although an increment is one verified, reviewed local commit.
+    Increment A is now the pairing decision record alone, and its build is the nested increment A-A; B now depends on A-A, and the places
+    that named A for the build (the package-edit assumptions and risk, completion criterion 2) name A-A.
+  - **Round 1, minor.** The sentence that A, B and C are separable contradicted the chain of dependencies. It now says that the plan may
+    be stopped after any increment and that no increment can be dropped from the middle.
+  - **Round 2, major.** The plan said the shadow hook is installed, and `action-review.md` said it was not installed or run. The
+    author's correction of the plan was right (the shadow report counts 83 prompted commands, so the hook is installed and running); the
+    spec was the stale one, and it was updated to say what the report shows (installed; 20 commands waiting for a label, none
+    labelled; the test set not run).
+- **Read against the code of 2026-11-05 by the author** (after the review profiles plan was built), which the engine cannot do. Still
+  true: the plans and records this plan depends on are completed or accepted; `mempalace` `init` and `mine` and `remote-runner`
+  `fetch-overwrite` declare no `levels` and no `preview` (increment A-A stands); no danger class is declarable (the registry derives
+  `governs` for every owner-run argument, so step 0 of B stands); `wb doctor`'s hook check is a different one (a hook whose `wb` is not on
+  the `PATH`), so the note of increment C is not built; the review engine's `amend`, `extend`, `reset`, `archive` and `prune` all offer
+  `ask` and `none` with a `preview`. **Stale and corrected:** step 1 of increment B listed two refusals that the declaration reader
+  already makes and tests cover (see the step). **Not checked:** the specs' lines that the increments would replace, and the pairing
+  record's options against `2026-10-29-workbench-asks-for-remove-submit-and-fetch`; increment B's tests must keep the installer's tests
+  free of module names (`tests/test_boundary.py` allows only `tests/test_levels_facts.py` and `tests/test_permissions_drift.py` to name
+  them).
+- **Left for the owner:** a third round (it would run on `second-opinion`, the stronger and dearer model), or the owner's approval of the
+  plan as it stands, or leaving it for later. This plan is not approved.
 
 ## Deferred work
 
