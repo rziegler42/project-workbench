@@ -26,6 +26,7 @@ PACKAGE = os.path.join(ROOT, "packages", "workbench")
 MODULE = os.path.join(PACKAGE, "groundwork")
 TEMPLATED = ("draft-decision", "draft-roadmap", "draft-spec")
 SKILLS = ("brainstorm",) + TEMPLATED
+MEMORY_SEARCH = "Where a module provides `memory-recall`, one search per task through it is also allowed."
 NEUTRAL = os.path.join(MODULE, "harness", "neutral")
 AREAS = ("specs", "roadmaps", "decisions", "references")
 READMES = ["docs/%s/README.md" % area for area in AREAS]
@@ -304,13 +305,26 @@ class Skills(unittest.TestCase):
         for name in SKILLS:
             if name == "draft-decision":
                 continue    # reads one level with one read-only command: see the test below
-            self.assertIn("Use only reading, searching and editing. Do not run commands.",
-                          skill_text(name))
+            self.assertIn("Use only reading, searching and editing. " + MEMORY_SEARCH + " Run no other command.",
+                          " ".join(skill_text(name).split()))
+            self.assertNotIn("Do not run commands", skill_text(name))
+
+    def test_each_skill_that_starts_a_drafting_task_allows_one_memory_search_by_capability_and_no_other_command(self):
+        """Plan `2026-11-05-mempalace-use-and-independence`, increment C: the memory policy tells the agent to search once before it
+        drafts, so the skills that forbid other commands allow that one search, named by the capability and by no module."""
+        for name in SKILLS:
+            flat = " ".join(skill_text(name).split())
+            self.assertEqual(1, flat.count(MEMORY_SEARCH), name)
+            self.assertEqual(1, flat.count("`memory-recall`"), name)
+            for word in ("mempalace", "wb run mempalace", "graphify", "palace"):
+                self.assertNotIn(word, flat, (name, word))
+            self.assertIn("Run no other command.", flat, name)
 
     def test_the_decision_skill_accepts_only_at_the_levels_ask_and_none_and_only_through_the_command(self):
         text = self.decision_skill()
         self.assertIn("Use only reading, searching and editing, and the commands `wb settings`, "
-                      "`wb run groundwork preview` and `wb run groundwork accept`. Run no other command.", text)
+                      "`wb run groundwork preview` and `wb run groundwork accept`. " + MEMORY_SEARCH + " Run no other command.",
+                      " ".join(text.split()))
         for clause in ("level accept-decision: ask", "level accept-decision: none", "stop at `Proposed`", "any other line"):
             self.assertIn(clause, text)
         self.assertNotIn("`block` or `none`", text)

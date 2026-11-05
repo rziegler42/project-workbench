@@ -55,4 +55,5 @@ Rules:
 - Nothing tracked points to anything untracked.
 - Use only reading, searching and editing, and the commands named here: `wb run code-work check`, `wb settings`,
   once the owner has said to approve, `wb plan-status` and `wb approve-plan`, and, at `delegated`, the commands of
-  `delegate-approval`. Run no other command.
+  `delegate-approval`. Where a module provides `memory-recall`, one search per task through it is also allowed. Run no
+  other command.

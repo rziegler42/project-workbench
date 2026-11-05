@@ -331,6 +331,21 @@ the three package files, the diff of the spec edit and the verification as run, 
 - **Not checked by the reviewer:** the test results as reported (I ran them), and whether another test in the repository pins the old first
   bullet (a search of the repository found none).
 
+**Increment C.** Reviewer: the `reviewer` agent (read-only), one round of the cap of 3, no blocking finding. It was given the plan, the
+diff of the eight files and the verification as run, and not my conclusions.
+
+- **Applied:** the clause says "one search per task", because it said "one search" for each skill and the policy says once per task, so a
+  task that moved from `brainstorm` to `draft-spec` could have read two allowances; the tests pin the new sentence.
+- **Rejected, with the reason:** none.
+- **Noted, not done:** `docs/specs/command-permissions.md` lines 681 and 683 (the table of what the drafting and brainstorm skills run) say
+  the drafting skills ran no command except `wb run code-work check` and `wb settings`, and that `brainstorm` "reads, asks, writes a spec". After
+  C each may also run one search through a module that provides `memory-recall`. The row is dated ("as rendered … on 2026-10-27") and the plan's
+  Scope does not list this spec, so I did not edit it; it is for the owner to say. The clause lets the agent run `search` and not `status`,
+  although `recall-memory` lets it use `status`; the closing "Run no other command" still forbids the rest, and the difference is mild. The
+  shipped wording is a separate sentence and not the "and, where…" clause of the plan's step 2; it meets criterion 4.
+- **Not checked by the reviewer:** the test counts as reported (I ran them), that `wb run mempalace search` is level `none` and agent-safe
+  (it is, in `wb settings`), and how a live agent reads the clause, which is Increment F.
+
 ## Deferred work
 
 - A way to file what an agent proposes to keep, without letting the agent write (an inbox and an owner-run command), including a short record
@@ -401,5 +416,35 @@ a list of spellings; the same check is made on the block. `wb run code-work chec
 
 **Review:** one round with the `reviewer` agent, no blocking finding (see the review record).
 
-**Not done in B:** the owner's copy and release, the commit, and Increments C to F. The owner does not run `wb upgrade` for B alone: the new
-sentence disagrees with the five drafting skills until C is released.
+**Not done in B:** Increments C to F. B was copied and released by the owner, the stale shipped records were removed after the owner approved the
+list, and B is committed as `53c13b9`. The owner does not run `wb upgrade` for B alone: the new sentence disagrees with the five drafting skills
+until C is released.
+
+**Increment C, built in a scratch clone (2026-11-05); not yet copied into the project, released or committed.** Base commit of the clone:
+`53c13b9`. Changed in the clone, in two modules: the five skills `code-work/…/draft-plan`, `groundwork/…/brainstorm`, `…/draft-spec`,
+`…/draft-decision` and `…/draft-roadmap` each gain the sentence "Where a module provides `memory-recall`, one search per task through it is
+also allowed." before their closing "Run no other command."; the three that said "Do not run commands." now end with that clause (the only
+added permission) and "Run no other command."; `draft-decision` and `draft-plan` keep their lists of commands. Tests: `test_groundwork_module.py`
+(the pin of the three skills' closing sentence and of the `draft-decision` list changed, and a new test checks, for every groundwork skill, that
+the sentence occurs once, that `memory-recall` occurs once, that no `mempalace`, `wb run mempalace`, `graphify` or `palace` occurs, and that
+"Do not run commands" is gone), `test_groundwork_brainstorm.py` (the same pin for `brainstorm`) and `test_codework_skills.py` (a new test that
+`draft-plan` keeps its closed list, ends with the clause and "Run no other command.", and names no module).
+
+**Verification as run.** Tests first: five of the new or changed tests failed on the unchanged skills. After the change the groundwork tests
+(252) pass, the code-work tests (347, 2 skipped as before) pass, and `tests/test_permissions_drift.py` (22) passes with and without the change.
+One slip while editing: the first rewording to "per task" missed three skills whose sentence wraps across a line, and three tests failed until
+I fixed them. Not run: the whole suite and `tests/test_boundary.py`, because no installer file changes.
+
+**Hashes of the eight files at the end of the clone's work** (SHA-256): `draft-plan/SKILL.md`
+`ec5a68c2e600573b8e1dd39e24832cf518df97f81270471e4477ea2457419f17`, `test_codework_skills.py`
+`a1c5bafd4f638cb19e3d3c8849ee1964d750079b61c9c176c6922601cc3c647d`, `brainstorm/SKILL.md`
+`3fe31a0955cdedb37f6f6a464e7698fdc41152bbed7adbdb1c52eea725023101`, `draft-decision/SKILL.md`
+`3cba3088aca2504f236bad0adb169209b7ea1547de9c1ebe3fa06c482fd94a48`, `draft-roadmap/SKILL.md`
+`020cffb167c8e0850d82089df452fa2359e8b85bec65da084766bda2a2b8bddb`, `draft-spec/SKILL.md`
+`d132f80cd94024624f2c0faa7c6ce3396c409e5291692e4fd016a208b32b229d`, `test_groundwork_brainstorm.py`
+`f3732912dbcd1c6ee24cdc03a28282280ae1ccf82f17f07584d675fed33f091f`, `test_groundwork_module.py`
+`28714ee502f9b33e4ae578c59defb5a6429365d272d704a45f0d1f3bbe0acc32`.
+
+**Review:** one round with the `reviewer` agent, no blocking finding (see the review record).
+
+**Not done in C:** the owner's copy and release, the commit, the owner's `wb upgrade`, and Increments D to F.

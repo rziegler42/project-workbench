@@ -108,6 +108,18 @@ class Skills(unittest.TestCase):
             for phrase in phrases:
                 self.assertIn(phrase, text, (name, phrase))
 
+    def test_draft_plan_allows_one_memory_search_by_capability_and_keeps_its_closed_list(self):
+        """Plan `2026-11-05-mempalace-use-and-independence`, increment C."""
+        flat_text = " ".join(text_of("draft-plan").split())
+        for command in ("`wb run code-work check`", "`wb settings`", "`wb plan-status`", "`wb approve-plan`",
+                        "the commands of `delegate-approval`"):
+            self.assertIn(command, flat_text, command)
+        self.assertEqual(1, flat_text.count("Where a module provides `memory-recall`, one search per task through it is also allowed."))
+        self.assertTrue(flat_text.rstrip().endswith("Where a module provides `memory-recall`, one search per task through it is also allowed. Run no other command."))
+        self.assertEqual(1, flat_text.count("`memory-recall`"))
+        for word in ("mempalace", "graphify", "palace"):
+            self.assertNotIn(word, flat_text, word)
+
     def test_a_text_is_short_enough_to_read_in_one_go(self):
         for name in SKILLS:
             self.assertLessEqual(len(text_of(name).splitlines()), 60, name)
