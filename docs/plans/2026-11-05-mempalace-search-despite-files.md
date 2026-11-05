@@ -114,7 +114,26 @@ their tests.
 
 ## Review record
 
-Empty until a review is asked for.
+**Increment A.** Reviewer: the `reviewer` agent (read-only), one round of the cap of 3, no blocking finding. It was given the plan, the diff of the
+block, the skill and the test, the diff of the two specs, the verification as run, and the points to attack, and not my conclusions. It found that
+the first bullet reads correctly: "even if the files seem to answer it" belongs to the moments clause, and the session-start prohibition is kept and
+pinned; that the search is still limited to once per task, to the listed moments and to the other trigger; that the ranking of the built-in memory
+and of current files over a recalled result is intact; that the allowance in the five drafting skills (permission) and the block (instruction)
+agree; that "each block says so for its own tool" still holds; and that the dated note is accurate.
+
+- **Applied:** the dated note in `knowledge-tools.md` now also says that a block may still ask for one search before drafting even when the files seem
+  to answer; the over-long line of `mempalace.md` is wrapped.
+- **Rejected, with the reason:** none.
+- **Noted, not changed:** (1) "look up what a file states" and "the files seem to answer it" are close in meaning, so an agent could still decide that a
+  question the files answer is a lookup of what a file states; the explicit "even if" and the reason outweigh it, and only the live check (criterion 6)
+  will show. (2) The sentence about the built-in memory ("read it first and search the palace only when it does not") could be read to skip the search
+  at a drafting moment when the built-in memory has a related note. The old text had the same shape and no session used it as the reason, so it is not
+  changed; if criterion 6 shows an agent using it, the next change closes it. (3) A third installed copy of the skill, `.claude/skills/recall-memory/SKILL.md`,
+  carries the old text until the owner's upgrade and rerender; the owner's step names it. (4) The old clause stays in the evidence of `mempalace.md`
+  and in the independence plan, which are records of what happened. (5) The skill's list of files to read (the accepted decisions, the specs) became
+  "read the file", a trivial loss.
+- **Not checked by the reviewer:** the test results as reported (I ran them), the rendered `AGENTS.md` after the owner's upgrade, and how an agent
+  behaves with the new wording, which is criterion 6.
 
 ## Deferred work
 
@@ -123,4 +142,25 @@ Empty until a review is asked for.
 
 ## Result
 
-Empty until work starts.
+**Increment A, built in a scratch clone (2026-11-05); not yet copied into the project, released or committed.** Base commit of the clone:
+`0b43535`. Changed in the clone: `files/blocks/policy.md` (the first bullet adds, after "brainstorm a design", "even if the files seem to answer it:
+the palace may hold experience they lack", and replaces "and not for what the current files answer" by "or to look up what a file states"; the second
+bullet drops "A question the current files answer is answered from the files, and the palace is not searched for it" for "A fact a current file states
+is read from that file"; still 14 lines), `harness/neutral/skills/recall-memory/SKILL.md` (the opening paragraph and the paragraph on what the palace
+answers say the same in the skill's words) and `tests/test_mempalace_guidance.py` (the pins of the old clause changed, `SCOPE` changed, a new test for
+the exception, the absence of the old phrases, the 14-line limit and the set of commands). In the project, docs only: the policy-block bullets of
+`docs/specs/mempalace.md` and the rule and a dated note in `docs/specs/knowledge-tools.md`.
+
+**Verification as run.** Tests first: five of the new or changed tests failed on the unchanged texts. After the change all 174 tests of the `mempalace`
+test directory pass (173 before, 1 new), run as the repository's runner does. `wb run code-work check`: 95 plans, no problems. Not run: the whole
+suite and `tests/test_boundary.py`, because no installer file changes.
+
+**Hashes of the three files at the end of the clone's work** (SHA-256): `policy.md`
+`fa9e543fc377ff0e2262bfc546b922b272c27915741eaa46583dc6348796dcc2`, `SKILL.md`
+`7a6e22d224ecdfb35472e29f37199f455d9e1bdd72596ca465592ad425f198b9`, `test_mempalace_guidance.py`
+`41e394559fc594a42d159b993a7b216255baa053657a818f0b3a027957dbe2ea`.
+
+**Review:** one round with the `reviewer` agent, no blocking finding (see the review record).
+
+**Not done in A:** the owner's copy and release, the commit, the owner's `wb upgrade` and `wb rerender` (the skill is also installed under
+`.claude/skills/recall-memory/`), and criterion 6, the live check in a fresh session.

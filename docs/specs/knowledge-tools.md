@@ -50,12 +50,17 @@ that no knowledge module depends on another and any one of them can be installed
 - `mempalace`: what was decided, tried or preferred before.
 - `graphify`: what a change touches, or how components relate.
 - the knowledge base: what is known outside the project in a domain.
-- A question the current files answer is answered from the files, and no tool is searched for it (each block says so for its own tool).
+- A fact a current file states is read from that file and not looked up in a tool (each block says so for its own tool). A tool's block may
+  still ask for one search before a drafting task even when the files seem to answer, because the tool may hold what the files lack; the
+  `mempalace` block does (plan `2026-11-05-mempalace-search-despite-files`).
 
 *Changed 2026-11-05 (plan `2026-11-05-mempalace-use-and-independence`, increment A).* The earlier text wrote one routing rule, naming all three
 tools, into every module's block in the same words. That made each block refer to the others. The sentences "a tool that is not installed is
 skipped" and "if a tool is not installed, skip it" went with it, because they only mattered when a block named other tools. When several of
-the modules are installed, the agent chooses among their statements of scope.
+the modules are installed, the agent chooses among their statements of scope. *Changed again 2026-11-05 (plan
+`2026-11-05-mempalace-search-despite-files`).* The sentence "a question the current files answer is answered from the files, and no tool is
+searched for it" let an agent skip the search in two live sessions although the palace held experience the files lacked; it now says that a fact
+a file states is read from the file, and a block may still ask for one search before drafting even when the files seem to answer.
 
 **No overlapping ingest.**
 

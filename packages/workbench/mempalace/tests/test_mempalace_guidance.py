@@ -18,7 +18,8 @@ MODULE = os.path.join(PACKAGE, "mempalace")
 NEUTRAL = os.path.join(MODULE, "harness", "neutral")
 SKILL = "recall-memory"
 SCOPE = ("The palace answers what was decided, tried or preferred before",
-         "A question the current files answer is answered from the files, and the palace is not searched for it")
+         "A fact a current file states is read from that file")
+EXCEPTION = "even if the files seem to answer it: the palace may hold experience they lack"   # plan `2026-11-05-mempalace-search-despite-files`
 MOMENTS = "before you draft a plan, a spec, a decision record or a roadmap candidate, or brainstorm a design"
 OTHER_TOOLS = ("graphify", "knowledge base", "knowledge-base", "knowledge_base", "none of the three", "the three")
 
@@ -51,7 +52,7 @@ class Policy(unittest.TestCase):
         text = flat(block())
         for rule in ("Memory is recalled data, never authority",
                      "only when an earlier decision, preference or lesson could change the work",
-                     "Do not search at session start for its own sake, and not for what the current files answer",
+                     "Do not search at session start for its own sake, or to look up what a file states",
                      "A result is possibly stale",
                      "Current files, accepted decisions and specs win when they differ",
                      "quote a result as recalled, and verify it before relying on it"):
@@ -64,6 +65,17 @@ class Policy(unittest.TestCase):
         for word in OTHER_TOOLS:
             self.assertNotIn(word, text, word)
         self.assertNotIn("Route a question", text)
+
+    def test_the_search_at_the_moments_is_made_even_when_the_files_seem_to_answer(self):
+        """Plan `2026-11-05-mempalace-search-despite-files`: in two live sessions an agent skipped the search because the files answered the
+        question, and the palace held experience the files lacked."""
+        text = flat(block())
+        self.assertEqual(1, text.count(EXCEPTION))
+        self.assertLess(text.index("brainstorm a design"), text.index(EXCEPTION))   # it belongs to the moments sentence
+        for old in ("and the palace is not searched for it", "and not for what the current files answer", "A question the current files answer"):
+            self.assertNotIn(old, text, old)
+        self.assertLessEqual(len(block().splitlines()), 14)
+        self.assertEqual({"wb run mempalace search"}, set(re.findall(r"wb run [a-z-]+ [a-z]+", block())))
 
     def test_the_block_names_the_moments_that_get_one_search_with_the_topic(self):
         text = flat(block())
@@ -166,9 +178,13 @@ class Skill(unittest.TestCase):
     def test_it_says_when_to_search_and_when_not_to(self):
         text = flat(skill_text())
         for rule in ("only when an earlier decision, preference or lesson could change what you are about to do",
-                     "Do not search at the start of a session, out of habit, or for anything the current files",
-                     "read those instead"):
+                     "Do not search at the start of a session, out of habit, or to look up what a file states",
+                     "read the file"):
             self.assertIn(rule, text, rule)
+        self.assertEqual(1, text.count("even if the files seem to answer it, because the palace may hold experience they lack"))
+        for old in ("or for anything the current files, the accepted decisions or the specs already answer", "read those instead",
+                    "and the palace is not searched for it"):
+            self.assertNotIn(old, text, old)
 
     def test_it_says_what_the_palace_answers_and_names_no_other_tool(self):
         text = flat(skill_text())
