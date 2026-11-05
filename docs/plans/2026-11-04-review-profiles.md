@@ -285,6 +285,32 @@ setting, because it is not a level.)*
 and the drift test of the ladder keys of the three readers that may name modules (increment F, in the action-review package).
 **Evidence:** the one local commit, with the trailer `Plan: 2026-11-04-review-profiles#I`.
 
+### Increment I-A — Close the findings of the security review of increment I
+
+**Outcome:** the delegated-approval gate decides from one reading of the owner's settings, so a file replaced or damaged between two
+reads cannot read as `any`; it refuses when more than one installed module could be the bridge of a listed profile; and an entry in a
+file older than version 4 prints one problem and not two. This answers the security review of increment I (2026-11-05): no Critical,
+High or Medium finding, one Low (the second read) and two small points; its other point (`wb doctor` does not report an unusable
+bridge) belongs to increment J.
+**Dependencies:** I.
+**Affected areas:** `workbench/delegation.py` (`_profile_gate`, `_unusable`), `workbench/settings.py` (the unknown-entry note),
+`tests/test_delegation.py`, `tests/test_settings.py`, `tests/test_settingscmd.py`, `docs/specs/trust-and-approval.md`. No package changes.
+**Steps:**
+1. Read the review's findings L1, I1 and I3 and the code they name.
+2. Write the tests first: with the settings read once, a file that stops delegating, is damaged, holds a duplicate key, is of an
+   unsupported version, or loses the entry or holds `any` after the first read all refuse and none of them reaches the profile check
+   (the gate takes the loaded settings and the process module as arguments, so the test passes it each state); two installed modules
+   that provide `model-bridge` with a command of the bridge's name make a profile unusable; an entry of `delegate_profiles` in a file
+   of version 1, 2 or 3 prints exactly one `settings:` line and its reading is still invalid.
+3. Make `delegate_approve_plan` load the settings once and pass that reading to `_profile_gate`, which decides both whether the
+   checkpoint still reads `delegate` and what `delegate_profiles` holds from that one reading, and treats an absent entry as `any`
+   only when the reading had no problem; make `_unusable` refuse when more than one module matches; drop the loader's unknown-entry
+   note for `delegate_profiles`, which its own problem already covers.
+4. Update the specification where it describes the order of the checks.
+**Verification:** the new tests, `tests/test_delegation.py`, `tests/test_settings.py`, `tests/test_settingscmd.py`, `tests/test_doctor.py`,
+`tests/test_boundary.py`, and the wide set of tests that read the settings.
+**Evidence:** the one local commit, with the trailer `Plan: 2026-11-04-review-profiles#I-A`.
+
 ### Increment J — The install default and `wb doctor`
 
 **Outcome:** `wb install` writes the default `review-profiles.json` when it is absent, shown in the preview and bound to the `ask`
@@ -429,6 +455,22 @@ the second came back with no meaningful finding.
   `commands.py`, and the install refuses it); that "the registry of facts" lacks an entry (the registry lists level keys, and
   `delegate-profiles` is not a level). **Acknowledged, not a change:** the departure from item 5 of the record, above. **Limits of its
   evidence:** it ran nothing and did not open the new tests.
+- **Security review of increment I (2026-11-05, at the owner's request; a `security-reviewer` agent working on copies with a fake store,
+  fake modules and a faked pin check, nothing real started).** No Critical, High or Medium finding. Hostile reports of format 1 and 2
+  (extra and missing fields, reserved option names and prefixes, bad values, duplicate keys, NaN, non-UTF-8, nesting, the 8,192 byte cap),
+  every invalid `delegate_profiles` value and the entry in a file of version 1 to 3, the profile file (duplicates, oversize, nesting,
+  links, a directory, a FIFO, a ladder naming a missing profile), the checks of `_unusable` and the normal form of the comparison were
+  all refused or accepted as the record says, with fixed wording and no text of the file or the report in a refusal. **One Low
+  finding and two small points,** all fixed in the nested increment I-A: L1 the gate reads the settings twice, and a second read of a
+  file that was damaged or replaced in between reads as `any` (the owner alone can cause it, in a window of milliseconds); I1 `_unusable`
+  uses the first module that matches and does not refuse on two (the launcher refuses duplicate commands at run time, so the worst case
+  was a refusal); I3 an entry in a file older than version 4 prints an "unknown entry ... ignored" note beside its refusal. **Left to
+  increment J:** `wb doctor` does not report an unusable bridge, a bad option or a grammar mismatch (I2). **Limits of the evidence:**
+  the reviewer could not run the repository's tests or `delegate-approve-plan` end to end, and faked the pin check; the stack-exhaustion
+  path of very deep nesting was not exercised. **Accepted by the decision, not a finding:** the gate compares the request the review
+  recorded and not what ran, and the sealed state can be forged by the agent, the trust level `converged` already has.
+- **Increment I-A (added 2026-11-05, after the plan was approved and after increment I).** Drafted from the review's findings; the owner
+  chose a nested increment and approved the changed plan through the `ask` flow (region `38206554...6249`).
 
 ## Deferred work
 
