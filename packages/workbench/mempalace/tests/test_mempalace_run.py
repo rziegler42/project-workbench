@@ -41,7 +41,7 @@ class SearchArguments(support_mempalace.Palace):
         code, out, err = self.search()
         self.assertEqual((0, ""), (code, err))
         (call,) = self.calls()
-        self.assertEqual(["search", "--results", "5", "--", "why SQLite"], call["argv"])
+        self.assertEqual(["search", "--results", "5", "--wing", "project", "--", "why SQLite"], call["argv"])
 
     def test_every_option_reaches_the_program_as_its_own_argument(self):
         self.search("--wing", "proj", "--room", "documentation", "--results", "20", "--since", "2026-04-01",

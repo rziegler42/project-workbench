@@ -258,4 +258,23 @@ E, which the plan asks again at D. The last change (R3-F1) was not read by the r
 
 ## Result
 
-Empty until work starts.
+**Increment A (2026-11-05), done in a scratch clone at commit `bf64236`; not yet copied, released or committed.**
+
+- Changed in the clone: `helper/mempalace` (`load_setting` reads only `.workbench/local/mempalace.json`; `default_wing` takes the last part of the real project
+  path when it is a valid wing name; `project_setting` keeps its two values; `mine` says whether the wing came from the file or from the folder name),
+  `tests/test_mempalace_owner.py` (the `Setting`, `Wing` and `Directory` tests moved to the new path; the palace-only test now expects the default wing; a
+  new class `Location` with 12 tests) and `tests/test_mempalace_run.py` (one expected argument list now carries `--wing project`). Changed in the live
+  tree: `docs/specs/mempalace.md` ("First use in a project", "Palace location", the behaviour list).
+- Verification as run: before the helper change the new and updated tests failed (23 failures and 5 errors in `test_mempalace_owner.py`); after it, and after the
+  review fixes, `PYTHONPATH=. python3 -B -W error -m unittest discover -s packages/workbench/mempalace/tests -t packages/workbench/mempalace/tests`
+  gave `Ran 186 tests ... OK` (174 before). `wb run code-work check` passed. Not run: the repository's own tests (no installer file changed), the real `mempalace`.
+- Review: the `reviewer` agent, one exchange. No blocking finding. Applied: `test_a_palace_elsewhere_does_not_get_in_the_way` still wrote the old path and so
+  passed without testing anything; it now writes the new path and asserts that `--palace` reaches the program. Applied: the `Wing` docstring named the old path.
+  Applied: the spec now says the default wing is taken from the real path, so a folder reached through a link is named by its target. Deferred, not in this
+  plan's scope: `docs/specs/knowledge-tools.md` line 123 still says the program's own setting is `.workbench/mempalace.json`; `docs/development.md` line 242 is
+  Increment E's. Not checked by the reviewer: it could not run the tests, and did not read `_descend_present` or `module.json`.
+- A finding of my own: the old `Directory` palace-overlap test planted its palace through the old path and would have stopped testing the overlap refusal
+  once the helper changed; it was moved to the new path and still refuses.
+- Left for the owner: the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/pc_install_files.py`,
+  which writes three files only if their hashes are those recorded), the release approvals, the removal of the tracked `.workbench/mempalace.json`
+  and the acknowledgement. Until the copy and release, `.workbench/mempalace.json` stays and is read by the installed (old) helper.

@@ -2,6 +2,7 @@
 `mempalace` (criteria 5 to 7 of plan `2026-10-24-mempalace-module`, increment C). No test starts a real
 `mempalace`; the terminal is a pseudo-terminal."""
 
+import io
 import json
 import os
 import signal
@@ -69,13 +70,13 @@ class Mine(Owner):
     def test_a_mine_is_a_dry_run_unless_the_owner_confirms(self):
         code, shown = self.owner("mine", self.corpus)
         self.assertEqual(0, code, shown)
-        self.assertEqual(["mine", self.corpus, "--dry-run"], self.started())
+        self.assertEqual(["mine", self.corpus, "--wing", "project", "--dry-run"], self.started())
         self.assertIn("note: this is a dry run and files nothing; add --confirm", shown)
 
     def test_confirm_removes_the_dry_run_and_says_what_a_first_real_mine_does(self):
         code, shown = self.owner("mine", self.corpus, "--confirm")
         self.assertEqual(0, code, shown)
-        self.assertEqual(["mine", self.corpus], self.started())
+        self.assertEqual(["mine", self.corpus, "--wing", "project"], self.started())
         self.assertIn("downloads the embedding model", shown)
         self.assertIn("hallways.json", shown)
 
@@ -223,7 +224,8 @@ class Directory(Owner):
         with open(os.path.join(self.base, "victim.txt"), "w") as handle:
             handle.write("ORIGINAL\n")
         os.symlink(os.path.join(self.base, "victim.txt"), os.path.join(palace, ".mempalace", "origin.json"))
-        with open(os.path.join(self.root, ".workbench", "mempalace.json"), "w") as handle:
+        os.makedirs(os.path.join(self.root, ".workbench", "local"))
+        with open(os.path.join(self.root, ".workbench", "local", "mempalace.json"), "w") as handle:
             json.dump({"format": 1, "palace": palace}, handle)
         for command in ("init", "mine"):
             self.owner_refused(command, self.corpus, contains="same place or one holds the other")
@@ -250,9 +252,11 @@ class Directory(Owner):
         self.assertEqual([], self.calls())
 
     def test_a_palace_elsewhere_does_not_get_in_the_way(self):
-        with open(os.path.join(self.root, ".workbench", "mempalace.json"), "w") as handle:
+        os.makedirs(os.path.join(self.root, ".workbench", "local"))
+        with open(os.path.join(self.root, ".workbench", "local", "mempalace.json"), "w") as handle:
             json.dump({"format": 1, "palace": os.path.join(self.base, "palace-elsewhere")}, handle)
         self.assertEqual(0, self.owner("init", self.corpus, "--yes")[0])
+        self.assertEqual(os.path.join(self.base, "palace-elsewhere"), self.calls()[0]["front"]["--palace"])
 
     def test_a_directory_that_cannot_be_entered_is_refused(self):
         folder = os.path.join(self.corpus, "locked")
@@ -352,10 +356,11 @@ class Environment(Owner):
 
 
 class Setting(Owner):
-    """`.workbench/mempalace.json` and the palace it names."""
+    """`.workbench/local/mempalace.json` and the palace it names."""
 
     def write(self, text, name="mempalace.json"):
-        with open(os.path.join(self.root, ".workbench", name), "w", encoding="utf-8") as handle:
+        os.makedirs(os.path.join(self.root, ".workbench", "local"), exist_ok=True)
+        with open(os.path.join(self.root, ".workbench", "local", name), "w", encoding="utf-8") as handle:
             handle.write(text)
 
     def setting(self, **fields):
@@ -414,10 +419,11 @@ class Setting(Owner):
         target = os.path.join(self.base, "elsewhere.json")
         with open(target, "w") as handle:
             handle.write('{"format":1,"palace":"/x"}')
-        os.symlink(target, os.path.join(self.root, ".workbench", "mempalace.json"))
+        os.makedirs(os.path.join(self.root, ".workbench", "local"))
+        os.symlink(target, os.path.join(self.root, ".workbench", "local", "mempalace.json"))
         self.refused("status", contains="mempalace.json")
-        os.remove(os.path.join(self.root, ".workbench", "mempalace.json"))
-        os.mkdir(os.path.join(self.root, ".workbench", "mempalace.json"))
+        os.remove(os.path.join(self.root, ".workbench", "local", "mempalace.json"))
+        os.mkdir(os.path.join(self.root, ".workbench", "local", "mempalace.json"))
         self.refused("status", contains="mempalace.json")
         self.assertEqual([], self.calls())
 
@@ -425,8 +431,8 @@ class Setting(Owner):
         """Found by the security review of 2026-10-24: the setting is read through the project's held
         descriptor, so a link put in place of `.workbench` after the project is found leads nowhere."""
         external = os.path.join(self.base, "external")
-        os.makedirs(external)
-        with open(os.path.join(external, "mempalace.json"), "w") as handle:
+        os.makedirs(os.path.join(external, "local"))
+        with open(os.path.join(external, "local", "mempalace.json"), "w") as handle:
             handle.write(json.dumps({"format": 1, "palace": "/attacker/palace"}))
         real = os.path.join(self.root, ".workbench")
         os.rename(real, real + ".real")
@@ -437,7 +443,7 @@ class Setting(Owner):
 
     def test_a_setting_file_with_a_second_name_is_refused(self):
         self.setting()
-        os.link(os.path.join(self.root, ".workbench", "mempalace.json"), os.path.join(self.base, "second-name.json"))
+        os.link(os.path.join(self.root, ".workbench", "local", "mempalace.json"), os.path.join(self.base, "second-name.json"))
         self.refused("status", contains="mempalace.json")
 
     def test_a_setting_file_is_read_from_the_project_root_whatever_the_current_directory(self):
@@ -450,7 +456,7 @@ class Setting(Owner):
 
 
 class Wing(Owner):
-    """Plan `2026-11-05-mempalace-use-and-independence`, increment D: the project names its wing in `.workbench/mempalace.json`, and
+    """Plan `2026-11-05-mempalace-use-and-independence`, increment D: the project names its wing in `.workbench/local/mempalace.json`, and
     `search` and `mine` use it unless the caller names another. `status` and `init` take no wing. It borrows the three helpers of
     `Setting` and does not inherit its tests, which would run twice."""
 
@@ -480,10 +486,11 @@ class Wing(Owner):
         self.assertEqual({"--backend": "chroma", "--palace": os.path.join(self.base, "palace")}, call["front"])
         self.assertEqual(["search", "--results", "5", "--wing", self.WING, "--", "why SQLite"], call["argv"])
 
-    def test_a_setting_with_a_palace_only_passes_no_wing_as_before(self):
+    def test_a_setting_with_a_palace_only_passes_the_default_wing(self):
         self.setting()
         self.assertEqual(0, self.search()[0])
-        self.assertNotIn("--wing", self.calls()[0]["argv"])
+        argv = self.calls()[0]["argv"]
+        self.assertEqual("project", argv[argv.index("--wing") + 1])
 
     def test_a_wing_the_caller_names_replaces_the_one_in_the_setting_for_search(self):
         self.with_wing()
@@ -504,7 +511,7 @@ class Wing(Owner):
         self.assertEqual(0, code, shown)
         self.assertEqual(["mine", self.corpus, "--wing", self.WING, "--dry-run"], self.started())
         self.assertIn("the wing is %s" % self.WING, shown)
-        self.assertIn("mempalace.json", shown)
+        self.assertIn("from .workbench/local/mempalace.json", shown)
         os.remove(os.path.join(self.outside, "calls.jsonl"))
         code, shown = self.owner("mine", self.corpus, "--wing", "other", "--confirm")
         self.assertEqual(0, code, shown)
@@ -555,6 +562,111 @@ class Wing(Owner):
         self.with_wing()
         self.assertEqual(1, self.owner("mine", self.root)[0])
         self.assertEqual([], self.calls())
+
+
+class Location(Owner):
+    """Plan `2026-11-05-mempalace-per-clone-use`, increment A: the setting is per clone, in `.workbench/local/mempalace.json`, the old
+    tracked path is not read, and with no wing in a setting the wing is the project folder's name when that is a valid name. Like `Wing`,
+    it borrows the helpers of `Setting` and does not inherit its tests."""
+
+    write = Setting.write
+    setting = Setting.setting
+    every_command = Setting.every_command
+
+    def argv_wing(self, call):
+        argv = call["argv"]
+        return argv[argv.index("--wing") + 1] if "--wing" in argv else None
+
+    def project(self, name):
+        """A project folder called `name` under the test's base, found as a project, and its path."""
+        path = os.path.join(self.base, name)
+        os.makedirs(os.path.join(path, ".git"))
+        os.makedirs(os.path.join(path, ".workbench"))
+        with open(os.path.join(path, ".workbench", "manifest.json"), "w") as handle:
+            handle.write("{}\n")
+        return path
+
+    def test_the_setting_is_read_from_the_local_directory(self):
+        self.setting()
+        self.assertEqual(0, self.run_helper("status")[0])
+        self.assertEqual(os.path.join(self.base, "palace"), self.calls()[0]["front"]["--palace"])
+
+    def test_the_old_tracked_path_is_not_read_even_when_it_is_valid_or_malformed(self):
+        for text in (json.dumps({"format": 1, "palace": os.path.join(self.base, "old-palace"), "wing": "old-wing"}), "{"):
+            with open(os.path.join(self.root, ".workbench", "mempalace.json"), "w") as handle:
+                handle.write(text)
+            self.assertEqual(0, self.run_helper("status")[0])
+            self.assertEqual(0, self.search()[0])
+        for call in self.calls():
+            self.assertEqual({"--backend": "chroma"}, call["front"])
+            self.assertNotIn("old-wing", call["argv"])
+
+    def test_no_local_directory_and_no_file_are_no_setting_and_nothing_is_created(self):
+        self.assertFalse(os.path.exists(os.path.join(self.root, ".workbench", "local")))
+        for name, run in self.every_command():
+            self.assertEqual(0, run()[0], name)
+        self.assertFalse(os.path.exists(os.path.join(self.root, ".workbench", "local")))
+        os.makedirs(os.path.join(self.root, ".workbench", "local"))
+        self.assertEqual(0, self.run_helper("status")[0])
+
+    def test_a_local_that_is_a_link_or_a_file_is_refused(self):
+        local = os.path.join(self.root, ".workbench", "local")
+        elsewhere = os.path.join(self.base, "elsewhere")
+        os.makedirs(elsewhere)
+        with open(os.path.join(elsewhere, "mempalace.json"), "w") as handle:
+            handle.write(json.dumps({"format": 1, "palace": "/attacker/palace"}))
+        os.symlink(elsewhere, local)
+        self.refused("status", contains="mempalace.json")
+        os.remove(local)
+        with open(local, "w") as handle:
+            handle.write("not a directory")
+        self.refused("status", contains="mempalace.json")
+        self.assertEqual([], self.calls())
+
+    def test_a_malformed_setting_in_the_local_directory_names_the_new_path(self):
+        self.write("{")
+        self.refused("status", contains=".workbench/local/mempalace.json")
+
+    def test_with_no_setting_the_wing_is_the_folder_name_for_search_and_mine(self):
+        self.assertEqual(0, self.search()[0])
+        self.assertEqual("project", self.argv_wing(self.calls()[0]))
+        code, shown = self.owner("mine", self.corpus)
+        self.assertEqual(0, code, shown)
+        self.assertEqual(["mine", self.corpus, "--wing", "project", "--dry-run"], self.calls()[-1]["argv"])
+        self.assertIn("the wing is project, from the folder name", shown)
+
+    def test_status_and_init_pass_no_wing_whatever_the_folder_is_called(self):
+        self.assertEqual(0, self.run_helper("status")[0])
+        self.assertEqual(0, self.owner("init", self.corpus)[0])
+        for call in self.calls():
+            self.assertNotIn("--wing", call["argv"])
+
+    def test_a_wing_in_the_setting_replaces_the_folder_name(self):
+        self.write(json.dumps({"format": 1, "wing": "chosen"}))
+        self.assertEqual(0, self.search()[0])
+        self.assertEqual("chosen", self.argv_wing(self.calls()[0]))
+
+    def test_a_wing_the_caller_names_replaces_the_folder_name(self):
+        self.assertEqual(0, self.search("--wing", "other")[0])
+        argv = self.calls()[0]["argv"]
+        self.assertEqual(1, argv.count("--wing"))
+        self.assertEqual("other", argv[argv.index("--wing") + 1])
+        code, shown = self.owner("mine", self.corpus, "--wing", "other", "--confirm")
+        self.assertEqual(0, code, shown)
+        self.assertEqual(["mine", self.corpus, "--wing", "other"], self.calls()[-1]["argv"])
+
+    def test_a_folder_name_that_is_a_valid_wing_is_the_default(self):
+        for name in ("my.proj_1:x", "A", "x" * 64, "knowledge-base", "1abc"):
+            self.assertEqual((None, name), self.helper.project_setting(self.project(name)), name)
+
+    def test_a_folder_name_that_is_not_a_valid_wing_gives_no_default(self):
+        for name in ("-x", ".x", "a b", "x" * 65, "caf\u00e9", "a;ls", "a,b"):
+            self.assertEqual((None, None), self.helper.project_setting(self.project(name)), name)
+
+    def test_a_folder_with_no_valid_name_searches_every_wing_as_before(self):
+        path = self.project("a b")
+        self.assertEqual(0, self.helper.main(["search", "--", "why"], io.BytesIO(b""), io.StringIO(), io.StringIO(), path))
+        self.assertIsNone(self.argv_wing(self.calls()[0]))
 
 
 class RecordedModel(Setting):

@@ -23,7 +23,7 @@ not already cached, so that an agent's search can never start a download.
 output are terminals, and then hands the terminal to the program (the program asks questions and prints
 progress), with no time limit. They pass no option that selects a language-model provider, a key, an endpoint, a
 daemon or a background job, and ``init`` always passes ``--no-llm``. A project may name its palace in
-``.workbench/mempalace.json``; the helper passes it as ``--palace``.
+``.workbench/local/mempalace.json``; the helper passes it as ``--palace``.
 """
 
 import json
@@ -374,18 +374,28 @@ def find_root(cwd):
         raise Refused(display.ascii_text(str(exc))[:200])
 
 
-def project_setting(root):
-    """``(palace, wing)`` the project names in ``.workbench/mempalace.json``; each is ``None`` when the file names none.
-    The file is ``{"format": 1, "palace": "<absolute path>", "wing": "<name>"}`` with the palace, the wing or both; anything
-    else is refused."""
-    what = ".workbench/mempalace.json"
+SETTING = ".workbench/local/mempalace.json"
+
+
+def default_wing(root):
+    """The project folder's name when it is a valid wing name, else ``None``."""
+    name = os.path.basename(root)
+    return name if re.fullmatch(_NAME, name) else None
+
+
+def load_setting(root):
+    """``(palace, wing, wing_from_file)``: what ``.workbench/local/mempalace.json`` names, the wing falling back to the project
+    folder's name when the file names none. The file is per clone and optional: with no file, or no ``local`` directory, the
+    palace is ``None``. It is ``{"format": 1, "palace": "<absolute path>", "wing": "<name>"}`` with the palace, the wing or
+    both; anything else is refused. The old tracked ``.workbench/mempalace.json`` is not read."""
+    what = SETTING
     try:
         with safefs.Root(root, "the project") as held:
             data = held.read_if_present(what, MAX_SETTING)
     except safefs.SafeFsError as exc:
         raise Refused("%s: %s" % (what, display.ascii_text(str(exc))[:160]))
     if data is None:
-        return None, None
+        return None, default_wing(root), False
     try:
         document = jsonstrict.parse_object(data, MAX_SETTING)
     except ValueError as exc:
@@ -400,7 +410,12 @@ def project_setting(root):
         raise Refused("%s: palace must be a clean absolute path (no .., no //, no control character)" % what)
     if "wing" in document and (not isinstance(wing, str) or not re.fullmatch(_NAME, wing)):
         raise Refused("%s: wing is at most 64 letters, digits and ._:- and does not start with - or ." % what)
-    return palace, wing
+    return palace, wing or default_wing(root), wing is not None
+
+
+def project_setting(root):
+    """``(palace, wing)`` of `load_setting`."""
+    return load_setting(root)[:2]
 
 
 def palace_setting(root):
@@ -625,7 +640,7 @@ def owner(command, args, stdin, out, err, cwd):
     directory, flags, values = parse_owner(command, args)
     owner_terminal(stdin, out)
     root = find_root(cwd)
-    palace, wing = project_setting(root)
+    palace, wing, wing_from_file = load_setting(root)
     path = owner_directory(cwd, root, directory, "--allow-project-root" in flags)
     refuse_planted_config(path)
     refuse_palace_overlap(path, palace)
@@ -637,7 +652,8 @@ def owner(command, args, stdin, out, err, cwd):
         tail = ["mine", path]
         if wing and "--wing" not in values:
             values = dict(values, **{"--wing": wing})
-            wing_note = "; the wing is %s, from .workbench/mempalace.json (name another with --wing)" % wing
+            wing_note = ("; the wing is %s, from %s (name another with --wing)"
+                         % (wing, SETTING if wing_from_file else "the folder name"))
         else:
             wing_note = ""
         for name in ("--wing", "--mode"):

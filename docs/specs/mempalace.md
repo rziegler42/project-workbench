@@ -116,8 +116,9 @@ captured run could not serve it (`Evidence`, 2026-10-24).
 - Neither takes `--llm-api-key`, `--llm-provider`, `--llm-endpoint`, `--accept-external-llm`, `--daemon`,
   `--background` or `--palace` (the project setting supplies that).
 
-**First use in a project (as found on 2026-11-05; "Evidence", first use).** (1) Write `.workbench/mempalace.json` with the project's wing,
-`{"format": 1, "wing": "<project>"}`; add a `palace` only to keep this project's notes in a palace of their own, outside the project tree.
+**First use in a project (as found on 2026-11-05; "Evidence", first use).** (1) Write nothing: the wing defaults to the project folder's name. Write
+`.workbench/local/mempalace.json` (untracked, this clone's own) only to name another wing, `{"format": 1, "wing": "<name>"}`, or to keep this
+project's notes in a palace of their own outside the project tree, with a `palace`.
 (2) In the owner's own terminal, not in an agent session (a command run from a session has no terminal and `init` and `mine` refuse it):
 `wb run mempalace mine <directory>`, which is a dry run, and then the same with `--confirm`. (3) Do not run `init`: `mine` does not need
 it. Without a `mempalace.yaml` the program files every file of the directory in one room, `general`, under the wing it is given, prints
@@ -168,13 +169,17 @@ run today, so the owner who runs `init` on a tree they did not write is trusting
 --palace` saves the path in `$HOME/.config/mempalace/config.json`. Its `--help` names `~/.mempalace/palace`, which
 the program did not use; with no palace the program looked in `~/.config/mempalace/palace` on 2026-10-24. What
 decides the default for a fresh home was not isolated (the evidence run passed `--palace` and then relied on the
-saved path). A project may set another with
-`.workbench/mempalace.json` (`{"format": 1, "palace": "<absolute path>", "wing": "<name>"}`, with the palace, the wing or both),
+saved path). A clone may set another with
+`.workbench/local/mempalace.json` (`{"format": 1, "palace": "<absolute path>", "wing": "<name>"}`, with the palace, the wing or both),
 which the helper passes as `--palace` and, for `search` and `mine`, as the default `--wing`; a `--wing` the caller gives replaces it,
-and `status` and `init` take none. Absent, nothing is passed. The wing is a name of at most 64 letters, digits and `._:-` that does
-not start with `-` or `.`. The file is read without following a link, is bounded, and is a change
-`wb acknowledge` lists. An absolute path in a tracked file is a pointer to untracked content and so may not be
-cited from a document.
+and `status` and `init` take none. The file is optional and per clone: `.workbench/local` is the untracked area (`/local/` in
+`.workbench/.gitignore`), so a developer who does not use the palace has neither the file nor the directory, and the helper creates neither.
+With no file, or a file that names no wing, the default wing is the name of the project folder (the last part of its real path, so a folder
+reached through a link is named by its target) when that is a valid wing name, and with no
+valid name no wing is passed and a search covers every wing. The old tracked path `.workbench/mempalace.json` is not read. The wing is a name
+of at most 64 letters, digits and `._:-` that does not start with `-` or `.`. The file is read without following a link, through the
+project's held descriptor, and is bounded. An absolute path in a file is a pointer to untracked content and so may not be cited from a
+tracked document.
 
 **The policy block and the skill.** Both say, in the owner's words and without naming a harness:
 
@@ -214,9 +219,10 @@ cited from a document.
   without `--confirm` passes `--dry-run`; a project-root target, a target that overlaps a palace, and a target holding
   a link, a directory or a shared file under a name the program writes through are refused.
 - The helper writes nothing in the project, and no test starts a real `mempalace` or reaches a network.
-- A project setting that is a link, malformed, oversized, has a key other than `format`, `palace` and `wing`, names neither a palace nor
-  a wing, or holds a relative or unclean path or a wing that is not a name is refused. With a wing in the setting, `search` and `mine`
-  pass it unless the caller gives `--wing`, and `mine` says so before it runs.
+- A setting (`.workbench/local/mempalace.json`) that is a link, malformed, oversized, has a key other than `format`, `palace` and `wing`, names
+  neither a palace nor a wing, or holds a relative or unclean path or a wing that is not a name is refused, as is a `local` that is a link or
+  a file; a missing `local` or file is no setting. `search` and `mine` pass the wing of the setting, else the project folder's name when it is
+  a valid wing name, unless the caller gives `--wing`, and `mine` says which of the two it used before it runs. The old path is not read.
 - The policy block and the skill carry the statement of what the palace answers and the data-not-authority rule and name no other
   knowledge tool, and an install adds no file
   outside the module's namespace that names a palace path.
