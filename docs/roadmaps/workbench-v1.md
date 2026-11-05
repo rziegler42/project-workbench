@@ -999,6 +999,23 @@ files answer, their tests, and the sentences of `mempalace.md` and `knowledge-to
 arguments of `search`, the allowance clause of the five drafting skills, a retry rule for the agent, and what is filed in the palace.
 **Promotion trigger:** the owner chooses to begin (met on 2026-11-05).
 
+### mempalace-per-clone-use — The `mempalace` module works per clone without setup, and `mine` and `sync` run at `ask`
+
+**Outcome:** a clone that uses `mempalace` needs no hand-written, tracked setting and leaves no file in the working tree, and a clone that does not use
+it is not bothered. The wing defaults to the project folder's name, an optional override lives in the untracked per-clone area
+(`.workbench/local/mempalace.json`), the `init` command (which writes `mempalace.yaml` and `entities.json` into the folder it scans) is gone because
+`mine` works without it, and `mine` and a new `sync` (which prunes the drawers of deleted files) can be run from a session at the level `ask`,
+with a preview and a digest, as the review engine's owner commands are. An agent in a clone without the `mempalace` program is told the search is
+skipped and goes on. After a `mine`, the helper says if the program has left an `init` file in the folder.
+**Dependencies:** `memory-recall-use`, `mempalace-search-form` and `mempalace-search-despite-files`, whose helper, block and skill this edits, and
+`command-permissions`, whose `levels` and `preview` fields it uses.
+**Boundary:** the helper, the declaration, the skill's refusal rule, their tests, and the sentences of `mempalace.md`, `command-permissions.md` and
+`docs/development.md` that describe them; the removal of the tracked `.workbench/mempalace.json` (the owner's step). Not part of it: filing lessons and
+brainstorms (reviewed notes, or a filtered export of finished sessions), the level `none` or `delegated` for these commands, a command to edit the
+setting file, a list of folders to mine, a check of the module, the program's embedder warning, confining `--wing`, and adding the module to
+another project.
+**Promotion trigger:** the owner chooses to begin (met on 2026-11-05).
+
 ### module-hook-rendering — Hooks that a module declares, rendered by the installer
 
 **Outcome:** a module that ships a hook for a harness declares it (the event, the matcher, the timeout and the shipped file), and
