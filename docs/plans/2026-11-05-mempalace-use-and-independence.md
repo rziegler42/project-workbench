@@ -346,6 +346,28 @@ diff of the eight files and the verification as run, and not my conclusions.
 - **Not checked by the reviewer:** the test counts as reported (I ran them), that `wb run mempalace search` is level `none` and agent-safe
   (it is, in `wb settings`), and how a live agent reads the clause, which is Increment F.
 
+**Increment D.** Reviewer: the `reviewer` agent (read-only), one round of the cap of 3, no blocking finding. It was given the plan, the diff of
+the four package files, the diff of the spec and the verification as run, a list of the points to attack (the wing value reaching the program
+as an option, the old shapes still refused, the overlap and root checks, one read of the file, the note shown to the terminal), and the
+deviation from the plan, and not my conclusions.
+
+- **Applied:** the new `Wing` test class inherited the tests of `Setting`, which ran twice; it now subclasses the base `Owner` class and
+  borrows only the three helpers it needs (169 tests, from 177).
+- **Confirmed by the reviewer, by reading the helper:** the wing is checked by `re.fullmatch` against the name pattern in the setting, in
+  the caller's `--wing` for `mine` and for `search`, so a wing that starts with `-`, has a space, a newline or a non-ASCII character, or is
+  longer than 64 cannot be used on any path; it reaches the program as its own element of an argument list, with no shell, and the `--`
+  before the query still holds; every shape the old reader refused is still refused (unknown keys, a missing format, a bool or float
+  format, duplicate keys, a relative or unclean palace, a link, size); `{"format": 1}` alone is refused; the overlap and root checks use
+  the palace from the setting as before; the file is read once per command; `status` and `init` never receive the wing; the wing in the
+  `mine` note has already passed the name pattern, so it is ASCII with no control character or markup; the only other caller of
+  `palace_setting` is `status`, and its meaning there is unchanged.
+- **Rejected, with the reason:** none.
+- **Noted:** the deviation from step 3 (the sentence is in the skill and not in the block, which is at its 14-line limit) is recorded in the
+  Result for the owner to accept.
+- **Not checked by the reviewer:** the test counts as reported (I ran them), the base-class helpers of the tests, and `jsonstrict` and
+  `safefs`, which this change does not touch.
+- **Left for the owner:** whether to ask for a security review of D and E together, once E is built.
+
 ## Deferred work
 
 - A way to file what an agent proposes to keep, without letting the agent write (an inbox and an owner-run command), including a short record
@@ -447,4 +469,37 @@ I fixed them. Not run: the whole suite and `tests/test_boundary.py`, because no 
 
 **Review:** one round with the `reviewer` agent, no blocking finding (see the review record).
 
-**Not done in C:** the owner's copy and release, the commit, the owner's `wb upgrade`, and Increments D to F.
+**Not done in C:** Increments D to F. C was copied and released by the owner, the stale shipped records were removed after the owner approved the
+list, and C is committed as `b7b118d`; the owner ran `wb upgrade`, and the install-state files are committed as `ed661a8`.
+
+**Increment D, built in a scratch clone (2026-11-05); not yet copied into the project, released or committed.** Base commit of the clone:
+`ed661a8`. Changed in the clone: `helper/mempalace` (the reader of `.workbench/mempalace.json` is now `project_setting`, which returns the
+pair `(palace, wing)`; `palace_setting` remains as a one-line wrapper for `status`; the file may hold `format` and a palace, a wing or both,
+any other key or neither is refused, a wing must match the helper's existing name pattern; `search` adds `--wing <the project's wing>` unless
+the caller gave one; `mine` does the same, in the position `--wing` already had, and its note says "the wing is <w>, from
+.workbench/mempalace.json (name another with --wing)"; `status` and `init` take none), `harness/neutral/skills/recall-memory/SKILL.md` (one
+sentence: "When the project names its wing, a search is limited to it unless you give another with `--wing <name>`."), `tests/test_mempalace_owner.py`
+(a class `Wing` of ten tests) and `tests/test_mempalace_guidance.py` (one skill test). In the project, docs only: `docs/specs/mempalace.md`
+("Palace location" and the acceptance bullet for the setting).
+
+**Deviation from the plan, for the owner to accept.** Step 3 says the block and the skill get the sentence. The block is exactly 14 lines,
+which its test allows at most, so the sentence is in the skill only; the block is unchanged. The sentence is about how a search is scoped, which
+the skill carries, and the block's rule that a result counts as about the project only when its wing names it is unchanged. A longer limit for
+the block would be a decision for the owner.
+
+**Verification as run.** Tests first: seven of the new tests failed on the unchanged helper (it refused the `wing` key); four others passed
+at once because they check refusals the old reader already made, and stay to keep the stricter reader strict. After the change all 169 tests of
+the `mempalace` test directory pass, run as the repository's runner does. Two slips while editing, both fixed: an edit script that took its end
+marker from the wrong place duplicated part of the helper (found by the helper's own tests; the final file has no duplicated function, which I
+checked), and a `collections` import, which the helper's test of its allowed imports refuses, was replaced by a plain pair. `wb run code-work
+check`: 93 plans, no problems. Not run: the whole suite and `tests/test_boundary.py`, because no installer file changes.
+
+**Hashes of the four files at the end of the clone's work** (SHA-256): `helper/mempalace`
+`a2bf1f39b219ee87a48abfe0c7e894071b4c5492d07c373ac66698e417a3f53a`, `SKILL.md`
+`e3cb54b9347991f6e113668aca1df6ff5d0f4ec26a8790cfdfbee411e81e0d97`, `test_mempalace_owner.py`
+`7346e6ad197188b063e7216956d858467f10e0e9e4d8d2b74aa7faccdf0716e6`, `test_mempalace_guidance.py`
+`7c639952d564a007ab10c994478495009da49aa37024f18b0b55fb5a9b152541`.
+
+**Review:** one round with the `reviewer` agent, no blocking finding (see the review record). A security review of D and E is the owner's to ask for.
+
+**Not done in D:** the owner's copy and release, the commit, the security review (not asked for), and Increments E and F.

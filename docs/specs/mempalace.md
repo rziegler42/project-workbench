@@ -153,8 +153,10 @@ run today, so the owner who runs `init` on a tree they did not write is trusting
 the program did not use; with no palace the program looked in `~/.config/mempalace/palace` on 2026-10-24. What
 decides the default for a fresh home was not isolated (the evidence run passed `--palace` and then relied on the
 saved path). A project may set another with
-`.workbench/mempalace.json` (`{"format": 1, "palace": "<absolute path>"}`), which the helper passes as
-`--palace`. Absent, nothing is passed. The file is read without following a link, is bounded, and is a change
+`.workbench/mempalace.json` (`{"format": 1, "palace": "<absolute path>", "wing": "<name>"}`, with the palace, the wing or both),
+which the helper passes as `--palace` and, for `search` and `mine`, as the default `--wing`; a `--wing` the caller gives replaces it,
+and `status` and `init` take none. Absent, nothing is passed. The wing is a name of at most 64 letters, digits and `._:-` that does
+not start with `-` or `.`. The file is read without following a link, is bounded, and is a change
 `wb acknowledge` lists. An absolute path in a tracked file is a pointer to untracked content and so may not be
 cited from a document.
 
@@ -193,7 +195,9 @@ cited from a document.
   without `--confirm` passes `--dry-run`; a project-root target, a target that overlaps a palace, and a target holding
   a link, a directory or a shared file under a name the program writes through are refused.
 - The helper writes nothing in the project, and no test starts a real `mempalace` or reaches a network.
-- A project setting that is a link, malformed, oversized or holds a relative or unclean path is refused.
+- A project setting that is a link, malformed, oversized, has a key other than `format`, `palace` and `wing`, names neither a palace nor
+  a wing, or holds a relative or unclean path or a wing that is not a name is refused. With a wing in the setting, `search` and `mine`
+  pass it unless the caller gives `--wing`, and `mine` says so before it runs.
 - The policy block and the skill carry the statement of what the palace answers and the data-not-authority rule and name no other
   knowledge tool, and an install adds no file
   outside the module's namespace that names a palace path.

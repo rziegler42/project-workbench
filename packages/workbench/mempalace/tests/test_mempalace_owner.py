@@ -447,6 +447,114 @@ class Setting(Owner):
         self.refused("status", cwd=self.base, contains="not inside a workbench project")
 
 
+class Wing(Owner):
+    """Plan `2026-11-05-mempalace-use-and-independence`, increment D: the project names its wing in `.workbench/mempalace.json`, and
+    `search` and `mine` use it unless the caller names another. `status` and `init` take no wing. It borrows the three helpers of
+    `Setting` and does not inherit its tests, which would run twice."""
+
+    WING = "project-workbench"
+    write = Setting.write
+    setting = Setting.setting
+    every_command = Setting.every_command
+
+    def with_wing(self, wing=None, palace=True):
+        document = {"format": 1}
+        if palace:
+            document["palace"] = os.path.join(self.base, "palace")
+        document["wing"] = wing or self.WING
+        self.write(json.dumps(document))
+
+    def test_a_setting_with_only_a_wing_is_read_and_passes_no_palace(self):
+        self.with_wing(palace=False)
+        self.assertEqual(0, self.search()[0])
+        (call,) = self.calls()
+        self.assertEqual({"--backend": "chroma"}, call["front"])
+        self.assertEqual(["search", "--results", "5", "--wing", self.WING, "--", "why SQLite"], call["argv"])
+
+    def test_a_setting_with_a_palace_and_a_wing_passes_both(self):
+        self.with_wing()
+        self.assertEqual(0, self.search()[0])
+        (call,) = self.calls()
+        self.assertEqual({"--backend": "chroma", "--palace": os.path.join(self.base, "palace")}, call["front"])
+        self.assertEqual(["search", "--results", "5", "--wing", self.WING, "--", "why SQLite"], call["argv"])
+
+    def test_a_setting_with_a_palace_only_passes_no_wing_as_before(self):
+        self.setting()
+        self.assertEqual(0, self.search()[0])
+        self.assertNotIn("--wing", self.calls()[0]["argv"])
+
+    def test_a_wing_the_caller_names_replaces_the_one_in_the_setting_for_search(self):
+        self.with_wing()
+        self.assertEqual(0, self.search("--wing", "other")[0])
+        argv = self.calls()[0]["argv"]
+        self.assertEqual(1, argv.count("--wing"))
+        self.assertEqual("other", argv[argv.index("--wing") + 1])
+
+    def test_a_room_and_the_other_options_are_passed_beside_the_default_wing(self):
+        self.with_wing()
+        self.assertEqual(0, self.search("--room", "decisions", "--since", "2026-01-01")[0])
+        self.assertEqual(["search", "--results", "5", "--wing", self.WING, "--room", "decisions", "--since", "2026-01-01",
+                          "--", "why SQLite"], self.calls()[0]["argv"])
+
+    def test_mine_uses_the_wing_of_the_setting_and_says_so_and_a_wing_the_owner_names_replaces_it(self):
+        self.with_wing()
+        code, shown = self.owner("mine", self.corpus)
+        self.assertEqual(0, code, shown)
+        self.assertEqual(["mine", self.corpus, "--wing", self.WING, "--dry-run"], self.started())
+        self.assertIn("the wing is %s" % self.WING, shown)
+        self.assertIn("mempalace.json", shown)
+        os.remove(os.path.join(self.outside, "calls.jsonl"))
+        code, shown = self.owner("mine", self.corpus, "--wing", "other", "--confirm")
+        self.assertEqual(0, code, shown)
+        argv = self.started()
+        self.assertEqual(["mine", self.corpus, "--wing", "other"], argv)
+        self.assertNotIn(self.WING, shown)
+
+    def test_mine_with_a_mode_keeps_the_wing_before_the_mode(self):
+        self.with_wing()
+        self.assertEqual(0, self.owner("mine", self.corpus, "--mode", "convos", "--confirm")[0])
+        self.assertEqual(["mine", self.corpus, "--wing", self.WING, "--mode", "convos"], self.started())
+
+    def test_status_and_init_pass_no_wing(self):
+        self.with_wing()
+        code, out, err = self.run_helper("status")
+        self.assertEqual(0, code, err)
+        code, shown = self.owner("init", self.corpus)
+        self.assertEqual(0, code, shown)
+        self.assertEqual(2, len(self.calls()))
+        for call in self.calls():
+            self.assertNotIn("--wing", call["argv"])
+
+    def test_a_wing_that_is_not_a_name_stops_every_command_before_the_program_starts(self):
+        for label, value in (("empty", ""), ("dash", "-x"), ("dot", ".x"), ("space", "a b"), ("long", "x" * 65),
+                             ("slash", "a/b"), ("number", 5), ("null", None), ("true", True), ("list", ["a"]),
+                             ("newline", "a\nb"), ("non-ascii", "caf\u00e9"), ("semicolon", "a;ls")):
+            self.write(json.dumps({"format": 1, "wing": value}))
+            for name, run in self.every_command():
+                if name in ("init", "mine"):
+                    code, shown = run()
+                    self.assertIn("mempalace.json", shown, (label, name))
+                else:
+                    code, out, err = run()
+                    self.assertIn("mempalace.json", err, (label, name))
+                self.assertEqual(1, code, (label, name))
+        self.assertEqual([], self.calls())
+
+    def test_a_setting_with_neither_a_palace_nor_a_wing_or_with_another_key_is_still_refused(self):
+        for label, text in (("neither", '{"format":1}'), ("extra", '{"format":1,"wing":"w","room":"r"}'),
+                            ("format two", '{"format":2,"wing":"w"}'), ("no format", '{"wing":"w"}'),
+                            ("duplicate", '{"format":1,"wing":"w","wing":"w"}')):
+            self.write(text)
+            self.refused("status", contains="mempalace.json")
+            self.refused_search(contains="mempalace.json")
+        self.assertEqual([], self.calls())
+
+    def test_the_wing_does_not_change_which_directories_are_refused(self):
+        self.with_wing()
+        self.assertEqual(1, self.owner("mine", self.root)[0])
+        self.assertEqual([], self.calls())
+
+
 class RecordedModel(Setting):
     def palace(self, text=None, link=False):
         folder = os.path.join(self.base, "palace")

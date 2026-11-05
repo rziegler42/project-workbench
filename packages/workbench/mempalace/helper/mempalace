@@ -370,9 +370,10 @@ def find_root(cwd):
         raise Refused(display.ascii_text(str(exc))[:200])
 
 
-def palace_setting(root):
-    """The palace the project names in ``.workbench/mempalace.json``, or ``None`` when it names none. The file
-    is ``{"format": 1, "palace": "<absolute path>"}``; anything else is refused."""
+def project_setting(root):
+    """``(palace, wing)`` the project names in ``.workbench/mempalace.json``; each is ``None`` when the file names none.
+    The file is ``{"format": 1, "palace": "<absolute path>", "wing": "<name>"}`` with the palace, the wing or both; anything
+    else is refused."""
     what = ".workbench/mempalace.json"
     try:
         with safefs.Root(root, "the project") as held:
@@ -380,18 +381,27 @@ def palace_setting(root):
     except safefs.SafeFsError as exc:
         raise Refused("%s: %s" % (what, display.ascii_text(str(exc))[:160]))
     if data is None:
-        return None
+        return None, None
     try:
         document = jsonstrict.parse_object(data, MAX_SETTING)
     except ValueError as exc:
         raise Refused("%s is not valid: %s" % (what, display.ascii_text(str(exc))[:80]))
-    palace = document.get("palace")
-    if set(document) != {"format", "palace"} or type(document["format"]) is not int or document["format"] != 1:
-        raise Refused('%s must be {"format": 1, "palace": "<absolute path>"}' % what)
-    if not isinstance(palace, str) or not palace or len(palace) > 512 or plain(palace) != palace \
-            or not os.path.isabs(palace) or os.path.normpath(palace) != palace:
+    palace, wing = document.get("palace"), document.get("wing")
+    if not set(document) <= {"format", "palace", "wing"} or not set(document) & {"palace", "wing"} \
+            or type(document.get("format")) is not int or document["format"] != 1:
+        raise Refused('%s must be {"format": 1, "palace": "<absolute path>", "wing": "<name>"} with a palace, a wing or both'
+                      % what)
+    if "palace" in document and (not isinstance(palace, str) or not palace or len(palace) > 512 or plain(palace) != palace
+                                 or not os.path.isabs(palace) or os.path.normpath(palace) != palace):
         raise Refused("%s: palace must be a clean absolute path (no .., no //, no control character)" % what)
-    return palace
+    if "wing" in document and (not isinstance(wing, str) or not re.fullmatch(_NAME, wing)):
+        raise Refused("%s: wing is at most 64 letters, digits and ._:- and does not start with - or ." % what)
+    return palace, wing
+
+
+def palace_setting(root):
+    """The palace the project names, or ``None``."""
+    return project_setting(root)[0]
 
 
 def check_recorded_model(palace):
@@ -422,7 +432,9 @@ def status(args, out, cwd):
 
 def search(args, out, cwd):
     options, query = parse_search(args)
-    palace = palace_setting(find_root(cwd))
+    palace, wing = project_setting(find_root(cwd))
+    if wing and "--wing" not in options:
+        options = dict(options, **{"--wing": wing})  # the project's wing, unless the caller names another
     if not model_cached():
         raise Refused("the embedding model is not cached, and a search would start a download; "
                       "the owner runs `wb run mempalace mine` once first")
@@ -609,7 +621,7 @@ def owner(command, args, stdin, out, err, cwd):
     directory, flags, values = parse_owner(command, args)
     owner_terminal(stdin, out)
     root = find_root(cwd)
-    palace = palace_setting(root)
+    palace, wing = project_setting(root)
     path = owner_directory(cwd, root, directory, "--allow-project-root" in flags)
     refuse_planted_config(path)
     refuse_palace_overlap(path, palace)
@@ -619,15 +631,20 @@ def owner(command, args, stdin, out, err, cwd):
                 % path)
     else:
         tail = ["mine", path]
+        if wing and "--wing" not in values:
+            values = dict(values, **{"--wing": wing})
+            wing_note = "; the wing is %s, from .workbench/mempalace.json (name another with --wing)" % wing
+        else:
+            wing_note = ""
         for name in ("--wing", "--mode"):
             if name in values:
                 tail += [name, values[name]]
         if "--confirm" in flags:
             note = ("a first real mine downloads the embedding model (about 79 MB) and writes $HOME/hallways.json; "
-                    "it has no time limit")
+                    "it has no time limit%s" % wing_note)
         else:
             tail.append("--dry-run")
-            note = "this is a dry run and files nothing; add --confirm to file the drawers"
+            note = "this is a dry run and files nothing; add --confirm to file the drawers%s" % wing_note
     err.write("note: %s\n" % note)
     return run_owner(tail, palace, cwd, stdin, out, err)
 

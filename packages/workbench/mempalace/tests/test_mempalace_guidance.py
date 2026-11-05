@@ -213,6 +213,14 @@ class Skill(unittest.TestCase):
                      "Narrow with `--wing <name>` when you know the wing for this project"):
             self.assertIn(rule, text, rule)
 
+    def test_it_says_the_projects_wing_is_the_default_and_a_wing_given_replaces_it(self):
+        """Plan `2026-11-05-mempalace-use-and-independence`, increment D. The block has no room for the sentence (its limit is 14
+        lines) and the file name stays out of the skill, so this says only what the search does."""
+        text = flat(skill_text())
+        self.assertIn("When the project names its wing, a search is limited to it unless you give another with `--wing <name>`", text)
+        self.assertEqual(1, text.count("When the project names its wing"))
+        self.assertNotIn("mempalace.json", text)
+
     def test_it_says_the_built_in_memory_is_read_first_and_is_a_separate_store(self):
         text = flat(skill_text())
         for rule in ("Where the harness's built-in memory could also answer the question, read it first",
