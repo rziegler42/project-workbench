@@ -956,6 +956,24 @@ compaction happens shows a need), a change to the thresholds of automatic compac
 installer rendering of a `SessionStart` or status-line entry, and opencode.
 **Promotion trigger:** the owner chooses to begin and the documentation facts above are checked.
 
+### memory-recall-use — The `mempalace` module is used when a palace is available, and depends on no other knowledge module
+
+**Outcome:** a project with `mempalace` installed searches the palace at the moments when an earlier decision or lesson changes the
+work (before drafting a plan, a spec, a decision record or a roadmap candidate, and before a brainstorm) and not only when the agent
+happens to judge that it might help, and the module's policy block and skill name no other knowledge module, so that `mempalace` and
+`graphify` can each be installed without the other and neither text refers to the other. Each knowledge module's block says what its
+own tool answers and stops there.
+**Dependencies:** `mempalace-module` and `mempalace-scoping` complete. The change replaces the rule of `knowledge-tools.md` that every
+module's block carries the same routing words.
+**Boundary:** the `mempalace` policy block, its `recall-memory` skill and their tests, the two specs that state the routing rule, one clause in
+each of the five skills that start those moments (`draft-plan`, `brainstorm`, `draft-spec`, `draft-decision`, `draft-roadmap`) that allows one
+search through a module that provides `memory-recall`, named by the capability and not by module, and one live hand run with a palace that
+holds something about the project; also a project-level default wing in the setting file that `search` and `mine` use, and turning the program's own usage telemetry off in the
+environment the helper gives it. Not part of it: a way for the owner to file what an agent proposes to keep, a count of how often the palace is
+searched, a `wb doctor` note for an empty project wing, mining finished sessions, any `graphify` or knowledge-base work, and any change to the
+helper beyond those two, to the arguments the commands accept or to the palace.
+**Promotion trigger:** the owner chooses to begin (met on 2026-11-05).
+
 ### module-hook-rendering — Hooks that a module declares, rendered by the installer
 
 **Outcome:** a module that ships a hook for a harness declares it (the event, the matcher, the timeout and the shipped file), and
