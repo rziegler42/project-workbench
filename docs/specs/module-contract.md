@@ -329,7 +329,8 @@ the directory name and `name` in `module.json` must be equal. No list holds a du
   `name`, `count` and `onoff` (`review-profiles.md`, "The options a module declares for a review"); `excludes` lists options, or
   `effort`, that may not share a profile with it (each name is `effort` or another option of the same command, never the option
   itself). The reader refuses these with a message that names the command and the option. The names `model`, `effort`, `timeout`, `schema`, `root` and `confine` are
-  refused, and so are an unknown field and a grammar outside the list. It is covered by the declaration hash as written, so a
+  refused, and so is every non-empty prefix of one of them (`mod`, `eff`, `conf`; a bridge that accepted abbreviated options would read
+  it as the reserved option), and so are an unknown field and a grammar outside the list. It is covered by the declaration hash as written, so a
   declaration without it hashes as before, and a workbench that predates it refuses a package that has it.
 
 - `approval` *(built)*: an object with exactly the fields `command` (the key of one of this module's `commands`)

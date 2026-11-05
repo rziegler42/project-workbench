@@ -226,7 +226,7 @@ The state is an agent-writable file in the project, so tampering is made visible
 round from the owner's `review-profiles.json` in the guarded store (accepted records `2026-11-04-review-profiles-in-the-guarded-store`
 and `2026-11-04-delegated-approval-checks-the-profile-of-the-last-round`; the format, the bounds and the ladder rules are in
 `review-profiles.md`). `.workbench/review.json`, which this section described before, is no longer read by this engine, and a file at that path
-changes nothing here (the action-review engine reads it until its increment F).
+changes nothing here, as it changes nothing for the action-review engine, which reads the same owner's file.
 
 - **Reading.** The kit reads the file (`wbkit/profiles.py`), whole or refused whole. The engine names the ladder keys it accepts: the
   four document kinds, `default`, and the key of the other engine that asks a model for a review, so that one file serves both and
@@ -250,7 +250,7 @@ changes nothing here (the action-review engine reads it until its increment F).
   different bridge, model, effort or options, a profile that is gone, or a round from before profiles, which names none), `none` when no
   round has asked yet, or `unreadable` when the file is refused (`status` itself does not refuse). Its `next` is the profile and
   bridge of the next round with the location class of the profile's server, learned by calling the bridge's `check` (`review-profiles.md`,
-  "Status"), or `null` when no round can run.
+  "What a round records and what `status` prints"), or `null` when no round can run.
 
 ## Owner-run commands
 

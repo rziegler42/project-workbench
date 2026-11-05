@@ -588,6 +588,21 @@ the second came back with no meaningful finding.
   `installer-interface.md` says that a file that appears after the preview is left as it is. **Rejected, with a reason:** that the doctor
   should not catch `ValueError`: the security review proposed it, the doctor only reads, and a crash that hides the whole report is a
   worse outcome than a mislabelled line. **Limits of its evidence:** it ran nothing and did not read `ProfileDefaultInstall`.
+- **Increment K widened (2026-11-05, before it was built).** The owner approved the changed plan through the `ask` flow (region
+  `b12d977f...3c3a`): the one stale sentence of `module-contract.md` and a dated note on the delegated-check record, written only with
+  the owner's approval of its text. The roadmap candidate was left alone on purpose: a roadmap does not record completion.
+- **Review of increment K (2026-11-05, a `reviewer` agent, one exchange; a consistency read of the specs against the code).** It found no
+  wrong number (bounds, caps, versions, budgets) and confirmed that the install default, the ladder keys, `next`, `request` and
+  `convergence` match the code. It found **one false statement and seven smaller ones, all applied:** `command-permissions.md` still said a
+  review needs `.workbench/review.json` (now: the owner's `review-profiles.json` with a ladder for the kind or a `default` one);
+  `review-engine.md` kept a parenthesis that the action-review engine still read that file, and cited a section ("Status") that does not
+  exist; `development.md` listed the owner's personal setting as not built and had a doubled article; criterion 1 of `review-profiles.md`
+  said the kit checks "a value outside its grammar" (it checks the generic value rule; the grammar is the doctor's and the gate's); a
+  sentence of the spec still read as unbuilt. It also found that the walk-through lacked a delegated approval, `wb doctor` and the
+  oversize and duplicate-key refusals: the last two and the doctor and the declaration refusals were added and run; the delegated
+  approval and the action-review rung are recorded as limits in the Result. Its question about the effort shown for the first round
+  of the ramp has a plain answer: the `quick` profile names an effort and no model, so codex was given no model option, while `standard`
+  and `deep` name both. **Left for the owner:** nothing of this review (the dated note was approved and written, and the spec was marked `Current`). **Limits of its evidence:** it ran nothing and did not open the walk-through script.
 
 ## Deferred work
 
@@ -1024,3 +1039,56 @@ the second came back with no meaningful finding.
 - **Not done:** the commit and the push (J and J-A go out together). The shown-file block of the preview and the written file are
   compared by the existing tests; a run of a real install is increment K.
 - **Left for the owner:** the verdict and the word to commit.
+
+### Increment K
+
+- **Done:** the documents say what is built: `review-profiles.md` opens with what is true (both engines read the owner's file and nothing
+  in the project, and its numbers are what was built); the sentence of `module-contract.md` on the names that `commands[].review_options`
+  refuses includes their prefixes; `development.md` names the profile file for the action-review engine; the false row of
+  `command-permissions.md`, the stale parenthesis and dangling reference of `review-engine.md` and the wording of criterion 1 are
+  corrected. Those lines of `command-permissions.md`, `review-engine.md` and `development.md` are outside K's listed areas except
+  `development.md`; they were false statements of what is built, which is what K is for, and the reviewer found them.
+- **The walk-through, as run (2026-11-05, Python 3.15.0 on Darwin 25.6.0, at commit `5ed2c2f` with the document edits above uncommitted):**
+  a scratch test module on the review engine's real-launcher fixture, which installs a project with the installer from a copy of the
+  packages into a temporary directory and a temporary `HOME` (the installer's own typist answers the digest, as the install tests do),
+  with the real `ask-codex` bridge, the real launcher and a fake `codex` program; no model was called and the owner's store was not
+  touched. It printed, and the run ended `OK`:
+  1. **the install default:** `review-profiles.json` holds one profile `ask-codex` (`{"bridge": "ask-codex"}`) and the ladder
+     `default: ["ask-codex"]`;
+  2. **a review on it:** round 1 of a plan ran on profile `ask-codex` and recorded `requested {effort null, model null, options {}}`;
+     `status` read `request same`, `next` the same profile with location `unknown`; `convergence` printed `format 2`, `converged true`
+     and `last_requested {bridge ask-codex, effort null, model null, options {}, profile ask-codex}`;
+  3. **a ramp:** with profiles `quick` (low), `standard` and `deep` (the model and medium or high) and a `spec` ladder, three rounds ran on
+     `quick`, `standard`, `deep` in that order, `status` named the next profile and `request same` before rounds 2 and 3, and the fake
+     `codex` was given `model_reasoning_effort` `low`, `medium` and `high` (and a model option for the last two only);
+  4. **an edit is noticed:** after `deep` was edited, `status` of the spec read `request changed`, while the plan's `convergence` still
+     reported the request of the sealed round and not today's file;
+  5. **the refusals,** each naming the file and a fixed rule and starting no `codex` (none was started): no file, not strict JSON, a duplicate key,
+     an oversize file, a ladder naming an absent profile, an option that is a prefix of a reserved name, no ladder for the kind; and an
+     option the bridge does not accept, which the bridge refused with the profile's name and no round spent;
+  6. **the project file is read by nothing:** a `.workbench/review.json` naming a bridge that is not installed changed nothing: round 2
+     of the plan ran on `ask-codex`;
+  7. **`wb doctor`** on the project: exit 0 with the file in order (it noted the old project file as read by nothing), exit 1 and a
+     `review-profiles` problem for a profile whose bridge is not an installed module;
+  8. **the declaration refusals:** `review_options` with `server` accepted, `model` and `mod` refused as reserved or beginning a reserved
+     name, and a grammar `.*` refused.
+- **Limits of the walk-through, stated so nothing is read as shown that was not:** (1) the **delegated approval limited by
+  `delegate-profiles`** and the settings file at version 4 were not walked end to end; they were run by the 26 gate tests of `ProfileGate`
+  and the settings tests, and probed on copies by the security review of increment I, all with made-up modules; (2) the **action-review
+  engine's one rung** and the **test-set runner** were not walked, because the fixture does not install that module; they are covered by
+  its tests and by the review of increment F; (3) an **interactive install in a terminal** was not run, because an install is owner-run:
+  the install tests and this walk-through drive `install.run` with a typist; (4) the **Ollama bridge**, a real model and a real
+  `codex` were not used; the location class of a server is therefore shown only as `unknown`; (5) the numbers of the criteria are
+  those the reviewer checked against the code; the criteria were not each re-run here beyond the steps above.
+- **One observation, not part of K and not fixed:** a refusal for an option the bridge does not accept says "no round was spent" twice,
+  because increment D's `profile <name>:` wrapper re-wraps a message that already ends that way (`Failed.__init__`). It is cosmetic; the
+  fix is a package edit.
+- **The dated note (done, 2026-11-05):** the owner approved its text, and it was appended as "Note, 2026-11-05" after the unchanged body of
+  `docs/decisions/2026-11-04-delegated-approval-checks-the-profile-of-the-last-round.md` (six lines added, none removed). It says that the
+  installer, which may not name a module or a kind of review, takes the ladder keys from the profile file, so it checks the profiles and
+  the names a ladder uses and does not refuse an unknown ladder key or a longer `action-review` ladder, which each engine still does.
+- **The spec's status (done, 2026-11-05):** the owner marked `review-profiles.md` `Current`.
+- **Not done:** the commit and the push.
+- **Left for the owner:** the verdict and the word to commit. Whether to run the module test roots that
+  use the kit (increment B changed the kit every module imports) is the owner's decision; not every module's test root was run: those named in
+  the earlier Results were (the review engine's, the action-review module's, the Ollama bridge's declaration test and the installer's).

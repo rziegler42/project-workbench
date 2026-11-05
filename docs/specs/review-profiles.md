@@ -1,11 +1,12 @@
 # Review profiles
 
-Status: Draft
+Status: Current. Approved by the owner on 2026-11-05. Built by plan `2026-11-04-review-profiles` (increments A to K, with the nested
+D-A, I-A and J-A).
 
-This spec describes behaviour that two accepted decisions require and that is **not built yet**. Today both engines that ask a model for
-a review read the project file `.workbench/review.json` (`review-engine.md`, "The project setting"; `action-review.md`, "Settings and
-the bridge"). Each section below says what is decided and which increment of the plan `2026-11-04-review-profiles` builds it. When an
-increment is built, its section is edited to say what is true, and this spec becomes `Current` when the plan is done.
+This spec describes the owner's review profiles, which two accepted decisions require and plan `2026-11-04-review-profiles` built
+(increments A to K, with the nested D-A, I-A and J-A). Both engines that ask a model for a review read the one file
+`review-profiles.json` in the owner's guarded store and nothing in the project: `.workbench/review.json`, which they read before, is read
+by nothing, and `wb doctor` names it as unused. Each section below says what is true, and which increment built it.
 
 ## Scope
 
@@ -50,8 +51,8 @@ increment is built, its section is edited to say what is true, and this spec bec
 
 ## Behavior
 
-Where the two accepted records leave a number to this spec, the choice and its reason are given. Every such number is a proposal for
-the owner's approval of this spec and is refined by the increment that builds it.
+Where the two accepted records leave a number to this spec, the choice and its reason are given. Each such number is
+what was built, with the reason given where the choice was open.
 
 ### The file
 
@@ -255,7 +256,8 @@ Each is checkable by the increment named.
 
 1. The reader refuses a duplicate key, an unknown field, an oversize file, a bad name, a ladder of more than five rungs or none, an
    `action-review` ladder of other than one rung, a ladder that names an absent profile, a profile that holds a reserved option or a
-   prefix of a reserved name (D-A), a value outside its grammar, and a file whose `format` is not 1 (B).
+   prefix of a reserved name (D-A), a value outside the generic value rule (printable ASCII, no space, no leading `-`, at most 128
+   characters; the grammar a bridge declares is checked by `wb doctor` and the delegated check, I and J), and a file whose `format` is not 1 (B).
 2. A declaration that lists a reserved name (or a prefix of one, D-A) or a grammar outside the closed list is refused by the reader and by `wb verify` (C).
 3. The nth round of a window uses rung n, the last rung repeats, a bridge error spends no round and retries the same rung, and the first
    round after `reset` uses the first rung (D). The engine passes `--model`, `--effort` and the options of the profile, and nothing

@@ -118,3 +118,9 @@ An independent read-only review of this record by a reviewer agent on 2026-11-04
 consequences above now close: a damaged setting, the comparison form, the unknown request, the setting file's version, and the limits
 of what the check proves. One round of the review engine on this record found one conflict with item 9 of the 2026-10-23 record,
 which item 6 now resolves.
+
+## Note, 2026-11-05
+
+A clarification made at the owner's request; the decision above is unchanged.
+
+Item 5 says the installer reads the profile file "with the same strict rules as the engine, so a duplicate key or an oversize file refuses". That holds for the file, its bounds and its profiles: the installer reads it with the kit's reader, so a duplicate key, an oversize file, a damaged profile and a ladder that names a profile the file lacks still refuse. It differs in one place. The installer may not name a module or a kind of review (`docs/specs/module-boundary.md`), so it cannot list the ladder keys an engine accepts or know that the ladder of one key holds a single rung. It takes the ladder keys from the file itself. It therefore accepts a file with a ladder key that an engine would refuse, or with an `action-review` ladder of more than one rung, which each engine still refuses on its own reading. The installer's check uses only the profiles, so this changes no outcome of the comparison (`docs/specs/review-profiles.md`, "The `convergence` report and `delegate-profiles`").
