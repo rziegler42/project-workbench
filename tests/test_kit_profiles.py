@@ -14,19 +14,19 @@ from unittest import mock
 from workbench import store
 from workbench.wbkit import profiles
 
-KEYS = ("plan", "spec", "roadmap", "adr", "action-review", "default")
-SINGLE = ("action-review",)
+KEYS = ("plan", "spec", "roadmap", "adr", "solo", "default")
+SINGLE = ("solo",)
 
 
 def document(**changes):
     body = {
         "format": 1,
         "profiles": {
-            "quick": {"bridge": "ask-codex", "effort": "low"},
-            "deep": {"bridge": "ask-codex", "effort": "high"},
-            "local": {"bridge": "ask-ollama", "model": "phi4:latest", "options": {"server": "home", "thinking": "on"}},
+            "quick": {"bridge": "bridge-a", "effort": "low"},
+            "deep": {"bridge": "bridge-a", "effort": "high"},
+            "local": {"bridge": "bridge-b", "model": "phi4:latest", "options": {"server": "home", "thinking": "on"}},
         },
-        "ladders": {"default": ["quick", "quick", "deep"], "action-review": ["quick"]},
+        "ladders": {"default": ["quick", "quick", "deep"], "solo": ["quick"]},
     }
     body.update(changes)
     return body
@@ -46,7 +46,7 @@ class Valid(unittest.TestCase):
         self.assertEqual(["deep", "local", "quick"], sorted(got.profiles))
         self.assertEqual(("quick", "quick", "deep"), got.ladders["default"])
         local = got.profiles["local"]
-        self.assertEqual(("ask-ollama", "phi4:latest", None, {"server": "home", "thinking": "on"}),
+        self.assertEqual(("bridge-b", "phi4:latest", None, {"server": "home", "thinking": "on"}),
                          (local.bridge, local.model, local.effort, local.options))
         self.assertEqual({}, got.profiles["quick"].options)
 
@@ -61,7 +61,7 @@ class Valid(unittest.TestCase):
 
     def test_a_name_of_thirty_two_characters_is_accepted(self):
         name = "a" + "b" * 31
-        got = parse({"format": 1, "profiles": {name: {"bridge": "ask-codex"}}, "ladders": {"plan": [name]}})
+        got = parse({"format": 1, "profiles": {name: {"bridge": "bridge-a"}}, "ladders": {"plan": [name]}})
         self.assertIn(name, got.profiles)
 
     def test_a_model_of_a_bridge_to_a_server_may_hold_a_slash(self):
@@ -108,20 +108,20 @@ class Refused(unittest.TestCase):
     def test_the_profiles_object(self):
         self.refuse(document(profiles={}))
         self.refuse(document(profiles=[]))
-        many = {"p%02d" % n: {"bridge": "ask-codex"} for n in range(33)}
+        many = {"p%02d" % n: {"bridge": "bridge-a"} for n in range(33)}
         self.refuse({"format": 1, "profiles": many, "ladders": {"plan": ["p00"]}})
 
     def test_a_profile_name(self):
         for name in ("Quick", "_quick", "-quick", "a" * 33, "", "q uick", "quick.deep"):
-            self.refuse({"format": 1, "profiles": {name: {"bridge": "ask-codex"}}, "ladders": {}})
+            self.refuse({"format": 1, "profiles": {name: {"bridge": "bridge-a"}}, "ladders": {}})
 
     def test_a_profile_record(self):
-        self.refuse(self.change(("profiles", "quick"), "ask-codex"))
+        self.refuse(self.change(("profiles", "quick"), "bridge-a"))
         self.refuse(self.change(("profiles", "quick"), {"effort": "low"}))
-        self.refuse(self.change(("profiles", "quick"), {"bridge": "ask-codex", "extra": 1}))
+        self.refuse(self.change(("profiles", "quick"), {"bridge": "bridge-a", "extra": 1}))
 
     def test_the_bridge(self):
-        for value in (1, "", "Ask Codex", "../x", "-x", None, ["ask-codex"]):
+        for value in (1, "", "Bridge A", "../x", "-x", None, ["bridge-a"]):
             self.refuse(self.change(("profiles", "quick", "bridge"), value))
 
     def test_the_effort(self):
@@ -154,8 +154,8 @@ class Refused(unittest.TestCase):
             self.refuse(document(ladders={"plan": rungs}))
 
     def test_a_ladder_that_must_hold_one_rung(self):
-        self.refuse(document(ladders={"action-review": ["quick", "deep"]}))
-        self.refuse(document(ladders={"action-review": []}))
+        self.refuse(document(ladders={"solo": ["quick", "deep"]}))
+        self.refuse(document(ladders={"solo": []}))
 
     def test_the_reason_names_the_rule(self):
         self.assertIn("ladder", self.refuse(document(ladders={"plan": ["absent"]})))
@@ -170,7 +170,7 @@ class Refused(unittest.TestCase):
         self.refuse(body)
         body = document(ladders={self.MARK: ["quick"]})
         self.refuse(body)
-        self.refuse({"format": 1, "profiles": {self.MARK: {"bridge": "ask-codex"}}, "ladders": {}})
+        self.refuse({"format": 1, "profiles": {self.MARK: {"bridge": "bridge-a"}}, "ladders": {}})
 
 
 class ReservedPrefixes(unittest.TestCase):
@@ -219,7 +219,7 @@ class ReservedPrefixes(unittest.TestCase):
 class Resolution(unittest.TestCase):
     def setUp(self):
         self.got = parse(document(ladders={"plan": ["quick", "local", "deep"], "default": ["quick", "deep"],
-                                           "action-review": ["quick"]}))
+                                           "solo": ["quick"]}))
 
     def test_round_n_uses_rung_n_and_the_last_rung_repeats(self):
         names = [profiles.for_round(self.got, "plan", n, True)[0] for n in range(1, 7)]
@@ -227,7 +227,7 @@ class Resolution(unittest.TestCase):
 
     def test_the_profile_is_returned_with_its_name(self):
         name, profile = profiles.for_round(self.got, "plan", 2, True)
-        self.assertEqual(("local", "ask-ollama"), (name, profile.bridge))
+        self.assertEqual(("local", "bridge-b"), (name, profile.bridge))
 
     def test_a_kind_without_a_ladder_uses_default_when_allowed(self):
         self.assertEqual("quick", profiles.for_round(self.got, "spec", 1, True)[0])
@@ -354,7 +354,7 @@ class Limits(unittest.TestCase):
         self.assertEqual(8, len(parse(body).profiles["local"].options))
 
     def test_a_bridge_may_hold_the_characters_of_a_command_name(self):
-        for bridge in ("ask.codex", "a+b", "Ask-Codex", "9bridge"):
+        for bridge in ("bridge.a", "a+b", "Bridge-A", "9bridge"):
             body = document()
             body["profiles"]["quick"]["bridge"] = bridge
             self.assertEqual(bridge, parse(body).profiles["quick"].bridge)
@@ -375,23 +375,23 @@ class Hostile(unittest.TestCase):
         return caught.exception
 
     def test_a_trailing_newline_is_part_of_a_name(self):
-        for change in ({"profiles": {"quick\n": {"bridge": "ask-codex"}}, "ladders": {}},
-                       {"profiles": {"quick": {"bridge": "ask-codex\n"}}, "ladders": {}},
-                       {"profiles": {"quick": {"bridge": "ask-codex", "options": {"server\n": "x"}}}, "ladders": {}}):
+        for change in ({"profiles": {"quick\n": {"bridge": "bridge-a"}}, "ladders": {}},
+                       {"profiles": {"quick": {"bridge": "bridge-a\n"}}, "ladders": {}},
+                       {"profiles": {"quick": {"bridge": "bridge-a", "options": {"server\n": "x"}}}, "ladders": {}}):
             self.refuse(dict({"format": 1}, **change))
 
     def test_a_letter_that_is_not_ascii_is_refused(self):
-        for change in ({"profiles": {"\uff51uick": {"bridge": "ask-codex"}}, "ladders": {}},
-                       {"profiles": {"quick": {"bridge": "ask-codex", "model": "m\u00e9"}}, "ladders": {}},
+        for change in ({"profiles": {"\uff51uick": {"bridge": "bridge-a"}}, "ladders": {}},
+                       {"profiles": {"quick": {"bridge": "bridge-a", "model": "m\u00e9"}}, "ladders": {}},
                        {"profiles": {"quick": {"bridge": "ask-cod\u0435x"}}, "ladders": {}}):
             self.refuse(dict({"format": 1}, **change))
 
     def test_a_lone_surrogate_is_refused(self):
-        self.refuse(b'{"format": 1, "profiles": {"q": {"bridge": "ask-codex", "model": "\\ud800"}}, "ladders": {}}')
+        self.refuse(b'{"format": 1, "profiles": {"q": {"bridge": "bridge-a", "model": "\\ud800"}}, "ladders": {}}')
 
     def test_a_repeated_key_below_the_top_is_refused(self):
-        self.refuse(b'{"format": 1, "profiles": {"q": {"bridge": "ask-codex"}, "q": {"bridge": "ask-codex"}}, "ladders": {}}')
-        self.refuse(b'{"format": 1, "profiles": {"q": {"bridge": "ask-codex", "options": {"a": "x", "a": "y"}}}, "ladders": {}}')
+        self.refuse(b'{"format": 1, "profiles": {"q": {"bridge": "bridge-a"}, "q": {"bridge": "bridge-a"}}, "ladders": {}}')
+        self.refuse(b'{"format": 1, "profiles": {"q": {"bridge": "bridge-a", "options": {"a": "x", "a": "y"}}}, "ladders": {}}')
 
     def test_deep_nesting_is_a_refusal_and_not_a_crash(self):
         deep = b"[" * 100000 + b"]" * 100000
@@ -485,7 +485,7 @@ class MoreResolution(unittest.TestCase):
 
     def test_a_kind_that_may_not_use_default_and_has_no_ladder_is_refused(self):
         with self.assertRaises(profiles.ProfileError):
-            profiles.for_round(self.got, "action-review", 1, False)
+            profiles.for_round(self.got, "solo", 1, False)
 
     def test_default_is_not_a_kind(self):
         with self.assertRaises(profiles.ProfileError):

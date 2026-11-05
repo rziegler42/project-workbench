@@ -14,6 +14,7 @@ import unittest.mock
 
 from tests import support_harness, test_permissions_drift, test_rendering
 from workbench import cli, doctor, gatelog, levels, rendering, rules, settings
+from workbench.wbkit import profiles
 
 KEYS = levels.registry()
 FLOOR = [stop.id for stop in __import__("workbench.floor", fromlist=["FLOOR"]).FLOOR]
@@ -51,6 +52,43 @@ class Settings(unittest.TestCase):
 
     def test_clean_settings_give_nothing(self):
         self.assertEqual([], doctor.settings_findings(settings.Settings({}, [], {}, {}, False), settings.Effective({}, {}, [], {}, ())))
+
+
+class DelegateProfiles(unittest.TestCase):
+    """``delegate_profile_findings``: a listed profile that the owner's file lacks, and one that names no model."""
+
+    FOUND = profiles.Profiles({"quick": profiles.Profile("bridge-a", "model-x", "low", {}),
+                               "bare": profiles.Profile("bridge-a", None, None, {})}, {"first": ("quick",)})
+
+    def test_a_setting_that_is_not_a_list_gives_nothing(self):
+        for reading in (None, "any", settings.INVALID):
+            self.assertEqual([], doctor.delegate_profile_findings(reading, self.FOUND), reading)
+
+    def test_a_listed_name_the_file_lacks_is_a_problem(self):
+        got = lines(doctor.delegate_profile_findings(("quick", "gone"), self.FOUND))
+        self.assertEqual(1, len(got), got)
+        self.assertTrue(got[0].startswith("problem: delegate-profiles: the listed profile 'gone' is not in review-profiles.json"), got)
+
+    def test_a_listed_profile_that_names_no_model_is_a_risk(self):
+        got = lines(doctor.delegate_profile_findings(("bare",), self.FOUND))
+        self.assertEqual(1, len(got), got)
+        self.assertTrue(got[0].startswith("risk: delegate-profiles: the listed profile 'bare' names no model"), got)
+        self.assertIn("vendor's default", got[0])
+
+    def test_a_good_list_gives_nothing(self):
+        self.assertEqual([], doctor.delegate_profile_findings(("quick",), self.FOUND))
+
+    def test_a_file_that_cannot_be_used_is_a_problem_when_the_setting_is_a_list(self):
+        error = profiles.ProfileError("review-profiles.json is missing")
+        got = lines(doctor.delegate_profile_findings(("quick",), error))
+        self.assertEqual(1, len(got), got)
+        self.assertTrue(got[0].startswith("problem: delegate-profiles: review-profiles.json is missing"), got)
+        self.assertEqual([], doctor.delegate_profile_findings("any", error))
+
+    def test_a_name_the_file_chose_is_quoted_and_cannot_add_a_line(self):
+        got = doctor.delegate_profile_findings(("a\nproblem: planted",), self.FOUND)
+        self.assertEqual(1, len(got))
+        self.assertNotIn("\n", got[0].line)
 
 
 class Floor(unittest.TestCase):
@@ -421,6 +459,26 @@ class InAProject(test_rendering.Rendered):
         code, out, err = self.doctor()
         self.assertEqual(1, code)
         self.assertIn("problem: settings: settings name a profile that is not one of", out)
+
+    def test_a_listed_profile_the_file_lacks_is_a_problem_in_the_report(self):
+        self.attached()
+        self.guarded.write("settings", json.dumps({"version": 4, "floor": [], "levels": {}, "delegate_profiles": ["quick", "gone"]}).encode())
+        self.guarded.write("review-profiles.json", json.dumps({"format": 1, "profiles": {"quick": {"bridge": "bridge-a"}},
+                                                               "ladders": {"first": ["quick"]}}).encode())
+        code, out, err = self.doctor()
+        self.assertEqual(1, code)
+        self.assertIn("problem: delegate-profiles: the listed profile 'gone' is not in review-profiles.json", out)
+        self.assertIn("risk: delegate-profiles: the listed profile 'quick' names no model", out)
+
+    def test_a_missing_profile_file_with_a_list_is_a_problem_and_any_is_not(self):
+        self.attached()
+        self.guarded.write("settings", json.dumps({"version": 4, "floor": [], "levels": {}, "delegate_profiles": ["quick"]}).encode())
+        code, out, err = self.doctor()
+        self.assertEqual(1, code)
+        self.assertIn("problem: delegate-profiles: review-profiles.json", out)
+        self.guarded.write("settings", json.dumps({"version": 4, "floor": [], "levels": {}, "delegate_profiles": "any"}).encode())
+        code, out, err = self.doctor()
+        self.assertNotIn("delegate-profiles", out)
 
     def test_a_changed_floor_is_a_risk(self):
         self.attached()

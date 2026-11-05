@@ -247,9 +247,9 @@ class Run(Approval):
 class ConvergenceReport(unittest.TestCase):
     """`parse_convergence`: format 1, and format 2 with `last_requested` (plan `2026-11-04-review-profiles`, increment G)."""
 
-    BASE = {"kind": "plan", "converged": True, "document_sha256": DIGEST, "rounds_used": 2, "bound": 3, "bridge": "ask-codex",
+    BASE = {"kind": "plan", "converged": True, "document_sha256": DIGEST, "rounds_used": 2, "bound": 3, "bridge": "bridge-a",
             "model": "m-1", "review": "plan-0123456789abcdef", "closed": False}
-    FULL = {"bridge": "ask-codex", "model": "gpt-x", "effort": "low", "options": {"alpha": "1"}, "profile": "quick"}
+    FULL = {"bridge": "bridge-a", "model": "gpt-x", "effort": "low", "options": {"alpha": "1"}, "profile": "quick"}
 
     def one(self, report):
         return json.dumps(report).encode() + b"\n"
@@ -275,14 +275,14 @@ class ConvergenceReport(unittest.TestCase):
     def test_format_1_reads_as_an_unknown_request(self):
         got = self.parse(self.v1())
         self.assertIsNone(got.last_requested)
-        self.assertEqual((True, DIGEST, 2, 3, "ask-codex", "m-1", "plan-0123456789abcdef", False), tuple(got)[:8])
+        self.assertEqual((True, DIGEST, 2, 3, "bridge-a", "m-1", "plan-0123456789abcdef", False), tuple(got)[:8])
 
     def test_format_2_with_a_null_request_reads_as_unknown(self):
         self.assertIsNone(self.parse(self.v2(None)).last_requested)
 
     def test_format_2_with_every_field(self):
         got = self.parse(self.v2(self.FULL)).last_requested
-        self.assertEqual(approvalcmd.Requested("ask-codex", "gpt-x", "low", {"alpha": "1"}, "quick"), got)
+        self.assertEqual(approvalcmd.Requested("bridge-a", "gpt-x", "low", {"alpha": "1"}, "quick"), got)
 
     def test_a_value_the_round_did_not_record_is_null(self):
         for field in ("model", "effort", "options", "profile"):
@@ -292,7 +292,7 @@ class ConvergenceReport(unittest.TestCase):
     def test_the_other_fields_of_the_report_are_read_as_before_in_both_formats(self):
         for data in (self.v1(), self.v2(self.FULL)):
             got = self.parse(data)
-            self.assertEqual(("ask-codex", "m-1", False), (got.bridge, got.model, got.closed))
+            self.assertEqual(("bridge-a", "m-1", False), (got.bridge, got.model, got.closed))
 
     def test_format_1_may_not_carry_the_new_field_and_format_2_must(self):
         self.refused(self.one(dict(self.BASE, format=1, last_requested=None)), "exactly")
@@ -311,7 +311,7 @@ class ConvergenceReport(unittest.TestCase):
         self.refused(self.one(report), "exactly")
 
     def test_the_request_is_an_object_with_exactly_its_five_fields(self):
-        for value in ([], "ask-codex", 1, True, [self.FULL]):
+        for value in ([], "bridge-a", 1, True, [self.FULL]):
             self.refused(self.v2(value), "last_requested")
         for field in self.FULL:
             self.refused(self.v2({k: v for k, v in self.FULL.items() if k != field}), "last_requested")

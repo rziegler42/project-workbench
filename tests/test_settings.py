@@ -6,7 +6,7 @@ import unittest
 
 import support
 from workbench import declarations, floor, levels, planapprovals, settings, store
-from workbench.wbkit import safefs
+from workbench.wbkit import profiles, safefs
 
 
 class SettingsBase(unittest.TestCase):
@@ -125,7 +125,7 @@ class CheckpointTest(SettingsBase):
 
     def test_the_wrong_shape_makes_everything_stop(self):
         for document in ({"version": 1, "checkpoints": []}, {"version": 1, "checkpoints": "delegate"},
-                         {"version": 4, "checkpoints": {"a": "delegate"}},
+                         {"version": 5, "checkpoints": {"a": "delegate"}},
                          {"checkpoints": {"a": "delegate"}},
                          {"version": True, "checkpoints": {"a": "delegate"}},
                          {"version": "1", "checkpoints": {"a": "delegate"}}):
@@ -234,7 +234,7 @@ class CapsTest(SettingsBase):
                 self.assertEqual(1, len(loaded.problems))
 
     def test_a_damaged_file_uses_every_default_and_the_existing_note(self):
-        for data in (b"{", b"[]", {"version": 4, "caps": {"review-rounds": 4}}):
+        for data in (b"{", b"[]", {"version": 5, "caps": {"review-rounds": 4}}):
             with self.subTest(data=data):
                 loaded, got = self.effective(data)
                 self.assertEqual({"review-rounds": 3, "same-failure-retries": 1}, got.caps)
@@ -377,7 +377,7 @@ class LevelsTest(SettingsBase):
                 agent = set(levels.agent_keys())
                 self.assertEqual({"none"}, {got.levels[name] for name in agent})
                 self.assertEqual({"block"}, self.owner_run_levels(got))
-        for data in (b"{", b"[]", b'{"version": 4}', b'{"version": 2, "levels": {"a": "block", "a": "block"}}'):
+        for data in (b"{", b"[]", b'{"version": 5}', b'{"version": 2, "levels": {"a": "block", "a": "block"}}'):
             with self.subTest(data=data):
                 self.put(data)
                 got = settings.effective(settings.load(self.store), ("approve-plan",), ())
@@ -401,7 +401,7 @@ class LevelsTest(SettingsBase):
                 self.assertIn("damaged", loaded.problems[0])
 
     def test_a_damaged_file_and_an_unsupported_version_read_every_key_as_block(self):
-        for data in (b"{ not json", {"version": 4, "levels": {"approve-plan": "delegated"}},
+        for data in (b"{ not json", {"version": 5, "levels": {"approve-plan": "delegated"}},
                      {"version": True, "levels": {"approve-plan": "delegated"}}):
             with self.subTest(data=data):
                 loaded, got = self.effective(data)
@@ -672,7 +672,7 @@ class FloorIsNotInTheFileTest(SettingsBase):
     def test_the_loaded_settings_expose_no_stops(self):
         settings.initialize(self.store)
         loaded = settings.load(self.store)
-        self.assertEqual(set(loaded._fields), {"checkpoints", "problems", "caps", "levels", "levels_blocked", "profile"})
+        self.assertEqual(set(loaded._fields), {"checkpoints", "problems", "caps", "levels", "levels_blocked", "profile", "delegate_profiles"})
         self.assertFalse(any("stop" in name.lower() and name != "checkpoint"
                              for name in dir(loaded) if not name.startswith("_")))
         self.assertNotIn("floor", loaded.checkpoints)
@@ -849,3 +849,127 @@ class KindTest(SettingsBase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DelegateProfilesTest(SettingsBase):
+    """``delegate_profiles``: version 4 of the file (plan `2026-11-04-review-profiles`, increment I)."""
+
+    def load(self, value="absent", version=4, **more):
+        document = {"version": version, "floor": []}
+        if value != "absent":
+            document["delegate_profiles"] = value
+        document.update(more)
+        self.put(document)
+        return settings.load(self.store)
+
+    def test_it_is_absent_by_default_and_a_new_file_is_still_seeded_at_version_3(self):
+        self.assertIsNone(self.load().delegate_profiles)
+        self.assertIsNone(self.load(version=3).delegate_profiles)
+        self.assertEqual(3, settings.VERSION)
+        self.assertEqual((1, 2, 3, 4), settings.VERSIONS)
+
+    def test_any_and_a_list_of_names_are_read(self):
+        self.assertEqual("any", self.load("any").delegate_profiles)
+        self.assertEqual(("quick",), self.load(["quick"]).delegate_profiles)
+        self.assertEqual(("standard", "quick", "deep"), self.load(["standard", "quick", "deep"]).delegate_profiles)
+        names = ["p%d" % n for n in range(8)]
+        self.assertEqual(tuple(names), self.load(names).delegate_profiles)
+
+    def test_every_other_value_is_invalid_with_a_problem_and_is_never_read_as_any(self):
+        for value in ([], ["any"], ["quick", "any"], ["quick", "quick"], [1], ["quick", None], [["quick"]], "quick", "", "ANY", 1,
+                      True, None, {}, {"quick": 1}, ["p%d" % n for n in range(9)], ["Quick"], [""], ["a b"], ["x" * 33], ["-x"]):
+            with self.subTest(value=value):
+                loaded = self.load(value)
+                self.assertEqual(settings.INVALID, loaded.delegate_profiles)
+                self.assertNotEqual("any", loaded.delegate_profiles)
+                self.assertEqual(1, sum("delegate_profiles" in text for text in loaded.problems), loaded.problems)
+
+    def test_the_entry_in_a_file_of_an_older_version_is_invalid_and_not_ignored(self):
+        for version in (1, 2, 3):
+            with self.subTest(version=version):
+                loaded = self.load(["quick"], version=version)
+                self.assertEqual(settings.INVALID, loaded.delegate_profiles)
+                self.assertTrue(any("version 4" in text for text in loaded.problems), loaded.problems)
+
+    def test_version_4_accepts_everything_version_3_accepts(self):
+        extra = {"profile": "balanced", "levels": {"approve-plan": "ask"}, "caps": {"rounds": 4},
+                 "checkpoints": {"approve-plan": "delegate"}}
+        three, four = self.load(version=3, **extra), self.load(version=4, **extra)
+        self.assertEqual((three.profile, three.levels, three.caps, three.checkpoints, three.problems),
+                         (four.profile, four.levels, four.caps, four.checkpoints, four.problems))
+        self.assertEqual("balanced", four.profile)
+
+    def test_a_version_after_4_is_still_unsupported_and_stops_everything(self):
+        loaded = self.load(["quick"], version=5)
+        self.assertTrue(loaded.problems and loaded.problems[0].startswith("settings have an unsupported version"))
+        self.assertIsNone(loaded.delegate_profiles)
+
+    def test_the_other_entries_do_not_set_it(self):
+        loaded = self.load(levels={"delegate_profiles": "ask"}, checkpoints={"delegate_profiles": "delegate"})
+        self.assertIsNone(loaded.delegate_profiles)
+
+    def test_a_damaged_file_leaves_it_unset(self):
+        self.put(b"{ not json")
+        self.assertIsNone(settings.load(self.store).delegate_profiles)
+
+
+class ProfilesFileTest(SettingsBase):
+    """``settings.read_profiles``: the owner's ``review-profiles.json`` read from the guarded store by the installer."""
+
+    GOOD = {"format": 1, "profiles": {"quick": {"bridge": "bridge-a", "effort": "low"}},
+            "ladders": {"first": ["quick"], "second": ["quick"]}}
+
+    def put_profiles(self, data):
+        with open(os.path.join(self.root, "review-profiles.json"), "wb") as handle:
+            handle.write(data if isinstance(data, bytes) else json.dumps(data).encode())
+
+    def test_a_good_file_is_read_with_the_engines_rules(self):
+        self.put_profiles(self.GOOD)
+        self.assertEqual({"quick"}, set(settings.read_profiles(self.store).profiles))
+
+    def test_the_installer_takes_the_ladder_keys_from_the_file_and_knows_no_kind_of_review(self):
+        keys = {"one": ["quick"], "two-three": ["quick"], "x": ["quick"]}
+        self.put_profiles(dict(self.GOOD, ladders=keys))
+        self.assertEqual(set(keys), set(settings.read_profiles(self.store).ladders))
+        self.put_profiles(dict(self.GOOD, ladders={}))
+        self.assertEqual({}, settings.read_profiles(self.store).ladders)
+
+    def test_a_ladder_of_any_length_up_to_five_is_read_because_the_single_rung_belongs_to_an_engine(self):
+        body = dict(self.GOOD, profiles={"quick": {"bridge": "bridge-a"}, "deep": {"bridge": "bridge-a"}},
+                    ladders={"any-key": ["quick", "deep"]})
+        self.put_profiles(body)
+        self.assertEqual(("quick", "deep"), settings.read_profiles(self.store).ladders["any-key"])
+
+    def test_the_rules_of_the_file_and_of_the_ladders_still_apply(self):
+        for body in (dict(self.GOOD, ladders={"first": ["absent"]}), dict(self.GOOD, ladders={"first": []}),
+                     dict(self.GOOD, ladders={"first": ["quick"] * 6}), dict(self.GOOD, ladders=[]), dict(self.GOOD, format=2),
+                     dict(self.GOOD, extra=1)):
+            with self.subTest(body=body):
+                self.put_profiles(body)
+                with self.assertRaises(profiles.ProfileError):
+                    settings.read_profiles(self.store)
+
+    def test_a_missing_file_a_damaged_one_and_one_that_is_not_a_regular_file_are_refused_naming_the_file(self):
+        for prepare in (lambda: None, lambda: self.put_profiles(b"{"), lambda: self.put_profiles(b"\xff"),
+                        lambda: (self.put_profiles(b"x"), os.unlink(os.path.join(self.root, "review-profiles.json")),
+                                 os.mkdir(os.path.join(self.root, "review-profiles.json")))):
+            with self.subTest():
+                prepare()
+                with self.assertRaises(profiles.ProfileError) as caught:
+                    settings.read_profiles(self.store)
+                self.assertIn("review-profiles.json", str(caught.exception))
+                if os.path.isdir(os.path.join(self.root, "review-profiles.json")):
+                    os.rmdir(os.path.join(self.root, "review-profiles.json"))
+                elif os.path.exists(os.path.join(self.root, "review-profiles.json")):
+                    os.unlink(os.path.join(self.root, "review-profiles.json"))
+
+    def test_a_file_over_the_bound_is_refused_without_being_parsed(self):
+        self.put_profiles(b" " * (profiles.MAX_BYTES + 1))
+        with self.assertRaises(profiles.ProfileError):
+            settings.read_profiles(self.store)
+
+    def test_the_text_of_the_file_is_never_in_the_refusal(self):
+        self.put_profiles(b'{"format": 1, "profiles": {"planted-text-in-the-file": 5}, "ladders": {}}')
+        with self.assertRaises(profiles.ProfileError) as caught:
+            settings.read_profiles(self.store)
+        self.assertNotIn("planted-text", str(caught.exception))

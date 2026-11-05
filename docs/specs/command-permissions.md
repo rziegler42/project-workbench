@@ -75,11 +75,12 @@ shipped default (see "The table").
 
 ### The table
 
-The personal settings accept `version` 1, 2 and 3. Versions 2 and 3 may hold an object `levels`, from a key to a level; in a version 1
+The personal settings accept `version` 1, 2, 3 and 4. Versions 2, 3 and 4 may hold an object `levels`, from a key to a level; in a version 1
 file `levels` is an unknown entry and is ignored. A new file is seeded at version 3 with an empty `levels` object and no `checkpoints`
 object and no `profile` (`{"floor": [...], "levels": {}, "version": 3}`), so the owner adds an entry to `levels` and nothing else. A
 file seeded earlier, at version 1 or 2, is still read; an installer older than version 3 reads a version 3 file as an unsupported
-version and every key stops. In a version 1 file the `checkpoints` words are read as levels; migrating it is the owner's edit, and
+version and every key stops, and so does one older than version 4 for a version 4 file (a file becomes version 4 only when the owner adds
+`delegate_profiles`, below). In a version 1 file the `checkpoints` words are read as levels; migrating it is the owner's edit, and
 `wb settings` prints each word it read as a level. The table is the single source of a level: an entry wins over the key's checkpoint in either direction, so loosening
 a key is one edit. A `checkpoints` entry in the file is only a fallback for a key the table does not name, and its word is read as a
 level, `stop` as `block` and `delegate` as `delegated`; `wb settings` prints a `translated <key>: <word> read as <level>` line for
@@ -89,7 +90,7 @@ and no `translated` line.
 
 **Named risk profiles** (built by increment C of the plan `2026-11-03-delegated-levels-and-risk-profiles`; accepted decision
 [2026-11-03-delegated-for-an-action-key-and-named-risk-profiles](../decisions/2026-11-03-delegated-for-an-action-key-and-named-risk-profiles.md),
-decision 10; `workbench/settings.py`, `profile_level`). A version 3 file may hold one `profile`: `cautious` (the default, and what no
+decision 10; `workbench/settings.py`, `profile_level`). A version 3 or 4 file may hold one `profile`: `cautious` (the default, and what no
 profile means), `balanced` or `trusting`. A profile sets a level for a key with no table entry and no checkpoint word, by danger
 class: `balanced` asks `ask` for a `project` key; `trusting` asks `delegated`, else `ask`, for a `project` key and `ask` for a
 `governs` key; none asks anything of a `reads` key. A profile sets the first level it asks for that the key offers, and only when that
@@ -1104,12 +1105,19 @@ rendering, decides here, so a setting the owner wrote for another project applie
 **Profiles.** `balanced` and `trusting` both set `wb attach` to `ask`: it is a `project` key that offers `ask`. `wb settings` prints a
 `profiled wb attach: ask` line, and the rendered rules change at the next `wb rerender`, which the owner runs in a terminal.
 
+**`delegate_profiles`** *(built by increment I of the plan `2026-11-04-review-profiles`; accepted decision
+`2026-11-04-delegated-approval-checks-the-profile-of-the-last-round`; `workbench/settings.py`, `workbench/delegation.py`)*. A version 4
+file may hold the entry `delegate_profiles`, and no other version may: it limits a delegated plan approval to a review whose last round
+asked for the request of a listed profile of the owner's `review-profiles.json` (`review-profiles.md`, "The `convergence` report and
+`delegate-profiles`"). Its value is `"any"`, or a list of 1 to 8 distinct profile names, none of them `any`. Absent, it reads as `any`. Every
+other value is invalid, and so is the entry in a file of version 1, 2 or 3: the loader adds one `settings:` problem and a delegated
+approval is refused until the owner fixes it, and it is never read as `any`. Version 4 accepts everything version 3 accepts. A new file is
+still seeded at version 3. `wb settings` prints `delegate-profiles approve-plan: any`, the list as written or `invalid` when the file holds the
+entry, and nothing when it does not (which reads as `any`). The entry counts only while `approve-plan` reads `delegated`, which is where the
+approval command is reached at all; a project, a plan or a review cannot supply it.
+
 ## Not built
 
-- The `delegate-profiles` setting and the settings file version that holds it, decided by
-  `2026-11-04-delegated-approval-checks-the-profile-of-the-last-round` (plan `2026-11-04-review-profiles`, increment I). `wb settings`
-  will print `delegate-profiles approve-plan: any` or a list. Until then a delegated plan approval checks that the review converged
-  and nothing about the profile it ran on (`review-profiles.md`).
 - `delegated` for `accept-decision` and for the other seven keys that do not offer it (every key but `approve-plan`). The plan
   `2026-10-29-accept-decision-at-ask` built `ask` for `accept-decision` and left `delegated` reading `block`: the accepted record leaves
   undecided what a delegated review's subject is for a decision, and the roadmap candidate `checkpoint-levels-beyond-block` stays open.

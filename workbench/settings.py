@@ -4,10 +4,11 @@ The document is strict JSON::
 
     {"caps": {"<name>": <integer>}, "checkpoints": {"<name>": "stop" | "delegate"},
      "floor": ["<id>", ...], "levels": {"<key>": "block" | "ask" | "delegated" | "none"},
-     "profile": "cautious" | "balanced" | "trusting", "version": 1 | 2 | 3}
+     "profile": "cautious" | "balanced" | "trusting", "delegate_profiles": "any" | ["<profile name>", ...],
+     "version": 1 | 2 | 3 | 4}
 
-``levels`` exists in versions 2 and 3 and ``profile`` only in version 3 (``docs/specs/command-permissions.md``). The reader accepts
-versions 1, 2 and 3; a new file is seeded at version 3 as ``{"floor": [...], "levels": {}, "version": 3}``, with no ``checkpoints``
+``levels`` exists in versions 2, 3 and 4, ``profile`` in versions 3 and 4 and ``delegate_profiles`` only in version 4
+(``docs/specs/command-permissions.md``). The reader accepts versions 1 to 4; a new file is seeded at version 3 as ``{"floor": [...], "levels": {}, "version": 3}``, with no ``checkpoints``
 object and no ``profile`` (no profile reads as ``cautious``). A ``checkpoints`` object is read for a file seeded earlier and is never
 written.
 
@@ -25,6 +26,11 @@ written.
   ``2026-11-03-delegated-for-an-action-key-and-named-risk-profiles``): ``profile_level`` says what it sets for a key. A key's
   entry in ``levels`` wins over it in either direction. A name that is not one of ``PROFILES`` reads every key as ``block``, like a
   damaged table, and is reported.
+* ``delegate_profiles`` is optional (version 4 only). It limits a delegated plan approval to a review whose last round asked for the
+  request of a listed profile of the owner's ``review-profiles.json`` (decision
+  ``2026-11-04-delegated-approval-checks-the-profile-of-the-last-round``). Absent, or ``"any"``, it limits nothing. Otherwise it is a
+  list of 1 to 8 distinct names. Every other value, and the entry in a file of an older version, is ``INVALID``: a delegated approval
+  is refused and the entry is reported, and it is never read as ``any``.
 * ``caps`` is optional. It holds the owner's value for each loop cap a process module declares.
   The loader keeps a valid name with an integer value; ``effective`` judges the value against
   the module's ceiling and falls back to the module's default with a note.
@@ -45,12 +51,18 @@ import json
 import re
 
 from . import declarations, floor, levels as keyset
-from .wbkit import safefs
+from .wbkit import jsonstrict, profiles, safefs
 
 SETTINGS = "settings"
 VERSION = 3  # the version written at seeding: the table and the profile, not the version 1 checkpoints object
-VERSIONS = (1, 2, 3)  # the versions the reader accepts
-LEVELS_VERSIONS = (2, 3)  # the versions that hold a ``levels`` table
+VERSIONS = (1, 2, 3, 4)  # the versions the reader accepts
+LEVELS_VERSIONS = (2, 3, 4)  # the versions that hold a ``levels`` table
+PROFILE_VERSIONS = (3, 4)  # the versions that hold a risk ``profile``
+DELEGATE_PROFILES_VERSION = 4  # the one version that holds ``delegate_profiles``
+DELEGATE_PROFILES = "delegate_profiles"
+MAX_DELEGATE_PROFILES = 8
+ANY = "any"
+INVALID = "invalid"  # what ``Settings.delegate_profiles`` holds for an entry that is damaged: not ``None``, and never ``any``
 PROFILES = ("cautious", "balanced", "trusting")
 # What a profile asks for, by danger class, most relaxed offered level first. ``none`` is never asked for, ``delegated`` is never
 # asked for a ``governs`` key, and the floor is not a key (decision 10 of the record named above).
@@ -68,7 +80,9 @@ _FLOOR_IDS = frozenset(stop.id for stop in floor.FLOOR)
 # The one checkpoint for which ``delegate`` has an effect (``wb delegate-approve-plan``); any other name stops.
 APPROVE_PLAN = keyset.APPROVE_PLAN
 
-_Settings = collections.namedtuple("_Settings", "checkpoints problems caps levels levels_blocked profile", defaults=(None,))
+# `delegate_profiles` is ``None`` (no entry: reads as ``any``), ``ANY``, a tuple of names, or ``INVALID``.
+_Settings = collections.namedtuple("_Settings", "checkpoints problems caps levels levels_blocked profile delegate_profiles",
+                                   defaults=(None, None))
 # `profiled` is ``(key, level)`` for each key the profile moved from its shipped default, in registry order.
 Effective = collections.namedtuple("Effective", "checkpoints caps notes levels translated profiled", defaults=((), ()))
 
@@ -131,7 +145,8 @@ def load(store):
     if isinstance(version, bool) or version not in VERSIONS:
         return _default("settings have an unsupported version; every checkpoint stops")
     known = ("caps", "checkpoints", "floor", "version") + (("levels",) if version in LEVELS_VERSIONS else ()) \
-        + (("profile",) if version == 3 else ())
+        + (("profile",) if version in PROFILE_VERSIONS else ()) \
+        + ((DELEGATE_PROFILES,) if version == DELEGATE_PROFILES_VERSION else ())
     for key in sorted(document):
         if key not in known:
             problems.append("settings have an unknown entry %s, which is ignored"
@@ -165,7 +180,7 @@ def load(store):
             caps[name] = value
     levels, levels_blocked = {}, False
     profile = None
-    if version == 3 and "profile" in document:
+    if version in PROFILE_VERSIONS and "profile" in document:
         given = document["profile"]
         if isinstance(given, str) and given in PROFILES:
             profile = given
@@ -194,7 +209,56 @@ def load(store):
                 levels[key] = BLOCK
             else:
                 levels[key] = value
-    return Settings(checkpoints, problems, caps, levels, levels_blocked, profile)
+    delegate = None
+    if DELEGATE_PROFILES in document:
+        delegate = _delegate_profiles(document[DELEGATE_PROFILES], version, problems)
+    return Settings(checkpoints, problems, caps, levels, levels_blocked, profile, delegate)
+
+
+def _delegate_profiles(given, version, problems):
+    """The reading of the ``delegate_profiles`` entry: ``ANY``, a tuple of 1 to 8 distinct profile names, or ``INVALID`` with one problem
+    added. An entry in a file older than version 4 is invalid and not ignored, so that a list written into the wrong file does not read
+    as ``any``."""
+    if version != DELEGATE_PROFILES_VERSION:
+        problems.append("settings hold delegate_profiles in a file of version %d; it needs version 4, so a delegated approval is "
+                        "refused until it is fixed" % version)
+        return INVALID
+    if isinstance(given, str) and given == ANY:
+        return ANY
+    if (isinstance(given, list) and 1 <= len(given) <= MAX_DELEGATE_PROFILES and len(set(map(repr, given))) == len(given)
+            and all(isinstance(name, str) and name != ANY and re.fullmatch(profiles.PROFILE_NAME, name) for name in given)):
+        return tuple(given)
+    problems.append("settings hold a delegate_profiles that is not any or a list of 1 to %d distinct profile names (and not any); a "
+                    "delegated approval is refused until it is fixed" % MAX_DELEGATE_PROFILES)
+    return INVALID
+
+
+def _ladder_keys(data):
+    """The keys the file's ``ladders`` object holds, or none when the bytes are not a strict JSON object with one (``profiles.parse``
+    then refuses them with its own words). The installer knows no kind of review (``docs/specs/module-boundary.md``), so it cannot name the
+    keys an engine accepts: it takes them from the file, and each engine holds the file to its own keys and to its single rung."""
+    try:
+        ladders = jsonstrict.parse_object(data, profiles.MAX_BYTES).get("ladders")
+    except ValueError:
+        return ()
+    return tuple(ladders) if isinstance(ladders, dict) else ()
+
+
+def read_profiles(store):
+    """The owner's ``review-profiles.json`` from the guarded `store`, parsed with the kit's rules for the file and its profiles and for
+    the names a ladder uses, or ``profiles.ProfileError`` naming the file and a fixed rule and never repeating its text. A file that is
+    missing, is not a regular file, cannot be read, is over the bound or breaks a rule is refused. The ladder keys are the file's own
+    (see ``_ladder_keys``), so the installer accepts a key an engine would refuse; it uses only the profiles."""
+    try:
+        kind = store.kind(profiles.FILE)
+        if kind is None:
+            raise profiles.fail("is missing; `wb install` writes it, or write it by hand (docs/specs/review-profiles.md)")
+        if kind != "file":
+            raise profiles.fail("is not a regular file")
+        data = store.read(profiles.FILE)
+    except safefs.SafeFsError:
+        raise profiles.fail("cannot be read") from None
+    return profiles.parse(data, _ladder_keys(data), ())
 
 
 def effective(loaded, checkpoints, caps, commands=(), agent=True):

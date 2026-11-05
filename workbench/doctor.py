@@ -43,7 +43,7 @@ import stat
 
 from . import (__version__, approvalcmd, check, declarations, firstparty, floor, gatelog, harnesses, installed, levels,
                localmanifest, manifest, projectfs, rendering, rules, settings, target)
-from .wbkit import display, safefs
+from .wbkit import display, profiles, safefs
 
 Finding = collections.namedtuple("Finding", "severity line")
 PROBLEM, RISK, NOTE = "problem", "risk", "note"
@@ -85,6 +85,27 @@ def profile_findings(profile, profiled):
         return [Finding(NOTE, "note: profile: %s is set and moves no key" % _name(profile))]
     return [Finding(NOTE, "note: profile: %s set %s" % (_name(profile), ", ".join("%s to %s" % (_name(name), level)
                                                                                     for name, level in profiled)))]
+
+
+def delegate_profile_findings(reading, found):
+    """What the owner's ``delegate_profiles`` list (`reading` is a tuple of names, anything else says nothing) means against the profile
+    file (`found` is its ``Profiles``, or the ``ProfileError`` that its reading raised): a listed name the file lacks, or a file that
+    cannot be used, is a problem because a delegated approval is refused; a listed profile that names no model is a risk, because it
+    follows the vendor's default, which changes under the gate. The names are the owner's file's and are shown quoted."""
+    if not isinstance(reading, tuple):
+        return []
+    if isinstance(found, profiles.ProfileError):
+        return [Finding(PROBLEM, "problem: delegate-profiles: %s; a delegated approval will be refused" % _name(str(found), 200))]
+    findings = []
+    for name in reading:
+        profile = found.profiles.get(name)
+        if profile is None:
+            findings.append(Finding(PROBLEM, "problem: delegate-profiles: the listed profile %s is not in review-profiles.json; a "
+                                    "delegated approval will be refused" % _quoted(name)))
+        elif profile.model is None:
+            findings.append(Finding(RISK, "risk: delegate-profiles: the listed profile %s names no model, so it follows the vendor's "
+                                    "default, which can change under the gate" % _quoted(name)))
+    return findings
 
 
 def floor_findings(raw):
@@ -487,6 +508,12 @@ def examine(guarded, writer, root, distribution=None, which=None):
         found += settings_findings(loaded, effective)
         found += relaxed_findings(keys, effective.levels)
         found += profile_findings(loaded.profile, effective.profiled)
+        if isinstance(loaded.delegate_profiles, tuple):
+            try:
+                profile_file = settings.read_profiles(guarded)
+            except profiles.ProfileError as exc:
+                profile_file = exc
+            found += delegate_profile_findings(loaded.delegate_profiles, profile_file)
     else:
         found += [Finding(PROBLEM, "problem: settings: %s" % text) for text in loaded.problems]
     found += floor_findings(_raw_floor(guarded))

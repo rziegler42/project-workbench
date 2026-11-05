@@ -72,6 +72,9 @@ def run(guarded, tokens, out, err, *, cwd=None):
         out.write("profile: %s\n" % loaded.profile)
         for name, level in effective.profiled:
             out.write("profiled %s: %s\n" % (name, level))
+    if loaded.delegate_profiles is not None:
+        reading = loaded.delegate_profiles
+        out.write("delegate-profiles %s: %s\n" % (settings.APPROVE_PLAN, reading if isinstance(reading, str) else ", ".join(reading)))
     for name, word, level in effective.translated:
         out.write("translated %s: %s read as %s\n" % (name, word, level))
     for text in list(loaded.problems) + list(effective.notes):

@@ -28,9 +28,9 @@ validated and never followed. Every refusal writes nothing.
 import hashlib
 import os
 
-from . import __version__, approvalcmd, approvals, identity, levellog, planapprovals, settings
+from . import __version__, approvalcmd, approvals, commands, identity, levellog, planapprovals, settings
 from .planapprovals import PlanApprovalError
-from .wbkit import display, safefs
+from .wbkit import display, profiles, safefs
 
 USAGE = "usage: wb delegate-approve-plan <plan>\n"
 MAX_PLAN = 1024 * 1024
@@ -57,6 +57,90 @@ def _setting(guarded):
                 "the checkpoint approve-plan is not set to delegate in the owner's personal settings, so the owner "
                 "approves a plan with `wb approve-plan <plan>`; nothing was run")
     return check
+
+
+def _quoted(text, limit=64):
+    """`text` as a quoted ASCII string, cut at `limit` characters, for a name that the owner's file chose."""
+    shown = repr(display.ascii_text(text))
+    return shown if len(shown) <= limit + 2 else shown[:limit + 1] + "..." + shown[0]
+
+
+def _unusable(guarded, ident, modules, profile):
+    """Why the bridge of `profile` could not be asked for a review with that profile, or ``None``: the bridge must be an installed,
+    pinned module that provides ``model-bridge`` and has a command of its name; each option must be one the command declares for a
+    review, with a value that fits the declared grammar; and no option may exclude the effort or another option that is present
+    (``docs/specs/review-profiles.md``, "Where each check runs"). The review engine checks none of this at run time."""
+    for item in modules:
+        if "model-bridge" not in item.module.provides:
+            continue
+        command = next((c for c in item.module.commands if c.name == profile.bridge), None)
+        if command is not None:
+            break
+    else:
+        return "its bridge %s is not an installed module that provides model-bridge" % _quoted(profile.bridge)
+    declared = commands.Declared(item.package, item.module.name, command, item.declaration, tuple(item.module.provides))
+    try:
+        commands.check_pin(guarded, ident, declared)
+    except commands.CommandError as exc:
+        return "its bridge is not usable: %s" % display.clean(str(exc))[:160]
+    allowed = {name: excludes for name, _, excludes in command.review_options}
+    grammars = {name: grammar for name, grammar, _ in command.review_options}
+    for name, value in sorted(profile.options.items()):
+        if name not in allowed:
+            return "the option %s is not one that its bridge declares for a review" % _quoted(name)
+        if not profiles.fits(grammars[name], value):
+            return "the value of the option %s does not fit the grammar its bridge declares" % _quoted(name)
+    for name in sorted(profile.options):
+        for other in allowed[name]:
+            if (other == "effort" and profile.effort is not None) or (other != "effort" and other in profile.options):
+                return "the option %s excludes %s, and both are set" % (_quoted(name), _quoted(other))
+    return None
+
+
+def _profile_gate(guarded, start, review, process):
+    """The owner's ``delegate_profiles`` against the last round of the review: nothing for ``any`` or no entry; for a list, a refusal
+    (``ApprovalError``) unless every listed profile exists and can be used and the request the last round recorded equals one of them
+    on the normal form of the record (bridge, model, effort and options; an absent model or effort equals a null one, absent options
+    equal the empty map, the options compare as unordered maps; the name is not compared). An invalid entry, a profile file that
+    cannot be used, an unknown request and no match each refuse. It is made once, here
+    (``2026-11-04-delegated-approval-checks-the-profile-of-the-last-round``). The settings are read again here, so the gate first asks
+    again whether the checkpoint still reads ``delegate`` for the process module `process`: a file that was damaged or changed since the
+    first read reads as not delegating and refuses, and is never taken for an entry that is absent."""
+    if not planapprovals.delegating(guarded, process):
+        raise approvalcmd.ApprovalError(
+            "the checkpoint approve-plan is not set to delegate in the owner's personal settings (it changed during the checks), so the "
+            "owner approves a plan with `wb approve-plan <plan>`; nothing was recorded")
+    reading = settings.load(guarded).delegate_profiles
+    if reading is None or reading == settings.ANY:
+        return
+    if reading == settings.INVALID:
+        raise approvalcmd.ApprovalError("the owner's delegate_profiles setting is not valid (`wb settings` and `wb doctor` say why), so "
+                                        "the owner approves the plan with `wb approve-plan <plan>`; nothing was recorded")
+    try:
+        found = settings.read_profiles(guarded)
+    except profiles.ProfileError as exc:
+        raise approvalcmd.ApprovalError("delegate_profiles lists profiles and %s; the owner approves the plan themselves"
+                                        % display.clean(str(exc))[:200])
+    for name in reading:
+        if name not in found.profiles:
+            raise approvalcmd.ApprovalError("the listed profile %s is not in review-profiles.json; the owner approves the plan "
+                                            "themselves" % _quoted(name))
+    _, ident, modules = approvalcmd.installed_modules(start)
+    for name in reading:
+        problem = _unusable(guarded, ident, modules, found.profiles[name])
+        if problem:
+            raise approvalcmd.ApprovalError("the listed profile %s cannot be used: %s; the owner approves the plan themselves"
+                                            % (_quoted(name), problem))
+    asked = review.last_requested
+    if asked is None:
+        raise approvalcmd.ApprovalError("the review did not record the request of its last round (an older round, or an engine that "
+                                        "cannot report it), so no listed profile can be compared; the owner approves the plan "
+                                        "themselves")
+    now = (asked.bridge, asked.model, asked.effort, asked.options or {})
+    if not any(now == (found.profiles[name].bridge, found.profiles[name].model, found.profiles[name].effort,
+                       dict(found.profiles[name].options)) for name in reading):
+        raise approvalcmd.ApprovalError("no listed profile asks for what the last round asked (a profile edited since, or a round on "
+                                        "another one); run another round, or the owner approves the plan themselves")
 
 
 def _bytes(root, plan):
@@ -107,6 +191,7 @@ def delegate_approve_plan(guarded, tokens, out, err, *, cwd=None):
         if review.document_sha256 != first:
             return _refuse(err, "the plan %s differs from the one that was reviewed; run another round, or the owner "
                                 "approves it" % shown)
+        _profile_gate(guarded, start, review, process)
         now = (process.project_id, process.package, process.module, process.declaration, process.helper_sha256,
                provider.package, provider.module, provider.declaration, provider.helper_sha256, first, report)
         if _facts(guarded, start, plan) != now:

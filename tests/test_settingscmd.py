@@ -109,6 +109,41 @@ class Settings(support_project.Project):
         return err
 
 
+class DelegateProfilesPrinted(Settings):
+    def test_an_absent_entry_prints_nothing_and_reads_as_any(self):
+        self.owner({"version": 4, "floor": []})
+        code, out, err = self.settings()
+        self.assertEqual((0, ""), (code, err))
+        self.assertNotIn("delegate-profiles", out)
+
+    def test_any_and_a_list_are_printed_beside_the_checkpoint(self):
+        self.owner({"version": 4, "floor": [], "delegate_profiles": "any"})
+        self.assertIn("delegate-profiles approve-plan: any\n", self.settings()[1])
+        self.owner({"version": 4, "floor": [], "delegate_profiles": ["quick", "deep"]})
+        code, out, err = self.settings()
+        self.assertEqual((0, ""), (code, err))
+        self.assertIn("delegate-profiles approve-plan: quick, deep\n", out)
+        self.assertEqual(0, problem_lines(out), out)
+
+    def test_an_invalid_entry_is_printed_as_invalid_with_one_problem(self):
+        for value in ([], ["any"], ["a", "a"], "x", 5):
+            self.owner({"version": 4, "floor": [], "delegate_profiles": value})
+            code, out, err = self.settings()
+            self.assertEqual((0, ""), (code, err))
+            self.assertIn("delegate-profiles approve-plan: invalid\n", out, value)
+            self.assertEqual(1, problem_lines(out), out)
+
+    def test_the_entry_in_an_older_file_is_printed_as_invalid(self):
+        self.owner({"version": 3, "floor": [], "delegate_profiles": ["quick"]})
+        self.assertIn("delegate-profiles approve-plan: invalid\n", self.settings()[1])
+
+    def test_a_name_that_was_chosen_by_the_file_cannot_add_a_line(self):
+        self.owner({"version": 4, "floor": [], "delegate_profiles": ["a\nsettings: planted"]})
+        code, out, err = self.settings()
+        self.assertEqual(1, problem_lines(out), out)
+        self.assertNotIn("planted", out)
+
+
 class Printed(Settings):
     def test_the_defaults_print_with_every_checkpoint_stopping(self):
         self.assertEqual((0, DEFAULTS, ""), self.settings())
@@ -172,7 +207,7 @@ class Printed(Settings):
         self.assertIn("settings: settings set a cap the process module does not declare: other", out)
 
     def test_a_damaged_file_prints_every_default_and_the_problem(self):
-        for data in (b"{", b'{"version": 1, "caps": 2.5}', b'{"version": 4}', b"[]"):
+        for data in (b"{", b'{"version": 1, "caps": 2.5}', b'{"version": 5}', b"[]"):
             with self.subTest(data):
                 self.guarded.write("settings", data)
                 code, out, err = self.settings()

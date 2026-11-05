@@ -16,7 +16,7 @@ import unittest.mock
 
 from tests import support, support_project
 from tests.support_project import HELPER_PATH, tool
-from workbench import approvalcmd, cli, gate_hook, levellog, planapprovals, rules, settings, settingscmd, verify
+from workbench import approvalcmd, cli, delegation, gate_hook, levellog, planapprovals, rules, settings, settingscmd, verify
 
 PLAN = "docs/plans/a.md"
 TEXT = b"# A plan\nStatus: Proposed\n\n## Goal\nDo it.\n\n## Result\nNone yet.\n"
@@ -600,6 +600,211 @@ class Delegability(Delegated):
         self.control(delegable={"sleep": 5})
         with unittest.mock.patch.object(approvalcmd, "TIMEOUT", 0.5):
             self.refuses("did not finish")
+
+
+OPTIONS = {"server": {"grammar": "name"}, "thinking": {"grammar": "onoff", "excludes": ["effort"]},
+           "context": {"grammar": "count"}, "extra": {"grammar": "word", "excludes": ["context"]}}
+
+
+def bridge_module(**fields):
+    """A model bridge that declares the options a review may pass, installed and pinned like any module."""
+    module, files = tool({"bridge-one": {"helper": HELPER_PATH, "arguments": ["ask"], "review_options": OPTIONS}},
+                         helper=HELPER + b"# the bridge's own bytes\n")
+    module.update(provides=["model-bridge"])
+    module.update(fields)
+    return module, files
+
+
+class ProfileGate(Delegated):
+    """``delegate_profiles`` as a list: the last round's recorded request must equal a listed profile (plan
+    `2026-11-04-review-profiles`, increment I; `docs/specs/review-profiles.md`, "The `convergence` report and `delegate-profiles`")."""
+
+    MODULES = dict(Delegated.MODULES, bridge=bridge_module())
+    QUICK = {"bridge": "bridge-one", "model": "model-one", "effort": "low", "options": {"server": "lab"}}
+
+    def listing(self, value, version=4, delegate=True):
+        self.guarded.write("settings", json.dumps({"checkpoints": {"approve-plan": "delegate" if delegate else "stop"},
+                                                  "delegate_profiles": value, "floor": [], "version": version}).encode())
+
+    def profile_file(self, profiles=None, ladders=None):
+        profiles = profiles or {"quick": dict(self.QUICK)}
+        body = {"format": 1, "profiles": profiles, "ladders": ladders or {"default": [next(iter(profiles))]}}
+        self.guarded.write("review-profiles.json", json.dumps(body).encode())
+
+    def ran(self, **changes):
+        """The convergence report of format 2, whose last round asked for `QUICK` unless `changes` say otherwise."""
+        request = {"bridge": "bridge-one", "model": "model-one", "effort": "low", "options": {"server": "lab"}, "profile": "quick"}
+        request.update(changes)
+        self.control(convergence={"set": {"format": 2, "last_requested": request}})
+
+    def log_lines(self):
+        if self.guarded.kind(levellog.LOG) != "file":
+            return []
+        return self.guarded.read(levellog.LOG).decode("ascii").splitlines()
+
+    def ready_to_match(self, value=("quick",)):
+        self.listing(list(value))
+        self.profile_file()
+        self.ran()
+
+    # --- what is accepted ----------------------------------------------------------------------------
+
+    def test_any_changes_nothing_and_needs_no_profile_file(self):
+        self.listing("any")
+        self.approved()
+
+    def test_a_request_equal_to_the_listed_profile_is_approved(self):
+        self.ready_to_match()
+        self.approved()
+        self.assertEqual("approved", self.status()[1].split(":")[0])
+
+    def test_the_name_of_the_profile_is_not_compared(self):
+        self.ready_to_match()
+        self.ran(profile="renamed-since")
+        self.approved()
+
+    def test_an_absent_model_and_effort_equal_a_null_one_and_absent_options_equal_the_empty_map(self):
+        self.listing(["bare"])
+        self.profile_file({"bare": {"bridge": "bridge-one"}})
+        self.ran(model=None, effort=None, options=None)
+        self.approved()
+        self.ran(model=None, effort=None, options={})
+        self.approved()
+
+    def test_options_compare_as_unordered_maps(self):
+        self.listing(["two"])
+        self.profile_file({"two": {"bridge": "bridge-one", "options": {"server": "lab", "context": "8192"}}})
+        self.ran(model=None, effort=None, options={"context": "8192", "server": "lab"})
+        self.approved()
+
+    def test_one_listed_profile_that_matches_is_enough(self):
+        self.listing(["deep", "quick"])
+        self.profile_file({"deep": dict(self.QUICK, effort="high"), "quick": dict(self.QUICK)})
+        self.ran()
+        self.approved()
+
+    def test_the_request_is_compared_and_never_the_rung_the_ladder_names_today(self):
+        self.ready_to_match()
+        self.profile_file({"quick": dict(self.QUICK), "deep": dict(self.QUICK, effort="high")}, {"default": ["deep"], "plan": ["deep"]})
+        self.approved()
+
+    # --- what is refused -----------------------------------------------------------------------------
+
+    def test_a_profile_edited_after_the_round_is_refused(self):
+        self.ready_to_match()
+        for change in ({"effort": "high"}, {"model": "model-two"}, {"bridge": "bridge-one", "options": {"server": "other"}},
+                       {"options": {}}, {"options": {"server": "lab", "context": "8192"}}):
+            with self.subTest(change=change):
+                self.profile_file({"quick": dict(self.QUICK, **change)})
+                self.refuses("no listed profile asks for what the last round asked")
+
+    def test_an_option_the_round_has_and_the_profile_lacks_is_a_difference(self):
+        self.ready_to_match()
+        self.ran(options={"server": "lab", "context": "8192"})
+        self.refuses("no listed profile asks for what the last round asked")
+
+    def test_a_listed_name_the_file_lacks_is_refused_even_when_another_matches(self):
+        self.ready_to_match(("quick", "gone"))
+        self.refuses("gone")
+
+    def test_a_file_that_is_missing_damaged_or_not_a_regular_file_is_refused_naming_the_file(self):
+        self.listing(["quick"])
+        self.ran()
+        self.refuses("review-profiles.json")
+        self.guarded.write("review-profiles.json", b"{")
+        self.refuses("review-profiles.json")
+        self.guarded.write("review-profiles.json", json.dumps({"format": 1, "profiles": {"quick": {"bridge": "bridge-one"}},
+                                                               "ladders": {"first": ["absent"]}}).encode())
+        self.refuses("review-profiles.json")
+
+    def test_the_text_of_the_file_is_never_in_the_refusal(self):
+        self.listing(["quick"])
+        self.ran()
+        self.guarded.write("review-profiles.json", b'{"format": 1, "profiles": {"planted-text-in-the-file": 5}, "ladders": {}}')
+        self.assertNotIn("planted-text", self.refuses("review-profiles.json"))
+
+    def test_an_unknown_request_is_refused(self):
+        self.listing(["quick"])
+        self.profile_file()
+        self.refuses("did not record the request")  # the default report is format 1
+        self.control(convergence={"set": {"format": 2, "last_requested": None}})
+        self.refuses("did not record the request")
+
+    def test_a_listed_profile_that_cannot_be_used_is_refused_even_when_another_matches(self):
+        for label, profile in {"an option the bridge does not declare": dict(self.QUICK, options={"nope": "x"}),
+                               "a value outside the grammar": dict(self.QUICK, options={"server": "UPPER"}),
+                               "an option that excludes the effort": dict(self.QUICK, options={"thinking": "on"}),
+                               "an option that excludes another": dict(self.QUICK, options={"extra": "x", "context": "5"}),
+                               "a bridge that is not installed": dict(self.QUICK, bridge="no-such-bridge")}.items():
+            with self.subTest(label):
+                self.listing(["quick", "bad"])
+                self.profile_file({"quick": dict(self.QUICK), "bad": profile})
+                self.refuses("bad")
+        self.listing(["quick"])
+        self.profile_file({"quick": dict(self.QUICK), "bad": dict(self.QUICK, options={"nope": "x"})})
+        self.ran()
+        self.approved()  # the same defect in a profile that is not listed does not count
+
+    def test_a_listed_profile_the_bridge_declaration_allows_is_accepted(self):
+        profile = dict(self.QUICK, effort=None, options={"thinking": "on", "server": "lab", "context": "9"})
+        profile.pop("effort")
+        self.listing(["rich"])
+        self.profile_file({"rich": profile})
+        self.ran(effort=None, options={"thinking": "on", "server": "lab", "context": "9"})
+        self.approved()
+
+    # --- the setting ---------------------------------------------------------------------------------
+
+    def test_every_invalid_setting_refuses_and_is_never_read_as_any(self):
+        self.profile_file()
+        self.ran()
+        for value in ([], ["any"], ["quick", "any"], ["quick", "quick"], [1], "quick", None, {}, True,
+                      ["p%d" % n for n in range(9)], ["Quick"]):
+            with self.subTest(value=value):
+                self.listing(value)
+                self.refuses("delegate_profiles")
+
+    def test_the_entry_in_a_file_of_an_older_version_refuses(self):
+        self.profile_file()
+        self.ran()
+        for version in (1, 2, 3):
+            with self.subTest(version=version):
+                self.listing(["quick"], version=version)
+                self.refuses("delegate_profiles")
+
+    def test_the_list_counts_only_while_approve_plan_reads_delegated(self):
+        self.ready_to_match()
+        self.listing(["quick"], delegate=False)
+        self.refuses("approve-plan is not set to delegate")
+        self.listing([], delegate=False)  # an invalid list does not change which refusal comes first
+        self.refuses("approve-plan is not set to delegate")
+
+    def test_a_setting_that_stopped_delegating_or_was_damaged_since_the_first_read_does_not_read_as_any(self):
+        self.ready_to_match()
+        process = approvalcmd.resolve(self.guarded, self.real)
+        review = approvalcmd.Convergence(True, "0" * 64, 2, 3, "bridge-one", None, REVIEW, False, None)
+        for later in (b"{", b"", json.dumps({"version": 4, "floor": [], "delegate_profiles": ["quick"]}).encode(),
+                      json.dumps({"version": 4, "floor": [], "checkpoints": {"approve-plan": "stop"},
+                                  "delegate_profiles": "any"}).encode()):
+            with self.subTest(later=later):
+                self.guarded.write("settings", later)
+                with self.assertRaises(approvalcmd.ApprovalError) as caught:
+                    delegation._profile_gate(self.guarded, self.real, review, process)
+                self.assertIn("approve-plan is not set to delegate", str(caught.exception))
+
+    def test_the_check_is_made_after_the_review_converged_and_before_anything_is_recorded(self):
+        self.ready_to_match()
+        self.control(convergence={"set": {"format": 2, "converged": False, "last_requested": None}})
+        self.refuses("has not converged")
+        self.assertEqual([], self.recorded())
+
+    def test_a_refused_check_writes_nothing_and_logs_nothing(self):
+        self.ready_to_match()
+        self.profile_file({"quick": dict(self.QUICK, effort="high")})
+        before = self.log_lines()
+        self.refuses("no listed profile")
+        self.assertEqual(before, self.log_lines())
+        self.assertEqual([], self.recorded())
 
 
 BAD_CONVERGENCE = {

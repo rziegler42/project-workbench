@@ -39,7 +39,9 @@ increment is built, its section is edited to say what is true, and this spec bec
   allow it: two helpers and the installer need it, and a module added to the kit that changes none a helper imports needs no new
   API number (`module-boundary.md`, "The kit"; `wbkit/identity.py` and `wbkit/digest.py` were added the same way). The kit knows no
   document kind and no module, so the caller names the ladder keys it accepts and the keys whose ladder holds one rung, and the
-  review engine, the action-review engine and `wb doctor` each pass theirs; a drift test compares the sets.
+  review engine, the action-review engine and the test-set runner each pass theirs, and a drift test compares those three sets. The installer
+  and `wb doctor` know no kind of review (`module-boundary.md`), so they take the ladder keys from the file itself: they accept a key that an
+  engine would refuse and do not hold `action-review` to one rung, and use only the profiles.
 - A further file directly in the store root is tolerated. That was an inference from `workbench/store.py` (`2026-11-01-endpoint-records-
   in-the-store`); increment B tests it (`tests/test_kit_profiles.py`, "TheStoreRoot"): a store made by `Store.ensure` takes the file, keeps
   it through a second `ensure` and refuses nothing.
@@ -186,13 +188,13 @@ fails as a timeout and yields no verdict.
 
 ### `wb doctor`
 
-*(Decided; built by increments I and J.)* It reports a missing or invalid file; a ladder that names a profile the file lacks; a profile
+*(Built by increment I for the `delegate-profiles` findings and by increment J for the rest.)* It reports a missing or invalid file; a ladder that names a profile the file lacks; a profile
 whose bridge is not installed; a file at `.workbench/review.json` as unused; a `delegate-profiles` name that is not in the file; and a
 listed profile that names no model, which follows the vendor's own default and can change under the gate.
 
 ### The `convergence` report and `delegate-profiles`
 
-*(Built by increments G (the installer's reader) and H (the engine's report); the setting and the check are decided and built by increment I.)*
+*(Built by increments G (the installer's reader), H (the engine's report) and I (the setting and the check).)*
 
 - `converged` keeps its meaning (`review-engine.md`, "Convergence").
 - The report's `format` becomes 2 and it gains `last_requested`: the bridge, the model asked for, the effort, the options (a map of
@@ -203,12 +205,13 @@ listed profile that names no model, which follows the vendor's own default and c
   1.4 KB, with the other fields about 0.3 KB more; increment G measured it: today's report is 267 bytes, the worst case of format 2 is 2,172 bytes, and with every character of the option values escaped in
   the JSON (a quote or a backslash doubles) it can pass 4,096, so the raised cap stays. The existing `model` is the model the bridge
   reported; `last_requested.model` is the model asked for.
-- The owner's settings file gains the entry `delegate_profiles` in a new version, 4 (the reader accepts versions 1 to 3 today and refuses
-  an entry it does not know). Version 4 accepts everything version 3 accepts, and `delegate_profiles` only at version 4, as `levels`
+- The owner's settings file gains the entry `delegate_profiles` in a new version, 4 (the reader accepted versions 1 to 3 before increment I
+  and refuses an entry it does not know). Version 4 accepts everything version 3 accepts, and `delegate_profiles` only at version 4, as `levels`
   is accepted only at versions 2 and 3. A new file is still seeded at version 3, and a file becomes version 4 when the owner adds the
   entry. A workbench that predates version 4 reads such a file as an unsupported version and stops every checkpoint, which fails
   safe. Absent means `any`. Otherwise it is a list of 1 to **8** distinct names of `profiles`, each a string.
-  `wb settings` prints `delegate-profiles approve-plan: any` or the list. Every other value (an empty list, a list that holds `any`, a
+  `wb settings` prints `delegate-profiles approve-plan: any` or the list when the file holds the entry (and nothing when it does not, which
+  reads as `any`), and `invalid` for a damaged one. Every other value (an empty list, a list that holds `any`, a
   duplicate, a name that is not a string, a longer list, a damaged entry) is invalid and refuses a delegated approval; it is never read
   as `any`. It takes effect only while `approve-plan` reads `delegated`, and a project, a plan or a review cannot supply it.
 - **The check, for a list.** The installer compares the `last_requested` of the report with the current definition of each listed
@@ -218,7 +221,7 @@ listed profile that names no model, which follows the vendor's own default and c
   is the recorded request, never the rung that the ladder names today. It proceeds only if one listed profile matches. For `any` there is
   no check, and an unknown request never fails it.
 - **It fails closed** for a list when: a listed name is not in the file; the file cannot be read or is invalid (the installer applies the
-  same strict rules as the engine); a listed profile is invalid; the request is unknown (an engine that cannot report it, a report of
+  kit's rules for the file, its profiles and the names a ladder uses; the ladder keys are the file's own); a listed profile is invalid; the request is unknown (an engine that cannot report it, a report of
   format 1, a round stored before the profiles were built, another provider of `peer-review`); or no listed profile matches, a profile
   edited after the round included. The reason is printed and the owner approves the plan themselves.
 - The check is made once, when the approval is asked for. It is not read again when an approval is read, and tightening the setting

@@ -265,7 +265,12 @@ profile that names no model.
 **Dependencies:** B, G and H.
 **Affected areas:** `workbench/settings.py` (a new file version), `workbench/settingscmd.py`, `workbench/delegation.py`, `workbench/doctor.py`, the registry of
 facts where the setting is listed, `tests/test_settings.py`, `tests/test_settingscmd.py`, `tests/test_delegation.py`, `tests/test_doctor.py`,
-`docs/specs/command-permissions.md`, `docs/specs/trust-and-approval.md`.
+`docs/specs/command-permissions.md`, `docs/specs/trust-and-approval.md`, `docs/specs/review-profiles.md` (its status tags and the text on
+the ladder keys), and, added on 2026-11-05 when the build found that `tests/test_boundary.py` was failing, `tests/test_kit_profiles.py`
+(increment B) and `tests/test_approvalcmd.py` (increment G), whose fixtures name modules that the installer's tests may not name.
+*(The installer takes the ladder keys from the profile file because it may not name a kind of review, so it checks the profiles and the
+names a ladder uses, and each engine keeps its own keys and its single rung; the registry of facts of the levels has no entry for this
+setting, because it is not a level.)*
 **Steps:**
 1. Read `settings.py` (the versions and the strict loader), `settingscmd.py` and the gate in `delegation.py`.
 2. Write the tests first: `any` changes nothing; an empty list, a list with `any`, a duplicate, a non-string, a long list and a damaged
@@ -274,7 +279,10 @@ facts where the setting is listed, `tests/test_settings.py`, `tests/test_setting
    `wb doctor` reports a listed name that is not in the file and a listed profile that names no model.
 3. Build the file version, the printing and the comparison on the normal form of the record.
 4. Update the specs in the same commit.
-**Verification:** the four test modules named above and the drift test.
+5. Replace the module names in the fixtures of `tests/test_kit_profiles.py` and `tests/test_approvalcmd.py` with neutral names, without
+   changing what they test, so that `tests/test_boundary.py` passes again.
+**Verification:** the four test modules named above, `tests/test_boundary.py`, `tests/test_kit_profiles.py`, `tests/test_approvalcmd.py`
+and the drift test of the ladder keys of the three readers that may name modules (increment F, in the action-review package).
 **Evidence:** the one local commit, with the trailer `Plan: 2026-11-04-review-profiles#I`.
 
 ### Increment J — The install default and `wb doctor`
@@ -404,6 +412,23 @@ the second came back with no meaningful finding.
   security review) and that the installer refuses what the profile rules refuse; the worst-case test now doubles every character of
   every option value and uses a non-ASCII reported model. **Rejected:** none. **Limits of its evidence:** it ran nothing and did not
   diff the trees.
+- **Increment I widened (2026-11-05, before it was finished).** Running the wider tests showed that `tests/test_boundary.py`, which
+  forbids the installer and its tests to name a module, had been failing since increments B and G (their fixtures name `ask-codex`,
+  `ask-ollama` and `action-review`; the agent had not run it, because its verification was targeted), and that the installer's own
+  ladder keys in the first design of I named `action-review`. The owner chose to widen I to those two test files and to the status
+  tags of `review-profiles.md`, and approved the changed plan through the `ask` flow (region `0caab305...2187`). The owner also
+  acknowledged one departure from the wording of the accepted record, item 5 ("the same strict rules as the engine"): the installer
+  takes the ladder keys from the profile file, so it checks the profiles and the names a ladder uses and no longer refuses an unknown
+  ladder key or a longer `action-review` ladder; each engine still does. The record is not edited; `review-profiles.md` says it.
+- **Review of increment I (2026-11-05, a `reviewer` agent, one exchange).** One blocking finding, which the agent already knew: the
+  untracked `tests/test_review_ladder_keys.py` (the installer's drift test, which named a module and the constants that no longer
+  exist); the owner approved its removal from a dry-run list and the agent removed it. **Applied:** the gate's second read of the
+  settings could, if the file were damaged between the two reads, read as `any`; `_profile_gate` now asks first whether `approve-plan`
+  still reads `delegate` for the process module and refuses otherwise (a test first, with a damaged, an emptied, a stopped and a
+  changed file). **Rejected:** that two installed modules could declare the same bridge command (the launcher refuses it at run time,
+  `commands.py`, and the install refuses it); that "the registry of facts" lacks an entry (the registry lists level keys, and
+  `delegate-profiles` is not a level). **Acknowledged, not a change:** the departure from item 5 of the record, above. **Limits of its
+  evidence:** it ran nothing and did not open the new tests.
 
 ## Deferred work
 
@@ -725,3 +750,36 @@ the second came back with no meaningful finding.
   `stale records: 0`. The engine's whole folder then ran in the live tree: 459 OK; `wb check` reports no problems.
 - **Not done:** the commit and the push; `wb upgrade` of the installed copy, which is what makes a live engine print format 2.
 - **Left for the owner:** the copy, the release and the verdict.
+
+### Increment I
+
+- **Done:** the owner's settings file has version 4, which holds the entry `delegate_profiles` (`any`, or 1 to 8 distinct profile
+  names, none `any`) and nothing older may: absent it reads as `any`, every other value and the entry in a file of version 1 to 3
+  reads as `INVALID` with one `settings:` problem and is never read as `any`; a new file is still seeded at version 3, and version 4
+  accepts what version 3 accepts. `wb settings` prints `delegate-profiles approve-plan: any|<names>|invalid` when the file holds the
+  entry (nothing when it does not, so every existing output is unchanged). `wb delegate-approve-plan` runs `_profile_gate` after the
+  review is known to have converged on the bytes of the plan and before anything is recorded or logged: the checkpoint still reads
+  `delegate`; the setting is valid; the profile file is read (`settings.read_profiles`, the kit's rules, the ladder keys taken from the
+  file); every listed name is present; every listed profile is usable (`_unusable`: its bridge an installed, pinned module that provides
+  `model-bridge` with a command of that name, each option declared for a review with a value that fits the grammar, no excluded pair
+  set); the recorded request is known; and one listed profile equals it on the normal form of the record. `wb doctor` reports a listed
+  name the file lacks or a file that cannot be used as a problem, and a listed profile that names no model as a risk
+  (`delegate_profile_findings`). Specs: `command-permissions.md`, `trust-and-approval.md`, `review-profiles.md`.
+- **Decisions made while building, for the owner to overrule:** `wb settings` prints the `delegate-profiles` line only when the entry
+  exists, because the existing tests compare whole outputs and the line matters only for a delegating owner; the entry in a file older
+  than version 4 is invalid and not ignored, so that a list written into the wrong file cannot read as `any`.
+- **Tests first:** `DelegateProfilesTest` and `ProfilesFileTest` in `tests/test_settings.py`, `DelegateProfilesPrinted` in
+  `tests/test_settingscmd.py`, `ProfileGate` (21 tests: any, a match, the name not compared, absent and null equal, unordered options,
+  one match among several, the request and never the rung, an edited profile, an extra option, a missing name, a missing, damaged or
+  invalid file, the file's text never in the refusal, an unknown request, five kinds of unusable profile, every invalid setting, the entry
+  in an older file, the setting only while `approve-plan` reads `delegated`, the order after convergence, nothing recorded or logged on a
+  refusal, and the second read) in `tests/test_delegation.py`, and the doctor tests; the new tests ran red before the code. Four existing
+  tests that used version 4 as their unsupported example moved to 5, and the fields test lists the new field.
+- **Boundary repair (added by the widening):** the fixtures of `tests/test_kit_profiles.py` and `tests/test_approvalcmd.py` now use neutral
+  names (`bridge-a`, `bridge-b`, `solo`) and `tests/test_boundary.py` passes; nothing they test changed.
+- **Verification, as run:** the wide set of 1,183 tests (the settings, levels, permissions, gate, approve, rendering, doctor, delegation,
+  kit, declarations, verify, planapprovals and boundary modules), OK; `test_settings` (115), `test_cli` and `test_store`, run by file, OK;
+  `wb check` and `wb run code-work check` report no problems; `git diff --check` is clean. No package changed, so there is no release.
+- **Not done:** the commit and the push. `wb doctor` does not run `_unusable`, as the plan did not ask for it. The walk-through of a real
+  delegated approval with a list is increment K.
+- **Left for the owner:** the verdict and the word to commit.
