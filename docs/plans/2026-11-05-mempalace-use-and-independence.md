@@ -300,6 +300,22 @@ not converge: each round raised one major finding about the same step, Increment
   three findings were all in Increment E, which changes at most one line of the helper and runs only a scratch probe. Nothing else in the
   plan was found wanting by any round: each summary says the plan aligns with its roadmap candidate and its specs.
 
+**Increment A.** Reviewer: the `reviewer` agent (read-only), one round of the cap of 3, no blocking finding. It was given the plan, the
+diff of the three package files, the diff of the two specs and the verification as run, and not my conclusions.
+
+- **Applied:** the dropped sentences "a tool that is not installed is skipped" are now recorded in the dated note of `knowledge-tools.md`;
+  the skill's lead-in "What the palace answers. The palace answers…" is reworded to start with the statement; the declaration test asserts
+  that `memory-recall` is among the capabilities and that nothing is required, not that it is the only capability; the note's last sentence
+  is reworded to say that the agent chooses among the statements of scope when several modules are installed.
+- **Rejected, with the reason:** *the block test pins the exact sentence "…and the palace is not searched for it"* (a small over-pin of
+  wording): the other tests in this file pin wording the same way, and the plan's own step 1 asks for the sentence. *The substring "the
+  three" would fail an innocent use*: it is there to catch the old routing text, and the file is short. *"its 145 tests" in `mempalace.md`
+  "As built"*: it describes what the earlier plan built and stays true as history.
+- **Noted:** the redundancy between the first bullet ("not for what the current files answer") and the new one is intended by the plan's step
+  1; `knowledge-tools.md` still names all three tools, which is allowed because the rule is for each module's block and not for the spec.
+- **Not checked by the reviewer:** that the tests fail and pass as reported (I ran them), that the copied files equal the clone's, and
+  whether Claude follows the skill.
+
 ## Deferred work
 
 - A way to file what an agent proposes to keep, without letting the agent write (an inbox and an owner-run command), including a short record
@@ -317,4 +333,30 @@ not converge: each round raised one major finding about the same step, Increment
 
 ## Result
 
-Empty until work starts.
+**Increment A, built in a scratch clone (2026-11-05); not yet copied into the project, released or committed.** Base commit of the clone:
+`414864a`. Changed in the clone: `packages/workbench/mempalace/files/blocks/policy.md` (the routing bullet that named `graphify` and the
+knowledge base is replaced by "The palace answers what was decided, tried or preferred before. A question the current files answer is
+answered from the files, and the palace is not searched for it. Where the harness's built-in memory could also answer, read it first and
+search the palace only when it does not."), `packages/workbench/mempalace/harness/neutral/skills/recall-memory/SKILL.md` (the list of "which
+tool answers which question" is replaced by the same two sentences) and `packages/workbench/mempalace/tests/test_mempalace_guidance.py` (the
+`ROUTING` constant is now `SCOPE`, the two routing tests say what the palace answers and that neither text names another tool, and a new
+`Independence` class checks that no shipped file of the module names `graphify` or the knowledge base and that the declaration has no
+`requires`). In the project, docs only: `docs/specs/knowledge-tools.md` ("What each tool answers" in place of "Routing", the acceptance
+criterion, "What `mempalace` showed", and a dated note that also records that the "skip a tool that is not installed" sentences went with
+the routing) and `docs/specs/mempalace.md` (the two lines that said the block and the skill carry the routing rule).
+
+**Verification as run.** Tests first: three of the new tests failed on the unchanged text (the block, the skill and the shipped-files check).
+After the change, all 154 tests of the `mempalace` test directory pass, run as the repository's runner does (discover with the tests
+directory as start and top, `PYTHONPATH` at the repository root; the first attempt, with the wrong start directory, failed to import and was
+not counted). `wb run code-work check`: 93 plans, no problems. Not run: the whole suite and `tests/test_boundary.py`, because no installer
+file changes. A search of the repository for the old routing words found them only in the completed plan `2026-10-24-mempalace-module` (a
+record, not edited), the installed copy under `.workbench/` and the rendered `AGENTS.md`, which change only when the owner runs `wb upgrade`.
+
+**Hashes of the three package files at the end of the clone's work** (SHA-256): `policy.md`
+`1f30314879aa046a3656e583b729eb624acebaa8cf91b51bad969fdbdfdd02ca`, `SKILL.md`
+`ba231ae0857b3e7444694de7f4d73b8865dffe2c7a4dbaa00c5de1056674413d`, `test_mempalace_guidance.py`
+`debfd9aa92c80961b733d73db2183469e12551a8b7c7e3b6ec0d3f53a1c25b0e`.
+
+**Review:** one round with the `reviewer` agent, no blocking finding (see the review record).
+
+**Not done in A:** the owner's copy and release, the commit, and Increments B to F.

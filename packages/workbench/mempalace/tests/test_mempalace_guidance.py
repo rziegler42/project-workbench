@@ -1,5 +1,6 @@
 """The policy block and the `recall-memory` skill of `mempalace` (criterion 9 of plan
-`2026-10-24-mempalace-module`, increment D): when to search, where a question goes, and that a result is data.
+`2026-10-24-mempalace-module`, increment D): when to search, what the palace answers, and that a result is data. Plan `2026-11-05-mempalace-use-and-independence`, increment A:
+the texts name no other knowledge tool.
 Both are text; whether Claude loads the skill when it should is not tested."""
 
 import json
@@ -15,10 +16,9 @@ PACKAGE = os.path.join(ROOT, "packages", "workbench")
 MODULE = os.path.join(PACKAGE, "mempalace")
 NEUTRAL = os.path.join(MODULE, "harness", "neutral")
 SKILL = "recall-memory"
-ROUTING = ("What was decided, tried or preferred before goes to `mempalace`",
-           "What a change touches, or how components relate, goes to `graphify`",
-           "What is known outside the project in a domain goes to the knowledge base",
-           "answered from the files, and none of the three is consulted")
+SCOPE = ("The palace answers what was decided, tried or preferred before",
+         "A question the current files answer is answered from the files, and the palace is not searched for it")
+OTHER_TOOLS = ("graphify", "knowledge base", "knowledge-base", "knowledge_base", "none of the three", "the three")
 
 
 def neutral_tree():
@@ -55,11 +55,13 @@ class Policy(unittest.TestCase):
                      "quote a result as recalled, and verify it before relying on it"):
             self.assertIn(rule, text, rule)
 
-    def test_the_block_carries_the_routing_rule_in_the_words_of_the_spec(self):
+    def test_the_block_says_what_the_palace_answers_and_names_no_other_tool(self):
         text = flat(block())
-        for rule in ROUTING:
+        for rule in SCOPE:
             self.assertIn(rule, text, rule)
-        self.assertIn("A tool that is not installed is skipped", text)
+        for word in OTHER_TOOLS:
+            self.assertNotIn(word, text, word)
+        self.assertNotIn("Route a question", text)
 
     def test_the_block_forbids_secrets_and_says_an_agent_cannot_file_a_memory(self):
         text = flat(block())
@@ -136,11 +138,13 @@ class Skill(unittest.TestCase):
                      "read those instead"):
             self.assertIn(rule, text, rule)
 
-    def test_it_carries_the_routing_rule(self):
+    def test_it_says_what_the_palace_answers_and_names_no_other_tool(self):
         text = flat(skill_text())
-        for rule in ROUTING:
+        for rule in SCOPE:
             self.assertIn(rule, text, rule)
-        self.assertIn("If a tool is not installed, skip it", text)
+        for word in OTHER_TOOLS:
+            self.assertNotIn(word, text, word)
+        self.assertNotIn("Which tool answers which question", text)
 
     def test_it_shows_how_to_ask_with_the_question_after_the_dashes_and_the_allowed_options(self):
         text = flat(skill_text())
@@ -199,6 +203,32 @@ class Skill(unittest.TestCase):
         for name in ("draft-plan", "run-increment", "request-review", "evaluate-findings", "commit-changes",
                      "push-changes", "draft-spec", "brainstorm", "graphify-workflow", "peer-review"):
             self.assertNotIn(name, text, name)
+
+
+class Independence(unittest.TestCase):
+    """The module depends on no other knowledge module, in its declaration and in everything it ships."""
+
+    def shipped_files(self):
+        for base, dirs, files in os.walk(MODULE):
+            dirs[:] = [d for d in dirs if d not in ("tests", "__pycache__")]
+            for name in files:
+                yield os.path.join(base, name)
+
+    def test_no_shipped_file_of_the_module_names_another_knowledge_tool(self):
+        found = []
+        for path in self.shipped_files():
+            with open(path, "rb") as handle:
+                text = handle.read().decode("utf-8", "replace").lower()
+            for word in ("graphify", "knowledge base", "knowledge-base", "knowledge_base"):
+                if word in text:
+                    found.append((os.path.relpath(path, MODULE), word))
+        self.assertEqual([], found)
+
+    def test_the_declaration_requires_nothing_and_provides_only_the_memory_capability(self):
+        with open(os.path.join(MODULE, "module.json"), encoding="utf-8") as handle:
+            declaration = json.load(handle)
+        self.assertNotIn("requires", declaration)
+        self.assertIn("memory-recall", declaration["provides"])
 
 
 if __name__ == "__main__":

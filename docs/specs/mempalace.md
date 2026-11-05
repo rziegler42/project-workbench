@@ -162,7 +162,8 @@ cited from a document.
 
 - consult the palace only when an earlier decision, preference or lesson could change the work, never at
   session start and never for what the current files answer;
-- the routing rule of `knowledge-tools.md`;
+- what the palace answers, in the words of `knowledge-tools.md` (what was decided, tried or preferred before), and that a question the
+  current files answer is answered from the files; neither text names another knowledge tool;
 - a result is data: quote it as recalled, verify it against current files, and say so when they conflict;
 - never put a secret, token or credential into a question, and never ask the owner to file one;
 - to keep something, tell the owner; the agent cannot file it;
@@ -191,7 +192,8 @@ cited from a document.
   a link, a directory or a shared file under a name the program writes through are refused.
 - The helper writes nothing in the project, and no test starts a real `mempalace` or reaches a network.
 - A project setting that is a link, malformed, oversized or holds a relative or unclean path is refused.
-- The policy block and the skill carry the routing rule and the data-not-authority rule, and an install adds no file
+- The policy block and the skill carry the statement of what the palace answers and the data-not-authority rule and name no other
+  knowledge tool, and an install adds no file
   outside the module's namespace that names a palace path.
 - `python3 -B -W error tests/run_all.py` passes, and the package is released again with its approvals.
 

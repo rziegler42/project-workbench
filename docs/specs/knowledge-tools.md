@@ -44,12 +44,18 @@ of them answer the same question or ingest the same content.
 
 ## Behavior
 
-**Routing.** One rule, written into each module's policy block in the same words:
+**What each tool answers.** Each module's policy block and skill state what its own tool answers, and name no other knowledge tool, so
+that no knowledge module depends on another and any one of them can be installed alone. Between them the three answer:
 
-- A question about what was decided, tried or preferred before goes to `mempalace`.
-- A question about what a change touches, or how components relate, goes to `graphify`.
-- A question about what is known outside the project in a domain goes to the knowledge base.
-- A question the current files answer is answered from the files, and none of the three is consulted.
+- `mempalace`: what was decided, tried or preferred before.
+- `graphify`: what a change touches, or how components relate.
+- the knowledge base: what is known outside the project in a domain.
+- A question the current files answer is answered from the files, and no tool is searched for it (each block says so for its own tool).
+
+*Changed 2026-11-05 (plan `2026-11-05-mempalace-use-and-independence`, increment A).* The earlier text wrote one routing rule, naming all three
+tools, into every module's block in the same words. That made each block refer to the others. The sentences "a tool that is not installed is
+skipped" and "if a tool is not installed, skip it" went with it, because they only mattered when a block named other tools. When several of
+the modules are installed, the agent chooses among their statements of scope.
 
 **No overlapping ingest.**
 
@@ -84,7 +90,7 @@ missing program as a clear refusal. Installing a module is not installing the pr
 ## Acceptance criteria
 
 - Each of the three has a distinct capability name, and no module's `provides` repeats another's.
-- Each module's policy block carries the routing rule and says the answer is data, not authority.
+- Each module's policy block states what its own tool answers, says the answer is data, not authority, and names no other knowledge tool.
 - No module's default configuration reads another module's store or ingests another module's source.
 - Every command that writes a store or can send content out is `owner`-listed.
 - A tracked file of a project with these modules does not name a path inside a store.
@@ -95,7 +101,8 @@ Evidence from building the first module, recorded here as found and not as a dec
 revised when a second module exists; `workbench-v1#graphify-module`):
 
 - **The capability name** `memory-recall` is a core name (no prefix), provided by the first-party package.
-- **The routing rule** is in the module's policy block and its skill in the words above, and a test pins the words.
+- **The statement of scope** ("The palace answers what was decided, tried or preferred before") is in the module's policy block and its skill,
+  and a test pins the words and that neither text, nor any shipped file of the module, names another knowledge tool.
 - **Reads that change nothing** was too strict for a store that maintains its own index. `mempalace`'s `search`
   never changes a stored drawer but rewrites the program's bookkeeping, so the rule above reads "no stored content
   changed", with the exception recorded in the module's spec and accepted by the owner.
