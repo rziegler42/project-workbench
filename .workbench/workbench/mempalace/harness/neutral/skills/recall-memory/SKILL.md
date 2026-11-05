@@ -39,7 +39,8 @@ this project. Search the palace only when it does not answer.
 
 Whose note it is. A result is about this project only when its wing or its source file names this project. Any other
 result, including one with no wing or an unclear source, is background: it is not a fact about this project. When you
-quote it, say which wing it came from. Narrow with `--wing <name>` when you know the wing for this project.
+quote it, say which wing it came from. When the project names its wing, a search is limited to it unless you give
+another with `--wing <name>`. Narrow with `--wing <name>` when you know the wing for this project.
 
 If the command refuses or fails:
 
