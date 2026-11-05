@@ -40,9 +40,9 @@ In:
   kit's preview-digest helper, the corpus and `wb doctor` that plan delivers. The author found no use in increments A and B of the work
   of the installer-commands plan, so the two plans do not wait on each other. Increment C needs the record of increment A of
   `2026-11-03-delegated-levels-and-risk-profiles` accepted, since that record says where the bridge's hook lives.
-- Increments A and B edit `packages/workbench/` (scripted pass, owner's release), and so does increment C if a declared hook field is
+- Increments A-A and B edit `packages/workbench/` (scripted pass, owner's release), and so does increment C if a declared hook field is
   chosen. The others edit the installer, tests and documents.
-- The `action-review` shadow hook (built by another session and merged into `main`, commit `8dc30ca`; not yet installed by the owner)
+- The `action-review` shadow hook (built by another session and merged into `main`, commit `8dc30ca`; since installed by the owner, whose shadow log it writes)
   is a `PermissionRequest` hook for `Bash` that records what the review engine would say about each prompted command and decides
   nothing (`docs/specs/action-review.md`, "The shadow hook"). It is the first module to ship a harness hook. A command that raises a
   prompt is exactly what the level system makes prompt: a module's `asks` minimum, a key at `ask`, and the floor's asks. The installer
@@ -55,7 +55,8 @@ In:
 - **A spec is never left false between increments.** An increment that changes what a command offers updates the lines of the specs
   that its change makes false (`command-permissions.md`, the module's own spec, `module-contract.md`) in the same commit; increment D
   then replaces what remains "intended" and checks the whole.
-- Increments A, B and C are separable: the owner may drop any of them.
+- Each later increment depends on the one before it (A, then A-A, then B, then C, then D), so the owner may stop the plan after any
+  increment; a stopped plan leaves every earlier increment complete, and no increment can be dropped from the middle.
 - Testing is targeted; before any wider run the author states what could break outside the tested area.
 
 ## Completion criteria
@@ -64,8 +65,8 @@ In:
    is accepted before increment C. No accepted record is rewritten; a superseded record changes only its status line, once its
    successor is accepted.
 2. The owner-run arguments of `mempalace` and `remote-runner` declare `levels` and `preview`, or the module spec names why they stay
-   `block`, and the pairing of the `remote-runner` commands `submit` and `fetch` with the two remote checkpoints is decided by an
-   accepted record and built as it says.
+   `block` (increment A-A), and the pairing of the `remote-runner` commands `submit` and `fetch` with the two remote checkpoints is
+   decided by an accepted record (increment A) and built as it says (increment A-A).
 3. `wb verify` stays a check that runs nothing of the module: it refuses a declaration that does not fit the permission system (a
    declared `preview` that names no argument or an owner-run argument, `ask` offered without a preview, an unknown danger class)
    and warns on a shipped skill or agent that says to never run an argument whose declared levels include `ask` or `none`. The
@@ -80,19 +81,16 @@ In:
 
 ## Increments
 
-### Increment A — First-party modules declare their owner-run arguments' levels
+### Increment A — The pairing of the remote commands with their checkpoints (a decision record)
 
-**Outcome:** `mempalace init` and `mine` and `remote-runner fetch-overwrite` declare `levels` and a `preview`, or the module spec
-names why they stay `block`; and the pairing of the `remote-runner` commands `submit` and `fetch` with the checkpoints
-`submit-remote-job` and `fetch-remote-output` is decided and built as the record says (the spec and decision 5 of
-`2026-11-02-one-permission-registry-and-key-model` assign it to this work).
-**Dependencies:** `2026-11-02-permission-system-consistency` completed (the kit's preview-digest helper).
-**Affected areas:** the declarations, helpers and tests of `mempalace` and `remote-runner` under `packages/workbench/`; their specs;
-`docs/decisions/` (the pairing record); `docs/specs/mempalace.md` and `docs/specs/remote-runner.md` (the levels and previews of the
-three arguments and the pairing, in the same commit as the change); and, as the record decides, `workbench/levels.py`,
-`workbench/declarations.py`, `docs/specs/module-contract.md` and `docs/specs/command-permissions.md` ("Not built").
+**Outcome:** a `Proposed` decision record says which key governs each of the acts of `submit` and `fetch` of `remote-runner`, with every
+shipped default and offered level unchanged, and the owner has decided what to do with it. *(Split on 2026-11-05 after the first round
+of the review: the first text of A also built the levels of three arguments and asked for "one or two local commits", and an
+increment is one verified, reviewed local commit. The build is the nested increment A-A.)*
+**Dependencies:** `2026-11-02-permission-system-consistency` completed (it is).
+**Affected areas:** `docs/decisions/` (the pairing record, and the index row) and nothing else.
 **Steps:**
-0. **The pairing.** The checkpoints `submit-remote-job` and `fetch-remote-output` (read `block`) and the commands
+1. **The pairing.** The checkpoints `submit-remote-job` and `fetch-remote-output` (read `block`) and the commands
    `wb run remote-runner submit` and `fetch` (read `none`, with the module's `asks` rendering a prompt either way) govern the same
    acts and keep a level each; the registry does not record the pairing since it would name a module
    (`2026-11-03-conformance-tests-name-modules-and-module-pins-follow-the-levels`, decision 2), and the spec records it. Draft a
@@ -101,9 +99,25 @@ three arguments and the pairing, in the same commit as the change); and, as the 
    say when a checkpoint reads `block` while its command reads `none`; or keep the spec's record as it is. State the consequence of
    each, and recommend one. Mapping the commands to the checkpoints (extending `checkpoint_of` to an argument that carries an `asks`)
    would move the commands' default from `none` to `block`, a change of a shipped default that this plan does not make: it is a
-   separate candidate for the owner's own scope and decision (see Deferred work), and the record may name it as such. Stop for the
-   owner. If a mechanism is accepted, write the tests first, build it, and update the registry, the module contract and the specs in
-   the same commit.
+   separate candidate for the owner's own scope and decision (see Deferred work), and the record may name it as such.
+2. Stop for the owner, who decides the record. Writing it does not accept it (`accept-decision` is a checkpoint at level `ask`).
+**Verification:** the document check.
+**Evidence:** the one local commit, with the trailer `Plan: 2026-11-03-module-conformance-levels-and-hooks#A`.
+
+### Increment A-A — First-party modules declare their owner-run arguments' levels
+
+**Outcome:** `mempalace init` and `mine` and `remote-runner fetch-overwrite` declare `levels` and a `preview`, or the module spec
+names why they stay `block`; and the pairing is built as the accepted record of increment A says (the spec and decision 5 of
+`2026-11-02-one-permission-registry-and-key-model` assign it to this work). If the owner keeps the spec's record as it is, there is
+nothing to build for the pairing.
+**Dependencies:** A, with its record decided by the owner.
+**Affected areas:** the declarations, helpers and tests of `mempalace` and `remote-runner` under `packages/workbench/`; their specs
+`docs/specs/mempalace.md` and `docs/specs/remote-runner.md` (the levels and previews of the three arguments and the pairing, in the
+same commit as the change); and, as the record decides, `workbench/levels.py`, `workbench/declarations.py`,
+`docs/specs/module-contract.md` and `docs/specs/command-permissions.md` ("Not built").
+**Steps:**
+0. If the record chose a mechanism: write the tests first, build it, and update the registry, the module contract and the specs in the
+   same commit.
 1. For each argument decide with the accepted records whether a preview can show the effect honestly (what `init` would write, what
    `mine` would index, what `fetch-overwrite` would replace). Where it can, write the test first, then the preview and the digest
    recomputed in the helper's lock using the kit helper.
@@ -111,13 +125,12 @@ three arguments and the pairing, in the same commit as the change); and, as the 
 3. One scripted pass for the package edits; the owner starts it and releases the approvals.
 **Verification:** the modules' own tests, `tests/test_verify.py`, `tests/test_owner_argument_levels.py`, and, for step 0, the tests of
 the mechanism the record chose (`tests/test_levels_facts.py`, `tests/test_declarations.py`, `tests/test_permissions_drift.py`).
-**Evidence:** one or two local commits (the record, then the build), each with the trailer
-`Plan: 2026-11-03-module-conformance-levels-and-hooks#A`.
+**Evidence:** the one local commit, with the trailer `Plan: 2026-11-03-module-conformance-levels-and-hooks#A-A`.
 
 ### Increment B — Module conformance: `wb verify` and the author guide
 
 **Outcome:** a module author, first-party or external, is told when the module does not fit the permission system.
-**Dependencies:** A.
+**Dependencies:** A-A.
 **Affected areas:** `workbench/verify.py`, `workbench/declarations.py`, `workbench/levels.py`, `workbench/wbkit/` (the conformance
 test, and its own kit test; the kit names no module), `tests/test_verify.py`, `tests/test_levels_facts.py`,
 `docs/specs/module-contract.md`, the `review-engine`
@@ -211,7 +224,7 @@ what could break outside the tested area; module test roots are part of that sta
   untouched, and `wb doctor` reports a relaxed dangerous key as a risk.
 - **A digest that does not bind the preview's content makes `ask` a rubber stamp.** Each preview is tested to change when its
   content changes and to be recomputed inside the command's lock.
-- **Package edits (A, B and maybe C) make the shipped approval stale** until the owner's release; the refusal line of
+- **Package edits (A-A, B and maybe C) make the shipped approval stale** until the owner's release; the refusal line of
   `2026-11-02-permission-system-consistency` (increment J) then explains it.
 - **`wb verify` must never run candidate module code.** It checks the declaration and the shipped text only; verification comes
   before approval and pinning, and a throwaway project is not a sandbox. The preview's behaviour is a conformance test in the kit,
@@ -222,9 +235,25 @@ what could break outside the tested area; module test roots are part of that sta
 
 ## Review record
 
-Not reviewed yet. This plan was split out of `2026-11-02-permission-levels-for-every-command` (2026-11-03), whose review (4 rounds on
-the bridge, 9 findings) covered the earlier text, including the pairing step (round 3 and 4 findings, applied here) and the
-non-executing `wb verify` (round 2, applied here); it did not cover this split. A review of this plan needs its own bound.
+- **Earlier review.** This plan was split out of `2026-11-02-permission-levels-for-every-command` (2026-11-03), whose review (4 rounds on
+  the bridge, 9 findings) covered the earlier text, including the pairing step (round 3 and 4 findings, applied here) and the
+  non-executing `wb verify` (round 2, applied here); it did not cover this split.
+- **Review of this plan (2026-11-05, the review engine on the owner's `standard` profile, model `gpt-5.6-terra`; round 1 of 3, which found
+  `changes_needed`).** Two findings, both checked against the plan and the project's rules and both applied:
+  - **Major.** Increment A asked for "one or two local commits" although an increment is one verified, reviewed local commit. Increment A
+    is now the pairing decision record alone, and its build is the nested increment A-A; B now depends on A-A, and the places that named
+    A for the build (the package-edit assumptions and risk, completion criterion 2) name A-A.
+  - **Minor.** The sentence that A, B and C are separable contradicted the chain of dependencies. It now says that the plan may be
+    stopped after any increment and that no increment can be dropped from the middle.
+  - **Also corrected on reading (not a finding of the engine):** the shadow hook is no longer "not yet installed by the owner".
+- **Read against the code of 2026-11-05 by the author,** after the review profiles plan was built: the plans and records this plan depends
+  on are completed or accepted (`2026-11-02-permission-system-consistency`, `2026-11-03-delegated-levels-and-risk-profiles` and its
+  record), and `tests/test_owner_argument_levels.py`, `tests/test_levels_facts.py` and `tests/test_gate_corpus.py` exist. Not checked: the
+  text of each increment against the current `declarations.py` and `module-contract.md`, which gained `review_options` and its prefix
+  rule; increment B's tests must keep the installer's tests free of module names (`tests/test_boundary.py`, which allows only
+  `tests/test_levels_facts.py` and `tests/test_permissions_drift.py` to name them).
+- **Left for the owner:** a second round (it runs on `standard`; a third would run on `second-opinion`), or the
+  owner's approval of the plan as it stands. This plan is not approved.
 
 ## Deferred work
 
