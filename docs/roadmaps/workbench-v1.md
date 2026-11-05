@@ -943,15 +943,33 @@ the agent; and a status-line advisor shows, when the context is large and a unit
 its result written, no review round or finding open, no failing check), the `/compact` line to use. Compacting stays the owner's act.
 **Dependencies:** `compaction-guidance` and `claude-harness` complete. The facts about Claude Code's hooks and status line that the
 design rests on (what a hook receives after a compaction, what the status line is given about the size of the context, whether it may
-call the workbench) are checked against the current documentation and an installed version before the plan is written.
+call the workbench, whether a hook in a project settings file needs folder trust, and which file wins when two set a status line) are
+checked against the current documentation and an installed version before the plan is written.
 **Boundary:** the neutral state command in `code-work`; the Claude-specific hook and advisor, shipped as files under `harness/claude/`
-of a module (in `code-work`, or in a small module that requires it, which the plan decides) and registered by the owner by hand, as the
-shadow hook is; and the rule that says when a moment is good. What the hook hands the agent is read from the approval records and the
+of a module (in `code-work`, or in a small module that requires it, which the plan decides) and registered by the owner by hand in the
+project's per-clone local settings file. They only advise, so they do not need the user-level file that a hook which decides or records
+for the owner needs, as the shadow hook does; a hook that ever decides stays at the user level. The status-line entry replaces a
+user-level one, which the plan checks; and the rule that says when a moment is good. What the hook hands the agent is read from the approval records and the
 plan's header (paths, increment labels, statuses), never the text of a plan, which may have been written by someone else. Not part of
 it: anything that triggers a compaction, a hook that blocks an automatic compaction (a later candidate, if measuring the size at which
 compaction happens shows a need), a change to the thresholds of automatic compaction, a rendered "Compact Instructions" section,
 installer rendering of a `SessionStart` or status-line entry, and opencode.
 **Promotion trigger:** the owner chooses to begin and the documentation facts above are checked.
+
+### module-hook-rendering — Hooks that a module declares, rendered by the installer
+
+**Outcome:** a module that ships a hook for a harness declares it (the event, the matcher, the timeout and the shipped file), and
+`wb install` writes the entry into the harness's per-clone settings file when that harness is in use, so that the owner does not paste it
+by hand. The hook runs through the launcher, so its bytes are pinned, and it is shown in plain terms when the module is approved,
+previewed before it is written, and removed or replaced on upgrade. A harness that carries no hooks receives none.
+**Dependencies:** `claude-harness` complete, and `compaction-support` complete with its hook proven in use, or a second module that
+declares a hook.
+**Boundary:** the generic hook declaration in the module manifest, the harness layout fields that say which events and keys a harness
+accepts, the launcher form for a shipped hook, the approval display and the preview, the removal on upgrade, `wb doctor`, and the specs
+that describe them; a security review of the installer's new write is part of it. Not part of it: a hook that decides or records for the
+owner (those stay in the user-level configuration, outside a project's reach), a status-line entry written without the owner's choice
+(it replaces a user-level one, so it is an opt-in), any change to the edit gate or the command gate, and a harness other than Claude.
+**Promotion trigger:** one of the two dependencies above is met and the owner chooses to begin.
 
 ## Deferred
 
