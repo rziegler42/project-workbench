@@ -134,6 +134,22 @@ no other refusal of `search` changed, and that no other test or document matches
   sentence and has no case of its own.
 - **Not checked by the reviewer:** the test counts as reported (I ran them) and that the clone's other files equal the project's.
 
+**Increment B.** Reviewer: the `reviewer` agent (read-only), one round of the cap of 3, no blocking finding. It was given the plan, the diff of the
+block and its test, the diff of the spec sentence, the verification as run, and the points to attack, and not my conclusions. It confirmed that
+the diff changes only line breaks and inserts ` -- "<question>"` after the command, so every rule of the bullet is kept word for word; that the
+form is exactly what `parse_search` accepts (zero or more option-value pairs, then `--`, then one query); that the regex that pins the commands
+the block names still matches only `wb run mempalace search`; and that `<question>` and the quotes sit inside a code span, so Markdown does not
+read them as a tag.
+
+- **Applied:** none needed.
+- **Rejected, with the reason:** the suggestion to consider an "[options]" in the block's form (the reviewer left it as a judgement call and
+  would leave it out): the block has no spare line, the plan's non-goals do not ask for it, and the refusal of Increment A and the skill list
+  the options.
+- **Noted:** the new test repeats the 14-line limit that another test already checks (harmless); the spec sentence describes text that is
+  not released until the owner's copy, which is the planned order.
+- **Not checked by the reviewer:** the test results as reported (I ran them), the rendered `AGENTS.md` after the owner's upgrade, and how an
+  agent behaves with the new line, which is completion criterion 4.
+
 ## Deferred work
 
 - A retry rule for the agent ("one reworded retry when the results do not answer"), which is not needed until the agent searches with the right form.
@@ -160,4 +176,24 @@ the change all 172 tests of the `mempalace` test directory pass (169 before, 3 n
 
 **Review:** one round with the `reviewer` agent, no blocking finding (see the review record).
 
-**Not done in A:** the owner's copy and release, the commit, and Increment B.
+**Not done in A:** Increment B. A was copied and released by the owner, the stale shipped records were removed after the owner approved the list,
+and A is committed as `66455be`.
+
+**Increment B, built in a scratch clone (2026-11-05); not yet copied into the project, released or committed.** Base commit of the clone:
+`66455be`. Changed in the clone: `files/blocks/policy.md` (the first bullet now names the command as `wb run mempalace search -- "<question>"`;
+the bullet is reflowed, every rule is kept word for word and the block is still 14 lines) and `tests/test_mempalace_guidance.py` (one test: the
+form occurs once in the flattened block, which has at most 14 lines). In the project, docs only: a clause in the first bullet of "The policy
+block and the skill" in `docs/specs/mempalace.md`.
+
+**Verification as run.** Tests first: the new test failed on the unchanged block. After the change all 173 tests of the `mempalace` test directory
+pass (172 before, 1 new). `wb run code-work check`: 94 plans, no problems. Not run: the whole suite and `tests/test_boundary.py`, because no
+installer file changes.
+
+**Hashes of the two files at the end of the clone's work** (SHA-256): `policy.md`
+`7086fbfba9563092de28cc0ed4cbb747f7f38a6104a6da0606aa1240c3b007be`, `test_mempalace_guidance.py`
+`c45b18e7b027f4d91b5a7174fc6a0f90c2e636d68fd4629586600615ddbc0439`.
+
+**Review:** one round with the `reviewer` agent, no blocking finding (see the review record).
+
+**Not done in B:** the owner's copy and release, the commit, the owner's `wb upgrade`, and completion criterion 4 (a fresh session whose agent
+searches, with what it typed recorded in the spec's evidence).

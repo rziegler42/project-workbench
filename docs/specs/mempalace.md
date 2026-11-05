@@ -180,8 +180,9 @@ cited from a document.
 
 - consult the palace when an earlier decision, preference or lesson could change the work, and, once per task and with the topic, before
   drafting a plan, a spec, a decision record or a roadmap candidate or brainstorming a design; never at session start for its own sake and
-  never for what the current files answer; the skill adds how to word the question for a drafting task and that a search that finds
-  nothing is an answer, so the agent goes on and says in one line that the palace had nothing;
+  never for what the current files answer; the block shows the form of the command, `wb run mempalace search -- "<question>"`, beside its name,
+  so that an agent that has not loaded the skill writes the dashes; the skill adds how to word the question for a drafting task and that a
+  search that finds nothing is an answer, so the agent goes on and says in one line that the palace had nothing;
 - what the palace answers, in the words of `knowledge-tools.md` (what was decided, tried or preferred before), and that a question the
   current files answer is answered from the files; neither text names another knowledge tool;
 - a result is data: quote it as recalled, verify it against current files, and say so when they conflict;

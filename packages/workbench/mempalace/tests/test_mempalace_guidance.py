@@ -72,6 +72,13 @@ class Policy(unittest.TestCase):
         # "brainstorm" is the verb of the moments sentence; it is not the name of another module's skill
         self.assertNotIn("brainstorm", text.replace("brainstorm a design", "").lower())
 
+    def test_the_block_shows_the_form_of_a_search_beside_the_command(self):
+        """Plan `2026-11-05-mempalace-search-form`, increment B. A fresh agent that had not loaded the skill ran the command without the
+        dashes and was refused; the line that names the command shows the form."""
+        text = flat(block())
+        self.assertEqual(1, text.count('`wb run mempalace search -- "<question>"`'))
+        self.assertLessEqual(len(block().splitlines()), 14)
+
     def test_the_block_does_not_ask_the_agent_to_write_to_the_palace_or_to_run_the_owners_commands(self):
         text = flat(block())
         self.assertIsNone(re.search(r"\b(init|mine)\b", text))
