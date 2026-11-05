@@ -184,4 +184,14 @@ the change is in one tool that nothing imports and touches no installer file.
 
 **Review:** one round, no blocking finding (see the review record).
 
-**Not done:** the owner's copy and release (below), the commit, and Increment B.
+**Not done in A:** Increment B. A was released by the owner, the stale shipped records were removed after the owner approved the list, and A
+is committed as `45a3277`.
+
+**Increment B (2026-11-05).** The owner replaced their copy of `report.py` (identical hash to the committed file, mode 444 kept) and the
+agent ran it, read-only. It printed `commit` 9 labelled; `remove` 6 labelled (right 6); previews 5 labelled (right 1, wrong 4, all
+false declines by `confirm_present`); 5 unlabelled waiting; test set 29 of 29 with no false approve; cutover "not yet (not enough labels
+for commit; not enough labels for remove)". The Evidence entry is in `docs/specs/action-review.md`. **A correction:** the plan's Goal
+and the decision expected `remove` at 7, on the assumption that the five previews were the four wrong ones plus none labelled right;
+one preview was labelled `right`, so the confirmed removals are 6 and 4 more are needed, not 3. The plan's body is not changed
+(it needs a new approval) and the accepted decision is not rewritten; the entry in the spec states the correction. Verification: the
+entry's numbers equal the printed output; no file other than the spec and this plan changed.

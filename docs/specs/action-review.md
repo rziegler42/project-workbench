@@ -1312,3 +1312,20 @@ owner's labels measure; the bound is unchanged and remains the owner's to tighte
   report prints no timings. **An open design point this raises, to be decided when the hook that decides is designed and not before:** how
   an unconfirmed removal is treated, either in the rule (approve it when its facts are valid, since it deletes nothing) or by the hook (a
   command without `--confirm` never reaches the engine and a fixed rule passes it). Neither is built, and the bound is unchanged.
+- **The report with the previews apart, on the owner's store (2026-11-05).** The owner copied the released `tools/report.py` (SHA-256
+  `feceff72bdd1bf26185b9c96f42929f0402ceb5166e87dd4c99238becc14f815`, at commit `45a3277`, plan
+  `2026-11-05-shadow-report-counts-previews-apart`, increment A) beside `shadow_store.py` in a directory of their own, replacing the earlier
+  `report.py` (the files there are read-only, so the owner replaced it through a temporary name), and the agent ran
+  `python3 -B report.py` there (Python 3.15.0 on Darwin 25.6.0); the report reads the four store files and prints counts only.
+  **Result.** `commit`: labelled 9 (right 9, wrong 0), not enough labels (10 needed). `remove` (confirmed removals): labelled 6 (right 6,
+  wrong 0), 0 false declines, 0 false approves, not enough labels (10 needed). "unconfirmed removals (previews)": labelled 5 (right 1,
+  wrong 4), false declines 4, all by `confirm_present`, false approves 0. Waiting: unlabelled 5, skipped 0. Test set: 29 of 29 cases,
+  0 false approves (in any run), 0 false declines. Prompted 110 (reviewed 37, not reviewed 73). The cutover line read "not yet (not
+  enough labels for commit; not enough labels for remove)"; no line reported false declines over the bound. **A correction to what was
+  expected.** The decision `2026-11-05-unconfirmed-removals-are-outside-the-action-review-measure` and the plan expected `remove` to stand at
+  7 labelled, because the five previews were thought to be the four false declines and the seven others confirmed removals. The store
+  holds five previews, one of them labelled `right`, so the confirmed removals are 6 and the minimum needs 4 more, not 3. The decision's
+  rule is unchanged; only its arithmetic was off, and an accepted record is not rewritten. **What is still needed for the cutover
+  line:** 1 more labelled commit, 4 more labelled confirmed removals, and the 5 waiting commands labelled (they may supply some of
+  these). The bound, the labels and the cutover rule are unchanged. **Limits:** counts only; which removals are previews is read from the
+  collected `confirm` fact; the sample is this project's own work.
