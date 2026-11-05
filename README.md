@@ -6,8 +6,10 @@ electronics, HDL, research, CAD, 3D printing and reverse engineering, with two s
 harnesses described in the [harness modules specification](docs/specs/harness-modules.md).
 
 > **Status:** early implementation. The installer, verifier, owner approvals, base project,
-> ownership and upgrade, unfinished-write recovery, the Claude harness and the first
-> content modules are built and tested. Nothing is released yet.
+> ownership and upgrade, unfinished-write recovery, the Claude harness, per-command permission
+> levels, plan approval (with an optional delegated approval) and the first content modules are
+> built and tested, as are an independent review engine with model bridges and the owner's
+> review profiles. Nothing is released yet.
 
 ## Quick start
 
@@ -52,8 +54,23 @@ from an agent session.
 
 The first-party modules are in `packages/workbench/`. Among them, `claude` places the harness
 files, `groundwork` adds specs, roadmaps, decisions and references, `code-work` adds plans and
-the increment loop, and `mempalace` lets an agent search the owner's memory but never write to
-it.
+the increment loop, `safe-git` makes local commits of exactly the named files, and `mempalace`
+lets an agent search the owner's memory but never write to it.
+
+### Independent reviews
+
+`review-engine` asks a second model to review a plan, spec, roadmap or decision record a
+bounded number of times and keeps what came back in a sealed state. It reaches a model only
+through a bridge module (`ask-codex` for the Codex program, `ask-ollama` for an Ollama server).
+`action-review` uses the same bridges to judge one command before it runs; it is in a shadow
+period, in which it records what it would say and decides nothing.
+
+Which bridge, model, effort and options a round uses comes from one file that only the owner
+writes, `~/.config/project-workbench/review-profiles.json`, in the guarded store. It names
+profiles and, for each kind of review, a ladder of them, so that a later round can run on a
+different profile than the first. A project tracks no review setting. `wb install` writes a
+default file when there is none, and `wb doctor` checks it. The format and the rules are in
+the [review profiles specification](docs/specs/review-profiles.md).
 
 ## Development
 
