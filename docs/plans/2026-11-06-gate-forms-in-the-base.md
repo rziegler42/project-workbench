@@ -1,6 +1,6 @@
 # Tell the agent which command forms the gate accepts, in the base
 
-Status: Proposed
+Status: In Progress
 Created: 2026-11-06
 Candidate: none (a correction that follows from a finding: agents try command forms the gate refuses, then retry in another form; the accepted record `2026-11-06-command-gate-and-prose-in-module-calls` shows the same defect in a live run)
 Specs: repository-boundary
@@ -132,7 +132,18 @@ next live session, and whether an installed project can take it by upgrade is no
   (`repository-boundary.md`), so it needs a decision and a spec change of its own.
 - A closing hint on the gate's script and heredoc refusals ("edit the file with the edit tool"), which is a code change to the gate.
 - A pointer from the plan-approval and decision-acceptance bullets in the module blocks to this section.
-
 ## Result
 
-Empty until work starts.
+**Increment A (2026-11-06), done in the live tree on top of commit `fbe5465`; not yet committed.**
+
+- Built: the section "Commands the gate accepts" in `base/AGENTS.md` (text as in "The section", 14 lines of text under the heading, cap 24); `tests/test_base_guidance.py` (8 tests that read the real
+  base: heading once and in order, one policy marker, line cap, the five statements by bullet, the closed plain-read form, single quotes and never reword, retry only for `names` and `gap`, no harness or
+  module option); the bullet in `docs/specs/repository-boundary.md` ("The base") now names the section and says the file is seeded, so an installed project does not receive a later change.
+- Verification as run: the new tests failed before the section (1 failure, 6 errors, the heading absent) and pass after (8). `tests.test_base`, `tests.test_blocks`, `tests.test_installplan` and
+  `tests.test_manifest` (85) pass; `tests.test_upgradeplan` (63) passes; `wb run code-work check` found no problems. Not run: the whole suite (no code changed); an upgrade of an installed
+  project; an agent following the section.
+- Review: the `reviewer` agent, one exchange, no blocking finding, no security risk named. Applied: the bullet-1 and retry assertions now read their own bullet, and "Use that form once" and "If it is
+  refused again" are pinned (the first run pinned words that bullet 2 also holds). Not applied, because the section is the approved text and a change needs a new approval: bullet 2's "a commit
+  subject" can be read as banning the literal single-quoted `wb run` form that the gate frees, and "ordinary prose can trip it" is true of `approve-plan` and the `wb run <command> <argument>` keys, not of
+  the single-word keys (`wb install`, `wb add`). Both overstate and neither causes a refusal. Fixing the wording needs the owner's new approval of the plan; they are left for a later change.
+- Left for the owner: the word to commit increment A; then increment B (this repository's `AGENTS.md`).

@@ -101,7 +101,8 @@ workbench code is (`trust-and-approval.md`, the distribution is the trust root);
 module, has no type and has no approval record. Its tree hash and the workbench version are
 recorded in the committed manifest. *(Built by `base-and-manifests`.)*
 
-- `AGENTS.md`: the project's policy headings and the `policy` slot marker. Seeded.
+- `AGENTS.md`: the project's policy headings and the `policy` slot marker, and a section "Commands the gate accepts" that tells an agent which command forms the command gate
+  accepts (plan `2026-11-06-gate-forms-in-the-base`). Seeded, so an installed project keeps the file it has and does not receive a later change to the section.
 - `README.md`: a stub for the project's purpose, how to start, how to test and where its documents are, with
   placeholders in angle brackets and links only to `AGENTS.md` and `docs/README.md`. It names no module and holds no
   slot marker. Seeded.
