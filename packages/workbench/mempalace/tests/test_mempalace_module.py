@@ -14,6 +14,7 @@ ROOT = support_install.ROOT
 PACKAGE = os.path.join(ROOT, "packages", "workbench")
 MODULE = os.path.join(PACKAGE, "mempalace")
 HELPER = "helper/mempalace"
+NOTES_HELPER = "helper/mempalace-notes"   # the second command (plan `2026-11-06-mempalace-notes`, increment A)
 
 
 def declaration():
@@ -32,12 +33,12 @@ class Declaration(unittest.TestCase):
         self.assertEqual("module", document["type"])
         self.assertEqual(["memory-recall"], document["provides"])
         self.assertEqual(["mempalace"], document["helpers"])
-        self.assertEqual([HELPER], document["ships"])
+        self.assertEqual([HELPER, NOTES_HELPER], document["ships"])
         for field in ("requires", "writes", "blocks", "slots", "layout", "checks", "approval"):
             self.assertNotIn(field, document)
 
     def test_the_command_takes_the_two_read_commands_and_the_owners_two(self):
-        self.assertEqual(["mempalace"], list(declaration()["commands"]))
+        self.assertEqual(["mempalace", "mempalace-notes"], list(declaration()["commands"]))   # the second is tested in test_mempalace_notes_module.py
         command = declaration()["commands"]["mempalace"]
         self.assertEqual(["status", "search", "mine", "sync", "preview"], command["arguments"])
         self.assertEqual(["mine", "sync"], command["owner"])
@@ -55,7 +56,7 @@ class Declaration(unittest.TestCase):
                 dirs.remove("tests")  # the module's own tests are not part of what it installs
             for name in files:
                 found.append(os.path.relpath(os.path.join(base, name), MODULE))
-        self.assertEqual(sorted(["module.json", HELPER, "files/blocks/policy.md",
+        self.assertEqual(sorted(["module.json", HELPER, NOTES_HELPER, "files/blocks/policy.md",
                                  "harness/neutral/skills/recall-memory/SKILL.md"]), sorted(found))
 
     def test_the_registry_offers_block_and_ask_for_mine_and_none_for_the_preview_and_has_no_init(self):

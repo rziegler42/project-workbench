@@ -24,6 +24,7 @@ ROOT = support_install.ROOT
 PACKAGE = os.path.join(ROOT, "packages", "workbench")
 MODULE = os.path.join(PACKAGE, "mempalace")
 HELPER = "helper/mempalace"
+NOTES_HELPER = "helper/mempalace-notes"
 SELECT = ("claude", "mempalace")
 
 
@@ -86,7 +87,7 @@ class Launcher(support_install.InstallBase):
                            out, err, distribution=self.dist, seed=support_install.SEED, home=self.home)
         return code, out.getvalue(), err.getvalue()
 
-    def helper_run(self, place, *arguments):
+    def helper_run(self, place, *arguments, command="mempalace"):
         """``(code, standard output, standard error)`` of the pinned helper, run from `place` with only the fakes on
         its `PATH` and a `HOME` whose model is cached."""
         before = os.getcwd()
@@ -95,7 +96,7 @@ class Launcher(support_install.InstallBase):
         with tempfile.TemporaryFile() as stdin, tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
             with unittest.mock.patch.dict(os.environ, {"PATH": os.pathsep.join([self.vendor, self.tools]),
                                                        "HOME": self.home}):
-                code = launch.launch(self.guarded, project.read_id(place), "mempalace", os.path.realpath(place),
+                code = launch.launch(self.guarded, project.read_id(place), command, os.path.realpath(place),
                                      list(arguments), stdin=stdin, stdout=out, stderr=err)
             out.seek(0)
             err.seek(0)
@@ -126,6 +127,50 @@ class Launcher(support_install.InstallBase):
         self.assertEqual(("", 0), (err, code), shown)
         self.assertEqual(["status"], self.calls()[0]["argv"])
         self.assertEqual(["search", "--results", "5", "--wing", "proj", "--", "why SQLite"], self.calls()[1]["argv"])
+
+    def test_the_notes_helper_lands_byte_for_byte_and_is_pinned_by_its_own_command(self):
+        """Plan `2026-11-06-mempalace-notes`, increment A: the second command of the module."""
+        place = self.place()
+        self.assertEqual(0, self.install(place)[0])
+        with open(os.path.join(MODULE, NOTES_HELPER), "rb") as handle:
+            source = handle.read()
+        self.assertEqual(source, self.read(place, ".workbench", "workbench", "mempalace", "helper", "mempalace-notes"))
+        pin = pins.lookup(self.guarded, project.read_id(place), "mempalace-notes")
+        self.assertEqual((".workbench/workbench/mempalace/" + NOTES_HELPER, "workbench install", 1), (pin.path, pin.pinned_by, pin.kit))
+        self.assertEqual(pins.hash_bytes(source), pin.sha256)
+
+    def test_the_installed_notes_helper_answers_wings_and_list_through_the_launcher_and_starts_no_program(self):
+        place = self.place()
+        self.assertEqual(0, self.install(place)[0])
+        code, shown, err = self.helper_run(place, "wings", command="mempalace-notes")
+        self.assertEqual(("", 0), (err, code), shown)
+        self.assertIn("no notes yet", shown)
+        folder = os.path.join(self.home, ".local", "share", "project-workbench", "mempalace", "proj")
+        os.makedirs(folder)
+        with open(os.path.join(folder, "n.txt"), "w") as handle:
+            handle.write("title: Through the launcher\nkind: idea\nwing: proj\nwritten: 2026-11-01\nupdated: 2026-11-02\n\nBody.\n")
+        code, shown, err = self.helper_run(place, "list", "--wing", "proj", command="mempalace-notes")
+        self.assertEqual(("", 0), (err, code), shown)
+        self.assertIn("Through the launcher", shown)
+        self.assertTrue(shown.startswith("<<recalled-data "))
+        self.assertEqual([], self.calls())
+
+    def test_a_verb_that_is_not_built_is_refused_by_the_launcher_for_the_notes_command(self):
+        place = self.place()
+        self.assertEqual(0, self.install(place)[0])
+        for argument in ("save", "keep", "review", "drop", "merge", "--help"):
+            errors = io.StringIO()
+            self.assertEqual(1, commands.run(self.guarded, ["mempalace-notes", argument], errors, cwd=place))
+            self.assertIn("is not an argument of the command", errors.getvalue())
+
+    def test_an_edited_notes_helper_is_refused(self):
+        place = self.place()
+        self.assertEqual(0, self.install(place)[0])
+        with open(os.path.join(place, ".workbench", "workbench", "mempalace", *NOTES_HELPER.split("/")), "ab") as handle:
+            handle.write(b"\n# edited\n")
+        with self.assertRaises(launch.LaunchError) as caught:
+            self.helper_run(place, "wings", command="mempalace-notes")
+        self.assertIn("has changed since it was pinned", str(caught.exception))
 
     def test_another_argument_is_refused_by_the_launcher_and_the_program_is_not_started(self):
         place = self.place()
@@ -194,6 +239,7 @@ class Launcher(support_install.InstallBase):
         self.assertEqual([".workbench/workbench/mempalace/files/blocks/policy.md",
                           ".workbench/workbench/mempalace/harness/neutral/skills/recall-memory/SKILL.md",
                           ".workbench/workbench/mempalace/helper/mempalace",
+                          ".workbench/workbench/mempalace/helper/mempalace-notes",
                           ".workbench/workbench/mempalace/module.json"], found)
 
 

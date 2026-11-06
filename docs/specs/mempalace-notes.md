@@ -2,7 +2,8 @@
 
 Status: Draft. Written on 2026-11-06 from a conversation with the owner, reviewed in three rounds by the review engine (twelve findings, all applied), and
 **approved by the owner on 2026-11-06 as a design**. It is not built: it stays `Draft` because it does not yet describe what is true, and it changes nothing in
-`mempalace.md` until a plan builds it. The `[open]` items below are for the plan to settle with the owner.
+`mempalace.md` until a plan builds it. The plan `2026-11-06-mempalace-notes` is building it; the points it settled with the owner on 2026-11-06 (the command
+shape, the levels, two confirmations, the way the remote is read) are marked in place, and the `[open]` items that remain are for the later increments.
 
 Each statement carries one of three marks, so that the owner can see what is theirs:
 
@@ -76,6 +77,11 @@ Four kinds of use drive it, all from the owner:
 
 - **The notes folder** is `~/.local/share/project-workbench/mempalace` (under `XDG_DATA_HOME` when that is set). [agreed; the XDG clause is a call]
   It is made at the first save, one level at a time, mode 0700, with no link followed, as the lock directory is. It is not made at install. [agreed]
+  The read verbs (`wings`, `list`, `read`) make nothing and open the folder without following a link at its last component, and each wing folder under it
+  the same way (a wing folder that is a link is not followed and counts as absent). A link above the notes folder (a dotfile manager makes `~/.local` or
+  `~/.local/share` one) is followed on the read side. The policy for the components above the folder, for creation, is settled with increment B. [call]
+  `wings` counts a malformed note as a reviewed note or a draft by where it is, takes `newest` from every state including the archive, and prints only
+  wing names that pass the wing-name rule. `read` refuses a `<wing>/<name>` that conflicts with `--wing`. [call]
 - **One subfolder per wing**, named by the wing. A wing is a project or a topic. A topic wing is named when a note is saved (a domain, a piece of hardware,
   a shared pool); nothing about any domain is built in. [agreed]
 - **Drafts and reviewed notes are apart.** Reviewed notes are in `<notes>/<wing>/`, which `mine` files. Drafts are in `<notes>/.drafts/<wing>/`, expired
@@ -103,7 +109,11 @@ For a note about a project, the wing is, in this order: [agreed]
 
 The block applies to notes only. `search`, `mine` and `sync` keep their folder-name default. [agreed] Because that default can differ from the wing a note is
 filed under (a clone in a folder named differently from the repo), the output of a save names the wing and, when a plain `search` would use another, says so
-and gives the `--wing` form. [call] The remote is read from `.git/config` with the strict reader or from `git`, whichever the pin allows. [open]
+and gives the `--wing` form. [call] The remote is read from `.git/config` as text, never by starting `git`. [agreed on 2026-11-06] The kit's strict reader (`safefs`) refuses any path that touches
+git metadata, so the helper reads that one file with the same checks: `.git` and the file are opened without following a link, the file must be regular, have
+no other hard link, and be within the size limit, and anything else counts as no remote. A line ends at a newline only, as git ends it. A url with no path
+(a host alone, or a host and a port) names no repo. A project whose `.git` is a file (a worktree or a submodule) is not a project to the kit, so the question
+does not arise. [call]
 
 A wing name is at most 64 letters, digits and `._:-`, and does not start with `-` or `.`, as `search` already requires.
 
@@ -119,8 +129,17 @@ written: <date>
 updated: <date>
 source: <where it came from; for research the book, the locator, the retrieval date and the content hash>
 verify: <a command or check that shows it is still true; for a fact about a machine>
+revises: <the reviewed note a revision draft replaces>
+new-despite: <the note it overlaps, when --new was used>
+
 <body>
 ```
+
+The header is the lines of the form `key: value` at the top; it ends at the first line that is not one, and a **blank line then separates it from the body**
+(a body line shaped like a header line, directly after the header, is read as an unknown header key, so the note is malformed). The keys are the ones in the block
+above and no others; a repeated key, a missing required key (`title`, `kind`, `wing`, `written`, `updated`), a kind outside the list, a date that is not a
+`YYYY-MM-DD` date, a `wing` that differs from the folder's, a title over 120 characters, any control character, text that is not UTF-8, or a file over 16 KiB
+makes the note **malformed**: it is refused whole and named, and the other notes are still listed. [call]
 
 - A note is self-contained and substantive. A note under a minimum size (about 300 characters) is refused, because the program skips files that are too
   short and because short stubs that echo a query degrade search (reports from other users of the program, `2026-11-06`, unverified). [call]
@@ -131,7 +150,11 @@ verify: <a command or check that shows it is still true; for a fact about a mach
 
 ### Commands
 
-All are arguments of `wb run mempalace notes` and need the folder rules and the wing rule above. [call: the shape]
+All are arguments of a second command of the `mempalace` module, **`mempalace-notes`** (`wb run mempalace-notes <verb>`), with its own helper and one argument per verb,
+because permission keys are per argument and `save` and `keep` need different levels. [agreed on 2026-11-06 when the plan's first open point was settled; the
+name was the plan's recommendation] They need the folder rules and the wing rule above. The settled points of the plan are: the levels are as the section below
+gives them; `keep` and the filing are two confirmations inside one review exchange; the helper reads the `origin` remote from `.git/config` with the strict
+file reader and starts no process. [agreed on 2026-11-06]
 
 | verb | does | who | writes |
 |---|---|---|---|
@@ -151,14 +174,14 @@ first argument of `merge` must name a **draft**; a reviewed or an archived note 
 same wing as its target (another wing is refused), and refuses to merge a draft into itself. With several wings holding drafts, `review` and `keep` are
 run once per wing; the journal, the lock and the digest are per wing. [call]
 
-Filing is the existing `mine <notes>/<wing> --wing <wing>`, with its preview and digest. Whether `keep` and `mine` are one confirmation or two is [open];
-two is the starting position, because `keep` changes files and `mine` changes the palace.
+Filing is the existing `mine <notes>/<wing> --wing <wing>`, with its preview and digest. `keep` and `mine` are two confirmations, inside one review exchange,
+because `keep` changes files and `mine` changes the palace. [agreed on 2026-11-06]
 
 `save` takes the wing (the project's by default), the kind, the title and the body, and the source and verify lines when they apply, and `--into` or `--new`.
 The keys for `save`, `drop` and `merge` are agent-run writes into an untracked folder. `command-permissions.md` gives an agent-run argument the levels `block` and
 `none` and the default `none`, so saving is on once the module is installed and the rules are rendered, and the owner sets a key to `block` to stop it; the
-writes are drafts and never the palace. A default of `block` would be a change to that spec and is not made here.
-The class and levels are for the builder to settle with `command-permissions.md`. [open]
+writes are drafts and never the palace. A default of `block` would be a change to that spec and is not made here. The read verbs (`wings`, `list`, `read`) and
+`review` are agent-run reads; `keep` is owner-run, offers `ask` with `review` as its preview argument, and defaults to `block`. [agreed on 2026-11-06]
 
 ### Saving: update before create
 
@@ -168,7 +191,7 @@ The class and levels are for the builder to settle with `command-permissions.md`
     more than one; the message lists the candidates;
   - `save` without `--into` and without `--new` first compares the new text with the wing's notes by word overlap, with no model; if a note overlaps by more
     than a limit (about 60 percent of the shorter text's words), it refuses and lists the overlapping notes, so the agent chooses `--into` or `--new`;
-  - `--new` creates a note even when one overlaps, and is recorded in the note as `new despite: <name>`, so review can see the choice.
+  - `--new` creates a note even when one overlaps, and is recorded in the note as `new-despite: <name>`, so review can see the choice.
 - An addition to a draft is a dated paragraph added to it. An addition to a reviewed note is a **revision draft**: a copy of the note with the paragraph added,
   marked `revises: <name>`, which replaces the reviewed note when it is kept. A reviewed note is never edited in place, so what is filed was reviewed.
   `save` never rewrites or removes earlier text. Merging and rewording happen only at review. [call]

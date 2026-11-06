@@ -17,11 +17,11 @@ MemPalace the owner has installed, and gives the owner commands to build it. It 
 | type | `module` |
 | provides | `memory-recall` |
 | requires | nothing |
-| helpers | `mempalace` (expected on `PATH`; a missing one is a warning at install) |
+| helpers | `mempalace` (expected on `PATH`; a missing one is a warning at install; only the first command starts it) |
 | fills | `policy` (a short block) |
 | writes | nothing outside its namespace |
-| ships | `helper/mempalace`; the module also holds one neutral skill, `recall-memory`, and the policy block |
-| commands | `mempalace`, runtime `python`, kit 1; `arguments`: `status`, `search`, `mine`, `sync`, `preview`; `owner`: `mine`, `sync` |
+| ships | `helper/mempalace` and `helper/mempalace-notes`; the module also holds one neutral skill, `recall-memory`, and the policy block |
+| commands | `mempalace`, runtime `python`, kit 1; `arguments`: `status`, `search`, `mine`, `sync`, `preview`; `owner`: `mine`, `sync`. And `mempalace-notes`, runtime `python`, kit 1, with its own helper; `arguments`: `wings`, `list`, `read` (the read side of the notes of `mempalace-notes.md`; plan `2026-11-06-mempalace-notes`, increment A; the other verbs come with increments B and C) |
 
 It is run as `wb run mempalace status` and `wb run mempalace search ...` by an agent, and `mine` and `sync` by
 the owner. There is no `init` (see "mine" below). The installer pins the helper when the owner confirms the install.
@@ -322,7 +322,7 @@ tracked document.
 
 ## Acceptance criteria
 
-- The module verifies, and its approval request lists the helper, the command and the `owner` arguments.
+- The module verifies, and its approval request lists the helpers, the commands and the `owner` arguments.
 - With a fake `mempalace` on `PATH`, `status` and `search` return its text bounded and marked as data. A missing
   program is a refusal; a non-zero exit, a timeout and output over the bound are failures that start from the
   program's words or none. For `status` and `search` the refusal says "mempalace is not set up on this machine, so the search is skipped"

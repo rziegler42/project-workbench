@@ -1,10 +1,10 @@
 {
   "approver": "workbench-release",
-  "declaration_hash": "7782cbb98551268bb89104df2ee4ce19da6c17faac3d1c97a4dd1c8e526e48a2",
+  "declaration_hash": "0140a3dea41860ec63804b63b4d146b67b7e603d3f02b3ecd3a6a62dd3945161",
   "format": 1,
   "kind": "module",
   "subject": "workbench/mempalace",
   "time": "1970-01-01T00:00:00Z",
-  "tree_hash": "7fc9803b748687f15c689946057030a82d55af50e30a8915845d614e402e5c32",
+  "tree_hash": "27cf620386d7934d7072e637ac040f9f81e0b8957b5a98c73d60f8a82588e88c",
   "workbench_version": "0.1.0"
 }

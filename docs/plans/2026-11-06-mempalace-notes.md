@@ -216,4 +216,33 @@ agent-run arguments is a change from what the owner was told in the design conve
 
 ## Result
 
-Empty until work starts.
+**Increment A (2026-11-06), done in a scratch clone at commit `25ff1cc`; not yet copied, released or committed.**
+
+- The owner settled the four open points on 2026-11-06, each as recommended: (1) a second command of the module, `mempalace-notes`, with its own helper and one argument
+  per verb; (2) the read verbs and `review` agent-run at `block`/`none` with default `none`, `save`, `drop` and `merge` the same, and `keep` owner-run at `ask` with
+  `review` as its preview, default `block`; (3) two confirmations, `keep` and then `mine`, inside one review exchange; (4) the `origin` remote read from `.git/config`
+  as text with no process started. The answers are recorded in `mempalace-notes.md` (the Commands paragraph and the places that were `[open]`).
+- Changed in the clone (seven files): the new helper `helper/mempalace-notes` (`wings`, `list`, `read`; the wing rule; the note format and its strict parser; opens
+  without following a link; the output cleaned and wrapped as recalled data; nothing written, no process), `module.json` (the second command, both helpers in `ships`),
+  three new test files (`support_notes.py`, `test_mempalace_notes_read.py` with 38 tests, `test_mempalace_notes_module.py` with 7) and updates to
+  `test_mempalace_module.py` and `test_mempalace_launcher.py` (four launcher tests for the second command: byte-for-byte install, its own pin, an answer through the
+  real launcher, unbuilt verbs refused, an edited helper refused). Changed in the live tree: `docs/specs/mempalace.md` (the table rows and the approval sentence) and
+  `docs/specs/mempalace-notes.md` (the command name, the settled points, the format, and what the read side does).
+- Deviations from the plan's wording, for the owner to see: (1) the plan lists "the notes folder is made at first use" under A. Only `save` makes anything and `save`
+  is Increment B, so A makes nothing and its tests show that; the creation code and its tests, with acceptance criteria 3 and 13's folder-link case, belong to B.
+  (2) The owner settled "the strict file reader" for `.git/config`; the kit's `safefs` refuses any path that touches git metadata, so the helper reads that one file
+  with the same checks (`.git` and the file opened without following a link, regular file, one hard link, size limit). (3) The read side follows a link above the
+  notes folder (a dotfile manager makes `~/.local/share` one) and refuses a link at the folder itself and at each wing folder; the policy for creation is B's.
+- Verification as run: the new tests could not load before the helper existed; after it, `python3 -B -m unittest discover -s packages/workbench/mempalace/tests -p
+  'test_mempalace_*.py'` in the clone gave 345 tests, all passing (49 of them the new notes tests and 14 launcher tests); the four repository tests
+  `tests.test_owner_argument_run`, `test_rendering`, `test_settingscmd` and `test_permissions_drift` (176) pass in the clone; `wb run code-work check` passes. Not run:
+  the whole suite; a real session with a real notes folder (nothing writes one until B).
+- Review: the `reviewer` agent, one exchange. No blocking finding. Applied: the `.git/config` reader is as strict as the kit's (with a hard-link test); a url with no path
+  (a host, or a host and a port) names no repo, and a url with a port, a user or credentials still does; a line ends at a newline only; the read of a note loops to the end
+  of the file; `read` refuses a `<wing>/<name>` that conflicts with `--wing`; the spec now says the blank line after the header is required and settles
+  `new-despite`; two weak tests were replaced; the stale `[open]` marks and the singular approval sentence in `mempalace.md` were corrected. Not applied: wrapping the
+  wing names `wings` prints (they pass the wing-name rule, at most 64 characters). The reviewer ran nothing.
+- Left for the owner: the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/pna_install_files.py`,
+  seven files, four of them new, only if their hashes are those recorded), the release approvals (`wb preview release-approvals`, `wb release-approvals --digest`), the
+  removal of the stale records after you approve the list, then "commit a"; after the commit `wb upgrade` and `wb rerender` (the rendered rules gain the keys
+  `wb run mempalace-notes wings`, `list` and `read` at `none`).
