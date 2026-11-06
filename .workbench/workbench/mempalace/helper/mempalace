@@ -605,17 +605,24 @@ def owner_directory(cwd, root, value, allow_root, hint=True):
 
 def saved_palaces(home):
     """The `palace_path` the program saved in its own configuration, from either place it keeps one. The file is
-    the owner's and is read only to find a path to compare, so an ordinary JSON reader is enough; a file that
-    cannot be read this way adds nothing."""
+    the owner's and is read only to find a path to compare, so an ordinary JSON reader is enough, and a link is followed for this one read
+    (a dotfile manager makes the file a link, and the content only decides which path is compared; the resolved file is still opened
+    without following a link). A file that cannot be read this way adds nothing, and neither does a saved value that cannot be a path."""
     for parts in ((".config", "mempalace", "config.json"), (".mempalace", "config.json")):
         try:
-            data = read_file(os.path.join(home, *parts), MAX_CONFIG, "the program's config.json")
+            data = read_file(os.path.realpath(os.path.join(home, *parts)), MAX_CONFIG, "the program's config.json")
             document = json.loads(data.decode("utf-8")) if data is not None else {}
-        except (Refused, ValueError, RecursionError):
+        except (Refused, ValueError, RecursionError, OSError):
             continue
         saved = document.get("palace_path") if isinstance(document, dict) else None
         if isinstance(saved, str) and saved and "\0" not in saved:
-            yield os.path.expanduser(saved)
+            try:
+                os.fsencode(saved)
+            except ValueError:   # a lone surrogate, which no path can hold (UnicodeEncodeError is a ValueError)
+                continue
+            saved = os.path.expanduser(saved)
+            if os.path.isabs(saved):   # a relative one means a place relative to the program's own working directory, which is not ours
+                yield saved
 
 
 def program_palaces(palace):
@@ -907,7 +914,7 @@ class Lock:
             fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError:
             os.close(descriptor)
-            raise Refused("another mempalace run is in progress")
+            raise Refused("another mempalace run is in progress (or a process that an earlier run's program started may still hold the lock)")
         self.descriptor = descriptor
         return self
 
@@ -1034,7 +1041,7 @@ def owner(command, args, stdin, out, err, cwd):
             if same:
                 refuse_planted_config(path)
                 refuse_palace_overlap(path, palace)
-        except (Refused, OSError):
+        except (Refused, ValueError, OSError):
             same = False
         if not same:
             raise Refused("the directory changed after it was checked; nothing was %s" % ("filed" if command == "mine" else "removed"))
