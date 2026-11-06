@@ -1,6 +1,6 @@
 # Tell the agent which command forms the gate accepts, in the base
 
-Status: In Progress
+Status: Completed
 Created: 2026-11-06
 Candidate: none (a correction that follows from a finding: agents try command forms the gate refuses, then retry in another form; the accepted record `2026-11-06-command-gate-and-prose-in-module-calls` shows the same defect in a live run)
 Specs: repository-boundary
@@ -155,4 +155,7 @@ next live session, and whether an installed project can take it by upgrade is no
 - Verification as run: a byte comparison of the two sections says identical (15 lines each); `git diff --numstat` for `AGENTS.md` says 15 added, 0 deleted; `wb run code-work check` found no problems.
   Not run: the test suite (a prose file changed and increment A pinned the text), `wb acknowledge` (the owner's).
 - Review: the `reviewer` agent, one exchange, no findings and no security risk named. It compared by reading, not by byte, so the byte comparison above is mine.
-- Left for the owner: the word to commit increment B, then `wb acknowledge` for the changed seeded file.
+- Committed as `df7924a` (trailer `Plan: 2026-11-06-gate-forms-in-the-base#B`).
+- Left for the owner: `wb acknowledge` for the changed seeded file.
+
+**Plan (2026-11-06): completed.** Completion criteria 1 to 6 are met by increments A and B with the verification recorded above; each increment's recorded verification stands, as nothing in B changed A's inputs.
