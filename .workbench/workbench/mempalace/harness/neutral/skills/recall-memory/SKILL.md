@@ -66,11 +66,16 @@ lesson: wait for the work that then succeeds.
    characters, so write it self-contained, with its reason. `--source <text>` says where it came from, and `--verify <text>` is a command or
    check that shows a fact about this machine is still true. If the answer names another wing for a plain search, use that `--wing <name>` form
    when you search for these notes.
-3. If the save is refused because the note holds credential-shaped text, reword it (for example, "the API key, not recorded") and save
+3. When the note it concerns holds something the owner accepted, put your own finding or guess in a note of its own (kind `finding` or `open question`), say in it
+   which note it concerns, and do not extend the accepted note with it.
+4. If the save is refused because the note holds credential-shaped text, reword it (for example, "the API key, not recorded") and save
    again. Do not ask the owner. If the save is refused because the text overlaps a note, extend that note with `--into <name>`; use `--new`
    only when it is a real near-duplicate worth keeping apart. If the name is taken, choose another title; if the note is shorter than 300
    characters, lengthen it. Do not ask the owner about any of these. If it is refused because the project has no wing, tell the owner what the
    message says to create. Put no personal detail in a note.
+5. If the harness refuses the command itself, and the refusal says the command names a key (rule `names`), the cause is letters in your text that match a command the
+   owner has set to `ask`, such as the word "keeps" or "examine". Do not reword the note to get past it: write the text to a file with your file tool and give it
+   to `save` on standard input (`--body - < <file>`), a temporary file outside the repository that you delete after the save, and keep the other words of the command short; if that is refused too, tell the owner what was refused.
 
 Finding notes again. After a compaction, or in a new session on work that has no spec, run `wb run mempalace-notes list` and read the notes
 that apply: they are the record of what was worked out, and the conversation may have lost it. Read one with `wb run mempalace-notes read <name>`.
@@ -85,13 +90,15 @@ Reviewing the drafts. Ask the owner about notes at most once per session, and on
 it. Ask at a natural pause, such as the end of a task. Run `wb run mempalace-notes review`: it prints how many drafts there are, then only the ones
 that need a look, each with its reason and a suggestion, and a digest. `wb run mempalace-notes wings` shows the wings that hold drafts; review each
 one with `wb run mempalace-notes review --wing <name>` (without `--wing` it is this project's wing). Show the owner that in a few plain lines and
-ask for one short answer ("drop 3, merge 2 into 1, the rest are fine"), and ask in the same question whether to file the rest.
+ask for one short answer ("drop 3, merge 2 into 1, the rest are fine"), and ask in the same question whether to file the rest. After the owner has answered,
+do not ask again whether to file: where the levels below allow it, run `keep`, then the `mine` steps.
 Apply the answer with `wb run mempalace-notes drop <name>` and `wb run mempalace-notes merge <draft> <into>`, then run `review` again for the
 new digest.
 
 Moving the drafts into the folder the palace is built from is the owner's: run `keep` only when the owner has said to and `wb settings`
 prints `level wb run mempalace-notes keep: ask`. Then run `wb run mempalace-notes keep --wing <name> --digest <digest>`, with the digest that the last
-`review` printed, as one command and nothing else. The owner confirms it. At any other level the harness refuses it, and the owner runs it in a
+`review` printed, as one command and nothing else. Run `keep` and each `mine` step as one command with nothing appended: no pipe, no redirect, no `cd` and no `2>&1`.
+The owner confirms it. At any other level the harness refuses it, and the owner runs it in a
 terminal. It prints the folder that is then filed with the `mine` steps below, with `--wing <name>`.
 
 If the command refuses or fails:
