@@ -1,6 +1,6 @@
 # Say how work is placed in roadmaps, and when a plan needs no candidate
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-06
 Candidate: none (decision 6 of the accepted record `2026-11-06-roadmaps-are-scoped-by-finish-line`, a text change with no roadmap of its own)
 Specs: groundwork, code-work
