@@ -213,6 +213,35 @@ declaration and the set of keys change.
 **Verification:** as in D.
 **Evidence:** the one local commit, with the trailer `Plan: 2026-11-05-mempalace-per-clone-use#E`.
 
+### Increment F — Close the findings of the security review of D and E
+
+**Outcome:** the folder rules of `mine` and `sync` cannot be walked around by another spelling of a path; the folder is checked again just before the
+program starts; a helper killed without warning no longer leaves the lock free while the program runs.
+**Dependencies:** E.
+**Affected areas:** `helper/mempalace` (`owner_directory`, `refuse_palace_overlap`, `run_owner_captured` and the point where the program is started), the tests
+of D and E, `docs/specs/mempalace.md`, the package's release records.
+**Steps:**
+1. Write the tests first and see them fail, on the case-insensitive filesystem of the scratch clone and with spellings made by hand where it is
+   case-sensitive. Refused, for both `mine` and `sync`, at a terminal and at `ask`: `.GIT`, `.Git`, `.WORKBENCH` and `.WorkBench/local` (inside the project);
+   the project root and its parent in another case, without `--allow-project-root`; the palace folder, a subfolder of it and a folder holding it in another
+   case; the same with composed and decomposed Unicode in a name. A folder that only looks like one of these (`.github`, a sibling named `palace2`) is still
+   allowed.
+2. Compare paths by identity, not by spelling: `os.path.samefile` or the device and inode of each path and of its parents against `.git`, `.workbench`, the
+   root and each palace, with the case-folded and normalised spelling as a second test where a path does not exist yet. Keep the messages.
+3. Check the folder again immediately before the program starts, after the digest is verified inside the lock: the same `lstat`, `realpath` and identity
+   checks, and the same device and inode as the first check, else refuse with nothing started. A test swaps the folder for a link between the digest check
+   and the start. The race is narrowed, not closed, because the program takes a path; say so in the spec.
+4. Keep the lock for as long as the program lives: the descriptor is inherited by the program (or the program is made to end when the helper dies), so a
+   second run is refused after the helper was killed with `SIGKILL`. A test kills a helper that runs a fake program that sleeps, then starts a second
+   confirmed run and expects the refusal. If this cannot be done within the helper's pinned imports and forbidden words, stop and report, and record it as a
+   documented limit instead.
+5. Edit `docs/specs/mempalace.md`: the folder rules compare by identity; the second check and what remains of the race; the lock and a killed helper.
+6. Run the verification and ask the `reviewer` agent to read the change, and ask the owner whether the security reviewer looks at the fix, because a fix is
+   new attack surface. Write the result in this plan.
+7. The owner's steps as in D.
+**Verification:** as in D.
+**Evidence:** the one local commit, with the trailer `Plan: 2026-11-05-mempalace-per-clone-use#F`.
+
 ## Verification for the plan as a whole
 
 Each increment's recorded verification stands. After E the owner runs the live checks of criterion 8 at the level `ask`, and the result goes into the spec's
@@ -223,7 +252,7 @@ because the declaration and the permission keys change.
 
 - An agent can start a `mine` or a `sync` at `ask`: a write to the owner's palace, bound to a digest that covers names and counts and not contents, and
   confirmed by the owner in the harness's prompt. `--mode convos` can file session transcripts the same way. The folder rules stay; the owner reads the
-  folder before confirming. A security review of D and E is the owner's to ask for.
+  folder before confirming. A security review of D and E was run at the owner's request on 2026-11-06; its findings are the work of increment F.
 - `sync` deletes drawers. It is a dry run by default, limited to the project's wing, and applied only with a matching digest; the program also removes the
   drawers of files that are now gitignored, which the preview shows.
 - The default wing changes what a search covers for a clone with no file. It narrows it, which is the safer default.
