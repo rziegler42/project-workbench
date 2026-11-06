@@ -101,3 +101,21 @@ Empty until a review is asked for.
 ## Result
 
 Empty until work starts.
+
+**Increment A (2026-11-06), done in a scratch clone at commit `e53997f`; not yet copied, released or committed.**
+
+- Built: in the block, the form of `save` and `read`, the seven kinds, `--body -`, "put your own finding or guess in a note of its own, not in a note that holds something the owner
+  accepted", and "run each command the skill gives as one command with nothing appended (no pipe, no redirect, no `cd`)", all within the 24-line limit (a bullet was lengthened; no line was added
+  past the limit). In the skill: step 3 (an own finding goes in a note of its own, which says which note it concerns), step 5 (a refusal by the rule `names` is not met by rewording: the text goes to a
+  temporary file outside the repository and reaches `save` with `--body - < <file>`, or the owner is told), "do not ask again whether to file", and "run `keep` and each `mine` step as one command with
+  nothing appended". Changed in the clone (four files): the block, the skill, `test_mempalace_notes_guidance.py` (eight new tests, with the review's fixes pinned) and `test_mempalace_guidance.py`
+  (`BLOCK_COMMANDS` gains `read`). In the live tree: `docs/specs/mempalace-notes.md` (two bullets under "When a note is saved", and a follow-up line under "Evidence").
+- Hand check of step 3 of the increment: `save --title x --kind finding --body -` fed from `/dev/null`, with the three owner arguments at `ask`, was allowed by the gate (the helper refused only the empty body
+  and wrote nothing), so the file route is in the skill.
+- Verification as run: the eight new tests failed before the text existed; afterwards the module suite in the clone gave 496 tests, all passing, and `tests.test_permissions_drift` and `tests.test_rendering`
+  (107) pass. Not run: the whole suite; an agent following the text (the next live run).
+- Review: the `reviewer` agent, one exchange, no blocking finding. Applied: "run `keep`, then the `mine` steps" is conditional on the levels; the temporary file is outside the repository and deleted
+  after the save; the block's sentence says what it covers (the commands that move or file notes) without naming `mine`. Not applied: naming `keep` and `mine` in the block, because an earlier test
+  pins that the block never names `mine`; a cosmetic docstring. The reviewer ran nothing.
+- Left for the owner: the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/nf_install_files.py`, four files, only if their hashes are those recorded), the release approvals,
+  the removal of the stale records after you approve the list, then "commit a"; after the commit the upgrade and the rerender.

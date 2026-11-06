@@ -341,6 +341,13 @@ The owner does not read notes to approve them. [agreed]
 - **A researcher's run.** A research agent saves the ideas it distils, each with its source, locator, retrieval date and content hash, as drafts. It does not
   file them; the owner reviews. The note says it came from outside sources. [agreed]
 - **A dead end.** A path tried and dropped is saved as `explored` or `dead end`, so the next researcher does not repeat it. [call]
+- **The agent's own finding.** When the note it concerns holds something the owner accepted, the agent's finding or guess goes in a note of its own (`finding` or
+  `open question`) that says which note it concerns; the accepted note is not extended with it. The live run of 2026-11-06 showed a guess added to a `decision`. [call]
+- **Forms and refusals (plan `2026-11-06-notes-live-run-fixes`, increment A).** The always-loaded block shows the form of `save` and `read` and the seven kinds, because
+  the live run showed a fresh agent spending about ten calls guessing them. `keep` and each `mine` step are run as one command with nothing appended (no pipe, no
+  redirect, no `cd`, no `2>&1`). The question about filing is asked once, with the review question. A command the gate refuses with the rule `names` is not met by
+  rewording the note: the text goes to a file and reaches `save` on standard input (`--body - < <file>`), which the gate was seen to allow, or the owner is told. The block
+  is 24 lines, its limit. Whether an agent follows this text is for the next live run. [call]
 
 ### Finding notes again
 
@@ -439,6 +446,9 @@ Defects found (for a follow-up, not a widening of the first plan): (1) the alway
 the three arguments at `ask`, the command gate refuses any command whose text, prose included, contains a word with their letters in it, and the agent hid the cause by rewording;
 (3) the agent appended a pipe to `keep`, and the gate's hint omits `run`; (4) the agent mixed its findings into a note of the owner's accepted decision; (5) `review` prints
 "1 drafts"; (6) the filing asked a second question. Neither anti-goal was met: the run offered value and was not needy beyond (6).
+
+Follow-up: plan `2026-11-06-notes-live-run-fixes` addresses (1), (3), (4) and (6) in the block and the skill (increment A), the plural and the gate's hint (5 and the hint in 3) in
+increment B, and drafts the decision on (2) in increment C. Whether the new text is followed is for the next live run.
 
 ## What is left to the builder
 

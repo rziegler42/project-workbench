@@ -22,7 +22,7 @@ SCOPE = ("The palace answers what was decided, tried or preferred before",
 EXCEPTION = "even if the files seem to answer it: the palace may hold experience they lack"   # plan `2026-11-05-mempalace-search-despite-files`
 MOMENTS = "before you draft a plan, a spec, a decision record or a roadmap candidate, or brainstorm a design"
 BLOCK_LINES = 24   # was 14 until plan `2026-11-06-mempalace-notes`, increment D, which added two bullets on the notes; the block is loaded in every session, so it stays short
-BLOCK_COMMANDS = {"wb run mempalace search", "wb run mempalace-notes save", "wb run mempalace-notes list"}
+BLOCK_COMMANDS = {"wb run mempalace search", "wb run mempalace-notes save", "wb run mempalace-notes list", "wb run mempalace-notes read"}
 SKILL_COMMANDS = {"wb run mempalace search", "wb run mempalace status", "wb run mempalace preview", "wb run mempalace mine", "wb run mempalace sync",
                   "wb run mempalace-notes wings", "wb run mempalace-notes list", "wb run mempalace-notes read", "wb run mempalace-notes save",
                   "wb run mempalace-notes drop", "wb run mempalace-notes merge", "wb run mempalace-notes review", "wb run mempalace-notes keep"}
