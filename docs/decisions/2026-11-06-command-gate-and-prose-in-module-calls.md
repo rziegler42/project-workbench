@@ -1,6 +1,6 @@
 # The command gate and prose in a module call: a text fix now, and a narrow gate change that reverses one rejected alternative
 
-Status: Proposed
+Status: Accepted by Robert Ziegler <25854477+rziegler42@users.noreply.github.com> on 2026-11-06
 Date: 2026-11-06
 
 ## Context
@@ -72,7 +72,12 @@ Proposed; the owner decides. Nothing here is built, and this record's plan chang
    `remote-runner`'s configured profiles, which this record did not trace. This fixes `list --wing examine-test`,
    every plain word and every single-quoted prose in a notes command, and the commit subject that mentions a module key. **Decision 3 also skips the rest of the key's loop for such a call, not only the names test, so it would free a
    single-quoted literal that the gap rule refuses today** (`wb run safe-git commit --subject 'm*i*n*e'`); that is intended, because bash expands nothing inside single
-   quotes, and the security review must look at it. It is built by a plan of its own, with a Codex review and a security review. The gate's own text stays: the key's words are still in the command line; they are not read as naming it.
+   quotes, and the security review must look at it. **The exemption is conditional, not universal (Codex review, round 1).** A command receives it only when its declaration carries an explicit property, that its helper
+   takes its action from an exact first argument and re-dispatches nothing, and only while that property is verified: a check of the installer (`wb verify`) refuses the
+   property for a command whose pinned helper has changed since the owner approved it with that property, so a new or changed helper loses the exemption until it is
+   revalidated and approved again. Until a command declares the property, nothing about it changes. This puts the cost of module knowledge in a declaration the owner
+   approves, as `2026-10-21-module-code-lives-in-modules` requires, and not in the gate. How the property is declared and checked is for the building plan.
+   It is built by a plan of its own, with a Codex review and a security review. The gate's own text stays: the key's words are still in the command line; they are not read as naming it.
 4. **Do not free a double-quoted string now.** Bash expands `$`, a backtick and a backslash inside double quotes, so a rule that allows them needs a character class
    that must be exactly right; decisions 2 and 3 make it unnecessary for the notes. It may return as a later record.
 5. **Do not rename the keys or the commands.** A shorter or rarer name still occurs inside some word or across two, and `mempalace-notes` is already installed,
@@ -84,8 +89,9 @@ Proposed; the owner decides. Nothing here is built, and this record's plan chang
   a wing holds the letters. Rejected as the whole answer; kept as decision 2.
 - **Free an inert double-quoted string.** See decision 4.
 - **Rename `keep` or `mempalace-notes`.** See decision 5.
-- **Teach the gate which commands are declared and not owner-run.** Stricter than decision 3, but the gate does not read manifests, and
-  `2026-10-21-module-code-lives-in-modules` keeps module knowledge out of the installer. Rejected for now, as the module-arguments record did.
+- **Teach the gate which commands are declared and not owner-run.** The gate would read manifests, and `2026-10-21-module-code-lives-in-modules` keeps module knowledge out
+  of the installer. Decision 3's declared property is the narrow form of this: the module states one fact and the installer verifies it, and the gate reads only the
+  verified result. A hand-kept allowlist in the installer was also considered and rejected, because it goes stale when a module changes.
 - **Treat the values of named long options of one known command as data** (`--body`, `--title`, the search question). It needs the gate to know each command's
   options, which is the same module knowledge; rejected for the same reason.
 - **A `--body-file` argument of `save`.** The text would be a path on the command line and never prose. Standard input from a file does the same without a new
@@ -105,8 +111,9 @@ Proposed; the owner decides. Nothing here is built, and this record's plan chang
   (`tests/fixtures/gate_corpus.json`) before the change.
 - Bad: decision 2 relies on an agent following text, and does not remove the refusals of a plain word or of the letters of `mine` or `sync` in a title or a wing.
   The live run showed the agent ignoring one stated rule (the pipe on `keep`) and following another (`mine` as one command). A refusal is still safe: nothing runs.
-- Bad: decision 3 reverses a rejected alternative of an accepted record, so it widens a freed form from one command to every declared command. A wrong reading would
-  free a command that does run its argument; the guard, the plain first token and the per-helper tests are what stand against that.
+- Bad: decision 3 reverses a rejected alternative of an accepted record, so it widens a freed form from one command to every command that declares the property. A
+  wrong declaration would free a command that does run its argument; the guard, the plain first token, the verified declaration and the per-helper tests are what
+  stand against that. It also adds a declaration and a check to the module contract, which the building plan must specify and the owner approve.
 - Bad: until decision 3 is built, the notes' `keep`, and `mine` and `sync`, at `ask` refuse some ordinary prose. The owner can set them back to `block` between uses.
 - Neutral: the accepted records `2026-10-28-gate-reads-module-arguments` and `2026-10-27-command-gate-literal-arguments` keep their text; their status lines gain a
   clause only when the owner accepts this record.
