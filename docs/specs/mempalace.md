@@ -21,7 +21,7 @@ MemPalace the owner has installed, and gives the owner commands to build it. It 
 | fills | `policy` (a short block) |
 | writes | nothing outside its namespace |
 | ships | `helper/mempalace` and `helper/mempalace-notes`; the module also holds one neutral skill, `recall-memory`, and the policy block |
-| commands | `mempalace`, runtime `python`, kit 1; `arguments`: `status`, `search`, `mine`, `sync`, `preview`; `owner`: `mine`, `sync`. And `mempalace-notes`, runtime `python`, kit 1, with its own helper; `arguments`: `wings`, `list`, `read` (the read side of the notes of `mempalace-notes.md`; plan `2026-11-06-mempalace-notes`, increment A; the other verbs come with increments B and C) |
+| commands | `mempalace`, runtime `python`, kit 1; `arguments`: `status`, `search`, `mine`, `sync`, `preview`; `owner`: `mine`, `sync`. And `mempalace-notes`, runtime `python`, kit 1, with its own helper; `arguments`: `wings`, `list`, `read`, `save` (the notes of `mempalace-notes.md`; plan `2026-11-06-mempalace-notes`, increments A and B; the other verbs come with increment C) |
 
 It is run as `wb run mempalace status` and `wb run mempalace search ...` by an agent, and `mine` and `sync` by
 the owner. There is no `init` (see "mine" below). The installer pins the helper when the owner confirms the install.

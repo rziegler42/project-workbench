@@ -155,10 +155,25 @@ class Launcher(support_install.InstallBase):
         self.assertTrue(shown.startswith("<<recalled-data "))
         self.assertEqual([], self.calls())
 
+    def test_a_save_through_the_launcher_writes_a_draft_in_the_notes_folder_and_starts_no_program(self):
+        """Plan `2026-11-06-mempalace-notes`, increment B."""
+        place = self.place()
+        self.assertEqual(0, self.install(place)[0])
+        os.makedirs(os.path.join(self.home, ".local", "share"))
+        body = " ".join("launcher%03dx" % number for number in range(60))
+        code, shown, err = self.helper_run(place, "save", "--wing", "proj", "--title", "Through the launcher", "--kind", "idea", "--body", body,
+                                           command="mempalace-notes")
+        self.assertEqual(("", 0), (err, code), shown)
+        self.assertIn("saved draft proj/through-the-launcher", shown)
+        path = os.path.join(self.home, ".local", "share", "project-workbench", "mempalace", ".drafts", "proj", "through-the-launcher.txt")
+        with open(path, encoding="utf-8") as handle:
+            self.assertIn(body, handle.read())
+        self.assertEqual([], self.calls())
+
     def test_a_verb_that_is_not_built_is_refused_by_the_launcher_for_the_notes_command(self):
         place = self.place()
         self.assertEqual(0, self.install(place)[0])
-        for argument in ("save", "keep", "review", "drop", "merge", "--help"):
+        for argument in ("keep", "review", "drop", "merge", "--help"):
             errors = io.StringIO()
             self.assertEqual(1, commands.run(self.guarded, ["mempalace-notes", argument], errors, cwd=place))
             self.assertIn("is not an argument of the command", errors.getvalue())

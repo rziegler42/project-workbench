@@ -79,7 +79,9 @@ Four kinds of use drive it, all from the owner:
   It is made at the first save, one level at a time, mode 0700, with no link followed, as the lock directory is. It is not made at install. [agreed]
   The read verbs (`wings`, `list`, `read`) make nothing and open the folder without following a link at its last component, and each wing folder under it
   the same way (a wing folder that is a link is not followed and counts as absent). A link above the notes folder (a dotfile manager makes `~/.local` or
-  `~/.local/share` one) is followed on the read side. The policy for the components above the folder, for creation, is settled with increment B. [call]
+  `~/.local/share` one) is followed on the read side. **For creation** (`save`, increment B) the data directory must exist, because only the two levels under it
+  are made, and it is followed if it is a link; those two levels, the drafts, archive and locks folders and each wing folder are made one at a time with mode 0700
+  and are never followed if they are links, and a note file is made with mode 0600. A link where one of them belongs makes `save` refuse before anything is made. [call]
   `wings` counts a malformed note as a reviewed note or a draft by where it is, takes `newest` from every state including the archive, and prints only
   wing names that pass the wing-name rule. `read` refuses a `<wing>/<name>` that conflicts with `--wing`. [call]
 - **One subfolder per wing**, named by the wing. A wing is a project or a topic. A topic wing is named when a note is saved (a domain, a piece of hardware,
@@ -177,7 +179,18 @@ run once per wing; the journal, the lock and the digest are per wing. [call]
 Filing is the existing `mine <notes>/<wing> --wing <wing>`, with its preview and digest. `keep` and `mine` are two confirmations, inside one review exchange,
 because `keep` changes files and `mine` changes the palace. [agreed on 2026-11-06]
 
-`save` takes the wing (the project's by default), the kind, the title and the body, and the source and verify lines when they apply, and `--into` or `--new`.
+`save` takes `--title`, `--kind` and `--body` (the text, or `-` to read it from standard input), and, when they apply, `--wing` (the project's by default), `--source`,
+`--verify`, `--into <name>` with `--state reviewed|draft|all` to name which one when a reviewed note and its revision draft share the name, and `--new`. With
+`--into` the title and the kind are not needed and the note keeps its own. A new note's body is at least 300 characters and no note is over 16 KiB. The name for
+`--into` is `<name>` or `<wing>/<name>` with the call's own wing only; an extra path segment is refused. The text overlaps a note when more than 60 percent of the
+words (three or more letters or digits) of the shorter text are in the other. The answer says what was made, and, when a plain `search` in this clone looks in
+another wing, names that wing and the `--wing` form to use. The lock of a wing is the file `<notes>/.locks/<wing>`; `save` waits for it for about five seconds and
+then refuses with nothing changed, and the expiry skips a wing whose lock is held, without waiting for it. The expiry and `save` write only through a notes folder
+reached without following a link at either level under the data directory; the read verbs may read through one. A temporary file left by a killed run
+(`.tmp-…` in a folder) is ignored by every verb and counted as an ignored entry; the helper removes it only in the run that made it. `save` refuses a wing whose name
+differs only in case from an existing wing, because those are one folder on some file systems. `--source` and `--verify` are refused with `--into`, because they would
+be dropped. The body of an addition is added as `(added <date>) <text>` after a blank
+line. [call]
 The keys for `save`, `drop` and `merge` are agent-run writes into an untracked folder. `command-permissions.md` gives an agent-run argument the levels `block` and
 `none` and the default `none`, so saving is on once the module is installed and the rules are rendered, and the owner sets a key to `block` to stop it; the
 writes are drafts and never the palace. A default of `block` would be a change to that spec and is not made here. The read verbs (`wings`, `list`, `read`) and
@@ -219,8 +232,12 @@ writes are drafts and never the palace. A default of `block` would be a change t
     (`AKIA` and 16 upper-case letters or digits); a GitHub token (`ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_` or `github_pat_` and a long run of letters, digits and
     `_`); a Slack token (`xox` and a letter, a dash and a run); a Google API key (`AIza` and 35 characters); a JSON web token (three dot-separated base64
     parts, the first two beginning `eyJ`); a key in the `sk-` form (20 or more characters); an `Authorization: Bearer` header with a long token; a URL with a
-    user name and password before the `@`; and a line that assigns a value of 6 or more non-space characters to `password`, `passwd`, `secret`, `token` or
-    `api_key` (any case, with `:` or `=`).
+    user name and password before the `@`; and a line that assigns a value of 6 or more non-space characters, with `:` or `=` (a closing quote may come before it and an
+    opening quote after it), to a name that holds `password`, `passwd`, `secret`, `token`, `api_key`, `access_key` or `private_key` in any case, with any prefix or
+    suffix of letters, digits and underscores (`GITHUB_TOKEN=`, `client_secret =`, `DB_PASSWORD=`, `SECRET_KEY=`, `"password": "..."`). A token of the fixed shapes that a
+    wrap split over two lines is found by joining the last word of a line to the first word of the next, and is named at the first line. A token wrapped
+    over three or more lines, or a value that is only secret by meaning, is not found (a known limit). The title is scanned before the file name is made, so a name
+    that comes from a credential is never echoed.
   - **Report.** The message gives the line number and the pattern's name, never the text. A false positive (a note about passwords, say) is refused too, and
     the agent rewords; there is no override flag, because a flag would defeat the scan.
 - **At review, the helper flags personal-detail shapes**: email addresses, phone numbers, street-address shapes and long digit runs. A flagged note is never

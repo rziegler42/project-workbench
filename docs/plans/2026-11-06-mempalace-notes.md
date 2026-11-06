@@ -246,3 +246,35 @@ agent-run arguments is a change from what the owner was told in the design conve
   seven files, four of them new, only if their hashes are those recorded), the release approvals (`wb preview release-approvals`, `wb release-approvals --digest`), the
   removal of the stale records after you approve the list, then "commit a"; after the commit `wb upgrade` and `wb rerender` (the rendered rules gain the keys
   `wb run mempalace-notes wings`, `list` and `read` at `none`).
+
+**Increment A was committed as `5f56401`** (copied and released by the owner), and its install-state files as `c75ea38`.
+
+**Increment B (2026-11-06), done in a scratch clone at commit `c75ea38`; not yet copied, released or committed.**
+
+- Built: `save` in `helper/mempalace-notes`: the options `--title`, `--kind`, `--body` (the text, or `-` for standard input), `--wing`, `--into` with `--state`, `--new`,
+  `--source`, `--verify`; the notes folder made one level at a time (mode 0700, no link followed below the data directory, which must exist and is followed if it is a link),
+  notes written mode 0600 through a temporary file in the same folder (an exclusive hard link for a new note, a rename for an extended one, the folder fsynced); the file-name
+  rule and its collision check across reviewed, draft and archive; the minimum size; the credential scan; the overlap check; `--into` as a dated addition to a draft or a
+  revision draft of a reviewed note; the per-wing lock in `.locks/`; and the lazy expiry at the start of `save`, `list` and `wings`. `module.json` gains the argument `save`.
+- Changed in the clone (seven files): the helper, `module.json`, `tests/support_notes.py` (a fixed clock, the data directory), a new `tests/test_mempalace_notes_save.py`
+  (55 tests), and small updates to `test_mempalace_notes_module.py`, `test_mempalace_notes_read.py` and `test_mempalace_launcher.py` (a save through the real launcher). Changed in
+  the live tree: `docs/specs/mempalace.md` (one table row) and `docs/specs/mempalace-notes.md` (the creation policy, what `save` does, the credential patterns and their limits).
+- Pin: the helper's import set gains `fcntl` (the lock) and `time` (the wait for it), and the test that pins it says so.
+- Decisions of the builder, for the owner to see: `--body -` reads standard input; an addition is `(added <date>) <text>` after a blank line; `--title` and `--kind` are not
+  needed with `--into`; `--source` and `--verify` are refused with `--into` (they would be dropped); a wing that differs only in case from an existing wing is refused;
+  the expiry waits for no lock (one try, a held lock is skipped); the expiry and `save` write only through a notes folder reached without following a link at either level under
+  the data directory, while the read verbs may read through one; a `.tmp-` file left by a killed run is ignored and counted, and not removed later.
+- Verification as run: before the code 45 of the first 47 save tests failed; after it and the review's fixes `python3 -B -m unittest discover -s packages/workbench/mempalace/tests
+  -p 'test_mempalace_*.py'` in the clone gave 401 tests, all passing, and the four repository tests (176) pass. A flaw found by reading the code (`--into proj/b/c` resolved to
+  `c`) got a test that fails without its fix and passes with it. Not run: the whole suite; a real session writing to a real notes folder.
+- Review: the `reviewer` agent, one exchange. No blocking finding. Applied: the expiry rescans the drafts under the lock and tolerates a draft that is already gone; the expiry
+  does not wait; the expiry and `save` no longer write through a link at `project-workbench` or `mempalace`; the assignment pattern finds `GITHUB_TOKEN=`, `client_secret =`,
+  `DB_PASSWORD=`, `SECRET_KEY=` and `"password": "..."`; a token wrapped over two lines is found; the title is scanned before the name is made or echoed; `--source` and
+  `--verify` with `--into` are refused; the folder is fsynced; a wing that differs only in case is refused. Not applied: removing a `.tmp-` file left by a killed run (documented).
+  The reviewer ran nothing.
+- Open for the owner: whether to run the security review of this increment (it is the first code that writes files from input an agent chooses, and the credential scan is
+  the part that matters most); the plan asks again here.
+- Left for the owner: the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/pnb_install_files.py`,
+  seven files, one of them new, only if their hashes are those recorded), the release approvals, the removal of the stale records after you approve the list, then "commit b";
+  after the commit `wb upgrade` and `wb rerender` (the rendered rules gain the key `wb run mempalace-notes save` at `none`, so an agent can save drafts without asking; set
+  the key to `block` to stop it).

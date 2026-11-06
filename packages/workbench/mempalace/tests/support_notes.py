@@ -2,6 +2,7 @@
 
 No test starts a process, reaches a network or reads the owner's real home: `HOME` and `XDG_DATA_HOME` point into a temporary directory."""
 
+import datetime
 import io
 import os
 import tempfile
@@ -32,7 +33,12 @@ class Notes(unittest.TestCase):
         patch.start()
         self.addCleanup(patch.stop)
         os.environ.pop("XDG_DATA_HOME", None)
-        self.notes = os.path.join(self.home, ".local", "share", "project-workbench", "mempalace")
+        self.data = os.path.join(self.home, ".local", "share")
+        os.makedirs(self.data)
+        self.notes = os.path.join(self.data, "project-workbench", "mempalace")
+        patch = unittest.mock.patch.object(self.helper, "today", return_value=datetime.date(2026, 11, 6))   # a fixed clock: expiry must not depend on the day
+        patch.start()
+        self.addCleanup(patch.stop)
 
     # -- the project -------------------------------------------------------------------------------------------------------------
     def origin(self, url):
@@ -69,10 +75,10 @@ class Notes(unittest.TestCase):
         return found
 
     # -- running -----------------------------------------------------------------------------------------------------------------
-    def run_helper(self, *args, cwd=None):
+    def run_helper(self, *args, cwd=None, stdin=b""):
         """``(code, standard output, standard error)`` of ``mempalace-notes <args>`` run from the project."""
         out, err = io.StringIO(), io.StringIO()
-        code = self.helper.main(list(args), io.BytesIO(b""), out, err, cwd or self.root)
+        code = self.helper.main(list(args), io.BytesIO(stdin), out, err, cwd or self.root)
         return code, out.getvalue(), err.getvalue()
 
     def refused(self, *args, contains=""):
