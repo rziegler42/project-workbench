@@ -332,3 +332,47 @@ E, which the plan asks again at D. The last change (R3-F1) was not read by the r
 - Left for the owner: the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/pcc_install_files.py`,
   seven files, only if their hashes are those recorded), the release approvals, and after the commit `wb upgrade` and `wb rerender`: the rendered permission rules in
   `.claude/settings.local.json` still list `mempalace init` until the rerender, and the installed helper still has `init` until the upgrade.
+
+**Increment C was committed as `835da71`** (copied and released by the owner), and the upgrade, the rerender and the removal of the tracked `.workbench/mempalace.json` as `cb2b6cf`.
+
+**Increment D (2026-11-05), done in a scratch clone at commit `cb2b6cf`; not yet copied, released or committed.**
+
+- Changed in the clone (seven files, one new): `helper/mempalace`; `module.json` (`arguments` gain `preview`; `levels`: `{"mine": ["ask"]}`; `preview`: `"preview"`); the skill; and the tests
+  `test_mempalace_ask.py` (new, 40 tests in the classes `Preview`, `Run`, `Lock` and `Safeguard`), `test_mempalace_guidance.py`, `test_mempalace_module.py` (the declaration and a
+  registry test) and `support_mempalace.py` (the fake program can print a different text for a dry run, write a file during a real run, sleep, leave a child, print much, and exit
+  differently for a real run). Changed in the live tree: `docs/specs/mempalace.md`, `docs/specs/command-permissions.md`, `docs/development.md` and `tests/test_permissions_drift.py`.
+- What the helper does now. `preview mine <dir> [--wing] [--mode] [--allow-project-root]` runs the program's dry run (captured, at most 1 MiB and 300 seconds) and prints, between recalled-data
+  markers, the project, folder, wing, mode, palace (or the palaces the program may choose) and the dry run's lines with the file lines sorted and the `Device:` and `Palace:` lines dropped, then
+  `digest: <32 hex>` last. It refuses when the embedding model is not cached. `mine <dir> --confirm --digest <digest>` runs with no terminal: it checks the program and the model, takes an
+  exclusive non-blocking `flock` on `mempalace-helper.lock` in the palace's parent directory (`~/.mempalace` by default; made 0700 if missing, refused if a link, or if its own parent is missing),
+  rebuilds the lines, compares the digest, and only then runs the program with its output going to files (no cap, no time limit), printing the cleaned last 64 K characters framed as data.
+  The whole process group is stopped on a terminate signal. Without `--digest` the run needs a terminal as before and is handed the terminal, and also takes the lock. After a real mine one
+  line on standard error names any of `mempalace.yaml`, `mempalace.yml`, `mempal.yaml`, `mempal.yml`, `entities.json` or `.gitignore` that the program created in the folder; nothing is deleted.
+- Verification as run: the new tests failed before the helper change (37 failures); after it, with the review fixes, `PYTHONPATH=. python3 -B -W error -m unittest discover -s packages/workbench/mempalace/tests
+  -t packages/workbench/mempalace/tests` gave `Ran 241 tests ... OK` (193 before), and in the clone, with the new documents, `tests/test_owner_argument_run.py` (25), `test_rendering.py` (85),
+  `test_settingscmd.py` (44) and `test_permissions_drift.py` (22) passed. `wb run code-work check` passed. The helper was also run against the real `mempalace` 3.11.0 in a scratch home, project and
+  palace with the network denied (`scratchpad/pcd_real.py`): the preview was the same on a second run, a stale digest was refused with nothing filed, a digest-bound `mine` filed 12 files with
+  no terminal and left nothing in the folder, the lock file was made (0600, directory 0700) beside the program's own files, and a search found the notes. Not run: the whole repository suite,
+  and the owner's live checks of criterion 8.
+- Review: the `reviewer` agent, two exchanges (cap 6). First read: one blocking finding, applied. My spec sentence said the drawer count follows the text's length, "so most edits change"
+  the digest; it follows how many pieces a file is cut into, so most small edits do not. The spec now says plainly that the digest does not bind contents. Applied, not blocking: the captured
+  run stopped only the program's leader and not its process group (now `killpg`, with a test that sends the launcher's terminate signal to a forked helper and requires the program and a child
+  it started to be gone); the preview's lines were unframed (now framed, with `digest:` last); with no palace in the setting the destination was not in the digest (the program's possible
+  palaces now are); lines were cut before hashing (now only for display, with `...`); a failed dry run hid the program's messages (now shown); a refused run could make `~/.mempalace` on a
+  machine that cannot mine (the program and the model are checked first); `search`'s rule that an agent never starts the 79 MB download now holds for the preview and a run with a digest;
+  the registry has a test for the keys; a test that asserted only an exit code now asserts the digest message and no second run; the `rerender` half of a drift fixture could never fire and
+  is gone. Second read of the fixes: no blocking finding; I closed two of its gaps (the cap on the program's own lines could be bypassed by lines that begin like the heading; a shortened
+  line gave no sign). Not closed, documented: a terminate signal in the instant between starting the program and noting its process.
+- Deviations from the plan, for the owner to judge. (1) The skill and `tests/test_permissions_drift.py` are not in this increment's affected-areas list. The permission-drift test, which the plan's
+  verification names, failed because the skill said "Never run `mine`" while `mine` now offers `ask`, and the skill must give the ask flow (`wb settings`, the preview, `--digest`) for the test to pass;
+  the skill now says so, its guidance tests were updated to match, and two fixtures that used `mine` as their example of a block-only key now use `fetch-overwrite`. (2) The plan says the helper's
+  own terminal test goes for `mine`; it stays for a run without a digest (the launcher also requires the digest at `ask`), so a helper run by hand with no terminal and no digest is refused. (3) The
+  helper's note said a first `mine` "writes $HOME/hallways.json"; in 3.11.0 `hallways.json` goes beside the palace and only when entity links are found (a scratch mine wrote none), so the note and the
+  documents say so. (4) The preview and the digest route refuse an uncached model, which the plan did not say.
+- Open for the owner, not decided by this increment. At `ask` an agent names the folder. The folder rules are those of the owner's terminal use: any existing directory with no link in its path that is
+  not inside `.git` or `.workbench`, so a directory outside the project (the owner's notes folder is one) and `--mode convos` are reachable, and what is filed is searchable by the agent afterwards.
+  The harness shows the owner the command line, which carries an opaque digest, and the preview only if the agent shows it. Restricting an agent's folder to the project, or `--mode convos` to the
+  terminal, would close this and would also stop the owner's notes folder from being filed at `ask`. The plan asks whether to run a security review of D and E together; that is the owner's to ask for.
+- Left for the owner: the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/pcd_install_files.py`, seven files, only if their
+  hashes are those recorded), the release approvals, and after the commit `wb upgrade` and `wb rerender` (the rendered rules gain the key `wb run mempalace mine` at `ask` and `wb run mempalace preview`
+  at `none`); to use it, setting the level of `wb run mempalace mine` to `ask` in the owner's settings, and the live checks of criterion 8.

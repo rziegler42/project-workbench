@@ -7,8 +7,10 @@ private copy of it through the kit runner with nothing beside it.
     mempalace status
     mempalace search [--wing <name>] [--room <name>] [--results <1-20>] [--since <date>] [--before <date>]
                      -- <query>
-    mempalace mine <dir> [--confirm] [--wing <name>] [--mode projects|convos]
-                         [--allow-project-root]                            (the owner, from a terminal)
+    mempalace preview mine <dir> [--wing <name>] [--mode projects|convos] [--allow-project-root]
+                                   (what mine would file, and a digest of it)
+    mempalace mine <dir> [--confirm [--digest <digest>]] [--wing <name>] [--mode projects|convos]
+                         [--allow-project-root]     (the owner, from a terminal, or at the level ask with a digest)
 
 The contract is ``docs/specs/mempalace.md``. The helper starts the ``mempalace`` program, found on a PATH entry
 outside the repository, with no shell, a fixed argument shape, a time limit, a cap on its output and an
@@ -19,13 +21,16 @@ searches (``docs/specs/mempalace.md``, "search"), and the helper refuses a searc
 not already cached, so that an agent's search can never start a download.
 
 ``mine`` builds the palace. It is the owner's: the helper runs it only when standard input and output are
-terminals, and then hands the terminal to the program (which prints progress), with no time limit. It passes no
+terminals, and then hands the terminal to the program (which prints progress), with no time limit; or, at the level
+``ask``, with ``--confirm --digest <digest>`` and no terminal, when the digest is that of ``preview mine`` as it is
+now, checked inside a lock, and then the program's output is captured and cut. It passes no
 option that selects a language-model provider, a key, an endpoint, a daemon or a background job. There is no
 ``init``: the program's ``init`` writes ``mempalace.yaml`` and ``entities.json`` into the folder it scans (and, in
 a git repository, appends to that folder's ``.gitignore``), and ``mine`` needs none of that. A project may name its palace in ``.workbench/local/mempalace.json``; the helper passes
 it as ``--palace``.
 """
 
+import fcntl
 import json
 import os
 import re
@@ -40,10 +45,14 @@ import tempfile
 import time
 import unicodedata
 
-from wbkit import display, jsonstrict, project, safefs
+from wbkit import digest, display, jsonstrict, project, safefs
 
 PROGRAM = "mempalace"
 TIMEOUT = 60
+PREVIEW_TIMEOUT = 300   # the dry run of a `mine` reads every file it would file
+MAX_PREVIEW_FILES = 200
+MAX_PREVIEW_OTHER = 100
+LOCK_NAME = "mempalace-helper.lock"
 MAX_OUTPUT = 1048576
 MAX_TEXT = 65536
 MAX_STDERR = 2000
@@ -56,6 +65,10 @@ MODEL_FILES = ("config.json", "model.onnx", "special_tokens_map.json", "tokenize
 MODEL_FILE = MODEL_DIR + ("model.onnx",)
 CONFIG_NAMES = ("mempalace.yaml", "mempalace.yml", "mempal.yaml", "mempal.yml")
 WRITTEN_NAMES = CONFIG_NAMES + ("entities.json", ".gitignore")
+CREATED_NAMES = frozenset(WRITTEN_NAMES)   # the names `init` writes, compared in lower case
+NO_MODEL_FOR_MINE = ("the embedding model is not cached, and a mine would start a download of about 79 MB; "
+                     "the owner runs the first mine from a terminal")   # for the agent's routes: preview, and a run with a digest
+MISSING = "mempalace was not found in a trusted PATH entry (an absolute one outside the repository)"   # the owner's commands; the agent's get NOT_SET_UP
 # The program's `init` runs git inside repositories it finds under the directory it is given (3.11.0: `mine` does not, and the
 # module no longer starts `init`). A repository can select programs for git to run, so these stay for every command in case a
 # later `mine` runs git. They override the repository's own configuration (configuration given in the
@@ -75,8 +88,9 @@ MODES = ("projects", "convos")
 OWNER_FLAGS = {"mine": ("--confirm", "--allow-project-root")}
 OWNER_VALUES = {"mine": ("--wing", "--mode")}
 USAGE = ("usage: mempalace status | mempalace search [--wing <name>] [--room <name>] [--results <1-%d>] "
-         "[--since <date>] [--before <date>] -- <query> | mempalace mine <dir> "
-         "[--confirm] [--wing <name>] [--mode projects|convos] [--allow-project-root]" % CEILING_RESULTS)
+         "[--since <date>] [--before <date>] -- <query> | mempalace preview mine <dir> [--wing <name>] [--mode projects|convos] "
+         "[--allow-project-root] | mempalace mine <dir> [--confirm [--digest <digest>]] [--wing <name>] [--mode projects|convos] "
+         "[--allow-project-root]" % CEILING_RESULTS)
 
 
 class Refused(Exception):
@@ -316,15 +330,15 @@ NOT_SET_UP = ("mempalace is not set up on this machine, so the search is skipped
               "an absolute one outside the repository)")
 
 
-def query_program(command, argv_tail, cwd, palace=None):
-    """The cleaned text of one run of the program, or ``Failed`` / ``Refused``. `palace` is the project's
-    setting, passed as the program's own ``--palace`` option, which goes before the command, after the fixed
-    ``--backend chroma``."""
+def captured_run(command, argv_tail, cwd, palace, timeout, missing):
+    """``(exit code, standard output, standard error)`` of one run of the program with its output captured, as bytes cut at
+    `MAX_OUTPUT`, or ``Failed`` / ``Refused`` (`missing` is what is said when no trusted program is found). `palace` is the project's
+    setting, passed as the program's own ``--palace`` option, which goes before the command, after the fixed ``--backend chroma``."""
     boundary = outermost_boundary(cwd)
     entries = trusted_entries(boundary)
     program = trusted_which(PROGRAM, entries, boundary)
     if program is None:
-        raise Refused(NOT_SET_UP)
+        raise Refused(missing)
     temp = os.environ.get("TMPDIR") or tempfile.gettempdir()
     if is_inside(temp, boundary):
         raise Refused("the temporary directory is inside the project; set TMPDIR outside it")
@@ -335,24 +349,30 @@ def query_program(command, argv_tail, cwd, palace=None):
         try:
             front = list(BACKEND) + (["--palace", palace] if palace else [])
             code, out, err, over, timed_out = run_program([program] + front + [command] + argv_tail, scratch,
-                                                          environment(entries), TIMEOUT)
+                                                          environment(entries), timeout)
         except OSError:
             raise Refused("mempalace could not be started")
         if timed_out:
-            raise Failed("mempalace did not finish in %d seconds" % TIMEOUT)
+            raise Failed("mempalace did not finish in %d seconds" % timeout)
         if over:
             raise Failed("mempalace printed more than %d bytes" % MAX_OUTPUT)
-        text = cleaned(out, MAX_TEXT)
-        notes = ""
-        if err.strip():
-            notes = "messages the program printed on standard error:\n%s\n" % cleaned(err, MAX_STDERR)
-        if code != 0:
-            raise Failed("mempalace exited with code %s" % (code if code is not None and code >= 0
-                                                             else "signal %d" % -code),
-                         wrap(command, cleaned(out, MAX_STDERR), notes))
-        return wrap(command, text, notes)
+        return code, out, err
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
+
+
+def query_program(command, argv_tail, cwd, palace=None):
+    """The cleaned text of one run of the program, framed as recalled data, or ``Failed`` / ``Refused``."""
+    code, out, err = captured_run(command, argv_tail, cwd, palace, TIMEOUT, NOT_SET_UP)
+    text = cleaned(out, MAX_TEXT)
+    notes = ""
+    if err.strip():
+        notes = "messages the program printed on standard error:\n%s\n" % cleaned(err, MAX_STDERR)
+    if code != 0:
+        raise Failed("mempalace exited with code %s" % (code if code is not None and code >= 0
+                                                         else "signal %d" % -code),
+                     wrap(command, cleaned(out, MAX_STDERR), notes))
+    return wrap(command, text, notes)
 
 
 def read_file(path, limit, what):
@@ -614,7 +634,7 @@ def run_owner(argv_tail, palace, cwd, stdin, out, err):
     entries = trusted_entries(boundary)
     program = trusted_which(PROGRAM, entries, boundary)
     if program is None:
-        raise Refused("mempalace was not found in a trusted PATH entry (an absolute one outside the repository)")
+        raise Refused(MISSING)
     temp = os.environ.get("TMPDIR") or tempfile.gettempdir()
     if is_inside(temp, boundary):
         raise Refused("the temporary directory is inside the project; set TMPDIR outside it")
@@ -649,43 +669,289 @@ def run_owner(argv_tail, palace, cwd, stdin, out, err):
         shutil.rmtree(scratch, ignore_errors=True)
 
 
-def owner(command, args, stdin, out, err, cwd):
-    directory, flags, values = parse_owner(command, args)
-    owner_terminal(stdin, out)
+def split_digest(args):
+    """``(args without a trailing --digest <digest>, the digest or None)``. A digest is exactly 32 lowercase hexadecimal
+    characters; only the last two arguments are read, so a `--digest` anywhere else stays an argument (and is refused)."""
+    if len(args) >= 3 and args[-2] == "--digest":
+        if not digest.well_formed(args[-1]):
+            raise Refused(digest.SHAPE)
+        return args[:-2], args[-1]
+    return args, None
+
+
+def chosen_wing(values, wing, wing_from_file):
+    """``(the wing mine uses, the words that say where it came from)``: the caller's `--wing`, else the setting's or the
+    folder's name."""
+    if "--wing" in values:
+        return values["--wing"], ""
+    if wing:
+        return wing, ("; the wing is %s, from %s (name another with --wing)"
+                      % (wing, SETTING if wing_from_file else "the folder name"))
+    return None, ""
+
+
+def mine_tail(path, wing, mode, dry):
+    tail = ["mine", path]
+    if wing:
+        tail += ["--wing", wing]
+    if mode:
+        tail += ["--mode", mode]
+    if dry:
+        tail.append("--dry-run")
+    return tail
+
+
+def mine_lines(root, palace, wing, mode, path, cwd):
+    """The lines that say what filing `path` would do, whose digest an `ask` run is bound to: the project, the folder, the wing, the
+    mode, the palace, and the program's own dry run with its file lines sorted and without the lines that name the hardware or the
+    palace the program chose. They hold file names and drawer counts and no file content."""
+    if not model_cached():
+        raise Refused(NO_MODEL_FOR_MINE)
+    code, out, err = captured_run("mine", mine_tail(path, wing, mode, True)[1:], cwd, palace, PREVIEW_TIMEOUT, MISSING)
+    text = cleaned(out, MAX_OUTPUT)
+    if code != 0:
+        notes = "messages the program printed on standard error:\n%s\n" % cleaned(err, MAX_STDERR) if err.strip() else ""
+        raise Failed("the dry run of mempalace exited with code %s" % (code if code is not None and code >= 0
+                                                                       else "signal %d" % -code),
+                     wrap("mine", cleaned(out, MAX_STDERR), notes))
+    other, files = [], []
+    for raw in text.split("\n"):
+        line = raw.strip()
+        if not line or set(line) <= set("=-") or line.startswith(("Device:", "Palace:")):
+            continue
+        found = re.match(r"\[DRY RUN\] (.*)$", line)
+        if found:
+            files.append("file: %s" % found.group(1))
+        else:
+            other.append(line)
+    head = ["preview of mine", "project: %s" % plain(root), "directory: %s" % plain(path), "wing: %s" % (wing or "(none)"),
+            "mode: %s" % (mode or "projects"), "palace: %s" % (plain(palace) if palace else "(the program's own)")]
+    if not palace:   # the program picks one from its own configuration, so what it may pick is bound too
+        head.append("palaces the program may use: %s" % "; ".join(plain(each) for each in program_palaces(None)))
+    return head + other + sorted(files)
+
+
+def preview(args, out, cwd):
+    """`preview mine <dir> [--wing <name>] [--mode projects|convos] [--allow-project-root]`: print what `mine <dir> --confirm` would file and,
+    last, `digest: <digest>`. It runs the program's dry run and nothing else: no lock, no file of its own."""
+    if not args or args[0] != "mine":
+        raise Refused("preview takes mine and then what mine takes, without --confirm: preview mine <dir> [--wing <name>] "
+                      "[--mode projects|convos] [--allow-project-root]")
+    directory, flags, values = parse_owner("mine", args[1:])
+    if "--confirm" in flags:
+        raise Refused("--confirm is not an option of preview")
     root = find_root(cwd)
     palace, wing, wing_from_file = load_setting(root)
     path = owner_directory(cwd, root, directory, "--allow-project-root" in flags)
     refuse_planted_config(path)
     refuse_palace_overlap(path, palace)
-    tail = ["mine", path]
-    if wing and "--wing" not in values:
-        values = dict(values, **{"--wing": wing})
-        wing_note = ("; the wing is %s, from %s (name another with --wing)"
-                     % (wing, SETTING if wing_from_file else "the folder name"))
-    else:
-        wing_note = ""
-    for name in ("--wing", "--mode"):
-        if name in values:
-            tail += [name, values[name]]
-    if "--confirm" in flags:
-        note = ("a first real mine downloads the embedding model (about 79 MB) and writes $HOME/hallways.json; "
+    wing, _ = chosen_wing(values, wing, wing_from_file)
+    lines = mine_lines(root, palace, wing, values.get("--mode"), path, cwd)
+    heading = 6 if palace else 7   # the lines mine_lines makes itself come first; the program's lines, whatever they start with, follow
+    shown, files, others = [], 0, 0
+    for number, line in enumerate(lines):
+        if number >= heading:
+            if line.startswith("file: "):
+                files += 1
+                if files > MAX_PREVIEW_FILES:
+                    continue
+            else:
+                others += 1
+                if others > MAX_PREVIEW_OTHER:
+                    continue
+        shown.append(line if len(line) <= 300 else line[:300] + "...")
+    if others > MAX_PREVIEW_OTHER:
+        shown.append("(%d more lines not shown; the digest covers them)" % (others - MAX_PREVIEW_OTHER))
+    if files > MAX_PREVIEW_FILES:
+        shown.append("(%d more files not shown; the digest covers them)" % (files - MAX_PREVIEW_FILES))
+    # the lines are the program's words and the folder's file names, so they are framed as data like every other output; the digest is last
+    out.write(wrap("preview mine", "\n".join(shown), "") + "digest: %s\n" % digest.of(lines))
+    return 0
+
+
+class Lock:
+    """The helper's lock for a run that changes the palace: an exclusive, non-blocking ``flock`` on ``mempalace-helper.lock`` in the
+    palace's parent directory (``~/.mempalace`` for the program's own palace). The directory is opened without following a link and
+    made, one level and private, when it is missing; the file is opened without following a link and must be a regular file. A run that
+    finds it held is refused at once. The operating system drops the lock when the process ends, and the program, started with its
+    descriptors closed, does not hold it."""
+
+    def __init__(self, palace):
+        self.folder = os.path.dirname(palace) if palace else os.path.join(home_directory(), ".mempalace")
+        self.descriptor = None
+
+    def __enter__(self):
+        opening = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+        try:
+            folder = os.open(self.folder, opening)
+        except FileNotFoundError:
+            try:
+                os.mkdir(self.folder, 0o700)
+            except FileExistsError:
+                pass
+            except OSError:
+                raise Refused("the directory %s for the lock does not exist and cannot be made" % display.ascii_text(self.folder)[:120])
+            try:
+                folder = os.open(self.folder, opening)
+            except OSError:
+                raise Refused("the directory %s for the lock cannot be opened" % display.ascii_text(self.folder)[:120])
+        except OSError:
+            raise Refused("the directory %s for the lock is a link or cannot be opened" % display.ascii_text(self.folder)[:120])
+        try:
+            try:
+                descriptor = os.open(LOCK_NAME, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600, dir_fd=folder)
+            except OSError:
+                raise Refused("the lock %s in %s is a link or cannot be opened" % (LOCK_NAME, display.ascii_text(self.folder)[:120]))
+        finally:
+            os.close(folder)
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            os.close(descriptor)
+            raise Refused("the lock %s is not a regular file" % LOCK_NAME)
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            os.close(descriptor)
+            raise Refused("another mempalace run is in progress")
+        self.descriptor = descriptor
+        return self
+
+    def __exit__(self, *unused):
+        if self.descriptor is not None:
+            os.close(self.descriptor)
+            self.descriptor = None
+
+
+def tail_of(path, limit):
+    """The last `limit` characters of the file `path`, cleaned of control characters, with a line first when anything earlier was cut."""
+    with open(path, "rb") as handle:
+        size = os.fstat(handle.fileno()).st_size
+        handle.seek(max(0, size - 4 * limit))
+        data = handle.read()
+    text = plain(data.decode("utf-8", "replace"), "\n\t")
+    return ("[earlier output cut]\n" + text[-limit:]) if size > 4 * limit or len(text) > limit else text
+
+
+def run_owner_captured(argv_tail, palace, cwd):
+    """Run the program with no terminal, its output going to files in a private directory, and wait for it without a time limit or a cap
+    on its output, so that a long mine is not stopped for printing much. Returns ``(code, the tail of its output, the tail of its
+    messages)``, cleaned. On a terminate signal the program is told to stop and the directory is removed."""
+    boundary = outermost_boundary(cwd)
+    entries = trusted_entries(boundary)
+    program = trusted_which(PROGRAM, entries, boundary)
+    if program is None:
+        raise Refused(MISSING)
+    temp = os.environ.get("TMPDIR") or tempfile.gettempdir()
+    if is_inside(temp, boundary):
+        raise Refused("the temporary directory is inside the project; set TMPDIR outside it")
+    scratch = tempfile.mkdtemp(prefix="mempalace-", dir=temp)
+    process = None
+    try:
+        if is_inside(scratch, boundary):
+            raise Refused("the temporary directory is inside the project; set TMPDIR outside it")
+        front = list(BACKEND) + (["--palace", palace] if palace else [])
+        where = (os.path.join(scratch, "out"), os.path.join(scratch, "err"))
+        with open(where[0], "wb") as out_file, open(where[1], "wb") as err_file:
+            try:
+                process = subprocess.Popen([program] + front + argv_tail, stdin=subprocess.DEVNULL, stdout=out_file,
+                                           stderr=err_file, cwd=scratch, env=environment(entries), start_new_session=True)
+            except OSError:
+                raise Refused("mempalace could not be started")
+            code = process.wait()
+        return code, tail_of(where[0], MAX_TEXT), tail_of(where[1], MAX_STDERR)
+    finally:
+        if process is not None:
+            if process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    kill(process)
+                    process.wait()
+            kill(process)   # what the program started and left running in its own group, also after a normal exit
+        shutil.rmtree(scratch, ignore_errors=True)
+
+
+def created_names(path):
+    """The names in `path` that the program's ``init`` writes (the project configuration, the entities file, the ``.gitignore``)."""
+    try:
+        names = os.listdir(path)
+    except OSError:
+        return set()
+    return {name for name in names if name.casefold() in CREATED_NAMES}
+
+
+def say_created(err, path, before):
+    """One line on standard error if the program created one of those names in `path` during a run. The helper deletes nothing."""
+    new = sorted(created_names(path) - before)
+    if new:
+        err.write("note: the program left %s in %s; %s can be deleted (the helper does not delete %s)\n"
+                  % (", ".join(new), path, "they" if len(new) > 1 else "it", "them" if len(new) > 1 else "it"))
+
+
+def owner(command, args, stdin, out, err, cwd):
+    """`mine`, the owner's command. Without `--digest` it runs only from a terminal, which is handed to the program. With `--confirm
+    --digest <digest>` (the level `ask`, where the launcher passes the digest through and gives no terminal) it runs only if the digest is
+    that of the preview as it is now, checked inside the lock, and the program's output is captured, cleaned and cut."""
+    args, given = split_digest(args)
+    directory, flags, values = parse_owner(command, args)
+    if given is not None and "--confirm" not in flags:
+        raise Refused("--digest goes with --confirm; the preview is `wb run mempalace preview mine <dir>`")
+    if given is None:
+        owner_terminal(stdin, out)
+    root = find_root(cwd)
+    palace, wing, wing_from_file = load_setting(root)
+    path = owner_directory(cwd, root, directory, "--allow-project-root" in flags)
+    refuse_planted_config(path)
+    refuse_palace_overlap(path, palace)
+    wing, wing_note = chosen_wing(values, wing, wing_from_file)
+    mode = values.get("--mode")
+    confirmed = "--confirm" in flags
+    tail = mine_tail(path, wing, mode, not confirmed)
+    if confirmed:
+        note = ("a first real mine downloads the embedding model (about 79 MB) and may write hallways.json beside the palace; "
                 "it has no time limit%s" % wing_note)
     else:
-        tail.append("--dry-run")
         note = "this is a dry run and files nothing; add --confirm to file the drawers%s" % wing_note
-    err.write("note: %s\n" % note)
-    return run_owner(tail, palace, cwd, stdin, out, err)
+    if not confirmed:
+        err.write("note: %s\n" % note)
+        return run_owner(tail, palace, cwd, stdin, out, err)
+    boundary = outermost_boundary(cwd)
+    if trusted_which(PROGRAM, trusted_entries(boundary), boundary) is None:
+        raise Refused(MISSING)   # before the lock, which makes a directory
+    if given is not None and not model_cached():
+        raise Refused(NO_MODEL_FOR_MINE)
+    before = created_names(path)
+    try:
+        with Lock(palace):
+            if given is None:
+                err.write("note: %s\n" % note)
+                return run_owner(tail, palace, cwd, stdin, out, err)
+            wrong = digest.mismatch(given, mine_lines(root, palace, wing, mode, path, cwd))
+            if wrong:
+                raise Refused(wrong + "; nothing was filed")
+            err.write("note: %s\n" % note)
+            code, text, notes = run_owner_captured(tail, palace, cwd)
+            notes = "messages the program printed on standard error:\n%s\n" % notes if notes.strip() else ""
+            if code != 0:
+                raise Failed("mempalace exited with code %s" % (code if code >= 0 else "signal %d" % -code),
+                             wrap("mine", text, notes))
+            out.write(wrap("mine", text, notes))
+            return 0
+    finally:
+        say_created(err, path, before)
 
 
 def main(argv, stdin, out, err, cwd):
     """Run one command from `cwd`. Returns the exit code. A refusal means nothing was started."""
     try:
-        if not argv or argv[0] not in ("status", "search", "mine"):
+        if not argv or argv[0] not in ("status", "search", "mine", "preview"):
             raise Refused(USAGE)
         if argv[0] == "status":
             return status(argv[1:], out, cwd)
         if argv[0] == "search":
             return search(argv[1:], out, cwd)
+        if argv[0] == "preview":
+            return preview(argv[1:], out, cwd)
         return owner(argv[0], argv[1:], stdin, out, err, cwd)
     except Refused as exc:
         err.write("refused: %s\n" % exc)

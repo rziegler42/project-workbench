@@ -50,7 +50,10 @@ If the command refuses or fails:
   and do not report it.
 - A refusal that says the embedding model is not cached, or that no memory exists yet, means the owner has to
   build the memory. You cannot, so ask them.
-- Never run `mine`, and never use the program directly. Those are the owner's.
+- Never use the program directly. Filing is the owner's: run `mine` only when the owner has asked you to file something and
+  `wb settings` prints `level wb run mempalace mine: ask`. Then run `wb run mempalace preview mine <dir>` and show the owner what it
+  prints, and run `wb run mempalace mine <dir> --confirm --digest <digest>`, with the digest that preview printed, as one command and
+  nothing else. The owner confirms it. At any other level the harness refuses it, and the owner runs it in a terminal.
 
 You cannot add to or change the palace. When something you learn should be kept, such as a decision, a preference
 or a lesson, tell the owner what it is and let them file it. Do not file a secret, and do not ask the owner to.

@@ -26,11 +26,18 @@
       "arguments": [
         "status",
         "search",
-        "mine"
+        "mine",
+        "preview"
       ],
       "owner": [
         "mine"
-      ]
+      ],
+      "levels": {
+        "mine": [
+          "ask"
+        ]
+      },
+      "preview": "preview"
     }
   }
 }

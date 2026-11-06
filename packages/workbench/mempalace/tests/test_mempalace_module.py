@@ -39,8 +39,10 @@ class Declaration(unittest.TestCase):
     def test_the_command_takes_the_two_read_commands_and_the_owners_two(self):
         self.assertEqual(["mempalace"], list(declaration()["commands"]))
         command = declaration()["commands"]["mempalace"]
-        self.assertEqual(["status", "search", "mine"], command["arguments"])
+        self.assertEqual(["status", "search", "mine", "preview"], command["arguments"])
         self.assertEqual(["mine"], command["owner"])
+        self.assertEqual({"mine": ["ask"]}, command["levels"])   # increment D: ask only, no none, no delegated
+        self.assertEqual("preview", command["preview"])
         self.assertEqual((HELPER, "python", 1), (command["helper"], command["runtime"], command["kit"]))
 
     def test_it_fills_the_policy_slot_and_nothing_else(self):
@@ -56,6 +58,20 @@ class Declaration(unittest.TestCase):
         self.assertEqual(sorted(["module.json", HELPER, "files/blocks/policy.md",
                                  "harness/neutral/skills/recall-memory/SKILL.md"]), sorted(found))
 
+    def test_the_registry_offers_block_and_ask_for_mine_and_none_for_the_preview_and_has_no_init(self):
+        """Completion criterion 5 of plan `2026-11-05-mempalace-per-clone-use`, read from the registry as the installer builds it from the shipped
+        declarations."""
+        from workbench import declarations, levels
+        loaded = declarations.load_package(PACKAGE, first_party=True)
+        self.assertEqual([], list(loaded.problems))
+        checkpoints = [name for module in loaded.modules if module.type == "process" for name in module.checkpoints]
+        keys = levels.registry(checkpoints, [levels.command_entry(command) for module in loaded.modules for command in module.commands])
+        mine = keys["wb run mempalace mine"]
+        self.assertEqual((("block", "ask"), "block", False, "wb run mempalace preview"), (mine.offers, mine.default, mine.agent, mine.preview))
+        preview = keys["wb run mempalace preview"]
+        self.assertEqual((("block", "none"), "none", True), (preview.offers, preview.default, preview.agent))
+        self.assertNotIn("wb run mempalace init", keys)
+
     def test_the_package_lists_it(self):
         with open(os.path.join(PACKAGE, "package.json"), encoding="utf-8") as handle:
             self.assertIn("mempalace", json.load(handle)["modules"])
@@ -64,7 +80,7 @@ class Declaration(unittest.TestCase):
         with open(os.path.join(MODULE, HELPER), encoding="utf-8") as handle:
             text = handle.read()
         imported = set(re.findall(r"^(?:import|from) ([a-z_.]+)", text, re.M))
-        self.assertEqual({"json", "os", "re", "secrets", "selectors", "shutil", "signal", "stat", "subprocess", "sys",
+        self.assertEqual({"fcntl", "json", "os", "re", "secrets", "selectors", "shutil", "signal", "stat", "subprocess", "sys",
                           "tempfile", "time", "unicodedata", "wbkit"}, imported)
         for word in ("socket", "urllib", "http", "ssl", "claude", "codex", "safe-git", "code-work",
                      "groundwork", "--include-media", "wake-up", "--llm", "--accept-external-llm",

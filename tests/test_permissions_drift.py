@@ -402,7 +402,7 @@ class EachReaderFindsADisagreementItIsGiven(unittest.TestCase):
                          list(skills_against_levels(self.keys, said)))
 
     def test_a_skill_that_says_never_run_a_key_that_offers_only_block_is_not_a_disagreement(self):
-        said = [("some-module/harness/neutral/skills/x/SKILL.md", "- Never run `init` or `mine`. Those are the owner's.\n")]
+        said = [("some-module/harness/neutral/skills/x/SKILL.md", "- Never run `fetch-overwrite`. That is the owner's.\n")]
         self.assertEqual([], list(skills_against_levels(self.keys, said)))
 
     def test_a_skill_that_names_a_key_without_saying_never_run_is_not_a_disagreement(self):
@@ -451,7 +451,7 @@ class EachReaderFindsADisagreementItIsGiven(unittest.TestCase):
 
     def test_a_text_that_names_a_key_that_cannot_be_set_to_ask_needs_no_ask_flow(self):
         path = "some-module/harness/neutral/skills/x/SKILL.md"
-        self.assertEqual([], list(ask_flow(self.keys, [(path, "- Never run `init` or `mine`.\n- Run `wb run safe-git commit`.\n")])))
+        self.assertEqual([], list(ask_flow(self.keys, [(path, "- Never run `fetch-overwrite`.\n- Run `wb run safe-git commit`.\n")])))
 
     def test_the_policy_blocks_are_read_by_the_ask_flow_reader(self):
         found = block_texts()

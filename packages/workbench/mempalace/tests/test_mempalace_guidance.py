@@ -154,16 +154,19 @@ class Skill(unittest.TestCase):
         body = lambda data: data.decode().split("---\n", 2)[2]   # Claude rewrites the front matter
         self.assertEqual(body(neutral_tree()["skills/recall-memory/SKILL.md"]), body(planned.files[0].data))
 
-    def test_it_runs_only_search_and_status_and_names_no_tool_or_harness(self):
+    def test_it_runs_only_search_status_and_at_the_level_ask_preview_and_mine_and_names_no_tool_or_harness(self):
+        """Plan `2026-11-05-mempalace-per-clone-use`, increment D: `mine` is runnable at the level `ask`, and the permission-drift test requires
+        the skill to give that flow (`wb settings`, the preview, `--digest`). Nothing else is run."""
         text = skill_text()
         for word in ("Bash", "shell", "curl", "http://", "https://", "sudo", "WebFetch", "<!--", "needs:", "tools:",
                      "claude", "Claude", "codex", "Codex", "claude-workflow", "ask-codex", "~/", ".mempalace",
                      ".config", "mempalace.json", "wake-up", "--include-media", "--backend", "--palace"):
             self.assertNotIn(word, text, word)
         found = set(re.findall(r"wb run [a-z-]+ [a-z]+", text))
-        self.assertEqual({"wb run mempalace search", "wb run mempalace status"}, found)
-        self.assertNotIn("wb ", re.sub(r"wb run mempalace (search|status)", "", text))
-        self.assertIsNone(re.search(r"wb run mempalace (init|mine)", text))
+        self.assertEqual({"wb run mempalace search", "wb run mempalace status", "wb run mempalace preview",
+                          "wb run mempalace mine"}, found)
+        self.assertNotIn("wb ", re.sub(r"wb run mempalace (search|status|preview|mine)|wb settings", "", text))
+        self.assertIsNone(re.search(r"wb run mempalace init", text))
 
     def test_it_names_the_moments_and_tells_how_to_word_the_search_and_what_to_do_with_nothing(self):
         text = flat(skill_text())
@@ -219,7 +222,9 @@ class Skill(unittest.TestCase):
         for rule in ("Read the reason, stop, and report it to the owner",
                      "Do not retry with other options or another route",
                      "the embedding model is not cached", "the owner has to build the memory",
-                     "Never run `mine`, and never use the program directly"):
+                     "Never use the program directly", "`wb settings` prints `level wb run mempalace mine: ask`",
+                     "`wb run mempalace preview mine <dir>`", "--digest", "The owner confirms it",
+                     "At any other level the harness refuses it, and the owner runs it in a terminal"):
             self.assertIn(rule, text, rule)
         self.assertIsNone(re.search(r"\binit\b", text))   # plan `2026-11-05-mempalace-per-clone-use`, increment C: the module has no `init`
 

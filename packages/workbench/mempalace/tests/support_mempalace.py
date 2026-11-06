@@ -40,6 +40,13 @@ if control.get("hang"):
     time.sleep(300)
 if control.get("sleep"):
     time.sleep(control["sleep"])
+if control.get("real_leave_child") and "--dry-run" not in argv:
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(300)"])
+    open(os.path.join(here, "pids"), "w").write(str(child.pid))
+if control.get("real_sleep") and "--dry-run" not in argv:
+    time.sleep(control["real_sleep"])
+if control.get("real_bytes") and "--dry-run" not in argv:
+    sys.stdout.write("x" * control["real_bytes"])
 if control.get("leave_child"):
     child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(300)"])
     open(os.path.join(here, "pids"), "w").write(str(child.pid))
@@ -48,7 +55,13 @@ if control.get("stdout_bytes"):
     sys.stdout.write("x" * control["stdout_bytes"])
 if control.get("stderr_bytes"):
     sys.stderr.write("e" * control["stderr_bytes"])
-if control.get("stdout") is not None:
+dry = "--dry-run" in argv and control.get("dry_stdout") is not None
+if control.get("write") and "--dry-run" not in argv:
+    for path, text in control["write"].items():
+        open(path, "w").write(text)
+if dry:
+    sys.stdout.buffer.write(control["dry_stdout"].encode("utf-8", "surrogatepass"))
+elif control.get("stdout") is not None:
     sys.stdout.buffer.write(control["stdout"].encode("utf-8", "surrogatepass"))
 if control.get("stdout_hex"):
     sys.stdout.buffer.write(bytes.fromhex(control["stdout_hex"]))
@@ -57,7 +70,7 @@ if control.get("stderr"):
 sys.stdout.flush()
 if control.get("kill_self"):
     os.kill(os.getpid(), 9)
-sys.exit(control.get("code", 0))
+sys.exit(control["code_real"] if "code_real" in control and "--dry-run" not in argv else control.get("code", 0))
 """
 
 RESULT = "Results for: \"x\"\n  [1] proj / documentation\n      We chose SQLite for the cache.\n"

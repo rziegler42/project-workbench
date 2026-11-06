@@ -101,9 +101,60 @@ terminal to the program, which prints its progress, and waits with no time limit
   files will sit in that directory and that, by default, it refines entities with a language model whose providers include remote ones
   (`ollama`, `openai-compat`, `anthropic`). The helper's refusals below still protect `mine` from a planted configuration.
 - `mine <dir>` passes `--dry-run` unless `--confirm` is given, so the owner sees what would be filed first. The
-  first real `mine` downloads the embedding model, and it writes `$HOME/hallways.json` directly in the home
-  directory. The helper says both before it runs without `--dry-run`.
-  `mine` also takes `--wing <name>` and `--mode projects|convos`, and nothing else.
+  first real `mine` downloads the embedding model if it is not cached, and may write `hallways.json` (entity links within a wing, mode 0600)
+  beside the palace: in 3.11.0 the path comes from the program's configuration (`hallways.py`), so it is `~/.mempalace/hallways.json` for the
+  program's own palace, and it is written only when links are found (a scratch mine of repeated notes wrote none). The helper says so before it runs
+  without `--dry-run`. `mine` also takes `--wing <name>` and `--mode projects|convos`, and nothing else.
+- **`mine` at the level `ask`** (plan `2026-11-05-mempalace-per-clone-use`, increment D). The declaration gives `levels: {"mine": ["ask"]}` and
+  `preview: "preview"` (`command-permissions.md`, "The levels an owner-run argument of a module's command offers"): the key offers `block` and `ask`, and
+  its default stays `block`. There is no `none` and no `delegated`.
+  - **`preview mine <dir> [--wing <name>] [--mode projects|convos] [--allow-project-root]`** is an ordinary argument that an agent may run. It
+    applies the folder rules, refuses when the embedding model is not cached (as `search` does, so that an agent never starts the 79 MB download; the
+    first mine is the owner's, from a terminal), runs the program's dry run (captured, at most 1 MiB, 300 seconds), and prints, between the
+    recalled-data markers because the lines hold the folder's file names, and then, last, `digest: <32 hex>`. The lines are: `preview of mine`, the project, the folder, the wing, the mode, the palace (or "the program's own"), the dry run's lines except those
+    that name the hardware (`Device:`) and the palace the program chose (`Palace:`), and its `[DRY RUN] <file> -> room:<room> (<n> drawers)` lines
+    as `file: ...`, sorted, because the program lists files in no fixed order. A listing of more than 200 files, or more than 100 other lines, is cut in what is printed (a line says how
+    many are not shown) and each line is cut at 300 characters there, but the digest covers all of it, whole. It takes no lock and makes nothing of its own, but, like `search`, it starts the
+    program, which rewrites its own bookkeeping and keeps the embedding runtime's device id and a small database under
+    `~/Library/Application Support/Microsoft/DeveloperTools/.onnxruntime/` (macOS; seen on a dry run on 2026-11-05).
+  - **`mine <dir> --confirm --digest <digest>`**, with the digest as the last two arguments and `--confirm` required, runs without a terminal. It
+    takes the lock, rebuilds the lines of the preview from the state as it is then, compares the digest (a mismatch is "the digest does not match what
+    the command would change now; preview it again with `preview`; nothing was filed"), and only then runs the program. Its output goes to files in a
+    private directory with no cap and no time limit, so a long mine is not stopped for printing much; the last 64 K characters, cleaned of control
+    characters, are printed between the recalled-data markers, with a line first when earlier output was cut, and the program's own messages follow.
+    A non-zero exit is "failed", with those words. At a terminal the same flags give the same checked run. Without `--digest` the run needs a
+    terminal, as it did, and is handed the terminal; the helper keeps that test (the launcher also requires the digest at `ask`), so a run of the
+    helper by hand with no terminal and no digest is refused. A run with a digest is refused, before any lock is made, when the program is not found
+    or the model is not cached. The program runs in its own process group, which is stopped whole when the helper is terminated and cleaned up
+    after a normal exit, so nothing it started keeps writing to the palace after the lock is released.
+  - **The digest binds** the project, the folder, the wing, the mode, the palace (when the setting names none, the palaces the program may choose
+    from its own configuration: the saved `palace_path` and its two default places), and the dry run's file names and drawer counts. It does **not**
+    bind the contents of the files. A drawer count follows how many pieces the program cuts a file into, not what it says, so an edit that keeps the
+    file's name and size class (a changed word, a flipped instruction, a replaced value) leaves the digest as it was. What the digest guards is the
+    list of files and the destination, not the text; the owner reads the folder.
+  - **The lock** is an exclusive, non-blocking `flock` on `mempalace-helper.lock` in the palace's parent directory (`~/.mempalace` for the program's
+    own palace; the project's `palace` setting names another). The directory is opened without following a link, and made, one level and mode 0700, if
+    it is missing; the file is opened without following a link, mode 0600, and must be a regular file; a link, a directory or a missing grandparent is
+    refused. A run (`--confirm`, with or without a digest) takes it before anything is rebuilt or run; one that finds it held is refused at once with
+    "another mempalace run is in progress" and starts no program. It excludes another run of this helper, from any clone that shares the palace; it does
+    not exclude a program started by hand, nor an edit of the folder between the check and the program reading it. The operating system drops it when the
+    process ends, and the program, started with its descriptors closed, does not hold it. (A terminate signal that arrives in the instant between
+    starting the program and the helper noting its process leaves that program running; no check closes that window.) No directory of the clone is made; but the lock is beside
+    the palace, so a `palace` setting that puts the palace in the clone puts an untracked `mempalace-helper.lock` in the clone's root, and the same
+    palace named by two spellings (one by setting, one by the program's own configuration) is guarded by two locks. The file's owner is not checked, so
+    in a directory that others can write another user could hold it and stop the runs, which is a nuisance and nothing more.
+  - **After a real `mine`** the helper compares the names `mempalace.yaml`, `mempalace.yml`, `mempal.yaml`, `mempal.yml`, `entities.json` and
+    `.gitignore` in the folder (without regard to case) before and after; if the program created any, one line on standard error names them and says they
+    can be deleted. The helper deletes nothing. It protects the working tree against a later version of the program that writes them; in 3.11.0 none
+    appeared in any of the folders mined.
+  - **What can be asked of the owner.** At `ask` an agent can start a write to the owner's palace, with the owner's confirmation of the command at the
+    prompt. The folder rules are those of the owner's own terminal use: any existing directory with no link in its path that is not inside `.git` or
+    `.workbench` of the project, which includes a directory outside the project (the owner's notes folder is one), and the project root or a directory
+    that holds it only with `--allow-project-root`. `--mode convos` files transcripts the same way. What is filed is searchable by the agent afterwards,
+    so a secret in a file of the folder becomes readable by it. The harness shows the owner the command line, which names the folder and carries an
+    opaque digest; the owner sees the preview's lines only if the agent shows them. A rule that an agent's folder must lie inside the project, or that
+    `--mode convos` is the owner's alone, would close this and would also stop the owner's own notes folder from being filed at `ask`; it is left to
+    the owner (the plan's Risks).
 - The directory is refused when any of `mempalace.yaml`, `mempalace.yml`, `mempal.yaml`, `mempal.yml`,
   `entities.json` and `.gitignore`, or a backup of one (a name that begins with one of them, compared without regard to
   case), is not a plain file with one name. The program's `init` opens those names for writing and follows a link, so a planted
@@ -131,7 +182,9 @@ from file names, a list of people and projects (`entities.json`, and the program
 corpus, and per-directory patterns that exclude files from mining (the one capability that needs a `mempalace.yaml`); it writes the first
 two files into the directory it scans, the program offers no option to put them elsewhere, and the config is read only from the directory
 being mined. The owner who wants those features runs the program's `init` directly, knowing that two files will sit in that directory. A `mine` of a directory is not
-repeated for changed files by anything: it is run again by the owner.
+repeated for changed files by anything: it is run again by the owner. The palace holds copies of what was mined and can be rebuilt only from
+the folders that were mined (keep them, including a notes folder outside the project). A mine again files the files that changed (the old
+drawers of a changed file are replaced) and skips those that did not; nothing yet removes the drawers of a file that was deleted.
 
 **How the program runs.** As `knowledge-tools.md` states: found in an absolute `PATH` entry that exists and, with every
 link resolved, is outside the repository (the resolved entries and the resolved program are what is used, and what the
@@ -205,7 +258,11 @@ tracked document.
 - the texts say "the palace" for the store they search, and say that writing the harness's built-in memory is a separate
   act they neither grant nor forbid;
 - where the harness's built-in memory could also answer, it is read first and the palace is searched only when it does
-  not. The order is the owner's, confirmed when plan `2026-10-24-mempalace-scoping` was approved.
+  not. The order is the owner's, confirmed when plan `2026-10-24-mempalace-scoping` was approved;
+- the skill alone says that filing is the owner's: the agent never uses the program directly and runs `mine` only when the owner has asked it to
+  file something and `wb settings` prints `level wb run mempalace mine: ask`, by running `wb run mempalace preview mine <dir>`, showing the owner what
+  it prints, and running `wb run mempalace mine <dir> --confirm --digest <digest>` as one command with the digest it printed. The permission-drift
+  test (`tests/test_permissions_drift.py`) requires a skill that names a key the owner may set to `ask` to give that flow, so the skill states it.
 
 ## Acceptance criteria
 
@@ -227,8 +284,11 @@ tracked document.
 - The child's environment holds only `HOME`, `LANG`, `LC_*`, the resolved `PATH`, `PYTHONDONTWRITEBYTECODE=1`,
   `MEMPALACE_EMBEDDING_MODEL=minilm`, `ANONYMIZED_TELEMETRY=False` and the fixed git settings; the program is started with
   `--backend chroma`.
-- `mine` is listed under `owner` and runs only from a terminal; the module has no `init`, and `init` is refused as an unknown command with the
-  usage line; `mine`
+- `mine` is listed under `owner`, offers the level `ask` with the preview argument `preview`, and without `--digest` runs only from a terminal; the
+  module has no `init`, and `init` is refused as an unknown command with the usage line. `preview mine <dir>` prints the lines and a digest, writes
+  nothing of its own and takes no lock; `mine <dir> --confirm --digest <digest>` runs without a terminal only if the digest is that of the preview as it
+  is now, checked inside the lock, and a held lock, a digest of another state, a malformed digest or a `--digest` without `--confirm` starts nothing.
+  After a real `mine` one line names any of the six `init` file names the program created in the folder. `mine`
   without `--confirm` passes `--dry-run`; a project-root target, a target that overlaps a palace, and a target holding
   a link, a directory or a shared file under a name the program writes through are refused.
 - The helper writes nothing in the project, and no test starts a real `mempalace` or reaches a network.
@@ -286,9 +346,11 @@ Python and locale data outside scratch, and nothing of the owner's real configur
 1. **Writes and downloads.** `status` writes nothing in the palace, in every state tried. `search` rewrites the
    palace's bookkeeping on every call (see `search`), and tries to download the model when it is absent. `wake-up`
    creates `chroma.sqlite3`, so it is not read-only and is not offered. The first real `mine` downloads the
-   79.3 MB model from the `chroma-onnx-models` bucket on Amazon S3, writes `$HOME/hallways.json`, lock files
+   79.3 MB model from the `chroma-onnx-models` bucket on Amazon S3, writes lock files
    under `$HOME/.mempalace/locks`, and starts POSIX semaphores in `/dev/shm`; `onnxruntime` also keeps a small
-   cache under `$HOME/.cache/Microsoft/DeveloperTools`.
+   cache under `$HOME/.cache/Microsoft/DeveloperTools` (on macOS 3.11.0, `~/Library/Application Support/Microsoft/DeveloperTools/.onnxruntime/`).
+   (Correction of 2026-11-05: the first run did not show where `hallways.json` goes. In 3.11.0 it is `config.hallway_file`, beside the palace, and
+   written only when a mine finds entity links; this line used to say `$HOME/hallways.json`, which a scratch mine did not write.)
 2. **Output.** Plain text only. `search` prints a header and numbered hits with wing, room, source, scores and the
    stored text. It returns the nearest drawers even for an unrelated query. No machine-readable form was found.
 3. **Exit codes.** `status` exits 0 even with no palace; `search` exits 1 with no database or on an error (message
