@@ -242,6 +242,29 @@ of D and E, `docs/specs/mempalace.md`, the package's release records.
 **Verification:** as in D.
 **Evidence:** the one local commit, with the trailer `Plan: 2026-11-05-mempalace-per-clone-use#F`.
 
+### Increment G — Close the Low findings of the security review of F
+
+**Outcome:** a program configuration that is a link no longer switches off the palace-overlap guard; a malformed saved palace path no longer ends in a traceback; a lock held by a process
+the program left behind says so; the documents state what remains. (The security review of F, 2026-11-06, found no Critical, High or Medium issue and four Low ones; this increment takes the
+first three and records the fourth.)
+**Dependencies:** F.
+**Affected areas:** `helper/mempalace` (`saved_palaces`, `ready()` in `owner`, the refusal of a held lock), the tests of F, `docs/specs/mempalace.md`, the package's release records.
+**Steps:**
+1. Write the tests first and see them fail: (a) a `~/.config/mempalace/config.json` (and `~/.mempalace/config.json`) that is a symlink to a file naming a palace is read, so a folder that is
+   or holds that palace is refused, and `preview` lists that palace under "palaces the program may use"; a dangling link, a link to a directory and a file that is not JSON add nothing and do not
+   refuse a folder that overlaps nothing; (b) a saved `palace_path` that cannot be encoded as a path (a lone surrogate) or holds a NUL is skipped, and neither `preview`, a terminal run nor a
+   digest run ends in a traceback, the last also when the file is changed between the digest check and the start of the program; (c) a held lock is refused with the existing words and, in the same
+   line, says that a process an earlier run's program started may still hold it; the existing assertions on "another mempalace run is in progress" still pass.
+2. Make the read of the program's configuration follow a link for that one read (the content only decides which path to compare; the path is resolved, then opened without following a link
+   at the end), skip a saved value that `os.fsencode` rejects, and let `ready()` treat any `ValueError` as a change. Add the clause to the held-lock refusal. Change nothing else.
+3. Edit `docs/specs/mempalace.md`: that the program's configuration may be a link and is followed for the comparison; that a saved relative `palace_path` is not compared, because the program
+   runs in its own scratch directory; that a descendant the program leaves running (in its own session) keeps the lock until it ends and the helper cannot stop it; and that a run with a wrong
+   digest holds the lock for the length of the dry run, up to 300 seconds, so an agent can make the owner's confirm be retried (a limit that F did not change and G does not remove).
+4. Run the verification and ask the `reviewer` agent to read the change. Write the result in this plan.
+5. The owner's steps as in D.
+**Verification:** as in D.
+**Evidence:** the one local commit, with the trailer `Plan: 2026-11-05-mempalace-per-clone-use#G`.
+
 ## Verification for the plan as a whole
 
 Each increment's recorded verification stands. After E the owner runs the live checks of criterion 8 at the level `ask`, and the result goes into the spec's
