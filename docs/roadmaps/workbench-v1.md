@@ -177,7 +177,8 @@ committed through the git helper. The part of that order that is still open is `
   the test, the pinned helper run directly is not a workbench route, and a pin the owner typed trusts the project's own
   declaration. The security review found no Critical or High finding; its fixes had no second reviewer.
 - The `mempalace` module is implemented (plan `2026-10-24-mempalace-module`, increments A to F; completion derived): it
-  provides `memory-recall` with the agent-safe `status` and `search` and the owner-run `init` and `mine`, a policy block and
+  provides `memory-recall` with the agent-safe `status` and `search` and the owner-run `init` and `mine` (`init` was removed and `sync` added
+  by the candidate `mempalace-per-clone-use`), a policy block and
   the skill `recall-memory`. The facts come from running the real `mempalace` 3.11.0 in a scratch directory; `search`
   rewrites the program's bookkeeping, which the owner accepted. No live session; the last security-review fixes were not
   reviewed. `docs/specs/mempalace.md` and `docs/specs/knowledge-tools.md` record it.
@@ -514,7 +515,8 @@ the first two show.
 ### mempalace-module — The `mempalace` module
 
 **Outcome:** the first-party module `mempalace`, which provides `memory-recall`: the agent-safe commands
-`status` and `search` over the owner's installed MemPalace, the owner-run `init` and `mine`, a policy block and a
+`status` and `search` over the owner's installed MemPalace, the owner-run `init` and `mine` (later: `mine` and `sync`, no `init`; see
+`mempalace-per-clone-use`), a policy block and a
 neutral skill that route questions and treat answers as data. It is tooling and not an MCP server.
 **Dependencies:** `module-commands`, `claude-harness`. The first plan ran the real program in a scratch
 palace outside the tracked tree; its findings are in `docs/specs/mempalace.md` ("Evidence").
@@ -983,7 +985,7 @@ the `--`, was refused with "is not an option of search", and gave up; the form i
 **Dependencies:** `memory-recall-use`, whose policy block and helper this touches.
 **Boundary:** the refusal message of `search` for an argument that is not an option, the one policy line that names the command, their tests,
 and the sentences of `mempalace.md` that describe them. Not part of it: the arguments the commands accept (unchanged), loading a skill
-automatically, a retry rule for the agent, the messages of `init` and `mine`, and any change to the palace.
+automatically, a retry rule for the agent, the messages of `mine` (and of `init`, while it existed), and any change to the palace.
 **Promotion trigger:** the owner chooses to begin (met on 2026-11-05).
 
 ### mempalace-search-despite-files — The search before drafting is made even when the files seem to answer

@@ -120,8 +120,8 @@ revised when a second module exists; `workbench-v1#graphify-module`):
   the repository, with a short environment and the program's own selectors (backend, model) fixed by the helper, because
   the program otherwise takes them from a configuration file in the owner's home that can name a remote service.
 - **Untracked state**: nothing the module installs names a path inside a store. A project that wants a palace other than
-  the program's own names it in `.workbench/mempalace.json`, which holds an absolute path and so is machine-specific;
-  a change to it is listed by `wb acknowledge`, and a document must not cite the path.
+  the program's own names it in the untracked `.workbench/local/mempalace.json`, which holds an absolute path and so is machine-specific
+  (plan `2026-11-05-mempalace-per-clone-use`); no tracked file records it, and a document must not cite the path.
 
 ## Governing decisions and references
 
