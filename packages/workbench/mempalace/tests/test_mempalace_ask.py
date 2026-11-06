@@ -178,7 +178,7 @@ class Preview(Ask):
 
     def test_the_arguments_are_checked(self):
         self.refused("preview", contains="preview takes mine")
-        self.refused("preview", "sync", self.corpus, contains="preview takes mine")
+        self.refused("preview", "other", self.corpus, contains="preview takes mine")
         self.refused("preview", "mine", contains="needs the directory")
         self.refused("preview", "mine", self.corpus, "--confirm", contains="--confirm is not an option of preview")
         self.refused("preview", "mine", self.corpus, "--digest", "0" * 32, contains="is not an option")

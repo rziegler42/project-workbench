@@ -151,7 +151,7 @@ levels from `ask` and `none`; the key `wb run <command> <argument>` then offers 
 that command and an unknown level. A command that offers `ask` also gives `preview`, the name of a declared argument that is
 neither owner-run nor `describe`; `verify` refuses `ask` without it and `preview` without `ask`. The preview argument is an
 ordinary declared argument, so its key defaults to `none`. A command without these fields offers `block` only, as before, and
-its declaration hashes as before. **The review engine declares it for its five owner-run arguments (`amend`, `archive`, `extend`, `prune`, `reset`, each `ask` and `none`, with `preview` as the preview argument; `review-engine.md`, "Owner-run commands"). `mempalace` declares it for `mine` alone, with `ask` and no `none`, and `preview` as the preview argument (`mempalace.md`, "`mine` at the level `ask`"; plan `2026-11-05-mempalace-per-clone-use`, increment D). No other first-party module does, so the owner-run argument of `remote-runner` offers `block` only.**
+its declaration hashes as before. **The review engine declares it for its five owner-run arguments (`amend`, `archive`, `extend`, `prune`, `reset`, each `ask` and `none`, with `preview` as the preview argument; `review-engine.md`, "Owner-run commands"). `mempalace` declares it for `mine` and `sync`, with `ask` and no `none`, and `preview` as the preview argument (`mempalace.md`, "`mine` at the level `ask`" and "`sync`"; plan `2026-11-05-mempalace-per-clone-use`, increments D and E). No other first-party module does, so the owner-run argument of `remote-runner` offers `block` only.**
 The terminal test and the level are read by the launcher, not by the helper. `wb run <command> <argument>`, with a command whose
 argument offers a level (`ownerargs.py`, built by Increment D), runs an owner-run argument without a terminal only when the key
 reads `ask` or `none` through `rendering.effective_level` (the record, the table, the permissions file and the command gate agree
@@ -1122,7 +1122,7 @@ approval command is reached at all; a project, a plan or a review cannot supply 
   `2026-10-29-accept-decision-at-ask` built `ask` for `accept-decision` and left `delegated` reading `block`: the accepted record leaves
   undecided what a delegated review's subject is for a decision, and the roadmap candidate `checkpoint-levels-beyond-block` stays open.
 - `ask` and `none` for the owner-run arguments of the other module commands (`wb run remote-runner fetch-overwrite`, and `none`
-  for `wb run mempalace mine`, which offers `ask` since plan `2026-11-05-mempalace-per-clone-use`, increment D). The declaration fields (`levels` and `preview`), the launcher that reads the level and logs the run,
+  for `wb run mempalace mine` and `wb run mempalace sync`, which offer `ask` since plan `2026-11-05-mempalace-per-clone-use`, increments D and E). The declaration fields (`levels` and `preview`), the launcher that reads the level and logs the run,
   and the review engine's five (`extend`, `reset`, `archive`, `amend`, `prune`, each with a preview and a digest) are built by the plan
   `2026-10-27-levels-for-the-review-workflow`, Increments C to F. A module that wants them declares `levels` and a `preview` argument
   that prints a digest and checks it inside its own lock; until it does, its keys offer `block` only. Two limits of the review engine's

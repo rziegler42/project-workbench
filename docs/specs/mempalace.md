@@ -21,9 +21,9 @@ MemPalace the owner has installed, and gives the owner commands to build it. It 
 | fills | `policy` (a short block) |
 | writes | nothing outside its namespace |
 | ships | `helper/mempalace`; the module also holds one neutral skill, `recall-memory`, and the policy block |
-| commands | `mempalace`, runtime `python`, kit 1; `arguments`: `status`, `search`, `mine`; `owner`: `mine` |
+| commands | `mempalace`, runtime `python`, kit 1; `arguments`: `status`, `search`, `mine`, `sync`, `preview`; `owner`: `mine`, `sync` |
 
-It is run as `wb run mempalace status` and `wb run mempalace search ...` by an agent, and `mine` by
+It is run as `wb run mempalace status` and `wb run mempalace search ...` by an agent, and `mine` and `sync` by
 the owner. There is no `init` (see "mine" below). The installer pins the helper when the owner confirms the install.
 
 ## Non-goals
@@ -31,9 +31,9 @@ the owner. There is no `init` (see "mine" below). The installer pins the helper 
 - An MCP server. MemPalace ships `mempalace-mcp`, but the workbench has no MCP layer and defers one
   (`module-boundary.md`, "Deferred"; decision `2026-10-21-module-code-lives-in-modules`). A later module could
   render it; this one does not.
-- Any write an agent can make. Filing drawers, knowledge-graph facts, `sweep`, `sync`, `repair`, `migrate`,
-  `compress`, `split`, `daemon`, `hook`, `serve` and every other subcommand are not wrapped. The owner runs
-  `mempalace` directly for those.
+- Any write an agent can make without the owner's confirmation of each command. Knowledge-graph facts, `sweep`, `repair`, `migrate`,
+  `compress`, `split`, `daemon`, `hook`, `serve` and every other subcommand are not wrapped; the owner runs `mempalace` directly for those.
+  Only `mine` and `sync` are wrapped as writes, at the level `ask` and no other, each bound to a digest ("`mine` at the level `ask`", "`sync`").
 - Installing, updating or configuring the `mempalace` program, choosing its backend, or running its daemon.
 - Mining the project's tree or the knowledge base on the owner's behalf (`knowledge-tools.md`, "No overlapping
   ingest").
@@ -155,6 +155,35 @@ terminal to the program, which prints its progress, and waits with no time limit
     opaque digest; the owner sees the preview's lines only if the agent shows them. A rule that an agent's folder must lie inside the project, or that
     `--mode convos` is the owner's alone, would close this and would also stop the owner's own notes folder from being filed at `ask`; it is left to
     the owner (the plan's Risks).
+- **`sync`** (plan `2026-11-05-mempalace-per-clone-use`, increment E) prunes the drawers of files that are no longer where they were filed, or that
+  the ignore rules now exclude. The declaration gives `levels: {"sync": ["ask"]}`, with the same `preview` argument as `mine`: the key offers `block`
+  and `ask`, default `block`, no `none`, no `delegated`.
+  - **What the program does** (3.11.0, read from `cli/cmd_sync.py` and `sync.py` and tried on 2026-11-05 on a scratch palace with five notes mined, two
+    then deleted): `mempalace sync <dir> --wing <w>` is a dry run unless `--apply` is given, and `--apply` needs a wing or a folder. The dry run
+    prints the palace, the wing, the folder, the counts (`Scanned`, `Kept`, `Gitignored`, `Missing`, `Unresolved`, `No source`, `Out of scope`) and
+    the five sources with the most drawers to remove; `--apply` then removed exactly the drawers of the two deleted files (4 drawers, 2 closets) and
+    nothing of another wing (a dry run for a wing that holds none scanned 0). Drawers whose source cannot be resolved are kept. Like `search`, even the
+    dry run starts the program, which rewrites its own bookkeeping files in the palace; it removes no drawer.
+  - **What the helper offers.** `sync <dir>` takes the folder, `--confirm` and, at the end, `--digest <digest>`, and nothing else: no `--wing`, no
+    `--mode`, no `--allow-project-root`, no `--root`, no `--apply`. The wing is the setting's or the default (the project folder's name), never
+    another, so the program's own "every wing" is out of reach. The folder rules are those of `mine` (an existing directory, no link in its path, not
+    inside `.git` or `.workbench`, no overlap with a palace, none of the files the program writes through a link), and the project root is refused
+    because the option that allows it does not exist. A folder that no longer exists cannot be named, so the drawers of a deleted or renamed folder are
+    not pruned through the helper; the owner runs the program's own `sync` for that.
+  - **At a terminal** `sync <dir>` runs the program's dry run, handed the terminal; `sync <dir> --confirm` runs it with `--apply`, under the lock.
+    At `ask`, **`preview sync <dir>`** (an ordinary argument that an agent may run) prints, between the recalled-data markers, `preview of sync`, the
+    project, the folder, the wing, the palace (or the palaces the program may choose) and the program's report without its rules and its `Device:` and
+    `Palace:` lines, cut at 100 lines and 300 characters per line, and last `digest: <32 hex>`; and **`sync <dir> --confirm --digest <digest>`** runs,
+    without a terminal, only if the digest is that of the report as it is now, rebuilt inside the lock. Both refuse when the embedding model is not
+    cached, as `mine` does. The lock, the checks before it, the capture and cut of the output, the process group and the refusal of a held lock are
+    those of `mine`. A mismatch is "the digest does not match ...; nothing was removed".
+  - **The digest binds** the project, the folder, the wing, the palace and the report: the counts and the up to five sources the program lists. It does
+    **not** bind the complete list of sources, and it does not bind what is in the files. Which drawers go is decided by the program when it runs, from the
+    same rules that produced the counts, so a different set of files that gives the same counts and the same five sources is not caught. The removal is
+    not undone by the helper: the drawers return only by mining the files again, and a file that has been deleted cannot be mined again. The lock
+    excludes another run of this helper, not a change to the palace or the folder between the digest check and the program's `--apply`. Ties in the
+    program's order of the five sources could make a digest differ between two previews of one state; that refuses a run and removes nothing.
+  - **Not changed by `sync`:** a file in the folder, and the project (the helper deletes nothing, and the safeguard of `mine` is not needed).
 - The directory is refused when any of `mempalace.yaml`, `mempalace.yml`, `mempal.yaml`, `mempal.yml`,
   `entities.json` and `.gitignore`, or a backup of one (a name that begins with one of them, compared without regard to
   case), is not a plain file with one name. The program's `init` opens those names for writing and follows a link, so a planted
@@ -261,8 +290,10 @@ tracked document.
   not. The order is the owner's, confirmed when plan `2026-10-24-mempalace-scoping` was approved;
 - the skill alone says that filing is the owner's: the agent never uses the program directly and runs `mine` only when the owner has asked it to
   file something and `wb settings` prints `level wb run mempalace mine: ask`, by running `wb run mempalace preview mine <dir>`, showing the owner what
-  it prints, and running `wb run mempalace mine <dir> --confirm --digest <digest>` as one command with the digest it printed. The permission-drift
-  test (`tests/test_permissions_drift.py`) requires a skill that names a key the owner may set to `ask` to give that flow, so the skill states it.
+  it prints, and running `wb run mempalace mine <dir> --confirm --digest <digest>` as one command with the digest it printed; `sync` likewise, only when
+  the owner has asked to remove the drawers of deleted files and `wb settings` prints `level wb run mempalace sync: ask`, and with no other option. The
+  permission-drift test (`tests/test_permissions_drift.py`) requires a skill that names a key the owner may set to `ask` to give that flow, so the skill
+  states it.
 
 ## Acceptance criteria
 
@@ -291,6 +322,11 @@ tracked document.
   After a real `mine` one line names any of the six `init` file names the program created in the folder. `mine`
   without `--confirm` passes `--dry-run`; a project-root target, a target that overlaps a palace, and a target holding
   a link, a directory or a shared file under a name the program writes through are refused.
+- `sync` is listed under `owner` and offers the level `ask` with the same preview argument. `preview sync <dir>` prints the report and a digest and
+  takes no lock; `sync <dir> --confirm --digest <digest>` runs the program's `sync --apply` for the setting's or the default wing and the one folder
+  without a terminal only if the digest is that of the report as it is now, checked inside the lock; a held lock, a digest of another state, a
+  malformed digest, an uncached model, any option other than `--confirm` and `--digest`, and a folder that `mine` would refuse, start nothing. The
+  default of the program, and of the helper without `--confirm`, is the dry run.
 - The helper writes nothing in the project, and no test starts a real `mempalace` or reaches a network.
 - A setting (`.workbench/local/mempalace.json`) that is a link, malformed, oversized, has a key other than `format`, `palace` and `wing`, names
   neither a palace nor a wing, or holds a relative or unclean path or a wing that is not a name is refused, as is a `local` that is a link or

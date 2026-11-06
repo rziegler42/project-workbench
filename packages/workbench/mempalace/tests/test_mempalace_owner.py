@@ -46,7 +46,7 @@ class NoInit(Owner):
 
     def test_the_helper_names_no_init_and_no_language_model_option(self):
         self.assertNotIn("init", self.helper.USAGE)
-        self.assertEqual({"mine"}, set(self.helper.OWNER_FLAGS) | set(self.helper.OWNER_VALUES))
+        self.assertEqual({"mine", "sync"}, set(self.helper.OWNER_FLAGS) | set(self.helper.OWNER_VALUES))
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "helper", "mempalace"), encoding="utf-8") as handle:
             text = handle.read()
         self.assertNotIn("--no-llm", text)

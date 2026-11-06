@@ -11,6 +11,8 @@ private copy of it through the kit runner with nothing beside it.
                                    (what mine would file, and a digest of it)
     mempalace mine <dir> [--confirm [--digest <digest>]] [--wing <name>] [--mode projects|convos]
                          [--allow-project-root]     (the owner, from a terminal, or at the level ask with a digest)
+    mempalace preview sync <dir>                    (what sync would remove, and a digest of it)
+    mempalace sync <dir> [--confirm [--digest <digest>]]    (the same two ways; the wing is the setting's or the default)
 
 The contract is ``docs/specs/mempalace.md``. The helper starts the ``mempalace`` program, found on a PATH entry
 outside the repository, with no shell, a fixed argument shape, a time limit, a cap on its output and an
@@ -28,6 +30,10 @@ option that selects a language-model provider, a key, an endpoint, a daemon or a
 ``init``: the program's ``init`` writes ``mempalace.yaml`` and ``entities.json`` into the folder it scans (and, in
 a git repository, appends to that folder's ``.gitignore``), and ``mine`` needs none of that. A project may name its palace in ``.workbench/local/mempalace.json``; the helper passes
 it as ``--palace``.
+
+``sync`` prunes the drawers of files that are gone or now ignored, from the one wing the setting names (or the default) and the one folder
+given. It is the owner's in the same two ways as ``mine``, and it shares the lock, the digest check and the folder rules. Its default is the
+program's dry run; ``--confirm`` makes it ``--apply``.
 """
 
 import fcntl
@@ -68,6 +74,9 @@ WRITTEN_NAMES = CONFIG_NAMES + ("entities.json", ".gitignore")
 CREATED_NAMES = frozenset(WRITTEN_NAMES)   # the names `init` writes, compared in lower case
 NO_MODEL_FOR_MINE = ("the embedding model is not cached, and a mine would start a download of about 79 MB; "
                      "the owner runs the first mine from a terminal")   # for the agent's routes: preview, and a run with a digest
+NO_MODEL_FOR_SYNC = ("the embedding model is not cached, and the program may start a download of about 79 MB to open the palace; "
+                     "the owner runs the first mine from a terminal")
+NO_MODEL = {"mine": NO_MODEL_FOR_MINE, "sync": NO_MODEL_FOR_SYNC}
 MISSING = "mempalace was not found in a trusted PATH entry (an absolute one outside the repository)"   # the owner's commands; the agent's get NOT_SET_UP
 # The program's `init` runs git inside repositories it finds under the directory it is given (3.11.0: `mine` does not, and the
 # module no longer starts `init`). A repository can select programs for git to run, so these stay for every command in case a
@@ -85,12 +94,13 @@ SEARCH_FORM = ", ".join(OPTIONS[:-1]) + " and " + OPTIONS[-1]  # said by the ref
 MAX_SETTING = 4096
 MAX_CONFIG = 262144
 MODES = ("projects", "convos")
-OWNER_FLAGS = {"mine": ("--confirm", "--allow-project-root")}
-OWNER_VALUES = {"mine": ("--wing", "--mode")}
+OWNER_FLAGS = {"mine": ("--confirm", "--allow-project-root"), "sync": ("--confirm",)}
+OWNER_VALUES = {"mine": ("--wing", "--mode"), "sync": ()}
 USAGE = ("usage: mempalace status | mempalace search [--wing <name>] [--room <name>] [--results <1-%d>] "
          "[--since <date>] [--before <date>] -- <query> | mempalace preview mine <dir> [--wing <name>] [--mode projects|convos] "
          "[--allow-project-root] | mempalace mine <dir> [--confirm [--digest <digest>]] [--wing <name>] [--mode projects|convos] "
-         "[--allow-project-root]" % CEILING_RESULTS)
+         "[--allow-project-root] | mempalace preview sync <dir> | mempalace sync <dir> [--confirm [--digest <digest>]]"
+         % CEILING_RESULTS)
 
 
 class Refused(Exception):
@@ -534,7 +544,7 @@ def parse_owner(command, args):
     return directory, flags, values
 
 
-def owner_directory(cwd, root, value, allow_root):
+def owner_directory(cwd, root, value, allow_root, hint=True):
     """The directory the owner names: an existing directory, with no link in its path, that is not inside
     ``.git`` or ``.workbench`` and, unless `allow_root`, is neither the project root nor holds it."""
     if not value or "\0" in value or plain(value) != value:
@@ -555,7 +565,7 @@ def owner_directory(cwd, root, value, allow_root):
             raise Refused("the directory may not be inside .git or .workbench")
     if (path == root or root.startswith(path.rstrip(os.sep) + os.sep)) and not allow_root:
         raise Refused("the directory is the project root or holds it, which would make the project's own files a "
-                      "second index; add --allow-project-root if that is meant")
+                      "second index%s" % ("; add --allow-project-root if that is meant" if hint else ""))
     return path
 
 
@@ -617,14 +627,14 @@ def refuse_planted_config(path):
                           "would write through it; remove it first" % display.ascii_text(name)[:60])
 
 
-def owner_terminal(stdin, out):
+def owner_terminal(command, stdin, out):
     for stream in (stdin, out):
         try:
             terminal = stream.isatty()
         except (ValueError, AttributeError):
             terminal = False
         if not terminal:
-            raise Refused("mine is the owner's command and runs only from a terminal")
+            raise Refused("%s is the owner's command and runs only from a terminal" % command)
 
 
 def run_owner(argv_tail, palace, cwd, stdin, out, err):
@@ -701,6 +711,42 @@ def mine_tail(path, wing, mode, dry):
     return tail
 
 
+def report_lines(text):
+    """The report of a dry run, as lines: blank lines, rules and the program's `Device:` and `Palace:` lines (the hardware and the palace
+    the program chose, which the head names itself) left out. A line that is not blank is stripped."""
+    lines = []
+    for raw in text.split("\n"):
+        line = raw.strip()
+        if line and not set(line) <= set("=-") and not line.startswith(("Device:", "Palace:")):
+            lines.append(line)
+    return lines
+
+
+def dry_failure(command, code, out, err):
+    notes = "messages the program printed on standard error:\n%s\n" % cleaned(err, MAX_STDERR) if err.strip() else ""
+    return Failed("the dry run of mempalace exited with code %s" % (code if code is not None and code >= 0 else "signal %d" % -code),
+                  wrap(command, cleaned(out, MAX_STDERR), notes))
+
+
+def sync_tail(path, wing, apply):
+    return ["sync", path, "--wing", wing, "--apply" if apply else "--dry-run"]
+
+
+def sync_lines(root, palace, wing, path, cwd):
+    """The lines that say what `sync` would remove, whose digest an `ask` run is bound to: the project, the folder, the wing, the palace and
+    the program's own dry-run report (its counts and its top five sources). They hold file names and counts and no file content."""
+    if not model_cached():
+        raise Refused(NO_MODEL_FOR_SYNC)
+    code, out, err = captured_run("sync", sync_tail(path, wing, False)[1:], cwd, palace, PREVIEW_TIMEOUT, MISSING)
+    if code != 0:
+        raise dry_failure("sync", code, out, err)
+    head = ["preview of sync", "project: %s" % plain(root), "directory: %s" % plain(path), "wing: %s" % wing,
+            "palace: %s" % (plain(palace) if palace else "(the program's own)")]
+    if not palace:
+        head.append("palaces the program may use: %s" % "; ".join(plain(each) for each in program_palaces(None)))
+    return head + report_lines(cleaned(out, MAX_OUTPUT))
+
+
 def mine_lines(root, palace, wing, mode, path, cwd):
     """The lines that say what filing `path` would do, whose digest an `ask` run is bound to: the project, the folder, the wing, the
     mode, the palace, and the program's own dry run with its file lines sorted and without the lines that name the hardware or the
@@ -731,23 +777,35 @@ def mine_lines(root, palace, wing, mode, path, cwd):
     return head + other + sorted(files)
 
 
+def sync_wing(wing):
+    """The wing `sync` works on: the setting's or the default, never another, and never none (the program would then work on every wing)."""
+    if not wing:
+        raise Refused("sync works on one wing, and neither the setting nor the folder's name gives one")
+    return wing
+
+
 def preview(args, out, cwd):
-    """`preview mine <dir> [--wing <name>] [--mode projects|convos] [--allow-project-root]`: print what `mine <dir> --confirm` would file and,
-    last, `digest: <digest>`. It runs the program's dry run and nothing else: no lock, no file of its own."""
-    if not args or args[0] != "mine":
-        raise Refused("preview takes mine and then what mine takes, without --confirm: preview mine <dir> [--wing <name>] "
-                      "[--mode projects|convos] [--allow-project-root]")
-    directory, flags, values = parse_owner("mine", args[1:])
+    """`preview mine <dir> [--wing <name>] [--mode projects|convos] [--allow-project-root]` or `preview sync <dir>`: print what `mine <dir> --confirm`
+    or `sync <dir> --confirm` would do and, last, `digest: <digest>`. It runs the program's dry run and nothing else: no lock, no file of its own."""
+    if not args or args[0] not in ("mine", "sync"):
+        raise Refused("preview takes mine or sync and then what it takes, without --confirm: preview mine <dir> [--wing <name>] "
+                      "[--mode projects|convos] [--allow-project-root] | preview sync <dir>")
+    command = args[0]
+    directory, flags, values = parse_owner(command, args[1:])
     if "--confirm" in flags:
         raise Refused("--confirm is not an option of preview")
     root = find_root(cwd)
     palace, wing, wing_from_file = load_setting(root)
-    path = owner_directory(cwd, root, directory, "--allow-project-root" in flags)
+    path = owner_directory(cwd, root, directory, "--allow-project-root" in flags, command == "mine")
     refuse_planted_config(path)
     refuse_palace_overlap(path, palace)
-    wing, _ = chosen_wing(values, wing, wing_from_file)
-    lines = mine_lines(root, palace, wing, values.get("--mode"), path, cwd)
-    heading = 6 if palace else 7   # the lines mine_lines makes itself come first; the program's lines, whatever they start with, follow
+    if command == "mine":
+        wing, _ = chosen_wing(values, wing, wing_from_file)
+        lines = mine_lines(root, palace, wing, values.get("--mode"), path, cwd)
+        heading = 6 if palace else 7   # the lines mine_lines makes itself come first; the program's lines, whatever they start with, follow
+    else:
+        lines = sync_lines(root, palace, sync_wing(wing), path, cwd)
+        heading = 5 if palace else 6
     shown, files, others = [], 0, 0
     for number, line in enumerate(lines):
         if number >= heading:
@@ -765,7 +823,7 @@ def preview(args, out, cwd):
     if files > MAX_PREVIEW_FILES:
         shown.append("(%d more files not shown; the digest covers them)" % (files - MAX_PREVIEW_FILES))
     # the lines are the program's words and the folder's file names, so they are framed as data like every other output; the digest is last
-    out.write(wrap("preview mine", "\n".join(shown), "") + "digest: %s\n" % digest.of(lines))
+    out.write(wrap("preview " + command, "\n".join(shown), "") + "digest: %s\n" % digest.of(lines))
     return 0
 
 
@@ -889,29 +947,41 @@ def say_created(err, path, before):
 
 
 def owner(command, args, stdin, out, err, cwd):
-    """`mine`, the owner's command. Without `--digest` it runs only from a terminal, which is handed to the program. With `--confirm
-    --digest <digest>` (the level `ask`, where the launcher passes the digest through and gives no terminal) it runs only if the digest is
+    """`mine` or `sync`, the owner's commands. Without `--digest` they run only from a terminal, which is handed to the program. With `--confirm
+    --digest <digest>` (the level `ask`, where the launcher passes the digest through and gives no terminal) they run only if the digest is
     that of the preview as it is now, checked inside the lock, and the program's output is captured, cleaned and cut."""
     args, given = split_digest(args)
     directory, flags, values = parse_owner(command, args)
     if given is not None and "--confirm" not in flags:
-        raise Refused("--digest goes with --confirm; the preview is `wb run mempalace preview mine <dir>`")
+        raise Refused("--digest goes with --confirm; the preview is `wb run mempalace preview %s <dir>`" % command)
     if given is None:
-        owner_terminal(stdin, out)
+        owner_terminal(command, stdin, out)
     root = find_root(cwd)
     palace, wing, wing_from_file = load_setting(root)
-    path = owner_directory(cwd, root, directory, "--allow-project-root" in flags)
+    path = owner_directory(cwd, root, directory, "--allow-project-root" in flags, command == "mine")
     refuse_planted_config(path)
     refuse_palace_overlap(path, palace)
-    wing, wing_note = chosen_wing(values, wing, wing_from_file)
-    mode = values.get("--mode")
     confirmed = "--confirm" in flags
-    tail = mine_tail(path, wing, mode, not confirmed)
-    if confirmed:
-        note = ("a first real mine downloads the embedding model (about 79 MB) and may write hallways.json beside the palace; "
-                "it has no time limit%s" % wing_note)
+    if command == "mine":
+        wing, wing_note = chosen_wing(values, wing, wing_from_file)
+        mode = values.get("--mode")
+        tail = mine_tail(path, wing, mode, not confirmed)
+        if confirmed:
+            note = ("a first real mine downloads the embedding model (about 79 MB) and may write hallways.json beside the palace; "
+                    "it has no time limit%s" % wing_note)
+        else:
+            note = "this is a dry run and files nothing; add --confirm to file the drawers%s" % wing_note
     else:
-        note = "this is a dry run and files nothing; add --confirm to file the drawers%s" % wing_note
+        wing, mode = sync_wing(wing), None
+        tail = sync_tail(path, wing, confirmed)
+        if confirmed:
+            note = "this removes the drawers of wing %s whose files are gone or ignored; it has no time limit" % wing
+        else:
+            note = "this is a dry run and removes nothing; add --confirm to remove the drawers of wing %s" % wing
+
+    def report():
+        return mine_lines(root, palace, wing, mode, path, cwd) if command == "mine" else sync_lines(root, palace, wing, path, cwd)
+
     if not confirmed:
         err.write("note: %s\n" % note)
         return run_owner(tail, palace, cwd, stdin, out, err)
@@ -919,32 +989,33 @@ def owner(command, args, stdin, out, err, cwd):
     if trusted_which(PROGRAM, trusted_entries(boundary), boundary) is None:
         raise Refused(MISSING)   # before the lock, which makes a directory
     if given is not None and not model_cached():
-        raise Refused(NO_MODEL_FOR_MINE)
-    before = created_names(path)
+        raise Refused(NO_MODEL[command])
+    before = created_names(path) if command == "mine" else set()
     try:
         with Lock(palace):
             if given is None:
                 err.write("note: %s\n" % note)
                 return run_owner(tail, palace, cwd, stdin, out, err)
-            wrong = digest.mismatch(given, mine_lines(root, palace, wing, mode, path, cwd))
+            wrong = digest.mismatch(given, report())
             if wrong:
-                raise Refused(wrong + "; nothing was filed")
+                raise Refused(wrong + ("; nothing was filed" if command == "mine" else "; nothing was removed"))
             err.write("note: %s\n" % note)
             code, text, notes = run_owner_captured(tail, palace, cwd)
             notes = "messages the program printed on standard error:\n%s\n" % notes if notes.strip() else ""
             if code != 0:
                 raise Failed("mempalace exited with code %s" % (code if code >= 0 else "signal %d" % -code),
-                             wrap("mine", text, notes))
-            out.write(wrap("mine", text, notes))
+                             wrap(command, text, notes))
+            out.write(wrap(command, text, notes))
             return 0
     finally:
-        say_created(err, path, before)
+        if command == "mine":
+            say_created(err, path, before)
 
 
 def main(argv, stdin, out, err, cwd):
     """Run one command from `cwd`. Returns the exit code. A refusal means nothing was started."""
     try:
-        if not argv or argv[0] not in ("status", "search", "mine", "preview"):
+        if not argv or argv[0] not in ("status", "search", "mine", "sync", "preview"):
             raise Refused(USAGE)
         if argv[0] == "status":
             return status(argv[1:], out, cwd)

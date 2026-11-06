@@ -164,8 +164,8 @@ class Skill(unittest.TestCase):
             self.assertNotIn(word, text, word)
         found = set(re.findall(r"wb run [a-z-]+ [a-z]+", text))
         self.assertEqual({"wb run mempalace search", "wb run mempalace status", "wb run mempalace preview",
-                          "wb run mempalace mine"}, found)
-        self.assertNotIn("wb ", re.sub(r"wb run mempalace (search|status|preview|mine)|wb settings", "", text))
+                          "wb run mempalace mine", "wb run mempalace sync"}, found)
+        self.assertNotIn("wb ", re.sub(r"wb run mempalace (search|status|preview|mine|sync)|wb settings", "", text))
         self.assertIsNone(re.search(r"wb run mempalace init", text))
 
     def test_it_names_the_moments_and_tells_how_to_word_the_search_and_what_to_do_with_nothing(self):
@@ -224,6 +224,8 @@ class Skill(unittest.TestCase):
                      "the embedding model is not cached", "the owner has to build the memory",
                      "Never use the program directly", "`wb settings` prints `level wb run mempalace mine: ask`",
                      "`wb run mempalace preview mine <dir>`", "--digest", "The owner confirms it",
+                     "`wb settings` prints `level wb run mempalace sync: ask`", "`wb run mempalace preview sync <dir>`",
+                     "It takes no other option",
                      "At any other level the harness refuses it, and the owner runs it in a terminal"):
             self.assertIn(rule, text, rule)
         self.assertIsNone(re.search(r"\binit\b", text))   # plan `2026-11-05-mempalace-per-clone-use`, increment C: the module has no `init`

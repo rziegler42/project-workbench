@@ -39,9 +39,9 @@ class Declaration(unittest.TestCase):
     def test_the_command_takes_the_two_read_commands_and_the_owners_two(self):
         self.assertEqual(["mempalace"], list(declaration()["commands"]))
         command = declaration()["commands"]["mempalace"]
-        self.assertEqual(["status", "search", "mine", "preview"], command["arguments"])
-        self.assertEqual(["mine"], command["owner"])
-        self.assertEqual({"mine": ["ask"]}, command["levels"])   # increment D: ask only, no none, no delegated
+        self.assertEqual(["status", "search", "mine", "sync", "preview"], command["arguments"])
+        self.assertEqual(["mine", "sync"], command["owner"])
+        self.assertEqual({"mine": ["ask"], "sync": ["ask"]}, command["levels"])   # increments D and E: ask only, no none, no delegated
         self.assertEqual("preview", command["preview"])
         self.assertEqual((HELPER, "python", 1), (command["helper"], command["runtime"], command["kit"]))
 
@@ -66,8 +66,9 @@ class Declaration(unittest.TestCase):
         self.assertEqual([], list(loaded.problems))
         checkpoints = [name for module in loaded.modules if module.type == "process" for name in module.checkpoints]
         keys = levels.registry(checkpoints, [levels.command_entry(command) for module in loaded.modules for command in module.commands])
-        mine = keys["wb run mempalace mine"]
-        self.assertEqual((("block", "ask"), "block", False, "wb run mempalace preview"), (mine.offers, mine.default, mine.agent, mine.preview))
+        for name in ("mine", "sync"):
+            key = keys["wb run mempalace " + name]
+            self.assertEqual((("block", "ask"), "block", False, "wb run mempalace preview"), (key.offers, key.default, key.agent, key.preview))
         preview = keys["wb run mempalace preview"]
         self.assertEqual((("block", "none"), "none", True), (preview.offers, preview.default, preview.agent))
         self.assertNotIn("wb run mempalace init", keys)

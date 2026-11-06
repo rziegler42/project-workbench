@@ -376,3 +376,31 @@ E, which the plan asks again at D. The last change (R3-F1) was not read by the r
 - Left for the owner: the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/pcd_install_files.py`, seven files, only if their
   hashes are those recorded), the release approvals, and after the commit `wb upgrade` and `wb rerender` (the rendered rules gain the key `wb run mempalace mine` at `ask` and `wb run mempalace preview`
   at `none`); to use it, setting the level of `wb run mempalace mine` to `ask` in the owner's settings, and the live checks of criterion 8.
+
+**Increment D was committed as `ea53436`** (copied and released by the owner).
+
+**Increment E (2026-11-05), done in a scratch clone at commit `ea53436`; not yet copied, released or committed.**
+
+- Changed in the clone (eight files): `helper/mempalace` (`sync` and `preview sync`; `sync_wing`, `sync_tail`, `sync_lines`, `report_lines`, `dry_failure`; `owner()`, `preview()`,
+  `owner_directory()` and `owner_terminal()` take the command; `NO_MODEL` per command), `module.json` (`arguments` gain `sync`; `owner`: `mine`, `sync`; `levels` gain `sync: ["ask"]`),
+  `harness/neutral/skills/recall-memory/SKILL.md` (the `sync` flow), and five test files: a new `test_mempalace_sync.py` (27 tests: Preview, Run, Lock) and small updates to
+  `test_mempalace_ask.py`, `test_mempalace_guidance.py`, `test_mempalace_module.py` and `test_mempalace_owner.py`. Changed in the live tree: `docs/specs/mempalace.md` (the `sync` section,
+  the table, the Non-goals line, the acceptance criteria, the skill paragraph), `docs/specs/command-permissions.md` (two sentences) and `docs/development.md` (the owner-run row, the module
+  paragraph, and the stale setting format of line 242, now `.workbench/local/mempalace.json`).
+- Deviations from the plan's wording: the helper passes `--dry-run` explicitly for the preview (the plan says "no `--apply`"; both hold); `sync` takes no `--allow-project-root`, so the project root is
+  refused for it; a folder that no longer exists cannot be named, so the drawers of a deleted folder are not pruned through the helper (documented); the model check applies to `sync` as to `mine`.
+- Verification as run: before the helper change all 26 new tests failed; after it `python3 -B -m unittest discover -s packages/workbench/mempalace/tests -p 'test_mempalace_*.py'` in the clone
+  gave 267 tests with one failure, a pinned set of owner commands in `test_mempalace_owner.py`, which I updated, and that file (75) then passed; the review added one test (27 in the new file,
+  which pass); `tests.test_owner_argument_run`, `test_rendering`, `test_settingscmd` and `test_permissions_drift` (176) pass in the clone. A scratch run against the real `mempalace` 3.11.0
+  (scratch home and palace, network denied): `mine` of six notes, two deleted, `preview sync` showed Missing 4 and the two sources with a digest and was the same twice; a wrong digest and
+  `--wing other` were refused; the digest run removed 4 drawers and 2 closets and a later search found only the remaining notes; a second preview showed Missing 0. Not run: `wb run code-work check`
+  (until the files are in the live tree).
+- Review: the `reviewer` agent, one exchange. No blocking finding. Applied: the Non-goals line in the spec still said that `sync` and filing were not wrapped; the skill said the wing was the
+  setting's only (it is the setting's or the project folder's name); a test said "says nothing" and did not check it; the folder rules were tested for the run with the project root only (now also a link, a
+  planted configuration, `.git` and a palace overlap); no test pinned the refusal when no wing exists, which is the property that keeps the program from working on every wing (added); the spec now says
+  that the lock does not exclude a change made between the digest check and `--apply`, and that a tie in the program's top five could refuse a run (it fails safe). The reviewer ran nothing.
+- What the digest does not cover: the complete list of sources removed (the program prints the counts and its top five) and the files' contents. The removal is not undone by the helper.
+- Open for the owner: whether to run a security review of D and E together (an agent can now start a write and a removal at `ask`); the folder and `--mode convos` question under D.
+- Left for the owner: the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/pce_install_files.py`, eight files, only if their
+  hashes are those recorded), the release approvals, and after the commit the installer's upgrade and rerender steps (the rendered rules gain the key `wb run mempalace sync` at `ask`); to use it,
+  setting the level of `wb run mempalace sync` to `ask`.
