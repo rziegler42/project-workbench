@@ -78,8 +78,9 @@ derivation, and the roadmap file is not edited.
 A plan has, in order:
 
 1. A title, a `Status:` line and a `Created:` date.
-2. `Candidate: <roadmap>#<id>`, or `Candidate: none` followed by a one-line reason.
-   Every plan has exactly one.
+2. `Candidate: <roadmap>#<id>` for bounded new work that advances the finish line of a roadmap, or
+   `Candidate: none` followed by a one-line reason for work too small to need roadmap direction,
+   such as a correction that follows from a finding. Every plan has exactly one.
 3. `Specs:` naming zero or more specs the plan implements or changes.
 4. Goal, scope, non-goals, and assumptions and constraints.
 5. Completion criteria for the whole plan.

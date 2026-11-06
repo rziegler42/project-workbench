@@ -126,3 +126,19 @@ Empty until work starts.
   reported to the owner and not changed. The reviewer ran nothing.
 - Left for the owner: the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/rs_install_files.py`, four files, only if their hashes are those recorded), the release approvals, the removal of the stale records
   after you approve the list, then "commit a"; after the commit the upgrade and the rerender (the shipped README and the skill are installed from the package).
+
+**Increment B (2026-11-06), done in a scratch clone at commit `39be69a`; not yet copied, released or committed.**
+
+- Built: the `Candidate:` item of the plans README, step 4 of the `draft-plan` skill and the `Candidate:` item of `docs/specs/code-work.md` now say that a plan names `<roadmap>#<id>` for bounded new work that
+  advances the finish line of a roadmap, and `Candidate: none` with a one-line reason for work too small to need roadmap direction, such as a correction that follows from a finding; "exactly one" is kept.
+  Step 1 of the skill reads the roadmap that holds the candidate only when the plan names a candidate, and step 4 searches the roadmap so the ID exists "for a named candidate". Four files changed in the clone:
+  the README, the skill, the spec and a new test file (`tests/test_codework_candidate_text.py`, five tests).
+- Verification as run: before the text 2 of the first 4 tests failed (the others pin text kept); afterwards the five tests pass; the code-work module suite in the clone gave 352 tests, all passing (2 skipped,
+  as before); `tests.test_permissions_drift` and `tests.test_rendering` (107) pass; `wb run code-work check` in the live tree passes. Not run: the whole suite (no code changed); an agent following the text (a live run).
+- Review: the `reviewer` agent, one exchange, no blocking finding. Applied: the tests pin the exact no-candidate form in each place, "exactly one `Candidate:` line" in the skill, and the search sentence with
+  "for a named candidate". Not applied, for the owner: `template.md` of the skill still shows only `Candidate: <roadmap>#<id>` (it is outside this plan's affected areas, and the non-goals bar rewording
+  elsewhere, so a change needs a new approval); candidate-first wording that remains (the plans README introduction, the spec's flow lines 52 to 59, and `files/blocks/policy.md` line 3 "Work moves from a roadmap
+  candidate to a plan"), which reads as the normal path and agrees with decision 4; the risk that "too small" is read loosely, which the record accepts as a judgment for the first uses to test. The reviewer ran nothing.
+- Left for the owner: the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/rb_install_files.py`, four files, only if their hashes are those recorded), the release approvals, the removal of the stale records
+  after you approve the list, then "commit b"; after the commit the upgrade and the rerender. The upgrade does not replace the project's own `docs/plans/README.md`; after it I compare that file with the package copy and, with
+  your word, match it as was done for the roadmaps README.
