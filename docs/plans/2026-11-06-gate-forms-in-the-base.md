@@ -146,4 +146,13 @@ next live session, and whether an installed project can take it by upgrade is no
   refused again" are pinned (the first run pinned words that bullet 2 also holds). Not applied, because the section is the approved text and a change needs a new approval: bullet 2's "a commit
   subject" can be read as banning the literal single-quoted `wb run` form that the gate frees, and "ordinary prose can trip it" is true of `approve-plan` and the `wb run <command> <argument>` keys, not of
   the single-word keys (`wb install`, `wb add`). Both overstate and neither causes a refusal. Fixing the wording needs the owner's new approval of the plan; they are left for a later change.
-- Left for the owner: the word to commit increment A; then increment B (this repository's `AGENTS.md`).
+- Committed as `8ef37c2` (trailer `Plan: 2026-11-06-gate-forms-in-the-base#A`).
+
+**Increment B (2026-11-06), done in the live tree on top of `8ef37c2`; not yet committed.**
+
+- Built: the section "Commands the gate accepts", copied from `base/AGENTS.md` as committed in increment A, inserted in this repository's `AGENTS.md` between "Source of truth" and "Policy". No other line
+  changed and no module block was touched.
+- Verification as run: a byte comparison of the two sections says identical (15 lines each); `git diff --numstat` for `AGENTS.md` says 15 added, 0 deleted; `wb run code-work check` found no problems.
+  Not run: the test suite (a prose file changed and increment A pinned the text), `wb acknowledge` (the owner's).
+- Review: the `reviewer` agent, one exchange, no findings and no security risk named. It compared by reading, not by byte, so the byte comparison above is mine.
+- Left for the owner: the word to commit increment B, then `wb acknowledge` for the changed seeded file.
