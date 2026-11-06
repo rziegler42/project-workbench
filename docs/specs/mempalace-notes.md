@@ -401,6 +401,45 @@ The owner does not read notes to approve them. [agreed]
 - Two spellings of one wing, or a project renamed after notes were filed, split the notes across wings. Renaming is the owner's act. [open]
 - Where `keep` and `mine` are two confirmations, the owner confirms twice per review. [open]
 
+## Evidence
+
+**Live run, 2026-11-06, reported by the owner from real sessions** (the keep, mine and sync arguments at `ask`; `save`, `drop` and `merge` at `none`; helper at commit `e98c027`).
+Recorded as reported, not edited into a pass.
+
+What happened:
+
+1. *Brainstorm with no mention of notes.* The owner began a brainstorm of a scheduled research agent's source selection, with no spec. The agent searched the palace and listed
+   notes first, asked its questions, and after the owner accepted a playback ("good so far") saved one draft, `research-agent-source-selection-rules` (kind `decision`),
+   without asking. It asked no question about notes. It told the owner of the draft only after the owner listed the drafts.
+2. *Cost of the save.* The agent needed four tries to save: `save --help` is refused (the usage text was all it got); a combined command with a `kinds` call and `--kind design`
+   was refused by the harness's command gate because the body contained a word with the letters of `keep` in it (rule `names`, since `keep` is at `ask`), and the agent reworded the
+   text without telling the owner; then `design` is not a kind. The fourth try saved.
+3. *Compaction.* After `/compact` and "where were we?", the agent answered with no tool call, from the harness's compaction summary. The answer was complete. This did not
+   test the notes, and the rule "after a compaction, list the notes" was not followed.
+4. *New session, same topic.* The agent listed the notes first, read the draft with `read`, restated the owner's three rules, and marked its own guess ("drop and report")
+   as its call. It asked nothing about notes. It also searched the palace (nothing relevant, low scores), and ran one `grep` of the spec to learn the syntax.
+5. *Side session.* Asked to work out how to tell a paper from a write-up and to note what it found, the agent listed the notes, read the draft, and extended it with
+   `save --into ... --body -`, labelling the text as its own reasoning with nothing fetched. It spent about six calls on wrong forms (`show`, `--help`, `search ... --wing` after
+   `--`, a bare `save`, a grep of the spec). It put its hypotheses into the same note as the owner's accepted rules, a note of kind `decision`.
+6. *Review.* "Let's go through the notes" gave `1 drafts, 0 routine, 1 need a look` (flag: new wing), a plain summary, the digest and one question. The owner answered "fine, file it".
+   The agent then ran `keep` with `2>&1 | head -30` appended; the gate refused it (the exact simple command only), its hint named a command without `run` (not a valid
+   command), the agent tried that, was refused again, and gave the owner the same wrong form. The owner ran `wb run mempalace-notes keep --wing project-workbench --digest ...`
+   and it printed `kept 1 notes in wing project-workbench`. The agent then asked whether to file ("your call"), a second question after the owner's answer.
+7. *Filing.* On "Now preview and file that folder" the agent ran the preview, then the `mine` step with `--confirm --digest` as one command with nothing attached; the owner confirmed it
+   (6 drawers). The program's standard error said the wing would be `project_workbench` by auto-detection; the wing used was `project-workbench`.
+8. *Search.* A search from outside the session found the note first (cosine 0.725), against 0.47 for the best unrelated result.
+
+What it shows: a fresh session continued an unspecced brainstorm from a note alone; a side session found and extended it; the owner was asked once, in plain lines; keep and mine
+completed; the filed note was found by a plain search. The agent asked nothing about notes outside the review.
+
+What it does not show: the notes after a compaction (the harness's own summary carried everything); more than one topic, one side session and one review; whether the agent saves
+at the other moments (a lesson, a dead end, a researcher's idea); a run with more than one draft, an outlier, a revision or a second wing; any run after weeks.
+
+Defects found (for a follow-up, not a widening of the first plan): (1) the always-loaded block gives no command form or kinds, which cost about ten calls over three sessions; (2) with
+the three arguments at `ask`, the command gate refuses any command whose text, prose included, contains a word with their letters in it, and the agent hid the cause by rewording;
+(3) the agent appended a pipe to `keep`, and the gate's hint omits `run`; (4) the agent mixed its findings into a note of the owner's accepted decision; (5) `review` prints
+"1 drafts"; (6) the filing asked a second question. Neither anti-goal was met: the run offered value and was not needy beyond (6).
+
 ## What is left to the builder
 
 The command shapes, the file format and the flags are calls, and each can be changed with the owner's word. A plan would likely build, in order: the folder, the

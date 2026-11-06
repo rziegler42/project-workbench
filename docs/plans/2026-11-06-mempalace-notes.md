@@ -358,3 +358,14 @@ its findings were fixed in C before the commit (above).
   them new, only if their hashes are those recorded), the release approvals, the removal of the stale records after you approve the list, then "commit d"; after the commit `wb upgrade` and
   `wb rerender` (the rendered `AGENTS.md` and the skill gain the new text; this is what makes an agent in a new session save notes). For the live run of increment E, set `wb run mempalace-notes
   keep` to `ask`.
+
+**Increment E (2026-11-06): the live run, recorded; not yet committed.**
+
+- The owner ran the live run in real sessions with the three owner-run arguments at `ask` and reported it. It is recorded as reported under "Evidence" in `mempalace-notes.md`, with what
+  it shows and what it does not. Changed: `docs/specs/mempalace-notes.md` and this Result.
+- Outcome in short: silent save, found again in a new session, extended by a side session, one review question, `keep` (run by the owner) and the filing completed, and a plain search found
+  the filed note first. Not shown: the notes after a compaction, other save moments, more than one draft or wing. Neither anti-goal was met.
+- Defects, for a follow-up plan and not part of this one: the block gives no command form or kinds; the command gate refuses prose containing a word with the letters of an `ask` key in it
+  (and the agent hid the cause); the agent appended a pipe to `keep` and the gate's hint omits `run`; the agent put its own findings into a note holding the owner's accepted decision;
+  `review` prints "1 drafts"; a second question about filing after the owner's answer.
+- Verification: `wb run code-work check`.
