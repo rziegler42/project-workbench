@@ -278,3 +278,51 @@ agent-run arguments is a change from what the owner was told in the design conve
   seven files, one of them new, only if their hashes are those recorded), the release approvals, the removal of the stale records after you approve the list, then "commit b";
   after the commit `wb upgrade` and `wb rerender` (the rendered rules gain the key `wb run mempalace-notes save` at `none`, so an agent can save drafts without asking; set
   the key to `block` to stop it).
+
+**Increment B was committed as `4396afa`** (copied and released by the owner), and its install-state files as `57c6393`. The owner did not ask for the security review of B.
+
+**Increment C (2026-11-06), done in a scratch clone at commit `57c6393`; not yet copied, released or committed.**
+
+- Built, in `helper/mempalace-notes`: `drop <name>` (archives a draft under a name with the time in it, never replacing an entry; a malformed draft too); `merge <draft> <into>` (adds the
+  draft's text once, marked by a `merged from <name> <12 hex>` line, then archives the source; into a reviewed note it makes a revision draft; one wing; the result is scanned for
+  credentials and kept within the size limit); `review [--wing W]` (counts and only the outliers, each with reasons and suggestions, and `digest: <hex>` last); and the owner's
+  `keep --wing W --digest D` (checks the digest and the blockers before the lock, again under it, writes the journal `.keep`, moves the drafts one at a time without their `revises` and
+  `new-despite` lines, removes the journal). `list`, `review`, `save` and `keep` finish an interrupted keep. `module.json`: the four arguments, `owner: [keep]`, `levels: {keep: [ask]}`,
+  `preview: review`, so `keep` offers `block` and `ask` and defaults to `block`, and the other seven arguments are agent-run at `none`.
+- Changed in the clone (seven files): the helper, `module.json`, a new `tests/test_mempalace_notes_review.py` (50 tests), a new `tests/test_mempalace_notes_hardening.py` (the tests of the security
+  review's findings), and updates to `test_mempalace_notes_module.py`,
+  `test_mempalace_notes_read.py` and `test_mempalace_launcher.py`. Changed in the live tree: `docs/specs/mempalace.md` (the table row), `docs/specs/command-permissions.md` (the two
+  sentences that name the modules whose arguments offer `ask`) and `docs/specs/mempalace-notes.md` (the keep syntax, the as-built paragraph, the corrections below).
+- Deviation from the plan's wording: `keep --wing W --digest D`, not `keep --wing W <digest>`, because the launcher at `ask` takes the last two arguments as `--digest` and 32 hex. No new
+  import: the digest comes from the kit, and the pin is as in B.
+- Verification as run: the module suite in the clone gave 468 tests, all passing (after the review's fixes; 451 before the security review's), and the four repository tests (176) pass. I broke the helper eight ways and each made the review tests
+  fail: `keep` ignoring the digest, no personal-detail flags, replacing an archive entry, `list` not finishing a journal, a retried move writing over a different reviewed note, cutting the
+  list by name order, a revision with any name, and a malformed draft that cannot be dropped. Two of the first five survived at first and showed gaps, which got tests (the in-lock
+  checks); my first version of the cap break was not the real bug and survived, and the real one is caught. A scratch run against the real `mempalace` 3.11.0 with the network denied saved two notes, reviewed, kept, mined the reviewed folder with the real
+  `mine` and found the right note first in a real search (cosine 0.68). Not run: the whole suite, the launcher's end-to-end `keep` at `ask` (the installer's gate is covered by
+  `tests.test_owner_argument_run`; I check the real `wb run mempalace-notes keep` after the install).
+- Review: the `reviewer` agent, one exchange. **One blocking finding, applied**: `review` cut its list at 40 outliers while `keep` moves every draft, so a personal-detail or blocking draft
+  could be hidden and kept. A blocker and a personal-detail draft are now always printed and only plain outliers are cut, with the cut line naming the flags. Also applied: a revision must
+  have the name of the note it replaces and `revises` must be a note name; no two drafts may replace the same note; a reviewed note that cannot be read blocks its revision (it was an
+  uncaught error); a revision that removes most of a note is an outlier (the difference is two-sided); `merge` stays in one wing; `drop` can archive a malformed draft; `keep` moves at most
+  200 drafts so that its journal is read back, which is now allowed up to 64 KiB; a descriptor leak and dead code removed; the digest frames each text by its length; more phone and address
+  shapes are found and the email pattern is bounded; and the stale lines of the specs. Tests were added for each. Not applied: nothing was left out. The reviewer ran nothing.
+- Security review of B and C together, at the owner's request (the `security-reviewer` agent, on a copy, with a scratch home and notes folder; it ran no `wb`, no `mempalace` and used
+  no network). **No way to write, replace, link or delete outside the notes folder, and no way for an agent verb to move a draft into the reviewed folder without the owner's `keep`,
+  was found** (tested with a link at every component, hard links, hostile names and titles, header and marker injection, a crash after the first move, about 15 verbs for descriptor
+  leaks). It found one Medium and six Low issues, all applied except where noted, each with a test that fails without its fix (I broke the helper thirteen ways to check): (1) **Medium**,
+  two credential patterns were quadratic, so a 16 KiB note such as `"a." * 7000` made `save` take 10 s and `review`/`keep` seconds per draft, with half of it under the lock (an agent
+  could stall the owner's review with `save` alone): every quantifier is bounded, the URL and assignment patterns run only on a line that holds `://` or `:`/`=`, and the words of a note
+  are worked out once; (2) a resumed `keep` moved whatever the draft held now: the journal now holds a fingerprint of each draft and a move checks it, and that a revision names the note
+  the draft revises; (3) common credential shapes were missing (`sk_live_`, `npm_`, `glpat-`, `ASIA`, `Authorization: Basic`, `redis://:pw@`, `pwd=`, `passphrase:`, `=>`, `:=`,
+  fullwidth forms): added, with NFKC normalisation; (4) `list`, `wings` and `review` write (expiry, an interrupted keep), which the table hid: the spec now says so, and the journal is
+  settled before the expiry so a stale journaled draft is filed and not archived; (5) `keep` could write to the working directory if the drafts folder vanished: it refuses (found by
+  the break test itself, which left a stray `.keep` in the clone, now removed); (6) no limits: a wing holds at most 200 drafts and a save makes no wing beyond 50; (7) a big revision is
+  now always shown whatever the backlog. Smaller: a `merge` prefix with a control character was echoed, the case-alias check is now in every verb, and a `merge` whose marker is already in
+  the target says so. Not changed: a plain sentence that is a secret by meaning, a token wrapped over three lines, base64 of a key and a bare 40-character AWS secret are not found (the
+  spec states the limit); `save` is labelled class `reads` by the permission system; an agent may write a draft into any wing by name. The reviewer could not check the launcher's
+  enforcement of owner-run `ask`, multi-process lock contention, or a case-sensitive volume.
+- Left for the owner: the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/pnc_install_files.py`,
+  seven files, two of them new, only if their hashes are those recorded), the release approvals, the removal of the stale records after you approve the list, then "commit c"; after the
+  commit `wb upgrade` and `wb rerender` (the rendered rules gain `wb run mempalace-notes drop`, `merge` and `review` at `none` and `keep` at `block`; to use `keep` from a session, set it
+  to `ask`).

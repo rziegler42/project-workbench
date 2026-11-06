@@ -161,13 +161,13 @@ file reader and starts no process. [agreed on 2026-11-06]
 | verb | does | who | writes |
 |---|---|---|---|
 | `wings` | lists the wings that have notes: name, number of reviewed notes and drafts, date of the newest | agent | nothing |
-| `list [--wing W] [--kind K] [--state S]` | lists notes with title, kind, wing, updated and state; `--state` is `reviewed`, `draft`, `archived` or `all`, and defaults to `reviewed` and `draft` together; without `--wing` it lists the project's wing | agent | nothing |
+| `list [--wing W] [--kind K] [--state S]` | lists notes with title, kind, wing, updated and state; `--state` is `reviewed`, `draft`, `archived` or `all`, and defaults to `reviewed` and `draft` together; without `--wing` it lists the project's wing | agent | no note; it runs the expiry and finishes an interrupted `keep` first (below), which write |
 | `read <name> [--wing W] [--state S]` | prints one note, between the recalled-data markers; `<name>` is a file name or a title, `--state` narrows it as for `list`, and a name that matches more than one note (for example a reviewed note and its revision draft) refuses and lists them | agent | nothing |
 | `save` | creates a draft, or adds to the note it is told to extend (below) | agent | the drafts folder |
 | `drop <draft>` | moves a draft to the archive; the owner's "drop" | agent | the drafts and archive folders |
 | `merge <draft> <into>` | adds the draft's text to another draft, or makes a revision draft of a reviewed note, and archives the first draft | agent | the drafts and archive folders |
-| `review [--wing W]` | prints the by-exception summary of **one wing's** drafts and a digest (below); without `--wing`, the project's wing | agent | nothing |
-| `keep --wing W <digest>` | moves the drafts the digest covers into that wing's folder; a revision replaces the reviewed note it names; one wing per call and per digest, and `--wing` is required | owner, level `ask` with the digest | the notes folder |
+| `review [--wing W]` | prints the by-exception summary of **one wing's** drafts and a digest (below); without `--wing`, the project's wing | agent | no note and no folder; like `list` it runs the expiry and finishes an interrupted `keep` |
+| `keep --wing W --digest <digest>` | moves the drafts the digest covers into that wing's folder; a revision replaces the reviewed note it names; one wing per call and per digest, and `--wing` is required | owner, level `ask` with the digest | the notes folder |
 
 **Naming a note in a command.** `drop`, `merge`, `read` and `save --into` take a note as `<name>` or `<wing>/<name>`, where `<name>` is a file name (with or
 without `.txt`) or a title, and the wing is the project's when it is left out. A bare name that matches more than one note of the wing refuses and lists them.
@@ -215,7 +215,7 @@ writes are drafts and never the palace. A default of `block` would be a change t
   - `merge <draft> <into>` first writes the target (temporary file, rename) with the draft's text added under a line `merged from <draft> <hash of its text>`,
     and only then archives the draft. A crash between the two leaves the text in both places, a duplicate and not a loss. A retry sees the line, adds nothing a
     second time, and archives the draft.
-  - `keep` first writes a journal, `<notes>/.drafts/<wing>/.keep`, holding the digest and the set (names and hashes), then makes the moves one rename at a time
+  - `keep` first writes a journal, `<notes>/.drafts/<wing>/.keep`, holding the digest and the set (the names, and for a revision the note it replaces), then makes the moves one rename at a time
     in a fixed order, and last removes the journal. Any later `keep`, `review`, `list` or `save` in that wing that finds a journal finishes the moves it
     lists, which are renames and so safe to repeat, before it does anything else; it refuses to start a different `keep` while a journal exists. A revision
     replaces its reviewed note by a rename over it, so the reviewed note is never absent.
@@ -228,12 +228,15 @@ writes are drafts and never the palace. A default of `block` would be a change t
   - **Scope.** The whole note as it would be written is scanned before anything is written: the title, kind, source and verify lines, the body, and, for
     `--into`, the complete resulting note including the earlier text. A credential in a field, or in an appended paragraph, is refused like one in the body.
     The scan runs again at `review` and `keep`, over what is on disk.
-  - **Patterns**, a minimum that a test pins; more may be added and none removed: a private-key block (`-----BEGIN … PRIVATE KEY-----`); an AWS access key id
-    (`AKIA` and 16 upper-case letters or digits); a GitHub token (`ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_` or `github_pat_` and a long run of letters, digits and
+  - **Patterns**, a minimum that a test pins; more may be added and none removed. The text is first normalised (NFKC), so a fullwidth or other compatibility form is read
+    as the plain one. Every quantifier in a pattern is bounded, and the URL and assignment patterns run only on a line that holds `://` or `:`/`=`, so that one long line
+    costs time in proportion to its length (a test pins this with 16 KB lines). The patterns: a private-key block (`-----BEGIN … PRIVATE KEY-----`); an AWS access key id
+    (`AKIA` or `ASIA` and 16 upper-case letters or digits); a GitLab token (`glpat-`), an npm token (`npm_`) and a Stripe key (`sk_live_`, `sk_test_`, `rk_…`); a GitHub token (`ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_` or `github_pat_` and a long run of letters, digits and
     `_`); a Slack token (`xox` and a letter, a dash and a run); a Google API key (`AIza` and 35 characters); a JSON web token (three dot-separated base64
-    parts, the first two beginning `eyJ`); a key in the `sk-` form (20 or more characters); an `Authorization: Bearer` header with a long token; a URL with a
-    user name and password before the `@`; and a line that assigns a value of 6 or more non-space characters, with `:` or `=` (a closing quote may come before it and an
-    opening quote after it), to a name that holds `password`, `passwd`, `secret`, `token`, `api_key`, `access_key` or `private_key` in any case, with any prefix or
+    parts, the first two beginning `eyJ`); a key in the `sk-` form (20 or more characters); an `Authorization: Bearer` or `Basic` header with a long token; a URL with a
+    user name (or none) and a password before the `@`; and a line that assigns a value of 6 or more non-space characters, with `:`, `=`, `:=` or `=>` (a closing quote may come
+    before it and an opening quote after it), to a name that holds `password`, `passwd`, `passphrase`, `pass`, `pwd`, `secret`, `token`, `api_key`, `access_key`, `private_key` or
+    `credential` in any case, with any prefix or
     suffix of letters, digits and underscores (`GITHUB_TOKEN=`, `client_secret =`, `DB_PASSWORD=`, `SECRET_KEY=`, `"password": "..."`). A token of the fixed shapes that a
     wrap split over two lines is found by joining the last word of a line to the first word of the next, and is named at the first line. A token wrapped
     over three or more lines, or a value that is only secret by meaning, is not found (a known limit). The title is scanned before the file name is made, so a name
@@ -263,10 +266,41 @@ The owner does not read notes to approve them. [agreed]
 - A suggestion is one line the owner can approve with a short answer ("drop 3, merge 2 into 1, the rest are fine"). [agreed in substance]
 - **The owner's answer is applied by commands, then checked again.** The numbers in the summary refer to the drafts as `review` printed them. The agent applies
   the answer with `drop` and `merge` (above), which change only drafts and the archive and cannot reach a reviewed note or the palace; then it runs `review`
-  again, which prints the new set and a new digest; then the owner's `keep <digest>` is confirmed. [call]
-- **The digest covers the exact set `keep` moves**: for each draft, its wing, file name and a hash of its text, and for a revision the reviewed note it
+  again, which prints the new set and a new digest; then the owner's `keep --wing W --digest <digest>` is confirmed. [call]
+- **The digest covers the exact set `keep` moves**: for each draft, its wing, file name and whole text (framed by its length in bytes), and for a revision the reviewed note it
   replaces and that note's hash. `keep` recomputes it inside the wing's lock and refuses when anything differs, so a draft changed or added after the review
   is not moved by the old digest. A draft that is not in the set stays a draft. [call]
+- **As built (increment C).** `review` prints `review of wing W: N drafts, R routine, O need a look`, then one line per outlier (`<number>. <name> | <kind> |
+  <reasons> | suggestion: <suggestions>`), between the recalled-data markers, and, after them, `digest: <32 hex>`; with no drafts it prints "no drafts to review" and
+  no digest. The set `keep` moves is **every draft of the wing**, so the owner's "drop 3, merge 2 into 1, the rest are fine" is applied with `drop` and `merge` and a
+  second `review`. The digest is taken over, for each draft sorted by name, its file name, what it revises, its whole text and, for a revision, the whole text of the
+  reviewed note. A draft that is malformed, holds credential-shaped text, revises a note that is not there, or has the name of a reviewed note without revising it
+  **blocks** `keep` (it names the draft and moves nothing); a personal-detail shape, a size over 4,000 characters, an overlap, a new wing, a revision that adds more than
+  half of a reviewed note's words, or an age over 14 days only makes it an outlier. `keep` checks the digest and the blockers before it takes the lock or makes
+  anything, takes the lock, checks them again, writes the journal `.keep` in the drafts folder (`keep 1`, `digest <hex>`, then `new <draft>` or `revise <draft>
+  <target>` for each), moves the drafts one at a time, and removes the journal. A move writes the draft without its `revises` and `new-despite` lines (exclusively for a
+  new note, by a rename over the reviewed note for a revision) and then removes the draft, so a repeat finds the work done; a reviewed note that exists and differs from
+  a new draft is never written over. `keep`, `review`, `save` and `list` finish a journal they find; a `keep` with the digest of the interrupted one says it finished it,
+  and a `keep` with another digest finishes it and is refused. `drop` and `merge` change drafts and the archive only, check what they can before the lock, and a merge
+  that crashed between writing the target and archiving the source is repeated safely by the line `merged from <draft> <12 hex of its text>`. `keep` prints the folder
+  to file (`<notes>/<wing>`) and `mine` is then run on it by the owner with the wing. [call]
+  **After the security review of increments B and C (2026-11-06), each with a test:** one note cannot stall the helper (the patterns above, and the words of a note
+  are worked out once for a review); the journal holds a fingerprint of each draft, and a resumed move checks the draft is still the bytes that were reviewed and that a
+  revision names the note the draft says it revises, so a draft swapped after a crash is not moved; an interrupted `keep` is finished **before** the expiry runs, so a
+  journaled draft that went stale is filed and not archived; a wing holds at most 200 drafts (the most one `keep` moves) and a `save` makes no wing beyond 50; a
+  revision that adds or removes more than half of a reviewed note is always shown, whatever the backlog; every verb that writes or reviews refuses a wing that differs
+  only in case from an existing one; `keep` refuses when its drafts folder has vanished, and does not write to the current directory; a `merge` whose marker is already
+  in the target says that only the draft was archived. **`wings`, `list` and `review` write**: they run the expiry (archiving drafts over 30 days old in the wings they
+  look at, all wings for `wings`) and finish an interrupted `keep`, and they make `.locks`, `.archive` and lock files when they do; setting `save`, `drop` and `merge`
+  to `block` does not stop this. An agent may write a draft into any wing by name; it shows in that wing's review. [call]
+  Added after the review of the increment: **the list is never cut over a draft the owner has to see.** A blocker and a personal-detail draft are always
+  printed; only the plain outliers (old, large, overlapping, new wing, big revision) are cut at 40 lines in all, and the cut line says how many are left out and by
+  which flag. A revision draft must have the name of the note it replaces (`revises` is a note name, else the draft is malformed), no two drafts may replace the same
+  note, a reviewed note that cannot be read blocks its revision, and a revision that adds **or removes** more than half of the reviewed note's words is an outlier.
+  `keep` moves at most 200 drafts at a time, so that its journal is read back (up to 64 KiB). `drop` can archive a malformed draft by its file name, so that the owner
+  is never left with a wing that nothing clears. `merge` stays in one wing: a name with a prefix must name the wing the other name, `--wing` or the project names, and
+  a prefix is never used to look for the source in a wing the target is not in. The reviewed notes that are not the target of a revision are not in the digest; they
+  can change the overlap and new-wing flags, which only advise, and a name that a reviewed note holds still blocks a draft under the lock. [call]
 - Output is short plain lines. It never prints a note's whole text unless the owner asks for it with `read`. [agreed in substance]
 - **Expiry.** A draft whose `updated` date is more than 30 days old is moved to the archive folder. The helper deletes no note. [call]
   - It is done lazily, at the start of `save`, `list`, `wings` and `review`, by the same routine, and by no scheduled process. It is idempotent, and each move is a

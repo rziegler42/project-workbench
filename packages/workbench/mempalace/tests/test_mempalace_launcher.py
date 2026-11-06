@@ -173,10 +173,11 @@ class Launcher(support_install.InstallBase):
     def test_a_verb_that_is_not_built_is_refused_by_the_launcher_for_the_notes_command(self):
         place = self.place()
         self.assertEqual(0, self.install(place)[0])
-        for argument in ("keep", "review", "drop", "merge", "--help"):
+        for argument in ("--help", "delete", "restore"):
             errors = io.StringIO()
             self.assertEqual(1, commands.run(self.guarded, ["mempalace-notes", argument], errors, cwd=place))
             self.assertIn("is not an argument of the command", errors.getvalue())
+
 
     def test_an_edited_notes_helper_is_refused(self):
         place = self.place()

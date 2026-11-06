@@ -41,9 +41,9 @@
       "tree_hash": "f2f4eba9457ae2eac2e5cce382fa8a1ad067dbb4bdd2f5161ef69faf82e614ee"
     },
     {
-      "declaration_hash": "fe0b47e65f236561fd7c5ded5dfa9af0a887f1eb9389511dfe75285c83fa98ed",
+      "declaration_hash": "e0eeb00d9c4c942b2408e4dcc21c725a362c491d1ad8742e19dbfe4e5745ba86",
       "name": "mempalace",
-      "tree_hash": "7dd6c0f63185221933947ee1e878b69fdfcab617d8a636b8e546cb3fe55d491d"
+      "tree_hash": "c097417615e85e7158380d55bf914519992f98f3df99729b7d062f18d866fac1"
     },
     {
       "declaration_hash": "42d04c9ccf24d08e662269c44db10d7e952a25465d0ae552e8ee8c4703044b11",
@@ -73,6 +73,6 @@
   ],
   "subject": "workbench",
   "time": "1970-01-01T00:00:00Z",
-  "tree_hash": "22ce29aaa76c100544cd927557f98b33f214046ebfe23f684b138f97cbd9f849",
+  "tree_hash": "f21457e4c190f7c292f475981cf60571d028ac9ee814ee0afd2675c40393c36b",
   "workbench_version": "0.1.0"
 }

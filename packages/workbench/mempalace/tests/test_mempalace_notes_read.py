@@ -364,7 +364,7 @@ class Read(support_notes.Notes):
 
 class Usage(support_notes.Notes):
     def test_only_the_verbs_built_so_far_exist(self):
-        for argv in ([], ["drop", "x"], ["merge", "a", "b"], ["review"], ["keep", "x"], ["unknown"]):
+        for argv in ([], ["unknown"], ["restore", "x"], ["delete", "x"]):
             self.refused(*argv, contains="usage")
 
     def test_a_header_runs_to_the_first_line_that_is_not_a_header_line_and_the_blank_line_is_required(self):

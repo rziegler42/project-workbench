@@ -1,4 +1,4 @@
-"""Plan `2026-11-06-mempalace-notes`, increments A and B: the declaration of the notes command (a second command of the `mempalace` module), its keys, and the pin
+"""Plan `2026-11-06-mempalace-notes`, increments A to C: the declaration of the notes command (a second command of the `mempalace` module), its keys, and the pin
 on its helper. The design is `docs/specs/mempalace-notes.md`."""
 
 import json
@@ -13,7 +13,8 @@ ROOT = support_install.ROOT
 PACKAGE = os.path.join(ROOT, "packages", "workbench")
 MODULE = os.path.join(PACKAGE, "mempalace")
 HELPER = "helper/mempalace-notes"
-ARGUMENTS = ["wings", "list", "read", "save"]
+AGENT_ARGUMENTS = ["wings", "list", "read", "save", "drop", "merge", "review"]
+ARGUMENTS = AGENT_ARGUMENTS + ["keep"]
 
 
 def declaration():
@@ -32,7 +33,8 @@ class Declaration(unittest.TestCase):
         data = declaration()
         self.assertEqual(["mempalace", "mempalace-notes"], list(data["commands"]))
         command = data["commands"]["mempalace-notes"]
-        self.assertEqual({"helper": HELPER, "runtime": "python", "kit": 1, "arguments": ARGUMENTS}, command)
+        self.assertEqual({"helper": HELPER, "runtime": "python", "kit": 1, "arguments": ARGUMENTS, "owner": ["keep"], "levels": {"keep": ["ask"]},
+                          "preview": "review"}, command)
 
     def test_the_first_command_is_unchanged(self):
         command = declaration()["commands"]["mempalace"]
@@ -45,11 +47,11 @@ class Declaration(unittest.TestCase):
         loaded = declarations.load_package(PACKAGE, first_party=True)
         checkpoints = [name for module in loaded.modules if module.type == "process" for name in module.checkpoints]
         keys = levels.registry(checkpoints, [levels.command_entry(command) for module in loaded.modules for command in module.commands])
-        for name in ARGUMENTS:
+        for name in AGENT_ARGUMENTS:
             key = keys["wb run mempalace-notes " + name]
             self.assertEqual((("block", "none"), "none", True), (key.offers, key.default, key.agent), name)
-        for name in ("keep", "review", "drop", "merge"):
-            self.assertNotIn("wb run mempalace-notes " + name, keys)   # not built yet (increment C)
+        keep = keys["wb run mempalace-notes keep"]   # the owner's: block or ask, never none, and it is previewed by `review`
+        self.assertEqual((("block", "ask"), "block", False, "wb run mempalace-notes review"), (keep.offers, keep.default, keep.agent, keep.preview))
 
     def test_the_helper_file_is_where_the_declaration_says(self):
         self.assertTrue(os.path.isfile(os.path.join(MODULE, HELPER)))
