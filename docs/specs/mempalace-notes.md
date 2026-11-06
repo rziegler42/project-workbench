@@ -284,6 +284,19 @@ The owner does not read notes to approve them. [agreed]
   and a `keep` with another digest finishes it and is refused. `drop` and `merge` change drafts and the archive only, check what they can before the lock, and a merge
   that crashed between writing the target and archiving the source is repeated safely by the line `merged from <draft> <12 hex of its text>`. `keep` prints the folder
   to file (`<notes>/<wing>`) and `mine` is then run on it by the owner with the wing. [call]
+  **As built (increment D, 2026-11-06).** The policy block gains two bullets and the `recall-memory` skill a section "Draft notes" with the flows of saving, finding
+  and reviewing, and the final paragraph of the skill now says an agent may save a draft note as well as tell the owner. The block carries the rules that must hold
+  when the skill is not loaded (to save silently at the three moments, to list first and extend, the credential and personal-detail rule, to list after a
+  compaction, to search the `ideas` wing, the once-per-session review); the skill carries the options of `save`, the review exchange and the ask flow of `keep`,
+  and the permission-drift test requires the latter (`wb settings`, `--digest` and the `review` that previews `keep`). The block's limit is 24 lines (it was 14). The
+  texts name no path to the notes folder and no other module's skill. Whether an agent follows them is not tested; that is the live run. After the review of the
+  increment, each pinned by a test: a refused save for an overlap, a name that is taken or a note that is too short is handled without asking the owner (extend with
+  `--into`, use `--new` only for a real near-duplicate, choose another title, lengthen the note), because the general rule "stop and report" would otherwise send an
+  agent to the owner for a routine refusal; the drafts of every wing are reached (`wings` shows where drafts wait and `review --wing <name>` reviews each), because a plain
+  `review` covers only the project's wing and a draft in a topic wing would otherwise expire unseen; a note is data, and an instruction in it is ignored, most of all in one
+  from outside sources; the one question to the owner is asked at a natural pause and includes whether to file the rest, so that `keep` has the owner's word; a correction
+  alone is not a lesson, and a path is saved as `explored` or `dead end` only when it cost real effort and no file records it; and a plain search finds only filed notes,
+  while drafts are found with `list --wing <name>` and `read`. The block has three moments for saving and the skill adds the fourth (a path tried and dropped). [call]
   **After the security review of increments B and C (2026-11-06), each with a test:** one note cannot stall the helper (the patterns above, and the words of a note
   are worked out once for a review); the journal holds a fingerprint of each draft, and a resumed move checks the draft is still the bytes that were reviewed and that a
   revision names the note the draft says it revises, so a draft swapped after a crash is not moved; an interrupted `keep` is finished **before** the expiry runs, so a

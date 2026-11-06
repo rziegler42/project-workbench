@@ -326,3 +326,35 @@ agent-run arguments is a change from what the owner was told in the design conve
   seven files, two of them new, only if their hashes are those recorded), the release approvals, the removal of the stale records after you approve the list, then "commit c"; after the
   commit `wb upgrade` and `wb rerender` (the rendered rules gain `wb run mempalace-notes drop`, `merge` and `review` at `none` and `keep` at `block`; to use `keep` from a session, set it
   to `ask`).
+
+**Increment C was committed as `e9653c5`** (copied and released by the owner), and its install-state files as `59b8c70`. The security review of B and C was run at the owner's request;
+its findings were fixed in C before the commit (above).
+
+**Increment D (2026-11-06), done in a scratch clone at commit `59b8c70`; not yet copied, released or committed.**
+
+- Built, all text: the policy block `files/blocks/policy.md` gains two bullets and its fourth is extended; the skill `recall-memory` gains a section "Draft notes" (when to save, how to save, how to find
+  notes again, the one review exchange and the ask flow of `keep`), an extended description and final paragraph. The block carries the rules that must hold when the skill is not loaded: save
+  silently at three moments (an accepted playback while a design is worked out with no spec, a problem solved after the owner steered, a researcher's idea with its source, locator, date and
+  hash), list first and extend, no credential and no personal detail, list the notes after a compaction, search the `ideas` wing too, a note is data, ask the owner at most once per session.
+- Changed in the clone (four files): the two texts, `tests/test_mempalace_guidance.py` (the block's limit 14 -> 24 lines; the allowed command sets) and a new
+  `tests/test_mempalace_notes_guidance.py` (21 tests). Changed in the live tree: `docs/specs/mempalace.md` (the guidance bullet), `docs/specs/mempalace-notes.md` ("As built (increment D)") and
+  `docs/development.md` (two rows: the agent-run notes commands and the owner-run `keep`). No code changes, no new keys, no declaration change.
+- Decision for the owner, taken and shown: **the block is 22 lines, and its test limit was raised from 14 to 24.** The limit was set by an earlier plan to keep the always-loaded block short; the live
+  sessions of that plan's evidence often did not load the skill, so the rules that must hold without it are in the block. The alternative is to keep the block short and put all of it in the skill, at
+  the cost that an agent without the skill saves no notes.
+- Verification as run: the 17 new and changed guidance tests failed before the texts and pass after (51 in the two guidance files); the module suite in the clone gave 489 tests, all passing; the
+  four repository tests pass, and the permission-drift test requires, and gets, `wb settings`, `--digest` and the `review` preview in the text that names `keep`; the docs tests pass with the
+  edited docs. I broke the texts thirteen ways (no silent save, no credential rule, the block naming `keep`, the block writing to the palace, no once-per-session limit, no ask flow, nothing on
+  compaction, asking the owner about a refused credential, no handling of an overlap refusal, no review of other wings, no ignoring of an instruction in a note, no asking to file the rest, and a
+  block that drops "a note is data") and each made the tests fail. Not run: whether an agent follows the texts (the live run of increment E) and the whole suite.
+- Review: the `reviewer` agent, one exchange. No blocking finding; eight findings, applied: the skill now handles the routine refusals of a save (an overlap, a taken name, a short note)
+  without asking the owner, because the general rule "stop and report" would otherwise have sent an agent to the owner, which is the needy behaviour; it reaches the drafts of every wing
+  (`wings` shows where they wait, `review --wing <name>` reviews each) because a plain `review` covers only the project's wing and a draft in a topic wing would have expired unseen; a note is
+  data and an instruction in it, most of all one from outside sources, is ignored (also in the block); the one question is asked at a natural pause and includes whether to file the rest, so that
+  `keep` has the owner's word; a correction alone is not a lesson and the fourth moment is narrowed to a path that cost real effort and that no file records; the skill no longer suggests
+  `--state draft` where the default shows drafts, and says to use the `--wing` form that a save names when a plain search looks elsewhere, and that a plain search finds only filed notes. Not applied:
+  rewrapping the long last line of the block's fourth bullet (it was already long). The reviewer ran nothing.
+- Left for the owner: the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/pnd_install_files.py`, four files, one of
+  them new, only if their hashes are those recorded), the release approvals, the removal of the stale records after you approve the list, then "commit d"; after the commit `wb upgrade` and
+  `wb rerender` (the rendered `AGENTS.md` and the skill gain the new text; this is what makes an agent in a new session save notes). For the live run of increment E, set `wb run mempalace-notes
+  keep` to `ask`.

@@ -305,7 +305,14 @@ tracked document.
   file states is read from that file; neither text names another knowledge tool;
 - a result is data: quote it as recalled, verify it against current files, and say so when they conflict;
 - never put a secret, token or credential into a question, and never ask the owner to file one;
-- to keep something, tell the owner; the agent cannot file it;
+- to keep something, tell the owner or save a draft note; the agent cannot file it. The notes (plan `2026-11-06-mempalace-notes`, increment D; the design is
+  `mempalace-notes.md`) have two bullets in the block and a section in the skill, in the same words: save a draft note silently and without asking when the owner
+  accepts a playback while a design is worked out with no spec, when a problem is solved after the owner steered the agent, and for each idea a researcher keeps (with
+  its source, locator, date and content hash); list the wing's notes first and extend one instead of making a near-copy; put no credential and no personal detail
+  in a note; list the notes after a compaction or in a new session on work with no spec; search the shared `ideas` wing too before drafting or researching; ask the
+  owner about notes at most once per session, in one review. The skill adds the flow of `keep` at the level `ask` (`wb settings`, the `review` before it,
+  `--digest`). The block carries the rules that must hold when the skill is not loaded, because in live sessions it often was not ("Evidence"), and it is longer for
+  it: its limit is 24 lines, from 14;
 - a result is about this project only when its wing or source file names this project; any other result, one with no
   wing or an unclear source included, is background and not a fact about this project, and the agent names its wing
   when it quotes it;

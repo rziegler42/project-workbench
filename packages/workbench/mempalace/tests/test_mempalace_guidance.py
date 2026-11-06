@@ -21,6 +21,11 @@ SCOPE = ("The palace answers what was decided, tried or preferred before",
          "A fact a current file states is read from that file")
 EXCEPTION = "even if the files seem to answer it: the palace may hold experience they lack"   # plan `2026-11-05-mempalace-search-despite-files`
 MOMENTS = "before you draft a plan, a spec, a decision record or a roadmap candidate, or brainstorm a design"
+BLOCK_LINES = 24   # was 14 until plan `2026-11-06-mempalace-notes`, increment D, which added two bullets on the notes; the block is loaded in every session, so it stays short
+BLOCK_COMMANDS = {"wb run mempalace search", "wb run mempalace-notes save", "wb run mempalace-notes list"}
+SKILL_COMMANDS = {"wb run mempalace search", "wb run mempalace status", "wb run mempalace preview", "wb run mempalace mine", "wb run mempalace sync",
+                  "wb run mempalace-notes wings", "wb run mempalace-notes list", "wb run mempalace-notes read", "wb run mempalace-notes save",
+                  "wb run mempalace-notes drop", "wb run mempalace-notes merge", "wb run mempalace-notes review", "wb run mempalace-notes keep"}
 OTHER_TOOLS = ("graphify", "knowledge base", "knowledge-base", "knowledge_base", "none of the three", "the three")
 
 
@@ -74,8 +79,8 @@ class Policy(unittest.TestCase):
         self.assertLess(text.index("brainstorm a design"), text.index(EXCEPTION))   # it belongs to the moments sentence
         for old in ("and the palace is not searched for it", "and not for what the current files answer", "A question the current files answer"):
             self.assertNotIn(old, text, old)
-        self.assertLessEqual(len(block().splitlines()), 14)
-        self.assertEqual({"wb run mempalace search"}, set(re.findall(r"wb run [a-z-]+ [a-z]+", block())))
+        self.assertLessEqual(len(block().splitlines()), BLOCK_LINES)
+        self.assertEqual(BLOCK_COMMANDS, set(re.findall(r"wb run [a-z-]+ [a-z]+", block())))
 
     def test_the_block_names_the_moments_that_get_one_search_with_the_topic(self):
         text = flat(block())
@@ -89,7 +94,7 @@ class Policy(unittest.TestCase):
         dashes and was refused; the line that names the command shows the form."""
         text = flat(block())
         self.assertEqual(1, text.count('`wb run mempalace search -- "<question>"`'))
-        self.assertLessEqual(len(block().splitlines()), 14)
+        self.assertLessEqual(len(block().splitlines()), BLOCK_LINES)
 
     def test_the_block_does_not_ask_the_agent_to_write_to_the_palace_or_to_run_the_owners_commands(self):
         text = flat(block())
@@ -122,14 +127,14 @@ class Policy(unittest.TestCase):
 
     def test_the_block_is_short_names_no_harness_and_holds_no_marker_or_path(self):
         text = block()
-        self.assertLessEqual(len(text.splitlines()), 14)
+        self.assertLessEqual(len(text.splitlines()), BLOCK_LINES)
         self.assertTrue(text.endswith("\n"))
         self.assertNotIn("<!--", text)
         for word in ("Claude", "claude", "opencode", "Codex", "CLAUDE.md", "AGENTS.md", "~/", ".mempalace",
                      ".config", "/palace", "mempalace.json"):
             self.assertNotIn(word, text, word)
         found = set(re.findall(r"wb run [a-z-]+ [a-z]+", text))
-        self.assertEqual({"wb run mempalace search"}, found)
+        self.assertEqual(BLOCK_COMMANDS, found)
 
 
 class Skill(unittest.TestCase):
@@ -163,9 +168,8 @@ class Skill(unittest.TestCase):
                      ".config", "mempalace.json", "wake-up", "--include-media", "--backend", "--palace"):
             self.assertNotIn(word, text, word)
         found = set(re.findall(r"wb run [a-z-]+ [a-z]+", text))
-        self.assertEqual({"wb run mempalace search", "wb run mempalace status", "wb run mempalace preview",
-                          "wb run mempalace mine", "wb run mempalace sync"}, found)
-        self.assertNotIn("wb ", re.sub(r"wb run mempalace (search|status|preview|mine|sync)|wb settings", "", text))
+        self.assertEqual(SKILL_COMMANDS, found)
+        self.assertNotIn("wb ", re.sub(r"wb run mempalace(?:-notes)? (search|status|preview|mine|sync|wings|list|read|save|drop|merge|review|keep)|wb settings", "", text))
         self.assertIsNone(re.search(r"wb run mempalace init", text))
 
     def test_it_names_the_moments_and_tells_how_to_word_the_search_and_what_to_do_with_nothing(self):
