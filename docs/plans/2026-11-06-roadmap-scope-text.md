@@ -107,3 +107,22 @@ Empty until a review is asked for.
 ## Result
 
 Empty until work starts.
+
+**Increment A (2026-11-06), done in a scratch clone at commit `bbeb0c3`; not yet copied, released or committed.**
+
+- Built: step 1 of the `draft-roadmap` skill now defines a scope (a body of work with its own finish line, which the owner can call finished or pause), asks whether the new candidate
+  shares the finish line of the roadmap it would join, adds it if so, otherwise proposes a new roadmap to the owner with its scope and finish line and writes nothing until the owner accepts or
+  renames it, never adds to the nearest roadmap because it is nearest, says what a candidate is and that work too small to need roadmap direction is a plan with `Candidate: none`, and asks the
+  owner at about 15 candidates whether the roadmap has outgrown its scope (a question, not a limit). Step 2 now applies to a new roadmap the owner has accepted. The shipped roadmaps README
+  gains a paragraph with the same content, and its Retiring sentence says each roadmap has its own finish line. `docs/specs/groundwork.md` gains a bullet with the same content, citing the decision,
+  and the same words in its retiring bullet. "used alternately" is gone from the spec. Four files changed in the clone: the skill, the README, the spec and a new test file
+  (`tests/test_groundwork_roadmap_scope.py`, six tests).
+- Verification as run: the six new tests failed before the text and pass after; the groundwork module suite in the clone gave 258 tests, all passing; `tests.test_permissions_drift` and
+  `tests.test_rendering` (107) pass; `wb run code-work check` in the live tree passes (100 plans). Not run: the whole suite (no code changed); an agent following the text (a live run).
+- Review: the `reviewer` agent, one exchange, no blocking finding. Applied: the tests now pin the placement, owner-gate, nearest-roadmap, candidate and size sentences in each of the three places
+  and the skill-only steps, and a wider list of "exactly one roadmap" phrases; the Retiring sentences name the finish line (step 3 of this increment); steps 2 and 3 of the skill now apply only
+  to an accepted new roadmap. Not changed: the reviewer's note that "Candidate: none" appears here though increment B owns the `draft-plan` side (it is what decision 4 says, and B must match it);
+  the older rule in the skill that a roadmap changes only when direction changes and needs the owner's ask, which sits beside "add it there" for a shared finish line. That rule is older than this plan; it is
+  reported to the owner and not changed. The reviewer ran nothing.
+- Left for the owner: the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/rs_install_files.py`, four files, only if their hashes are those recorded), the release approvals, the removal of the stale records
+  after you approve the list, then "commit a"; after the commit the upgrade and the rerender (the shipped README and the skill are installed from the package).

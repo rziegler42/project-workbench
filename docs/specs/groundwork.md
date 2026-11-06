@@ -67,13 +67,22 @@ A roadmap is a list of candidates with no required order. It expresses direction
 it does not authorize work and does not alter a plan that is in progress.
 
 - A roadmap is named by its scope in lowercase kebab-case, with no number or date.
-  There may be several roadmaps, used alternately.
+  There may be several roadmaps.
+- A scope is a body of work with its own finish line: one the owner can call finished, or pause,
+  without that deciding anything about other scopes. New work that shares the finish line of the
+  roadmap it would join is added to it as a candidate; otherwise a new roadmap is proposed to the
+  owner, with its scope and its finish line, and written once the owner accepts or renames it. An
+  agent never adds to the nearest roadmap because it is nearest. A candidate is bounded new work that
+  advances the finish line of its roadmap; work too small to need roadmap direction is a plan with
+  `Candidate: none`. At about 15 candidates the agent asks the owner whether the roadmap has outgrown
+  its scope; this is a question, not a limit. The decision is
+  `docs/decisions/2026-11-06-roadmaps-are-scoped-by-finish-line.md`.
 - A roadmap is a tracked, committed document. It keeps no implementation file lists,
   detailed acceptance criteria or executable commands; they belong in the plan written
   when a candidate is promoted.
 - A roadmap is retired like a plan, by setting its status to `Archived`. The file is never
   moved or renamed, so `<roadmap>#<id>` stays valid. One roadmap that is not archived is
-  kept for each scope and updated in place; a replacement takes a new name, and the old
+  kept for each scope, each with its own finish line, and updated in place; a replacement takes a new name, and the old
   one is archived when it is written. Retiring or replacing a roadmap changes direction,
   so it needs the owner.
 - A roadmap states its status, its update date, its purpose, the current state, its
