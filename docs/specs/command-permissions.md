@@ -292,6 +292,10 @@ a relaxed command is allowed. The rules that judge a command, as built by Increm
    operator (`${x/Q/}`) is also read by the earlier in-order rule, because a value that the tracker does not follow can carry padding
    that the operator removes. While a key with words is relaxed, a command with more than 64 `$'` strings is blocked.
 
+The reason of a `names` or `gap` refusal ends with the command to run instead: ``wb run <command> <argument> ...`` for a module argument (which the rule `ask`
+matches in the `wb run` spelling), and ``wb <word> ...`` for any other key (plan `2026-11-06-notes-live-run-fixes`, increment B; the hint had dropped `run`,
+which sent an agent into a second refusal).
+
 The agent-safe `delegate-approve-plan` is exempt from the word test, but not from the gap rule. Every refusal by these text rules and
 by the size limit names the rule that fired (`names`, `gap`, `dollar-quote-limit` or `size-limit`) and its reason ends
 `(rule: <name>)`, and "The refusal log" below keeps a count of them. The other blocks (a wrong tool, a missing command field, a harness or

@@ -119,3 +119,22 @@ Empty until work starts.
   pins that the block never names `mine`; a cosmetic docstring. The reviewer ran nothing.
 - Left for the owner: the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/nf_install_files.py`, four files, only if their hashes are those recorded), the release approvals,
   the removal of the stale records after you approve the list, then "commit a"; after the commit the upgrade and the rerender.
+
+**Increment B (2026-11-06), done in a scratch clone at commit `75407c9`; not yet copied, released or committed.**
+
+- Built: `review` prints `1 draft` for one draft and `N drafts` otherwise (`helper/mempalace-notes`); the gate's refusal for a module argument names `wb run <command> <argument> ...`, in the `ask` wording, the
+  `none` wording and the gap-rule wording, through a new `_hint_command` in `workbench/command_gate.py` (the other keys still read `wb <word> ...`). The verdicts, the rules and what is allowed or refused are unchanged;
+  only the text after `run it as` changed. Changed in the clone (four files): `workbench/command_gate.py`, `tests/test_command_gate.py` (three new tests), the helper, and `test_mempalace_notes_review.py` (two new tests).
+  In the live tree: `docs/specs/command-permissions.md` (one paragraph on the hint).
+- A slip, found and fixed before any review: the first name I gave the new function was already in the file (`_spelled`), and it overrode the older one, which broke five tests of the hint; the new function is
+  `_hint_command`.
+- Verification as run: before the change, 3 of the new gate tests and both new review tests failed (the launcher-key test passed, as a guard); after it `tests.test_command_gate` and `tests.test_gate_corpus` (147),
+  the nine test files that use the gate (`test_levels`, `test_levels_facts`, `test_checkpoint_command`, `test_settings`, `test_rendering`, `test_doctor`, `test_layout`, and the two named) (538 together; `test_settings`
+  by discovery, 115), the claude module's tests (34, 12 skipped) and the mempalace module suite (498) pass. A search found no other test or document that pins the old wording. Not run: the whole suite.
+- Review: the `reviewer` agent, one exchange, no blocking finding and nothing applied. It compared the old and new code for each key shape (a top-level key, a launcher key, a module argument and a preview
+  key) and found only the module argument's text changed, in the three message strings; it found the hint names the exact command that the `ask` rule matches, the sixty-character slice unchanged, and
+  that the new tests would fail on the old text. It did not search the whole repository for the old wording (my search of the tests and documents found only the tests named above, and the corpus test passes)
+  and ran nothing. Whether a key can be longer than sixty characters was not checked and is not a regression.
+- Left for the owner: the question of a security review of this surface (the plan asks once; the change is message text only), the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/nb_install_files.py`, four files, only if their hashes
+  are those recorded; it moves each file into place in one step because the hooks import `command_gate.py`), the release approvals, the removal of the stale records after you approve the list, then "commit b"; after the
+  commit the upgrade and the rerender (the installed helper changes).

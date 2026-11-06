@@ -115,6 +115,11 @@ def _run_key(key):
     return found[:1] == ("run",) and len(found) >= 3
 
 
+def _hint_command(key):
+    """The command `key` is run as, for a hint: ``wb run <command> <argument>`` for a module argument, else ``wb <words>``."""
+    return ("wb run " if _run_key(key) else "wb ") + " ".join(words(key))[:60]
+
+
 def _by_launcher(key):
     """Whether `key` is read as a launcher and then a word (not ``approve-plan`` and not ``wb run <command> <argument>``)."""
     return bool(words(key)) and key != "approve-plan" and not _run_key(key)
@@ -510,11 +515,11 @@ def _without(views, tokens):
 def _reason(key, spelling, level):
     if level == "none":
         return ("the command names %s, which the owner has set to none here, in a form the gate cannot tell from a call (a "
-                "wrapper, a compound command, or a path with ~ or $VAR); run it as `wb %s ...` on its own, with the path spelled "
-                "out" % (display.ascii_text(" ".join(_folded(word) for word in spelling))[:80], " ".join(words(key))[:60]))
+                "wrapper, a compound command, or a path with ~ or $VAR); run it as `%s ...` on its own, with the path spelled "
+                "out" % (display.ascii_text(" ".join(_folded(word) for word in spelling))[:80], _hint_command(key)))
     return ("the command names %s, which the owner has set to ask or none here, and is not exactly the simple "
-            "command the ask rule matches; run it as `wb %s ...` on its own" % (
-                display.ascii_text(" ".join(_folded(word) for word in spelling))[:80], " ".join(words(key))[:60]))
+            "command the ask rule matches; run it as `%s ...` on its own" % (
+                display.ascii_text(" ".join(_folded(word) for word in spelling))[:80], _hint_command(key)))
 
 
 def _verdict(rule, reason):
@@ -582,9 +587,9 @@ def verdict(command, keys, store_bin, levels=None):
                                 or any(_free_match(free, letters) for free in frees)
                                 or any(_subsequence(order_text, letters) for order_text in ordered)):
                     return _verdict(GAP, "the command uses an expansion, a pattern or an escape in place of letters of %s, so "
-                                    "it may spell a command that the owner has set to ask or none here; run it as `wb %s ...` "
+                                    "it may spell a command that the owner has set to ask or none here; run it as `%s ...` "
                                     "on its own, or write the word out" % (display.ascii_text(" ".join(pieces))[:80],
-                                                                          " ".join(words(key))[:60]))
+                                                                          _hint_command(key)))
             else:
                 continue
             break

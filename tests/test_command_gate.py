@@ -881,6 +881,28 @@ class TheRuleIsNamed(unittest.TestCase):
         self.assertIn("run it as `wb approve-plan ...` on its own", self.verdict("bash -c 'wb approve-plan x'").reason)
         self.assertIn("run it as `wb approve-plan ...` on its own", self.verdict("wb appr$1ove-plan x").reason)
 
+    def test_the_reason_for_a_module_argument_says_wb_run_and_the_command(self):
+        """Plan `2026-11-06-notes-live-run-fixes`, increment B: the hint dropped `run` for a module argument, and an agent followed it into a second refusal."""
+        key = "wb run tool go"
+        for command in ("bash -c 'wb run tool go x'", "echo wb run tool go"):
+            with self.subTest(command=command):
+                reason = command_gate.verdict(command, (key,), STORE_BIN, {key: "ask"}).reason
+                self.assertIn("run it as `wb run tool go ...` on its own", reason)
+                self.assertNotIn("`wb tool go", reason)
+        reason = command_gate.verdict("bash -c 'wb run tool go x'", (key,), STORE_BIN, {key: "none"}).reason
+        self.assertIn("run it as `wb run tool go ...` on its own, with the path spelled out", reason)
+
+    def test_the_gap_reason_for_a_module_argument_says_wb_run_too(self):
+        key = "wb run tool go"
+        found = command_gate.verdict("wb run tool g$1o x", (key,), STORE_BIN, {key: "ask"})
+        self.assertEqual("gap", found.rule)
+        self.assertIn("run it as `wb run tool go ...` on its own, or write the word out", found.reason)
+
+    def test_the_reason_for_a_launcher_key_still_says_wb_and_the_word(self):
+        reason = command_gate.verdict("bash -c 'wb install x'", ("wb install",), STORE_BIN, {"wb install": "ask"}).reason
+        self.assertIn("run it as `wb install ...` on its own", reason)
+        self.assertNotIn("wb run", reason)
+
     def test_the_size_limit_names_its_rule_through_run(self):
         code, err = run({"cwd": "/tmp", "tool_name": "Bash", "tool_input": {"command": "echo " + "x" * (command_gate.MAX_COMMAND + 1)}})
         self.assertEqual(2, code)

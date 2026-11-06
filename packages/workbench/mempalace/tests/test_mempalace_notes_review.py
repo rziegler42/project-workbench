@@ -211,6 +211,18 @@ class Summary(Review):
         self.assertIn("review of wing proj: 3 drafts, 3 routine, 0 need a look", shown)
         self.assertNotIn("routine-0", shown)
 
+    def test_the_count_line_agrees_in_number(self):
+        """Plan `2026-11-06-notes-live-run-fixes`, increment B: the live run printed `1 drafts`."""
+        self.draft("only-one", "on")
+        shown, digest = self.review()
+        self.assertIn("review of wing proj: 1 draft, 1 routine, 0 need a look", shown)
+        self.assertNotIn("1 drafts", shown)
+
+    def test_one_draft_that_needs_a_look_is_still_one_draft(self):
+        self.draft("old-only", "ol", updated="2026-10-20")
+        shown, digest = self.review()
+        self.assertIn("review of wing proj: 1 draft, 0 routine, 1 need a look", shown)
+
     def test_each_mechanical_flag_makes_an_outlier_with_a_reason_and_a_suggestion(self):
         self.draft("routine", "rt")
         self.draft("large-one", "lg", body=prose("lg", 800) + "\n")
