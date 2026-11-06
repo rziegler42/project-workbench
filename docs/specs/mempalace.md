@@ -543,6 +543,26 @@ once without and once with a leading `cd`. In this session the two entries of ev
 which suggests (not confirmed) that the transcript records the agent's call and the harness's version with the working directory prepended, and
 that each ran once.
 
+**A live run of `mine` and `sync` at the level `ask` (2026-11-06; plan `2026-11-05-mempalace-per-clone-use`, completion criterion 8; commit `533b272`, the
+helper installed, `mempalace` 3.11.0).** The owner set `wb run mempalace mine` and `wb run mempalace sync` to `ask`, rerendered, and gave the clone
+the untracked setting `{"format": 1, "wing": "live-check"}` in `.workbench/local/mempalace.json`, so that nothing reached the wing of the project. The
+palace was the owner's own. An agent session ran the commands as the skill says, and the harness asked the owner to confirm each command that carried
+a digest. *First folder* (three small `.txt` files outside the project): `preview mine` printed the wing, the three files and their drawers (4) and a
+digest; `mine <dir> --confirm --digest <d>` filed 4 drawers, and a search for a phrase of one file returned it from wing `live-check` first. After
+the owner deleted one file, `preview sync` reported Scanned 4, Kept 3, Missing 0 and **Unresolved 1**, naming the deleted file, so a confirmed `sync`
+would have removed nothing. The cause was not found: the program's `sync.py` keeps a drawer unresolved when the directory's inode now differs from
+the one recorded when the drawer was filed, among other cases; the file was "not there" and its two neighbours were present files when probed with the
+program's own functions (read-only), and a scratch reproduction with the real program (three `.txt` files, outside a project, one deleted) gave Missing 1.
+The recorded inode of the live drawer was not read, because that needs the palace opened outside the helper. *Second folder* (three new files):
+`preview mine` showed 3 drawers; `mine` filed them; after the owner deleted one file, `preview sync` reported Scanned 7, Kept 2, **Missing 1**, Unresolved
+0, Out of scope 4 (the first folder's drawers, outside this folder), and named the file; `sync <dir> --confirm --digest <d>` removed 1 drawer and 1
+closet, that file's only; a second preview reported Missing 0, and a search for the file's content no longer returned it. **Reading.** The flow of the
+plan works end to end at `ask` against the real program: preview, digest, one confirmed command, a removal limited to the wing and the named folder.
+**Limits.** One owner, one machine; the unresolved drawer of the first folder was not explained, so a `sync` after a deletion can leave a drawer that the
+program cannot establish as gone, which is the program's own caution and which the preview shows as `Unresolved`; the wrong-digest refusal and the
+refusal of a folder in `.git` were not tried in the live session (the tests and a scratch run cover them); the cleanup (the drawers of wing `live-check`
+that remain, the two folders, the setting file) was left to the owner.
+
 ## Governing decisions and references
 
 - Decisions: `2026-10-21-module-code-lives-in-modules`, `2026-10-22-model-calls-go-through-vendor-bridges`
