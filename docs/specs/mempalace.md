@@ -132,13 +132,26 @@ terminal to the program, which prints its progress, and waits with no time limit
     bind the contents of the files. A drawer count follows how many pieces the program cuts a file into, not what it says, so an edit that keeps the
     file's name and size class (a changed word, a flipped instruction, a replaced value) leaves the digest as it was. What the digest guards is the
     list of files and the destination, not the text; the owner reads the folder.
+  - **The folder rules compare places, not spellings** (plan `2026-11-05-mempalace-per-clone-use`, increment F; found by the security review of
+    2026-11-06). On a volume that ignores case or the composition of letters (macOS by default) `.GIT`, `.WorkBench/local`, the project root or its
+    parent in capitals, and the palace, a folder inside it or a folder holding it in another case name the same place as the refused spelling, and a
+    comparison of strings let them through. The rules now ask the file system whether two paths are the same place (`samefile`, up the parents), and,
+    for a palace that does not exist yet, compare the folded spellings (NFC, then case-folded). A name that only looks like one (`.github`,
+    `palace2`) is not refused. **The folder is examined again** after the digest is checked and just before the program is started (the same
+    rules, the same device and inode as the first check), and a folder that is another directory by then, or a link, is refused ("the directory changed
+    after it was checked; nothing was filed", or "removed" for `sync`). This narrows the time in which a swap can succeed to the moments between that
+    check and the program opening the path; it cannot close it, because the program takes a path and not an open directory.
   - **The lock** is an exclusive, non-blocking `flock` on `mempalace-helper.lock` in the palace's parent directory (`~/.mempalace` for the program's
     own palace; the project's `palace` setting names another). The directory is opened without following a link, and made, one level and mode 0700, if
     it is missing; the file is opened without following a link, mode 0600, and must be a regular file; a link, a directory or a missing grandparent is
     refused. A run (`--confirm`, with or without a digest) takes it before anything is rebuilt or run; one that finds it held is refused at once with
     "another mempalace run is in progress" and starts no program. It excludes another run of this helper, from any clone that shares the palace; it does
-    not exclude a program started by hand, nor an edit of the folder between the check and the program reading it. The operating system drops it when the
-    process ends, and the program, started with its descriptors closed, does not hold it. (A terminate signal that arrives in the instant between
+    not exclude a program started by hand, nor an edit of the folder between the last check and the program reading it. The program is started with this
+    one descriptor inherited (plan `2026-11-05-mempalace-per-clone-use`, increment F), so the lock stays held for as long as the program lives, also
+    when the helper is killed with `SIGKILL`, which no handler can answer; the operating system drops it when the last holder ends. The helper passes
+    the program no other descriptor; whether the real program hands this one on to a process it starts was not checked, and if it does, the lock is
+    held until that process ends, which refuses a later run and does no harm. A program that ends is the end of the hold, and a helper that is
+    terminated stops the program's process group, as before. (A terminate signal that arrives in the instant between
     starting the program and the helper noting its process leaves that program running; no check closes that window.) No directory of the clone is made; but the lock is beside
     the palace, so a `palace` setting that puts the palace in the clone puts an untracked `mempalace-helper.lock` in the clone's root, and the same
     palace named by two spellings (one by setting, one by the program's own configuration) is guarded by two locks. The file's owner is not checked, so
@@ -194,7 +207,8 @@ terminal to the program, which prints its progress, and waits with no time limit
   project's setting, the `palace_path` the program saved in its own configuration, or its two default places.
   `mine` would index the palace's own files (the program's `init` also wrote `.mempalace/origin.json` under it).
 - The directory is one the owner names: it exists, is not a link and has no link in its path, and is not
-  inside `.git` or `.workbench`. It is refused when it is the project root or holds it, unless
+  inside `.git` or `.workbench`, whatever case or composition of letters the name is spelled in. A `.git` or `.workbench` directory anywhere under the
+  project root counts (a nested repository included), not only the root's own, and on a volume that tells cases apart a real `.Git` is refused too. It is refused when it is the project root or holds it, unless
   `--allow-project-root` is also given, so the default does not make the project's tree a second index
   (`knowledge-tools.md`). `mine` takes `--confirm`, `--wing`, `--mode` and `--allow-project-root`, and nothing else.
 - It takes none of `--llm-api-key`, `--llm-provider`, `--llm-endpoint`, `--accept-external-llm`, `--daemon`,

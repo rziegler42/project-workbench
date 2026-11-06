@@ -433,3 +433,28 @@ E, which the plan asks again at D. The last change (R3-F1) was not read by the r
 - Left for the owner: the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/pce_install_files.py`, eight files, only if their
   hashes are those recorded), the release approvals, and after the commit the installer's upgrade and rerender steps (the rendered rules gain the key `wb run mempalace sync` at `ask`); to use it,
   setting the level of `wb run mempalace sync` to `ask`.
+
+**Increment E was committed as `28e1d1a`** (copied and released by the owner), and its install-state files as `a2d56b8`. The security review of D and E was run on 2026-11-06 at the owner's request (a
+scratch clone, a fake program, a scratch home); its findings are the work of increment F, and the plan with F was approved and committed as `21071c7`.
+
+**Increment F (2026-11-06), done in a scratch clone at commit `21071c7`; not yet copied, released or committed.**
+
+- Findings closed. (1) Medium: the folder rules compared strings, so `.GIT`, `.WorkBench/local`, the project root and its parent, and the palace, a folder in it and a folder holding it, in another
+  case, passed on macOS and could be mined or synced at `ask`. The rules now ask the file system whether two paths are the same place (`within`, `in_guarded_name`), and compare folded (NFC,
+  case-folded) spellings only for a boundary that does not exist yet. (2) Low: after the digest check the folder is examined again just before the program starts (`ready()`: the same rules, the same
+  device and inode), and a swap is refused with "nothing was filed" or "removed". The race between that check and the program opening the path remains, as the spec says. (3) Low: the program
+  inherits the lock descriptor (`pass_fds`), so a helper killed with `SIGKILL` no longer frees the lock while the program runs.
+- Changed in the clone (three files): `helper/mempalace`, `tests/test_mempalace_ask.py` (the test that pinned "a killed run frees the lock and the program does not hold it" now expects the lock held
+  while the program lives and free once it ends; this reverses a choice made in D), and a new `tests/test_mempalace_spelling.py` (17 tests: Spelling, Places, Recheck). Changed in the live tree:
+  `docs/specs/mempalace.md` (the folder rules compare places, the re-check and what remains of the race, the lock and a killed helper, and that a nested `.git` or `.workbench` counts).
+- Verification as run: before the helper change 11 of the first 14 new tests and the changed ask test failed; after it `python3 -B -m unittest discover -s packages/workbench/mempalace/tests -p
+  'test_mempalace_*.py'` in the clone gave 282 tests, all passing, and the spelling file (17 with the three `Places` tests the review asked for) and `tests/test_docs*.py` (15) pass. A scratch run against
+  the real `mempalace` 3.11.0 (scratch home and palace, network denied): `mine`, `preview sync`, a wrong digest and `--wing other` refused, a digest `sync` that removed 4 drawers and 2 closets, and
+  `preview mine .GIT` refused. Not run: `wb run code-work check` (until the files are in the live tree), the four repository tests (the declaration and the keys do not change), a case-sensitive
+  volume (the spelling tests there only pass; the `Places` tests exercise the comparison on any volume).
+- Review: the `reviewer` agent, one exchange. No blocking finding. Applied: the spec did not say that a nested `.git` or `.workbench` is now refused, and a case-sensitive `.Git` too; the spec claimed that
+  what the program starts does not hold the lock, which was not checked (now: not checked, and a held lock only refuses a later run); three tests of the comparison that do not depend on the volume.
+  Not applied: a SIGKILL test for the terminal run (the code passes the lock the same way). The reviewer ran nothing.
+- Behaviour change to know: a run now refuses a `.git` or `.workbench` directory anywhere under the project root, not only the root's own.
+- Left for the owner: whether the security reviewer looks at the fix (a fix is new attack surface); the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/pcf_install_files.py`,
+  three files, only if their hashes are those recorded), the release approvals, and after the commit `wb upgrade` and `wb rerender` (the installed helper changes; no new keys).

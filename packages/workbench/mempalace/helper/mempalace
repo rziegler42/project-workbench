@@ -140,6 +140,40 @@ def is_inside(path, boundary):
         current = parent
 
 
+def fold(text):
+    """`text` in the one spelling that a volume which ignores case and the composition of letters treats as the same name."""
+    return unicodedata.normalize("NFC", text).casefold()
+
+
+def within(path, boundary):
+    """True when `path` is `boundary` or below it, by identity and not by spelling: a volume that ignores case or the composition of
+    letters gives one place many spellings, and only the file system knows they are one. When `boundary` does not exist yet it has no
+    identity to compare, so the folded spellings are compared instead."""
+    if is_inside(path, boundary):
+        return True
+    if os.path.lexists(boundary):
+        return False
+    inner, outer = fold(path), fold(boundary).rstrip(os.sep)
+    return inner == outer or inner.startswith(outer + os.sep)
+
+
+def in_guarded_name(path, root):
+    """True when `path`, or a directory between it and `root`, is named ``.git`` or ``.workbench`` in any case or composition."""
+    current = path
+    while True:
+        if fold(os.path.basename(current)) in (".git", ".workbench"):
+            return True
+        try:
+            if os.path.samefile(current, root):
+                return False
+        except OSError:
+            pass
+        parent = os.path.dirname(current)
+        if parent == current:
+            return False
+        current = parent
+
+
 def outermost_boundary(start):
     """The outermost ancestor of `start` that holds a `.git` entry. A PATH entry is trusted only when it is
     outside this one, so a repository embedded in another cannot make the outer one look outside."""
@@ -560,10 +594,10 @@ def owner_directory(cwd, root, value, allow_root, hint=True):
         raise Refused("the path is not a directory")
     if not os.access(path, os.R_OK | os.X_OK):
         raise Refused("the directory cannot be entered")
-    if path == root or path.startswith(root + os.sep):
-        if any(part in (".git", ".workbench") for part in os.path.relpath(path, root).split(os.sep)):
+    if within(path, root):
+        if in_guarded_name(path, root) or any(within(path, os.path.join(root, name)) for name in (".git", ".workbench")):
             raise Refused("the directory may not be inside .git or .workbench")
-    if (path == root or root.startswith(path.rstrip(os.sep) + os.sep)) and not allow_root:
+    if within(root, path) and not allow_root:
         raise Refused("the directory is the project root or holds it, which would make the project's own files a "
                       "second index%s" % ("; add --allow-project-root if that is meant" if hint else ""))
     return path
@@ -596,7 +630,7 @@ def program_palaces(palace):
 
 def refuse_palace_overlap(path, palace):
     for each in program_palaces(palace):
-        if each == path or each.startswith(path + os.sep) or path.startswith(each + os.sep):
+        if within(each, path) or within(path, each):
             raise Refused("the directory and the palace (%s) are the same place or one holds the other; the program "
                           "writes into the palace and would write into or index it"
                           % display.ascii_text(each)[:120])
@@ -637,9 +671,11 @@ def owner_terminal(command, stdin, out):
             raise Refused("%s is the owner's command and runs only from a terminal" % command)
 
 
-def run_owner(argv_tail, palace, cwd, stdin, out, err):
+def run_owner(argv_tail, palace, cwd, stdin, out, err, ready=None, lock=None):
     """Run the program with the terminal handed to it, and wait for it without a time limit. Returns its exit
-    code. On a terminate signal the program is told to stop and the scratch directory is removed."""
+    code. On a terminate signal the program is told to stop and the scratch directory is removed. ``ready``, if given, is called just
+    before the program is started and may refuse; ``lock`` is the descriptor of the helper's lock, which the program inherits so that
+    the lock stays held for as long as the program lives, also when the helper is killed."""
     boundary = outermost_boundary(cwd)
     entries = trusted_entries(boundary)
     program = trusted_which(PROGRAM, entries, boundary)
@@ -656,9 +692,11 @@ def run_owner(argv_tail, palace, cwd, stdin, out, err):
         out.flush()
         err.flush()
         front = list(BACKEND) + (["--palace", palace] if palace else [])
+        if ready is not None:
+            ready()
         try:
             process = subprocess.Popen([program] + front + argv_tail, stdin=stdin, stdout=out, stderr=err,
-                                       cwd=scratch, env=environment(entries))
+                                       cwd=scratch, env=environment(entries), pass_fds=(lock,) if lock is not None else ())
         except OSError:
             raise Refused("mempalace could not be started")
         while True:
@@ -831,8 +869,8 @@ class Lock:
     """The helper's lock for a run that changes the palace: an exclusive, non-blocking ``flock`` on ``mempalace-helper.lock`` in the
     palace's parent directory (``~/.mempalace`` for the program's own palace). The directory is opened without following a link and
     made, one level and private, when it is missing; the file is opened without following a link and must be a regular file. A run that
-    finds it held is refused at once. The operating system drops the lock when the process ends, and the program, started with its
-    descriptors closed, does not hold it."""
+    finds it held is refused at once. The program is started with this descriptor inherited (and no other), so the lock stays held for as
+    long as the program lives, also when the helper is killed without warning; the operating system drops it when the last holder ends."""
 
     def __init__(self, palace):
         self.folder = os.path.dirname(palace) if palace else os.path.join(home_directory(), ".mempalace")
@@ -889,10 +927,11 @@ def tail_of(path, limit):
     return ("[earlier output cut]\n" + text[-limit:]) if size > 4 * limit or len(text) > limit else text
 
 
-def run_owner_captured(argv_tail, palace, cwd):
+def run_owner_captured(argv_tail, palace, cwd, ready=None, lock=None):
     """Run the program with no terminal, its output going to files in a private directory, and wait for it without a time limit or a cap
     on its output, so that a long mine is not stopped for printing much. Returns ``(code, the tail of its output, the tail of its
-    messages)``, cleaned. On a terminate signal the program is told to stop and the directory is removed."""
+    messages)``, cleaned. On a terminate signal the program is told to stop and the directory is removed. ``ready`` and ``lock`` are
+    as for ``run_owner``."""
     boundary = outermost_boundary(cwd)
     entries = trusted_entries(boundary)
     program = trusted_which(PROGRAM, entries, boundary)
@@ -909,9 +948,12 @@ def run_owner_captured(argv_tail, palace, cwd):
         front = list(BACKEND) + (["--palace", palace] if palace else [])
         where = (os.path.join(scratch, "out"), os.path.join(scratch, "err"))
         with open(where[0], "wb") as out_file, open(where[1], "wb") as err_file:
+            if ready is not None:
+                ready()
             try:
                 process = subprocess.Popen([program] + front + argv_tail, stdin=subprocess.DEVNULL, stdout=out_file,
-                                           stderr=err_file, cwd=scratch, env=environment(entries), start_new_session=True)
+                                           stderr=err_file, cwd=scratch, env=environment(entries), start_new_session=True,
+                                           pass_fds=(lock,) if lock is not None else ())
             except OSError:
                 raise Refused("mempalace could not be started")
             code = process.wait()
@@ -962,6 +1004,7 @@ def owner(command, args, stdin, out, err, cwd):
     refuse_planted_config(path)
     refuse_palace_overlap(path, palace)
     confirmed = "--confirm" in flags
+    identity = os.stat(path)
     if command == "mine":
         wing, wing_note = chosen_wing(values, wing, wing_from_file)
         mode = values.get("--mode")
@@ -982,6 +1025,20 @@ def owner(command, args, stdin, out, err, cwd):
     def report():
         return mine_lines(root, palace, wing, mode, path, cwd) if command == "mine" else sync_lines(root, palace, wing, path, cwd)
 
+    def ready():
+        """Just before the program is started: the folder is still the same directory and still passes every rule. What remains is the time
+        between this and the program opening the path, which a path given to a program cannot close."""
+        try:
+            same = (owner_directory(cwd, root, directory, "--allow-project-root" in flags, command == "mine") == path
+                    and os.stat(path).st_ino == identity.st_ino and os.stat(path).st_dev == identity.st_dev)
+            if same:
+                refuse_planted_config(path)
+                refuse_palace_overlap(path, palace)
+        except (Refused, OSError):
+            same = False
+        if not same:
+            raise Refused("the directory changed after it was checked; nothing was %s" % ("filed" if command == "mine" else "removed"))
+
     if not confirmed:
         err.write("note: %s\n" % note)
         return run_owner(tail, palace, cwd, stdin, out, err)
@@ -992,15 +1049,15 @@ def owner(command, args, stdin, out, err, cwd):
         raise Refused(NO_MODEL[command])
     before = created_names(path) if command == "mine" else set()
     try:
-        with Lock(palace):
+        with Lock(palace) as lock:
             if given is None:
                 err.write("note: %s\n" % note)
-                return run_owner(tail, palace, cwd, stdin, out, err)
+                return run_owner(tail, palace, cwd, stdin, out, err, ready, lock.descriptor)
             wrong = digest.mismatch(given, report())
             if wrong:
                 raise Refused(wrong + ("; nothing was filed" if command == "mine" else "; nothing was removed"))
             err.write("note: %s\n" % note)
-            code, text, notes = run_owner_captured(tail, palace, cwd)
+            code, text, notes = run_owner_captured(tail, palace, cwd, ready, lock.descriptor)
             notes = "messages the program printed on standard error:\n%s\n" % notes if notes.strip() else ""
             if code != 0:
                 raise Failed("mempalace exited with code %s" % (code if code >= 0 else "signal %d" % -code),

@@ -502,7 +502,8 @@ class Lock(Ask):
                     except ProcessLookupError:
                         pass
 
-    def test_a_killed_run_frees_the_lock_and_the_program_does_not_hold_it(self):
+    def test_a_killed_helper_leaves_the_lock_held_while_the_program_lives_and_frees_it_when_the_program_ends(self):
+        """Found by the security review of increment F's plan (2026-11-06): the lock was dropped with the helper, so a second run could start beside the program."""
         self.control(dry_stdout=dry_text(), stdout=REAL, real_sleep=60)   # only the real run waits; the dry runs do not
         _, digest = self.preview()
         child = os.fork()
@@ -525,7 +526,20 @@ class Lock(Ask):
                 self.free()   # held while the run lives
             os.kill(child, signal.SIGKILL)
             os.waitpid(child, 0)
-            self.free()      # the program is still running and does not hold it
+            with self.assertRaises(BlockingIOError):
+                self.free()      # the program is still running and holds the lock it inherited
+            code, out, err = self.confirm(digest)
+            self.assertEqual(1, code)
+            self.assertIn("another mempalace run is in progress", err)
+            os.kill(started, signal.SIGKILL)
+            for _ in range(50):
+                try:
+                    self.free()
+                    break
+                except BlockingIOError:
+                    time.sleep(0.1)
+            else:
+                self.fail("the lock was not freed when the program ended")
         finally:
             if started:
                 try:
