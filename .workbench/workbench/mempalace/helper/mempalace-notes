@@ -1211,7 +1211,8 @@ def review(args, out, cwd):
     rest = [row for row in rows if row[0] == 1]
     room = max(0, MAX_OUTLIERS - len(always))
     shown = sorted(always + rest[:room], key=lambda row: row[1])
-    lines = ["review of wing %s: %d drafts, %d routine, %d need a look" % (wing, len(drafts), len(drafts) - len(rows), len(rows))]
+    lines = ["review of wing %s: %d %s, %d routine, %d need a look" % (wing, len(drafts), "draft" if len(drafts) == 1 else "drafts",
+                                                                    len(drafts) - len(rows), len(rows))]
     lines += [row[2] for row in shown]
     if rest[room:]:
         counts = {}
