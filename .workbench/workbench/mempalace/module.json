@@ -26,11 +26,23 @@
       "arguments": [
         "status",
         "search",
-        "mine"
+        "mine",
+        "sync",
+        "preview"
       ],
       "owner": [
-        "mine"
-      ]
+        "mine",
+        "sync"
+      ],
+      "levels": {
+        "mine": [
+          "ask"
+        ],
+        "sync": [
+          "ask"
+        ]
+      },
+      "preview": "preview"
     }
   }
 }
