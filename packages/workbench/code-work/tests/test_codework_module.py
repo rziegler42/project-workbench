@@ -316,8 +316,10 @@ class Skill(unittest.TestCase):
     def test_the_template_is_proposed_and_has_one_candidate_the_header_before_any_section(self):
         lines = neutral_tree()["skills/draft-plan/template.md"].decode().splitlines()
         self.assertTrue(lines[0].startswith("# "))
-        self.assertEqual(["Status: Proposed", "Created: YYYY-MM-DD", "Candidate: <roadmap>#<id>"],
-                         lines[2:5])
+        self.assertEqual(["Status: Proposed", "Created: YYYY-MM-DD",
+                          "Candidate: <roadmap>#<id>, or none (a one-line reason)"], lines[2:5])
+        self.assertIn("<roadmap>#<id>", lines[4])
+        self.assertIn(", or none (a one-line reason)", lines[4])
         self.assertTrue(lines[5].startswith("Specs: "))
         self.assertEqual(1, len([l for l in lines if l.startswith("Candidate:")]))
         self.assertIn("## Increments", lines)
