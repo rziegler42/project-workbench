@@ -9,6 +9,14 @@ nothing beside it. It starts no process and opens no connection.
     mempalace-notes read <name> [--wing <name>] [--state reviewed|draft|archived|all]
     mempalace-notes save --title <title> --kind <kind> --body <text|-> [--wing <name>] [--into <name> [--state reviewed|draft|all]] [--new]
                          [--source <text>] [--verify <text>]
+    mempalace-notes drop <name> [--wing <name>]
+    mempalace-notes merge <draft> <into> [--wing <name>] [--state reviewed|draft|all]
+    mempalace-notes review [--wing <name>]
+    mempalace-notes keep --wing <name> --digest <digest>        (the owner's)
+
+``review`` sorts the drafts of one wing into routine and outliers by flags the helper computes, and prints a digest of exactly what ``keep`` would move; ``keep``
+moves every draft of the wing into the folder ``mine`` files, only if the digest is that of the drafts as they are now, checked under the wing's lock, through a journal
+that a retry finishes after a crash. ``drop`` and ``merge`` change drafts only.
 
 The design is ``docs/specs/mempalace-notes.md``. The notes folder is ``~/.local/share/project-workbench/mempalace`` (under ``XDG_DATA_HOME`` when that is set and
 absolute). Reviewed notes are in ``<notes>/<wing>/``, drafts in ``<notes>/.drafts/<wing>/``, archived notes in ``<notes>/.archive/<wing>/``, and a lock for each wing in
@@ -31,7 +39,7 @@ import sys
 import time
 import unicodedata
 
-from wbkit import display, jsonstrict, project, safefs
+from wbkit import digest, display, jsonstrict, project, safefs
 
 COMMAND = "mempalace-notes"
 SETTING = ".workbench/local/mempalace.json"
@@ -56,10 +64,27 @@ OVERLAP = 0.6             # of the words of the shorter text
 LOCK_TRIES = 50
 LOCK_PAUSE = 0.1
 NOTES_DIRS = ("project-workbench", "mempalace")
+REVIEW_BIG = 4000         # characters of a note that is large
+REVIEW_AGE = 14           # days a draft may wait before review calls it old
+REVIEW_REVISION = 0.5     # of the words of a reviewed note that a revision may add
+MAX_OUTLIERS = 40         # lines of review for drafts that are neither a blocker nor a personal detail; those are always shown
+MAX_KEEP = 200            # drafts one keep moves, and so the most drafts a wing may hold
+MAX_WINGS = 50            # wings a save may make
+JOURNAL = ".keep"
+JOURNAL_LIMIT = 65536     # bytes of the journal that is read back
+PERSONAL_PATTERNS = (
+    ("email-address", re.compile(r"[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")),
+    ("phone-number", re.compile(r"(?<![0-9])(?:\+?[0-9]{1,3}[ .-])?\(?[0-9]{3}\)?[ .-][0-9]{3}[ .-][0-9]{4}(?![0-9])|\([0-9]{3}\)[ .-]?[0-9]{3}[ .-]?[0-9]{4}"
+                                r"|\+[0-9]{1,3}[ .-]?[0-9]{2,4}[ .-]?[0-9]{5,}")),
+    ("street-address", re.compile(r"\b[0-9]{1,5}\s+(?:[A-Za-z]+\s+){1,3}(?:street|st|avenue|ave|road|rd|lane|ln|drive|dr|boulevard|blvd|court|ct|way)\b", re.I)),
+    ("long-digit-run", re.compile(r"(?<![0-9])[0-9]{9,}(?![0-9])")),
+)
 USAGE = ("usage: mempalace-notes wings | mempalace-notes list [--wing <name>] [--kind <kind>] [--state reviewed|draft|archived|all] | "
          "mempalace-notes read <name> [--wing <name>] [--state reviewed|draft|archived|all] | "
          "mempalace-notes save --title <title> --kind <kind> --body <text|-> [--wing <name>] [--into <name> [--state reviewed|draft|all]] [--new] "
-         "[--source <text>] [--verify <text>]")
+         "[--source <text>] [--verify <text>] | mempalace-notes drop <name> [--wing <name>] | "
+         "mempalace-notes merge <draft> <into> [--wing <name>] [--state reviewed|draft|all] | mempalace-notes review [--wing <name>] | "
+         "mempalace-notes keep --wing <name> --digest <digest>")
 NO_WING = ("no wing for this project: create .workbench/local/mempalace.json containing {\"format\": 1, \"wing\": \"<name>\"} with a name you choose "
            "(or add an origin remote whose repo name is a wing name), or name a wing with --wing")
 
@@ -152,8 +177,8 @@ def file_entries(folder_fd):
     return sorted(names), ignored
 
 
-def read_note_file(folder_fd, name):
-    """The bytes of one note file, read without following a link, at most `MAX_NOTE` of them."""
+def read_note_file(folder_fd, name, limit=MAX_NOTE):
+    """The bytes of one file in a notes folder, read without following a link, at most `limit` of them."""
     try:
         descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=folder_fd)
     except OSError:
@@ -162,16 +187,16 @@ def read_note_file(folder_fd, name):
         if not stat.S_ISREG(os.fstat(descriptor).st_mode):
             raise Malformed("is not a regular file")
         chunks, size = [], 0
-        while size <= MAX_NOTE:
-            chunk = os.read(descriptor, MAX_NOTE + 1 - size)
+        while size <= limit:
+            chunk = os.read(descriptor, limit + 1 - size)
             if not chunk:
                 break
             chunks.append(chunk)
             size += len(chunk)
     finally:
         os.close(descriptor)
-    if size > MAX_NOTE:
-        raise Malformed("is larger than %d bytes" % MAX_NOTE)
+    if size > limit:
+        raise Malformed("is larger than %d bytes" % limit)
     return b"".join(chunks)
 
 
@@ -322,6 +347,8 @@ def parse_note(data, wing):
     for key in REQUIRED_KEYS:
         if not header.get(key, "").strip():
             raise Malformed("lacks the header line %s" % key)
+    if "revises" in header and not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,59}", header["revises"]):
+        raise Malformed("has a revises line that is not the name of a note")
     if len(header["title"]) > MAX_TITLE:
         raise Malformed("has a title longer than %d characters" % MAX_TITLE)
     if header["kind"] not in KINDS:
@@ -352,7 +379,8 @@ def scan(root_fd, wing, states):
             for name in names:
                 entry = {"state": state, "name": name, "wing": wing}
                 try:
-                    entry.update(parse_note(read_note_file(folder, name), wing))
+                    entry["raw"] = read_note_file(folder, name)
+                    entry.update(parse_note(entry["raw"], wing))
                 except Malformed as exc:
                     entry["problem"] = str(exc)
                 notes.append(entry)
@@ -557,27 +585,36 @@ def write_file(folder_fd, name, data, exclusive):
 
 # -- the credential scan -------------------------------------------------------------------------------------------------------------------
 CREDENTIAL_PATTERNS = (
-    ("private-key-block", re.compile(r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----")),
-    ("aws-access-key-id", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
+    ("private-key-block", re.compile(r"-----BEGIN [A-Z0-9 ]{0,40}PRIVATE KEY-----")),
+    ("aws-access-key-id", re.compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b")),
     ("github-token", re.compile(r"\bgh[pousr]_[A-Za-z0-9]{36,}")),
     ("github-fine-grained-token", re.compile(r"\bgithub_pat_[A-Za-z0-9_]{22,}")),
+    ("gitlab-token", re.compile(r"\bglpat-[A-Za-z0-9_-]{20,}")),
+    ("npm-token", re.compile(r"\bnpm_[A-Za-z0-9]{36}")),
+    ("stripe-key", re.compile(r"\b[sr]k_(?:live|test)_[A-Za-z0-9]{16,}")),
     ("slack-token", re.compile(r"\bxox[abprs]-[A-Za-z0-9-]{10,}")),
     ("google-api-key", re.compile(r"\bAIza[0-9A-Za-z_-]{35}")),
     ("json-web-token", re.compile(r"\beyJ[A-Za-z0-9_-]{5,}\.eyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]+")),
     ("sk-key", re.compile(r"\bsk-[A-Za-z0-9_-]{20,}")),
-    ("bearer-header", re.compile(r"\bauthorization:\s*bearer\s+[A-Za-z0-9._~+/=-]{16,}", re.I)),
-    ("url-with-password", re.compile(r"[a-z][a-z0-9+.-]*://[^/\s:@]+:[^/\s@]+@", re.I)),
-    ("assigned-secret", re.compile(r"(?<![A-Za-z0-9])[A-Za-z0-9_.-]*(?:password|passwd|secret|token|api[_-]?key|access[_-]?key|private[_-]?key)[A-Za-z0-9_]*"
-                                   r"[\"']?\s*[:=]\s*[\"']?\S{6,}", re.I)),
+    ("bearer-header", re.compile(r"\bauthorization:\s{0,10}bearer\s{1,10}[A-Za-z0-9._~+/=-]{16,}", re.I)),
+    ("basic-auth-header", re.compile(r"\bauthorization:\s{0,10}basic\s{1,10}[A-Za-z0-9+/=]{16,}", re.I)),
+    ("url-with-password", re.compile(r"[a-z][a-z0-9+.-]{0,30}://[^/\s:@]{0,200}:[^/\s@]{1,200}@", re.I)),
+    ("assigned-secret", re.compile(r"(?<![A-Za-z0-9])[A-Za-z0-9_.-]{0,40}(?:password|passwd|passphrase|pass|pwd|secret|token|api[_-]?key|access[_-]?key|private[_-]?key|credentials?)"
+                                   r"[A-Za-z0-9_]{0,40}[\"']?\s{0,10}(?::=|=>|[:=])\s{0,10}[\"']?\S{6,}", re.I)),
 )
-JOINED = ("aws-access-key-id", "github-token", "github-fine-grained-token", "slack-token", "google-api-key", "json-web-token", "sk-key")   # token shapes that a wrap can split
+JOINED = ("aws-access-key-id", "github-token", "github-fine-grained-token", "gitlab-token", "npm-token", "stripe-key", "slack-token", "google-api-key", "json-web-token",
+          "sk-key")   # token shapes that a wrap can split
+# A pattern runs on a line only when the line holds what it needs, and every quantifier in it is bounded, so that one long line costs time in proportion to its length.
 
 
 def credential_hits(text):
-    """``[(line number, pattern name)]`` for each line of `text` that holds credential-shaped text. The names are fixed words: the text is never returned."""
-    hits, lines = [], text.split("\n")
+    """``[(line number, pattern name)]`` for each line of `text` that holds credential-shaped text. The text is normalised first, so a fullwidth or other compatibility
+    form of a shape is read as the plain one. The names are fixed words: the text is never returned."""
+    hits, lines = [], unicodedata.normalize("NFKC", text).split("\n")
     for number, line in enumerate(lines, 1):
         for name, pattern in CREDENTIAL_PATTERNS:
+            if (name == "url-with-password" and "://" not in line) or (name == "assigned-secret" and ":" not in line and "=" not in line):
+                continue
             if pattern.search(line):
                 hits.append((number, name))
     # a second pass finds a token that was wrapped over two lines: the last word of a line and the first word of the next, joined; it is named at the first line.
@@ -610,13 +647,21 @@ def words(text):
     return set(re.findall(r"[a-z0-9]{3,}", text.casefold()))
 
 
-def overlapping(body, notes):
+def note_words(note):
+    """The words of a note's body, worked out once."""
+    if "_words" not in note:
+        note["_words"] = words(note["body"])
+    return note["_words"]
+
+
+def overlapping(body, notes, mine=None):
     """The notes among `notes` (reviewed notes and drafts that parsed) whose text overlaps `body` by more than `OVERLAP` of the words of the shorter."""
-    mine, found = words(body), []
+    mine = words(body) if mine is None else mine
+    found = []
     for note in notes:
         if "problem" in note:
             continue
-        other = words(note["body"])
+        other = note_words(note)
         if mine and other and len(mine & other) / min(len(mine), len(other)) > OVERLAP:
             found.append(note)
     return found
@@ -788,6 +833,8 @@ def plan_save(root_fd, wing, options, new, body):
         if similar:
             header["new-despite"] = ", ".join(n["name"][:-4] for n in similar)[:MAX_FIELD]
         text, change, state, name = body, "draft", "draft", stem + ".txt"
+    if (change == "draft" or (change == "revision draft")) and sum(1 for n in notes if n["state"] == "draft") >= MAX_KEEP:
+        raise Refused("wing %s already holds %d drafts, the most one review can move; review and keep or drop some first" % (wing, MAX_KEEP))
     data = serialize(header, text)
     if len(data) > MAX_NOTE:
         raise Refused("the note would be larger than %d bytes" % MAX_NOTE)
@@ -808,9 +855,9 @@ def save_note(args, stdin, out, cwd):
     root_fd = open_notes_strict()   # a link at either level is a refusal here, before anything is made
     try:
         expire(root_fd, [wing])
-        for other in sorted(wing_names(root_fd)) if root_fd is not None else ():
-            if other != wing and other.casefold() == wing.casefold():
-                raise Refused("wing %s differs only in case from the existing wing %s, which is the same folder on some file systems" % (wing, other))
+        check_wing_case(root_fd, wing)
+        if root_fd is not None and wing not in wing_names(root_fd) and len(wing_names(root_fd)) >= MAX_WINGS:
+            raise Refused("there are already %d wings; a save does not make another" % MAX_WINGS)
         plan_save(root_fd, wing, options, new, body)   # refuses before anything is made
         check_write_path(root_fd, wing)
     finally:
@@ -822,6 +869,7 @@ def save_note(args, stdin, out, cwd):
         lock = take_lock(root_fd, wing, LOCK_TRIES)
         if lock is None:
             raise Refused("another save is in progress for wing %s; try again in a moment" % wing)
+        finish_keep(root_fd, wing)
         change, state, name, data = plan_save(root_fd, wing, options, new, body)
         folder = make_wing_folder(root_fd, state, wing)
         try:
@@ -842,6 +890,559 @@ def save_note(args, stdin, out, cwd):
     usual = search_wing(cwd)
     if usual != wing:
         out.write("note: a plain search in this clone looks in wing %s; to find these notes search with --wing %s\n" % (usual or "(none)", wing))
+    return 0
+
+
+# -- the journal of keep, drop and merge ------------------------------------------------------------------------------------------------------
+class Held:
+    """The wing's lock, held for a block; a lock that stays held is a refusal."""
+
+    def __init__(self, root_fd, wing, message):
+        self.root_fd, self.wing, self.message, self.descriptor = root_fd, wing, message, None
+
+    def __enter__(self):
+        self.descriptor = take_lock(self.root_fd, self.wing, LOCK_TRIES)
+        if self.descriptor is None:
+            raise Refused(self.message % self.wing)
+        return self
+
+    def __exit__(self, *unused):
+        os.close(self.descriptor)
+
+
+def check_wing_case(root_fd, wing):
+    """Refuse a wing that differs only in case from one that exists: on some file systems they are one folder."""
+    for other in sorted(wing_names(root_fd)) if root_fd is not None else ():
+        if other != wing and other.casefold() == wing.casefold():
+            raise Refused("wing %s differs only in case from the existing wing %s, which is the same folder on some file systems" % (wing, other))
+
+
+def require_notes():
+    root_fd = open_notes_strict()
+    if root_fd is None:
+        raise Refused("there are no notes yet")
+    return root_fd
+
+
+def archive_free(root_fd, wing, name):
+    """Refuse, without making anything, when the archive already holds the name that archiving the draft `name` would give it."""
+    target = open_wing_folder(root_fd, "archived", wing)
+    if target is None:
+        return
+    try:
+        archived = "%s.%s.txt" % (name[:-4], utc_stamp())
+        if is_present(target, archived):
+            raise Refused("the archive already holds %s; nothing was moved" % archived)
+    finally:
+        os.close(target)
+
+
+def archive_draft(root_fd, wing, name):
+    """Move the draft `name` to the archive under a name with the time in it; an archive name that exists is not replaced. Returns the archived name."""
+    source = open_wing_folder(root_fd, "draft", wing)
+    if source is None:
+        raise Refused("the draft is no longer there")
+    try:
+        target = make_wing_folder(root_fd, "archived", wing)
+        try:
+            archived = "%s.%s.txt" % (name[:-4], utc_stamp())
+            try:
+                os.stat(archived, dir_fd=target, follow_symlinks=False)
+            except FileNotFoundError:
+                os.rename(name, archived, src_dir_fd=source, dst_dir_fd=target)
+                return archived
+            raise Refused("the archive already holds %s; nothing was moved" % archived)
+        finally:
+            os.close(target)
+    finally:
+        os.close(source)
+
+
+def final_bytes(data, wing):
+    """A kept note as it is filed: the draft without the headers that only a draft has."""
+    note = parse_note(data, wing)
+    header = {key: note[key] for key in HEADER_KEYS if key in note and key not in ("revises", "new-despite")}
+    return serialize(header, note["body"])
+
+
+def note_hash(data):
+    """The fingerprint of a draft's bytes that the journal holds (the kit's digest of its lines)."""
+    return digest.of(data.decode("utf-8", "replace").split("\n"))
+
+
+def read_journal(drafts_fd):
+    """``(digest, [(kind, draft name, target name, fingerprint)])`` of an interrupted keep, or ``None``."""
+    damaged = "the journal of an interrupted keep is damaged; the owner looks at %s in the drafts folder" % JOURNAL
+    try:
+        data = read_note_file(drafts_fd, JOURNAL, JOURNAL_LIMIT)
+    except Malformed:
+        if not is_present(drafts_fd, JOURNAL):
+            return None
+        raise Refused("the journal of an interrupted keep cannot be read; the owner looks at %s in the drafts folder" % JOURNAL)
+    lines = data.decode("utf-8", "replace").split("\n")
+    if not lines or lines[0] != "keep 1" or len(lines) < 3 or not re.fullmatch(r"digest [0-9a-f]{32}", lines[1]):
+        raise Refused(damaged)
+    entries = []
+    for line in lines[2:]:
+        if not line:
+            continue
+        new = re.fullmatch(r"new (%s) ([0-9a-f]{32})" % _FILE, line)
+        revise = re.fullmatch(r"revise (%s) (%s) ([0-9a-f]{32})" % (_FILE, _FILE), line)
+        if new:
+            entries.append(("new", new.group(1), new.group(1), new.group(2)))
+        elif revise:
+            entries.append(("revise", revise.group(1), revise.group(2), revise.group(3)))
+        else:
+            raise Refused(damaged)
+    return lines[1].split()[1], entries
+
+
+def is_present(folder_fd, name):
+    try:
+        os.stat(name, dir_fd=folder_fd, follow_symlinks=False)
+        return True
+    except FileNotFoundError:
+        return False
+
+
+def move_one(drafts_fd, reviewed_fd, wing, kind, name, target, expected):
+    """Move one draft into the reviewed folder. It can be repeated: a draft that is gone was moved, and a reviewed note that already holds the draft is not an error.
+    The draft must still be the bytes the journal fingerprinted, and a revision must name the note the draft says it revises."""
+    if not is_present(drafts_fd, name):
+        return
+    try:
+        data = read_note_file(drafts_fd, name)
+        note = parse_note(data, wing)
+    except Malformed as exc:
+        raise Refused("%s %s" % (name[:-4], exc))
+    if note_hash(data) != expected:
+        raise Refused("%s changed after the keep began, so it was not moved; the owner reviews again" % name[:-4])
+    if (kind == "revise") != bool(note.get("revises")) or (kind == "revise" and note["revises"] + ".txt" != target):
+        raise Refused("%s does not match the journal of the keep (a revision names the note it replaces); it was not moved" % name[:-4])
+    final = final_bytes(data, wing)
+    if kind == "new":
+        try:
+            write_file(reviewed_fd, target, final, exclusive=True)
+        except Refused:
+            try:
+                same = read_note_file(reviewed_fd, target) == final
+            except Malformed:
+                same = False
+            if not same:
+                raise Refused("a reviewed note named %s exists and is not this draft; nothing was replaced" % target[:-4])
+    else:
+        write_file(reviewed_fd, target, final, exclusive=False)
+    os.unlink(name, dir_fd=drafts_fd)
+
+
+def finish_keep(root_fd, wing):
+    """Finish an interrupted keep of `wing` from its journal, under the wing's lock, which the caller holds. Returns the journal's digest, or ``None``."""
+    drafts_fd = open_wing_folder(root_fd, "draft", wing)
+    if drafts_fd is None:
+        return None
+    try:
+        journal = read_journal(drafts_fd)
+        if journal is None:
+            return None
+        reviewed_fd = make_wing_folder(root_fd, "reviewed", wing)
+        try:
+            for kind, name, target, expected in journal[1]:
+                move_one(drafts_fd, reviewed_fd, wing, kind, name, target, expected)
+        finally:
+            os.close(reviewed_fd)
+        os.unlink(JOURNAL, dir_fd=drafts_fd)
+        return journal[0]
+    finally:
+        os.close(drafts_fd)
+
+
+def settle_notes(wings):
+    """Finish an interrupted keep of each wing that has a journal, if its lock is free; a wing whose lock is held is left."""
+    try:
+        strict = open_notes_strict()
+    except Refused:
+        return
+    if strict is None:
+        return
+    try:
+        for wing in wings:
+            folder = open_wing_folder(strict, "draft", wing)
+            if folder is None:
+                continue
+            try:
+                if not is_present(folder, JOURNAL):
+                    continue
+            finally:
+                os.close(folder)
+            try:
+                lock = take_lock(strict, wing, 1)
+            except Refused:
+                continue
+            if lock is not None:
+                try:
+                    finish_keep(strict, wing)
+                except Refused:
+                    pass
+                finally:
+                    os.close(lock)
+    finally:
+        os.close(strict)
+
+
+# -- the flags of review ------------------------------------------------------------------------------------------------------------------------
+def personal_hits(text):
+    return [name for name, pattern in PERSONAL_PATTERNS if pattern.search(text)]
+
+
+def outlier_flags(note, drafts, reviewed):
+    """``(reasons, blocks)`` for one draft: each reason is ``(text, suggestion)``, and `blocks` is true when the draft cannot be kept as it is."""
+    if "problem" in note:
+        return [("malformed (%s)" % note["problem"], "drop it, or fix the file")], True
+    text = note["raw"].decode("utf-8")
+    reasons, blocks = [], False
+    hits = credential_hits(text)
+    if hits:
+        reasons.append(("credential-shaped (line %d %s)" % hits[0], "drop it, or reword it and save again"))
+        blocks = True
+    for name in personal_hits(text):
+        reasons.append(("personal detail (%s)" % name, "check it; drop the note or take the detail out"))
+    if len(text) > REVIEW_BIG:
+        reasons.append(("large (%d characters)" % len(text), "keep it, or drop it"))
+    revises = note.get("revises")
+    shown = display.ascii_text(revises or "")[:60]
+    target = next((n for n in reviewed if revises and n["name"][:-4] == revises), None)
+    if revises and target is None:
+        reasons.append(("revises %s, which is not there" % shown, "drop it, or save it again as a new note"))
+        blocks = True
+    elif revises and "body" not in target:
+        reasons.append(("revises %s, which cannot be read" % shown, "drop it, or fix that note"))
+        blocks = True
+    elif revises and note["name"][:-4] != revises:
+        reasons.append(("is named %s but revises %s; a revision has the name of the note it replaces" % (note["name"][:-4], shown),
+                        "drop it, and add the change with save --into"))
+        blocks = True
+    elif revises and any(d is not note and d.get("revises") == revises for d in drafts):
+        reasons.append(("another draft also revises %s" % shown, "merge the drafts, or drop one"))
+        blocks = True
+    elif not revises and any(n["name"] == note["name"] for n in reviewed):
+        reasons.append(("a reviewed note named %s exists and this draft does not revise it" % note["name"][:-4], "merge it into that note, or give it a new title"))
+        blocks = True
+    others = [n for n in drafts + reviewed if n is not note and n is not target]
+    similar = overlapping(note["body"], others, note_words(note))
+    if similar:
+        reasons.append(("overlaps %s" % ", ".join(n["name"][:-4] for n in similar[:3]), "merge it into one of them, or drop it"))
+    if target is not None and "body" in target:
+        before, after = note_words(target), note_words(note)
+        if before and len(before ^ after) / len(before) > REVIEW_REVISION:
+            reasons.append(("changes more than half of %s" % shown, "keep it if that is meant"))
+    if not reviewed:
+        reasons.append(("new wing", "keep it if the wing's name is right"))
+    if (today() - datetime.date.fromisoformat(note["updated"])).days > REVIEW_AGE:
+        reasons.append(("older than %d days" % REVIEW_AGE, "keep it, or drop it"))
+    return reasons, blocks
+
+
+CODES = (("credential", "credential"), ("personal", "personal detail"), ("malformed", "malformed"), ("large", "large"), ("overlaps", "overlap"),
+         ("changes more", "big revision"), ("new wing", "new wing"), ("older", "older than %d days" % REVIEW_AGE))
+
+
+def code_of(reason):
+    for start, code in CODES:
+        if reason.startswith(start):
+            return code
+    return "revision or name problem"
+
+
+def text_lines(note):
+    """The lines of one note's text for the digest, framed by its length so that no text can look like the lines around it."""
+    if "raw" not in note:
+        return ["unreadable: %s" % note.get("problem", "")]
+    return ["text %d bytes" % len(note["raw"])] + note["raw"].decode("utf-8", "replace").split("\n")
+
+
+def review_lines(wing, drafts, reviewed):
+    """The lines the digest is taken over: the wing, and for each draft its name, what it revises, its whole text and, for a revision, the text of the reviewed note."""
+    by_name = {n["name"][:-4]: n for n in reviewed}
+    lines = ["wing %s" % wing, "drafts %d" % len(drafts)]
+    for note in sorted(drafts, key=lambda n: n["name"]):
+        lines += ["draft %s" % note["name"], "revises %s" % note.get("revises", "-")] + text_lines(note)
+        target = by_name.get(note.get("revises", ""))
+        if target is not None:
+            lines += ["reviewed %s" % target["name"]] + text_lines(target)
+    return lines
+
+
+def drafts_and_reviewed(root_fd, wing):
+    notes, _ = scan(root_fd, wing, ("reviewed", "draft"))
+    return [n for n in notes if n["state"] == "draft"], [n for n in notes if n["state"] == "reviewed"]
+
+
+def review(args, out, cwd):
+    _, options = parse_options(args, ("--wing",))
+    wing = chosen_wing(options, cwd)
+    settle_notes([wing])   # before the expiry: a draft that went stale after the owner's review is filed by the keep that was begun, not archived
+    expire_notes([wing])
+    root_fd = open_notes_strict()
+    if root_fd is None:
+        out.write("no drafts to review in wing %s\n" % wing)
+        return 0
+    try:
+        check_wing_case(root_fd, wing)
+        drafts, reviewed = drafts_and_reviewed(root_fd, wing)
+    finally:
+        os.close(root_fd)
+    if not drafts:
+        out.write("no drafts to review in wing %s\n" % wing)
+        return 0
+    drafts.sort(key=lambda n: n["name"])
+    rows = []   # (priority, number, line, codes): a blocker or a personal detail is shown whatever the cap, because keep moves every draft
+    for number, note in enumerate(drafts, 1):
+        reasons, blocks = outlier_flags(note, drafts, reviewed)
+        if reasons:
+            suggestions = []
+            for _, suggestion in reasons:
+                if suggestion not in suggestions:
+                    suggestions.append(suggestion)
+            line = "%d. %s | %s | %s | suggestion: %s" % (number, note["name"][:-4], note.get("kind", "?"), "; ".join(r for r, _ in reasons), "; ".join(suggestions))
+            important = blocks or any(r.startswith(("personal", "changes more")) for r, _ in reasons)
+            rows.append((0 if important else 1, number, line, sorted({code_of(r) for r, _ in reasons})))
+    rows.sort(key=lambda row: (row[0], row[1]))
+    always = [row for row in rows if row[0] == 0]
+    rest = [row for row in rows if row[0] == 1]
+    room = max(0, MAX_OUTLIERS - len(always))
+    shown = sorted(always + rest[:room], key=lambda row: row[1])
+    lines = ["review of wing %s: %d drafts, %d routine, %d need a look" % (wing, len(drafts), len(drafts) - len(rows), len(rows))]
+    lines += [row[2] for row in shown]
+    if rest[room:]:
+        counts = {}
+        for row in rest[room:]:
+            for code in row[3]:
+                counts[code] = counts.get(code, 0) + 1
+        lines.append("%d more not shown, none with a personal detail or a blocker: %s" % (len(rest[room:]), ", ".join("%s x%d" % pair for pair in sorted(counts.items()))))
+    out.write(wrap("review", plain("\n".join(lines), "\n\t")))
+    out.write("digest: %s\n" % digest.of(review_lines(wing, drafts, reviewed)))
+    return 0
+
+
+def keep(args, out, cwd):
+    options = {}
+    position = 0
+    while position < len(args):
+        name = args[position]
+        if name not in ("--wing", "--digest"):
+            raise Refused(USAGE)
+        if name in options:
+            raise Refused("%s is given twice" % name)
+        if position + 1 >= len(args):
+            raise Refused("%s needs a value" % name)
+        options[name] = args[position + 1]
+        position += 2
+    if "--wing" not in options or "--digest" not in options:
+        raise Refused("keep needs --wing and --digest (the digest that review printed)")
+    wing, given = options["--wing"], options["--digest"]
+    if not re.fullmatch(_NAME, wing) or plain(wing) != wing:
+        raise Refused("--wing is at most 64 letters, digits and ._:- and does not start with - or .")
+    if not digest.well_formed(given):
+        raise Refused(digest.SHAPE)
+
+    def check(drafts, reviewed):
+        if not drafts:
+            raise Refused("no drafts to keep in wing %s" % wing)
+        if len(drafts) > MAX_KEEP:
+            raise Refused("wing %s has %d drafts; keep moves at most %d at a time: drop or merge some, then review again" % (wing, len(drafts), MAX_KEEP))
+        wrong = digest.mismatch(given, review_lines(wing, drafts, reviewed))
+        if wrong:
+            raise Refused(wrong + "; nothing was moved")
+        for note in drafts:
+            reasons, blocks = outlier_flags(note, drafts, reviewed)
+            if blocks:
+                raise Refused("%s cannot be kept: %s; nothing was moved. Drop it or fix it, then review again"
+                              % (note["name"][:-4], "; ".join(r for r, _ in reasons if r.startswith(("malformed", "credential", "revises", "a reviewed", "is named", "another")))))
+
+    root_fd = require_notes()
+    try:
+        check_wing_case(root_fd, wing)
+        folder = open_wing_folder(root_fd, "draft", wing)
+        interrupted = False
+        if folder is not None:
+            try:
+                interrupted = is_present(folder, JOURNAL)
+            finally:
+                os.close(folder)
+        if not interrupted:
+            check(*drafts_and_reviewed(root_fd, wing))   # refuses before the lock is taken or anything is made
+        with Held(root_fd, wing, "another change to the notes of wing %s is in progress; try again in a moment"):
+            finished = finish_keep(root_fd, wing)
+            if finished is not None:
+                if finished == given:
+                    out.write("finished the interrupted keep in wing %s\n" % wing)
+                    return 0
+                raise Refused("an earlier keep in wing %s was interrupted and has now been finished; review again for a new digest" % wing)
+            drafts, reviewed = drafts_and_reviewed(root_fd, wing)
+            check(drafts, reviewed)
+            entries = []
+            for note in sorted(drafts, key=lambda n: n["name"]):
+                if note.get("revises"):
+                    entries.append(("revise", note["name"], note["revises"] + ".txt", note_hash(note["raw"])))
+                else:
+                    entries.append(("new", note["name"], note["name"], note_hash(note["raw"])))
+            drafts_fd = open_wing_folder(root_fd, "draft", wing)
+            if drafts_fd is None:
+                raise Refused("the drafts folder of wing %s is not there to write the journal in; nothing was moved" % wing)
+            reviewed_fd = None
+            try:
+                reviewed_fd = make_wing_folder(root_fd, "reviewed", wing)
+                journal = ("keep 1\ndigest %s\n" % given + "".join("%s %s%s %s\n" % (kind, name, "" if kind == "new" else " " + target, fingerprint)
+                                                                  for kind, name, target, fingerprint in entries)).encode("utf-8")
+                write_file(drafts_fd, JOURNAL, journal, exclusive=True)
+                for kind, name, target, fingerprint in entries:
+                    move_one(drafts_fd, reviewed_fd, wing, kind, name, target, fingerprint)
+                os.unlink(JOURNAL, dir_fd=drafts_fd)
+            finally:
+                if reviewed_fd is not None:
+                    os.close(reviewed_fd)
+                os.close(drafts_fd)
+    finally:
+        os.close(root_fd)
+    out.write("kept %d notes in wing %s: %s\n" % (len(entries), wing, ", ".join(target[:-4] for _, _, target, _ in entries)))
+    out.write("next: to file them, preview and run mine on %s with --wing %s\n" % (os.path.join(notes_root(), wing), wing))
+    return 0
+
+
+def wing_of_pair(raws, options, cwd):
+    """The wing for a verb that names notes as ``<name>`` or ``<wing>/<name>``: the prefixes must agree with each other and with ``--wing``."""
+    wings = {raw.partition("/")[0] for raw in raws if "/" in raw}
+    if options.get("--wing"):
+        wings.add(options["--wing"])
+    if len(wings) > 1:
+        raise Refused("the names say more than one wing: %s" % ", ".join(sorted(display.ascii_text(w)[:30] for w in wings)))
+    return wings.pop() if wings else project_wing(cwd)
+
+
+def bare(raw, wing):
+    """The name part of `raw`, refusing an extra path segment or an unsafe name."""
+    name = raw.partition("/")[2] if "/" in raw else raw
+    if "/" in name:
+        raise Refused("a note is named <name> or <wing>/<name>")
+    if "/" in raw and not re.fullmatch(_NAME, raw.partition("/")[0]):
+        raise Refused("a note is named <name> or <wing>/<name>")
+    return split_name(name, {})[1]
+
+
+def merge_wing(raws, options, cwd):
+    """The wing of a merge: one wing for both names. Names may carry a prefix; both prefixed with the same wing name that wing, and a prefix on one name must be
+    the wing the other (or ``--wing``, or the project) names."""
+    prefixes = [raw.partition("/")[0] if "/" in raw else None for raw in raws]
+    for prefix in prefixes:
+        if prefix is not None and not re.fullmatch(_NAME, prefix):
+            raise Refused("a note is named <name> or <wing>/<name>")
+    given = {prefix for prefix in prefixes if prefix}
+    if len(given) > 1:
+        raise Refused("the names say more than one wing: %s; a merge stays in one wing" % ", ".join(sorted(display.ascii_text(w)[:30] for w in given)))
+    if given and None not in prefixes:
+        wing = next(iter(given))
+        if options.get("--wing", wing) != wing:
+            raise Refused("the names say wing %s and --wing says wing %s" % (wing, options["--wing"]))
+        return wing
+    base = options.get("--wing") or project_wing(cwd)
+    if given and given != {base}:
+        raise Refused("a merge stays in one wing: a name says %s and the wing is %s" % (display.ascii_text(next(iter(given)))[:30], base))
+    return base
+
+
+def unique_draft(notes, name, wing, allow_malformed=False):
+    found = [n for n in notes if n["state"] == "draft" and note_matches(n, name)]
+    if not found:
+        other = [n for n in notes if n["state"] != "draft" and note_matches(n, name)]
+        raise Refused("%s in wing %s is a reviewed note, not a draft; this works on drafts" % (display.ascii_text(name)[:60], wing) if other
+                      else "no draft %s in wing %s" % (display.ascii_text(name)[:60], wing))
+    if len(found) > 1:
+        raise Refused("%s matches more than one draft: %s" % (display.ascii_text(name)[:60], ", ".join(n["name"][:-4] for n in found)))
+    if "problem" in found[0] and not allow_malformed:
+        raise Refused("%s/%s %s" % (wing, found[0]["name"][:-4], found[0]["problem"]))
+    return found[0]
+
+
+def drop(args, out, cwd):
+    rest, options = parse_options(args, ("--wing",), 1)
+    wing = wing_of_pair(rest, options, cwd)
+    name = bare(rest[0], wing)
+    root_fd = require_notes()
+    try:
+        check_wing_case(root_fd, wing)
+        first = unique_draft(scan(root_fd, wing, ("reviewed", "draft"))[0], name, wing, allow_malformed=True)   # refuses before the lock is taken or anything is made
+        archive_free(root_fd, wing, first["name"])
+        with Held(root_fd, wing, "another change to the notes of wing %s is in progress; try again in a moment"):
+            finish_keep(root_fd, wing)
+            found = unique_draft(scan(root_fd, wing, ("reviewed", "draft"))[0], name, wing, allow_malformed=True)
+            archived = archive_draft(root_fd, wing, found["name"])
+    finally:
+        os.close(root_fd)
+    out.write("dropped draft %s/%s (archived as %s)\n" % (wing, found["name"][:-4], archived))
+    return 0
+
+
+def merge(args, out, cwd):
+    rest, options = parse_options(args, ("--wing", "--state"), 2)
+    if options.get("--state") == "archived":
+        raise Refused("--state is reviewed, draft or all")
+    wing = merge_wing(rest, options, cwd)
+    source_name, target_name = bare(rest[0], wing), bare(rest[1], wing)
+    root_fd = require_notes()
+    shown = None
+    try:
+        check_wing_case(root_fd, wing)
+
+        def plan():
+            notes = scan(root_fd, wing, ("reviewed", "draft"))[0]
+            source = unique_draft(notes, source_name, wing)
+            target = find_target(notes, target_name, {"--state": options.get("--state", "all")}, wing)
+            if target["state"] == "draft" and target["name"] == source["name"]:
+                raise Refused("a draft cannot be merged into itself")
+            archive_free(root_fd, wing, source["name"])
+            marker = "merged from %s %s" % (source["name"][:-4], digest.of(source["body"].split("\n"))[:12])
+            header = {key: target[key] for key in HEADER_KEYS if key in target}
+            header["updated"] = today().isoformat()
+            if target["state"] == "reviewed":
+                if any(n["state"] == "draft" and n["name"] == target["name"] for n in notes):
+                    raise Refused("a revision draft of %s already exists; merge into it with --state draft" % target["name"][:-4])
+                header["revises"] = target["name"][:-4]
+            text = target["body"]
+            if marker not in text.split("\n"):
+                text = text + "\n\n" + marker + "\n" + source["body"]
+            data = serialize(header, text)
+            if len(data) > MAX_NOTE:
+                raise Refused("the merged note would be larger than %d bytes" % MAX_NOTE)
+            check_credentials(data)
+            try:
+                parse_note(data, wing)
+            except Malformed as exc:
+                raise Refused("the merged note would not follow the format: it %s" % exc)
+            return source, target, data, marker in target["body"].split("\n")
+
+        plan()   # refuses before the lock is taken or anything is made
+        with Held(root_fd, wing, "another change to the notes of wing %s is in progress; try again in a moment"):
+            finish_keep(root_fd, wing)
+            source, target, data, already = plan()
+            if not already:
+                folder = make_wing_folder(root_fd, "draft", wing)
+                try:
+                    write_file(folder, target["name"], data, exclusive=(target["state"] == "reviewed"))
+                finally:
+                    os.close(folder)
+            archive_draft(root_fd, wing, source["name"])
+            shown = (source, target, already)
+    finally:
+        os.close(root_fd)
+    source, target, already = shown
+    if already:
+        out.write("merged draft %s/%s into %s/%s: the target already held its text, so only the draft was archived\n"
+                  % (wing, source["name"][:-4], wing, target["name"][:-4]))
+    elif target["state"] == "reviewed":
+        out.write("merged draft %s/%s into a new revision draft %s/%s (it replaces the reviewed note when it is kept)\n"
+                  % (wing, source["name"][:-4], wing, target["name"][:-4]))
+    else:
+        out.write("merged draft %s/%s into draft %s/%s\n" % (wing, source["name"][:-4], wing, target["name"][:-4]))
     return 0
 
 
@@ -973,6 +1574,7 @@ def line_of(note):
 def list_notes(args, out, cwd):
     _, options = parse_options(args, ("--wing", "--kind", "--state"))
     wing = chosen_wing(options, cwd)
+    settle_notes([wing])
     expire_notes([wing])
     root_fd = open_root()
     try:
@@ -1007,6 +1609,15 @@ def split_name(name, options):
     return options, name
 
 
+def note_matches(note, name):
+    """A note answers to its file name (with or without ``.txt``), to its title, and, when archived, to the name it had before the time was added to it."""
+    stem = name[:-4] if name.endswith(".txt") else name
+    file_stem = note["name"][:-4]
+    if file_stem == stem or ("title" in note and note["title"].casefold() == name.casefold()):
+        return True
+    return note["state"] == "archived" and re.fullmatch(re.escape(stem) + r"\.[0-9]{8}T[0-9]{6}Z", file_stem) is not None
+
+
 def read_note(args, out, cwd):
     rest, options = parse_options(args, ("--wing", "--state"), 1)
     options, name = split_name(rest[0], options)
@@ -1017,15 +1628,7 @@ def read_note(args, out, cwd):
     finally:
         if root_fd is not None:
             os.close(root_fd)
-    stem = name[:-4] if name.endswith(".txt") else name
-    def named(note):
-        """A note answers to its file name, to its title, and, when archived, to the name it had before the time was added to it."""
-        file_stem = note["name"][:-4]
-        if file_stem == stem or ("title" in note and note["title"].casefold() == name.casefold()):
-            return True
-        return note["state"] == "archived" and re.fullmatch(re.escape(stem) + r"\.[0-9]{8}T[0-9]{6}Z", file_stem) is not None
-
-    found = [n for n in notes if named(n)]
+    found = [n for n in notes if note_matches(n, name)]
     if not found:
         raise Refused("no note %s in wing %s (%s)" % (display.ascii_text(name)[:60], wing, "/".join(states_of(options))))
     if len(found) > 1:
@@ -1058,8 +1661,10 @@ def open_root_state(state, wing):
 def main(argv, stdin, out, err, cwd):
     """Run one verb from `cwd`. Returns the exit code. A refusal means nothing was changed."""
     try:
-        if not argv or argv[0] not in ("wings", "list", "read", "save"):
+        if not argv or argv[0] not in ("wings", "list", "read", "save", "drop", "merge", "review", "keep"):
             raise Refused(USAGE)
+        if argv[0] in ("drop", "merge", "review", "keep"):
+            return {"drop": drop, "merge": merge, "review": review, "keep": keep}[argv[0]](argv[1:], out, cwd)
         if argv[0] == "wings":
             return wings(argv[1:], out, cwd)
         if argv[0] == "list":

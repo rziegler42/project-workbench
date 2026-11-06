@@ -53,8 +53,21 @@
         "wings",
         "list",
         "read",
-        "save"
-      ]
+        "save",
+        "drop",
+        "merge",
+        "review",
+        "keep"
+      ],
+      "owner": [
+        "keep"
+      ],
+      "levels": {
+        "keep": [
+          "ask"
+        ]
+      },
+      "preview": "review"
     }
   }
 }
