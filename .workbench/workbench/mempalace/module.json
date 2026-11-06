@@ -10,7 +10,8 @@
     "mempalace"
   ],
   "ships": [
-    "helper/mempalace"
+    "helper/mempalace",
+    "helper/mempalace-notes"
   ],
   "fills": [
     {
@@ -43,6 +44,16 @@
         ]
       },
       "preview": "preview"
+    },
+    "mempalace-notes": {
+      "helper": "helper/mempalace-notes",
+      "runtime": "python",
+      "kit": 1,
+      "arguments": [
+        "wings",
+        "list",
+        "read"
+      ]
     }
   }
 }
