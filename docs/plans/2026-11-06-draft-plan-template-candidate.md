@@ -1,6 +1,6 @@
 # Show both forms of the Candidate line in the plan template
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-06
 Candidate: none (deferred work of the plan `2026-11-06-roadmap-scope-text`, carrying out decision 6 of the accepted record `2026-11-06-roadmaps-are-scoped-by-finish-line` for the one shipped file that plan left out)
 Specs: code-work
