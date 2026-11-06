@@ -21,7 +21,8 @@ this project. Search the palace only when it does not answer.
    rejected, the reason. For the search at the start of a drafting task, ask about the topic you are about to
    write on and what was decided, tried or rejected about it. Put no secret, token, password or personal
    detail in it. Keep it under a few sentences.
-2. Run `wb run mempalace search --results 5 -- "<question>"`. The question comes after `--` and is one argument.
+2. Run `wb run mempalace search --results 5 -- '<question>'`. The question comes after `--` and is one argument. Write the question in single quotes and with no
+   apostrophe in it; reword it if it needs one.
    Add `--wing <name>` or `--room <name>` to narrow it, and `--since <date>` or `--before <date>` (as
    `2026-04-01`) when only recent or only older notes matter. Run one search at a time. If you need to know
    whether the palace holds anything at all, `wb run mempalace status` lists what it holds.
@@ -60,7 +61,9 @@ lesson: wait for the work that then succeeds.
 
 1. List first: run `wb run mempalace-notes list` (it shows reviewed notes and drafts) and read the titles. If the idea belongs to a note,
    extend it with `--into <name>`; make a new note only when none fits.
-2. Run `wb run mempalace-notes save --title "<title>" --kind <kind> --body "<text>"`. `--body -` reads the text from standard input.
+2. Run `wb run mempalace-notes save --title '<title>' --kind <kind> --body '<text>'`. `--body -` reads the text from standard input. Write the title and the body in
+   single quotes, with no apostrophe in either; reword a title that needs one. A body that needs an apostrophe goes to `save` from a file on standard input
+   (`--body - < <file>`), and so does a body that the harness refuses (step 5).
    The kinds are idea, decision, open question, finding, lesson, explored and dead end. `--wing <name>` names a topic wing (a domain, a
    piece of hardware, or `ideas` for a general concept); without it the note goes in this project's wing. A new note has at least 300
    characters, so write it self-contained, with its reason. `--source <text>` says where it came from, and `--verify <text>` is a command or
@@ -76,6 +79,7 @@ lesson: wait for the work that then succeeds.
 5. If the harness refuses the command itself, and the refusal says the command names a key (rule `names`), the cause is letters in your text that match a command the
    owner has set to `ask`, such as the word "keeps" or "examine". Do not reword the note to get past it: write the text to a file with your file tool and give it
    to `save` on standard input (`--body - < <file>`), a temporary file outside the repository that you delete after the save, and keep the other words of the command short; if that is refused too, tell the owner what was refused.
+   If the refusal comes from the title or the question, choose other words: they are your label, not the owner's words. The body is never reworded to get past it.
 
 Finding notes again. After a compaction, or in a new session on work that has no spec, run `wb run mempalace-notes list` and read the notes
 that apply: they are the record of what was worked out, and the conversation may have lost it. Read one with `wb run mempalace-notes read <name>`.
