@@ -550,16 +550,22 @@ palace was the owner's own. An agent session ran the commands as the skill says,
 a digest. *First folder* (three small `.txt` files outside the project): `preview mine` printed the wing, the three files and their drawers (4) and a
 digest; `mine <dir> --confirm --digest <d>` filed 4 drawers, and a search for a phrase of one file returned it from wing `live-check` first. After
 the owner deleted one file, `preview sync` reported Scanned 4, Kept 3, Missing 0 and **Unresolved 1**, naming the deleted file, so a confirmed `sync`
-would have removed nothing. The cause was not found: the program's `sync.py` keeps a drawer unresolved when the directory's inode now differs from
-the one recorded when the drawer was filed, among other cases; the file was "not there" and its two neighbours were present files when probed with the
-program's own functions (read-only), and a scratch reproduction with the real program (three `.txt` files, outside a project, one deleted) gave Missing 1.
-The recorded inode of the live drawer was not read, because that needs the palace opened outside the helper. *Second folder* (three new files):
+would have removed nothing. **The cause, found afterwards (2026-11-06) on a copy of the palace** (the real palace was only copied, never opened; the
+copy was read with the program's own `chromadb` and deleted): each drawer of the folder carried `source_dir_ino` 358529620, and the folder then answered
+with 358572876. The program's `sync.py` keeps a drawer unresolved when the directory's inode now differs from the one recorded when the drawer was
+filed. The folder had been **replaced, not only emptied of one file**: it was born at 07:55:35, after the mine, and its two remaining files were born at
+07:55:50 and 07:56:07 (the original folder's listing showed all three files at 07:52 to 07:53), which is what deleting the folder and putting the two
+files back in a new one does. The program documents this case: the drawers of files that really went are then kept as `unresolved`, since the directory is
+not the one they were filed from. The file was "not there" and its two neighbours were present files when probed with the program's own functions
+(read-only), and a scratch reproduction with the real program (three `.txt` files, outside a project, one deleted in place) gave Missing 1. *Second
+folder* (three new files):
 `preview mine` showed 3 drawers; `mine` filed them; after the owner deleted one file, `preview sync` reported Scanned 7, Kept 2, **Missing 1**, Unresolved
 0, Out of scope 4 (the first folder's drawers, outside this folder), and named the file; `sync <dir> --confirm --digest <d>` removed 1 drawer and 1
 closet, that file's only; a second preview reported Missing 0, and a search for the file's content no longer returned it. **Reading.** The flow of the
 plan works end to end at `ask` against the real program: preview, digest, one confirmed command, a removal limited to the wing and the named folder.
-**Limits.** One owner, one machine; the unresolved drawer of the first folder was not explained, so a `sync` after a deletion can leave a drawer that the
-program cannot establish as gone, which is the program's own caution and which the preview shows as `Unresolved`; the wrong-digest refusal and the
+**Limits.** One owner, one machine; a folder that is deleted and recreated (a different inode) leaves the drawers of its deleted files `Unresolved` for
+good, which the program does on purpose and which the preview shows (the program's own `mempalace_delete_by_source` removes them one source at a
+time, and the helper offers no such command); the wrong-digest refusal and the
 refusal of a folder in `.git` were not tried in the live session (the tests and a scratch run cover them); the cleanup (the drawers of wing `live-check`
 that remain, the two folders, the setting file) was left to the owner.
 
