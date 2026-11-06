@@ -155,8 +155,9 @@ Filing is the existing `mine <notes>/<wing> --wing <wing>`, with its preview and
 two is the starting position, because `keep` changes files and `mine` changes the palace.
 
 `save` takes the wing (the project's by default), the kind, the title and the body, and the source and verify lines when they apply, and `--into` or `--new`.
-The keys `wb run mempalace notes save`, `drop` and `merge` are agent-run writes into an untracked folder; their default is `block`, and the owner sets `none`
-to let an agent save silently.
+The keys for `save`, `drop` and `merge` are agent-run writes into an untracked folder. `command-permissions.md` gives an agent-run argument the levels `block` and
+`none` and the default `none`, so saving is on once the module is installed and the rules are rendered, and the owner sets a key to `block` to stop it; the
+writes are drafts and never the palace. A default of `block` would be a change to that spec and is not made here.
 The class and levels are for the builder to settle with `command-permissions.md`. [open]
 
 ### Saving: update before create

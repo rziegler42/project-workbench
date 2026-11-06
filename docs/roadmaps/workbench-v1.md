@@ -1018,6 +1018,19 @@ setting file, a list of folders to mine, a check of the module, the program's em
 another project.
 **Promotion trigger:** the owner chooses to begin (met on 2026-11-05).
 
+### mempalace-notes — Agents save short notes as they work, and the owner reviews them by exception before they are filed
+
+**Outcome:** an agent that brainstorms with the owner, solves a problem under the owner's guidance, or researches from collected sources saves what was
+worked out as a short note in the owner's machine-wide notes folder, so that it survives a compaction or a lost session and a second session can find the part
+it needs. Notes are drafts until the owner has reviewed them; the review shows counts and only the outliers, and a reviewed note is filed into the palace with
+`mine`. A note never holds a credential, and a note with a personal-detail shape is always shown to the owner. The design is `docs/specs/mempalace-notes.md`.
+**Dependencies:** `mempalace-per-clone-use`, whose `mine` at `ask`, folder rules and per-clone setting this builds on.
+**Boundary:** the notes commands and their helper, the declaration and the keys, the skill and the policy-block text, their tests, the sentences of
+`mempalace.md` and `docs/development.md` that describe them. Not part of it: mining finished sessions or a filtered export of them, any change to `search`,
+`mine` or `sync`, a hook that saves at a compaction, the program's knowledge graph, and installing the module in another project (the knowledge-base project is
+the next user).
+**Promotion trigger:** the owner chooses to begin (met on 2026-11-06).
+
 ### module-hook-rendering — Hooks that a module declares, rendered by the installer
 
 **Outcome:** a module that ships a hook for a harness declares it (the event, the matcher, the timeout and the shipped file), and
