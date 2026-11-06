@@ -141,6 +141,13 @@ terminal to the program, which prints its progress, and waits with no time limit
     rules, the same device and inode as the first check), and a folder that is another directory by then, or a link, is refused ("the directory changed
     after it was checked; nothing was filed", or "removed" for `sync`). This narrows the time in which a swap can succeed to the moments between that
     check and the program opening the path; it cannot close it, because the program takes a path and not an open directory.
+  - **The program's own configuration** (`~/.config/mempalace/config.json`, `~/.mempalace/config.json`) is read only to find the `palace_path` it
+    saved, so that a folder that is or holds that palace is refused and the preview lists it. The file may be a link (a dotfile manager makes it
+    one): the link is followed for this read, and the resolved file is opened without following a link. A file that is missing, not JSON, not a
+    regular file or too large adds nothing, as does a saved value that cannot be a path (a NUL, a lone surrogate, a non-string). A **relative**
+    saved `palace_path` is not compared: the program expands only `~` in the saved value (3.11.0, `config.py`, read on 2026-11-06) and leaves a
+    relative path to be taken against its own working directory, which is a scratch directory of the helper's making, so the place it would
+    mean cannot be known here (plan `2026-11-05-mempalace-per-clone-use`, increment G; found by the security review of F).
   - **The lock** is an exclusive, non-blocking `flock` on `mempalace-helper.lock` in the palace's parent directory (`~/.mempalace` for the program's
     own palace; the project's `palace` setting names another). The directory is opened without following a link, and made, one level and mode 0700, if
     it is missing; the file is opened without following a link, mode 0600, and must be a regular file; a link, a directory or a missing grandparent is
@@ -150,8 +157,12 @@ terminal to the program, which prints its progress, and waits with no time limit
     one descriptor inherited (plan `2026-11-05-mempalace-per-clone-use`, increment F), so the lock stays held for as long as the program lives, also
     when the helper is killed with `SIGKILL`, which no handler can answer; the operating system drops it when the last holder ends. The helper passes
     the program no other descriptor; whether the real program hands this one on to a process it starts was not checked, and if it does, the lock is
-    held until that process ends, which refuses a later run and does no harm. A program that ends is the end of the hold, and a helper that is
-    terminated stops the program's process group, as before. (A terminate signal that arrives in the instant between
+    held until that process ends, which refuses a later run and does no harm. A process the program leaves running in a session of its own (the
+    helper stops the program's process group, which such a process has left) keeps the lock until it ends, and the helper cannot stop it; the
+    refusal of a held lock says so ("or a process that an earlier run's program started may still hold the lock"; plan
+    `2026-11-05-mempalace-per-clone-use`, increment G). A program that ends is the end of the hold, and a helper that is
+    terminated stops the program's process group, as before. A run whose digest does not match holds the lock for the length of its dry run (up
+    to 300 seconds) before it refuses, so an agent can make the owner's confirm be retried; this is a limit that the lock always had, and it is not removed. (A terminate signal that arrives in the instant between
     starting the program and the helper noting its process leaves that program running; no check closes that window.) No directory of the clone is made; but the lock is beside
     the palace, so a `palace` setting that puts the palace in the clone puts an untracked `mempalace-helper.lock` in the clone's root, and the same
     palace named by two spellings (one by setting, one by the program's own configuration) is guarded by two locks. The file's owner is not checked, so

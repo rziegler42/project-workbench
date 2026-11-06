@@ -481,3 +481,26 @@ scratch clone, a fake program, a scratch home); its findings are the work of inc
 - Behaviour change to know: a run now refuses a `.git` or `.workbench` directory anywhere under the project root, not only the root's own.
 - Left for the owner: whether the security reviewer looks at the fix (a fix is new attack surface); the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/pcf_install_files.py`,
   three files, only if their hashes are those recorded), the release approvals, and after the commit `wb upgrade` and `wb rerender` (the installed helper changes; no new keys).
+
+**Increment F was committed as `6728c6f`** (copied and released by the owner), and its install-state files as `bfb3f37`. The security reviewer then read the fix at the owner's request
+(2026-11-06): no Critical, High or Medium finding, four Low ones; they are the work of increment G, which was approved and committed as `001085b`.
+
+**Increment G (2026-11-06), done in a scratch clone at commit `001085b`; not yet copied, released or committed.**
+
+- Findings closed. (1) A `~/.config/mempalace/config.json` or `~/.mempalace/config.json` that is a link switched the palace-overlap guard off silently: the link is now followed for that one read
+  (`realpath`, then opened without following a link), so the palace it names is guarded and listed in the preview. (2) A saved `palace_path` that cannot be a path (a lone surrogate) ended in a
+  traceback: it is skipped (`os.fsencode`), and `ready()` treats any `ValueError` as a change. (3) A held lock now says that a process an earlier run's program started may still hold it. (4) A
+  wrong-digest run holds the lock for its dry run (up to 300 seconds): recorded in the spec, not changed.
+- Added beyond the plan's steps, and why: a saved **relative** `palace_path` is now skipped (the spec sentence the plan asks for says it is not compared; the old code compared it against the
+  helper's own working directory, a place the program never uses; the program's `config.py` 3.11.0 applies only `expanduser` to the saved value, read on 2026-11-06).
+- Changed in the clone (two files): `helper/mempalace` (`saved_palaces`, the held-lock refusal, `ready()`), and a new `tests/test_mempalace_config.py` (7 tests). Changed in the live tree:
+  `docs/specs/mempalace.md` (the program's configuration may be a link and which values add nothing; the relative path; the lock held by a process the program left in a session of its own; the
+  wrong-digest limit). The package has no other file to change.
+- Verification as run: before the helper change the new tests failed (3 failures, 2 errors, and the lock message), after it `python3 -B -m unittest discover -s packages/workbench/mempalace/tests
+  -p 'test_mempalace_*.py'` in the clone gave 292 tests, all passing. Not run: the real program with a linked configuration (the change only decides which path is compared), a case-sensitive
+  volume, `wb run code-work check` until the files are in the live tree.
+- Review: the `reviewer` agent, one exchange. No blocking finding. Applied: the spec now cites the program's source for the relative path. Noted, not changed: the test of a configuration changed
+  between the digest check and the start accepts exit 0 or 1 and only forbids a traceback (the skip means a surrogate never reaches `ready()`, whose `ValueError` clause is therefore not exercised
+  on its own); the held-lock text matches by substring only. The reviewer ran nothing.
+- Left for the owner: the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/pcg_install_files.py`, two files,
+  only if their hashes are those recorded), the release approvals, and after the commit `wb upgrade` (the installed helper changes; no new keys).
