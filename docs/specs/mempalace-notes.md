@@ -348,6 +348,12 @@ The owner does not read notes to approve them. [agreed]
   redirect, no `cd`, no `2>&1`). The question about filing is asked once, with the review question. A command the gate refuses with the rule `names` is not met by
   rewording the note: the text goes to a file and reaches `save` on standard input (`--body - < <file>`), which the gate was seen to allow, or the owner is told. The block
   is 24 lines, its limit. Whether an agent follows this text is for the next live run. [call]
+- **Single-quoted forms (plan `2026-11-06-notes-single-quoted-forms`, increment A; decision 2 of `2026-11-06-command-gate-and-prose-in-module-calls`).** The forms in the block and the skill
+  show the search question, the title and the body of `save` in single quotes, which the gate reads as data, and not in double quotes, which it refuses when the text holds the letters of a
+  key at `ask`. It corrects the forms of the first fix of the live-run defects (increment A of `2026-11-06-notes-live-run-fixes`), which showed double quotes. The skill says that a question, a title
+  or a body has no apostrophe (a question or a title is reworded), that a body that needs one, or that the harness refuses, goes to `save` from a file on standard input, that a refused
+  title or question gets other words (they are the agent's label), and that the body is never reworded to get past the gate. This does not free the letters of `mine` or `sync` in a plain word
+  of a notes command; only the gate change of decision 3 of the record does. [call]
 
 ### Finding notes again
 

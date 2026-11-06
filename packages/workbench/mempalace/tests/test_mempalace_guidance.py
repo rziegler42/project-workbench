@@ -93,7 +93,7 @@ class Policy(unittest.TestCase):
         """Plan `2026-11-05-mempalace-search-form`, increment B. A fresh agent that had not loaded the skill ran the command without the
         dashes and was refused; the line that names the command shows the form."""
         text = flat(block())
-        self.assertEqual(1, text.count('`wb run mempalace search -- "<question>"`'))
+        self.assertEqual(1, text.count("`wb run mempalace search -- '<question>'`"))
         self.assertLessEqual(len(block().splitlines()), BLOCK_LINES)
 
     def test_the_block_does_not_ask_the_agent_to_write_to_the_palace_or_to_run_the_owners_commands(self):
@@ -203,11 +203,22 @@ class Skill(unittest.TestCase):
 
     def test_it_shows_how_to_ask_with_the_question_after_the_dashes_and_the_allowed_options(self):
         text = flat(skill_text())
-        for rule in ('`wb run mempalace search --results 5 -- "<question>"`',
+        for rule in ("`wb run mempalace search --results 5 -- '<question>'`",
                      "The question comes after `--` and is one argument", "`--wing <name>`", "`--room <name>`",
                      "`--since <date>`", "`--before <date>`", "Run one search at a time",
                      "Put no secret, token, password or personal detail in it"):
             self.assertIn(rule, text, rule)
+
+    def test_no_form_in_the_block_or_the_skill_is_double_quoted(self):
+        """Plan `2026-11-06-notes-single-quoted-forms`, increment A: the gate reads a single-quoted argument as data and refuses a double-quoted one that holds the
+        letters of a key at `ask` (decision 2 of `2026-11-06-command-gate-and-prose-in-module-calls`)."""
+        for text in (flat(block()), flat(skill_text())):
+            for placeholder in ('"<question>"', '"<title>"', '"<text>"'):
+                self.assertNotIn(placeholder, text, placeholder)
+            self.assertIsNone(re.search(r'"<[^">]+>"', text), "a double-quoted placeholder")
+
+    def test_the_skill_says_to_write_the_question_in_single_quotes_without_an_apostrophe(self):
+        self.assertIn("Write the question in single quotes and with no apostrophe in it; reword it if it needs one", flat(skill_text()))
 
     def test_it_treats_a_result_as_recalled_data_and_a_low_score_as_nothing(self):
         text = flat(skill_text())

@@ -56,7 +56,7 @@ class Block(unittest.TestCase):
 
     def test_it_shows_the_form_of_save_and_read_and_the_kinds(self):
         """Plan `2026-11-06-notes-live-run-fixes`, increment A: in the live run a fresh agent spent about ten calls guessing these forms (`--help`, `show`, `design`)."""
-        for rule in ("`wb run mempalace-notes save --title \"<title>\" --kind <kind> --body \"<text>\"`",
+        for rule in ("`wb run mempalace-notes save --title '<title>' --kind <kind> --body '<text>'`",
                      "kinds: idea, decision, open question, finding, lesson, explored, dead end",
                      "`--body -` reads the text from standard input",
                      "`wb run mempalace-notes read <name>`"):
@@ -94,7 +94,7 @@ class Skill(unittest.TestCase):
 
     def test_it_says_how_to_save_and_to_list_first(self):
         for rule in ("run `wb run mempalace-notes list`", "extend it with `--into <name>`", "`--body -` reads the text from standard input",
-                     "`wb run mempalace-notes save --title \"<title>\" --kind <kind> --body \"<text>\"`",
+                     "`wb run mempalace-notes save --title '<title>' --kind <kind> --body '<text>'`",
                      "at least 300 characters", "`--source <text>`", "`--verify <text>`", "`--wing <name>` names a topic wing"):
             self.assertIn(rule, self.text, rule)
         for kind in ("idea", "decision", "open question", "finding", "lesson", "explored", "dead end"):
@@ -121,6 +121,16 @@ class Skill(unittest.TestCase):
                      "run `keep` only when the owner has said to and `wb settings` prints `level wb run mempalace-notes keep: ask`",
                      "`wb run mempalace-notes keep --wing <name> --digest <digest>`", "with the digest that the last `review` printed", "as one command and nothing else",
                      "The owner confirms it", "At any other level the harness refuses it, and the owner runs it in a terminal"):
+            self.assertIn(rule, self.text, rule)
+
+    def test_it_says_to_write_the_title_and_a_short_body_in_single_quotes_and_where_an_apostrophe_goes(self):
+        for rule in ("Write the title and the body in single quotes, with no apostrophe in either; reword a title that needs one",
+                     "A body that needs an apostrophe goes to `save` from a file on standard input (`--body - < <file>`), and so does a body that the harness refuses (step 5)"):
+            self.assertIn(rule, self.text, rule)
+
+    def test_it_lets_the_agent_choose_other_words_for_a_refused_title_but_never_reword_the_body(self):
+        for rule in ("If the refusal comes from the title or the question, choose other words: they are your label, not the owner's words",
+                     "The body is never reworded to get past it"):
             self.assertIn(rule, self.text, rule)
 
     def test_it_handles_the_routine_refusals_of_a_save_without_asking_the_owner(self):

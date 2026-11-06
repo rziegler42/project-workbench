@@ -298,7 +298,7 @@ tracked document.
 - consult the palace when an earlier decision, preference or lesson could change the work, and, once per task and with the topic, before
   drafting a plan, a spec, a decision record or a roadmap candidate or brainstorming a design, even if the files seem to answer it, because
   the palace may hold experience they lack; never at session start for its own sake and never to look up what a file states; the block shows
-  the form of the command, `wb run mempalace search -- "<question>"`, beside its name, so that an agent that has not loaded the skill writes
+  the form of the command, `wb run mempalace search -- '<question>'` (in single quotes, which the command gate reads as data; plan `2026-11-06-notes-single-quoted-forms`), beside its name, so that an agent that has not loaded the skill writes
   the dashes; the skill adds how to word the question for a drafting task and that a
   search that finds nothing is an answer, so the agent goes on and says in one line that the palace had nothing;
 - what the palace answers, in the words of `knowledge-tools.md` (what was decided, tried or preferred before), and that a fact a current

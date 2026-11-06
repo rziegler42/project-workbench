@@ -87,3 +87,20 @@ Empty until a review is asked for.
 ## Result
 
 Empty until work starts.
+
+**Increment A (2026-11-06), done in a scratch clone at commit `6054dee`; not yet copied, released or committed.**
+
+- Built: the search form and the `save` form in the block and the skill are in single quotes (`'<question>'`, `'<title>'`, `'<text>'`); the skill says to write the question in single quotes with no apostrophe
+  (reword it), the title and the body in single quotes with no apostrophe in either (reword a title), that a body that needs an apostrophe, or that the harness refuses, goes to `save` from a file on
+  standard input, that a refused title or question gets other words (they are the agent's label), and that the body is never reworded to get past the gate. The block is still 24 lines and names no `mine`.
+  Changed in the clone (four files): the block, the skill, and the two guidance tests (the pinned forms, and new tests: no double-quoted placeholder in the block or the skill, by name and by pattern; the
+  sentences). In the live tree: `docs/specs/mempalace.md` (the search-form sentence) and `docs/specs/mempalace-notes.md` (a bullet "Single-quoted forms", naming the defect it corrects).
+- Verification as run: 8 of the new or changed tests failed before the text; afterwards the mempalace module suite in the clone gave 502 tests, all passing, and `tests.test_permissions_drift` and
+  `tests.test_rendering` (107) pass; `wb run code-work check` passes. Not run: the whole suite (no code changed); an agent following the text (the next live run).
+- Review: the `reviewer` agent, one exchange, no blocking finding. Applied: a title with an apostrophe is reworded (the text gave no remedy); "short body" is gone (a body is at least 300 characters, so it is
+  rarely short; a body the harness refuses goes through the file); the spec bullet names the defect it corrects; the "no double-quoted form" test also matches the pattern of a double-quoted placeholder.
+  Not applied: telling the agent which part of a refusal matched (the message does not say, and the rule works without it). The reviewer ran nothing.
+- A remaining double-quoted form, outside this plan: the helper's refusal of a search with no `--` prints `wb run mempalace search -- "your question"` (`helper/mempalace`, and `mempalace.md` line 66 and
+  `test_mempalace_run.py` describe it). The plan changes no code, so it is left; it is recorded here and should join the gate plan or a small code fix.
+- Left for the owner: the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/sq_install_files.py`, four files, only if their hashes are those recorded), the release approvals, the removal of the stale records
+  after you approve the list, then "commit a"; after the commit the upgrade and the rerender (the rendered `AGENTS.md` and the skill gain the new forms).
