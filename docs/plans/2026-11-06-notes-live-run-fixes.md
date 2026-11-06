@@ -138,3 +138,20 @@ Empty until work starts.
 - Left for the owner: the question of a security review of this surface (the plan asks once; the change is message text only), the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/nb_install_files.py`, four files, only if their hashes
   are those recorded; it moves each file into place in one step because the hooks import `command_gate.py`), the release approvals, the removal of the stale records after you approve the list, then "commit b"; after the
   commit the upgrade and the rerender (the installed helper changes).
+
+**Increment C (2026-11-06): the decision record, `Proposed`; not yet committed.**
+
+- Written: `docs/decisions/2026-11-06-command-gate-and-prose-in-module-calls.md`, status `Proposed`. The decisions README keeps no list of records, so no row was changed. The record states the gate
+  facts run on 2026-11-06 at `1314b5f` (about 30 sanitised commands through `command_gate.verdict`, the notes' `keep` and `mine` and `sync` at `ask`), five decisions and the alternatives. Nothing in the gate changed.
+- What the probe showed, in short: single quotes free the `keep` word in a notes call and every call of `mempalace` itself, and nothing else; a command of another name (`mempalace-notes`) is never
+  freed for `mine` and `sync`, and because the gate joins letters across words, ordinary prose such as "I am in every case" names `mine`; the text on standard input from a file passes; a heredoc,
+  a pipe, `2>&1`, `cd`, `bash -c` and a double-quoted body that runs the key are refused. The block's forms from increment A showed double quotes, the form the gate refuses; the record says so.
+- Recommended in the record: (2) a small text plan that changes those forms to single quotes and keeps titles and wings to plain words; (3) a narrow gate change, in a plan of its own with a Codex review and a
+  security review, that frees a literal call of another module command with the same guard (a plain first token that is not the key's argument), which reverses a rejected alternative of the
+  accepted module-arguments record and says so; not now: freeing double quotes, renaming.
+- Review: the `reviewer` agent, two rounds of the cap of three. Round 1 found two blocking problems, both applied: the claim that single quotes fix the common case was wrong (the probe showed they do not free the
+  letters of `mine` or `sync` in a notes call), and decision 3 was presented as the accepted module-arguments rule when it reverses that record's rejected alternative. Round 2 found no blocking finding; its
+  non-blocking findings were applied: decision 3 also skips the gap rule for such a call; its guard sees only an alias called with the key's own token; the `action-review` helper starts `wb run ... describe` and is the first
+  helper to test; the guard's behaviour is from reading the code and not from a run; the plan's wording of the evidence (the corpus was not read or replayed) is stated as a departure. The reviewer ran nothing.
+- Verification: `wb run code-work check` passes. Not run: the whole suite (no code changed).
+- Left for the owner: read the record and decide (accept, reject or change it); nothing else is needed for this plan. The record is `Proposed` and an agent does not accept it. Then "commit c".
