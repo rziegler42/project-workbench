@@ -149,7 +149,7 @@ class Skill(unittest.TestCase):
         2026-11-03-conformance-tests-name-modules-and-module-pins-follow-the-levels, 3); the five are never named as a command of the skill, and the only other ``wb`` text is ``wb settings``."""
         text = skill_text()
         found = set(re.findall(r"wb run review-engine ([a-z-]+)", text))
-        self.assertEqual({"init", "status", "review-plan", "decide", "preview"}, found)
+        self.assertEqual({"init", "status", "review-plan", "decide", "preview", "record-paths"}, found)
         rest = re.sub(r"wb run review-engine (?:[a-z-]+|<action>)", "", text).replace("`wb settings`", "")
         self.assertNotIn("wb ", rest)
         for argument in ("review-spec", "review-roadmap", "review-adr"):
@@ -180,9 +180,15 @@ class Skill(unittest.TestCase):
         for argument in declaration()["commands"]["review-engine"]["arguments"]:
             if argument == "convergence":
                 continue   # the installer asks it for a delegated plan approval; the skill's guidance is increment E
-            if argument == "record-paths":
-                continue   # plan 2026-11-07-review-record-paths: the skill's step is increment B, which removes this
             self.assertIn(argument, mentioned, argument)
+
+    def test_it_says_to_commit_the_files_of_the_review_with_the_plan_it_completes(self):
+        text = " ".join(skill_text().split())
+        for phrase in ("wb run review-engine record-paths <document>",
+                       "in the commit that completes or closes the plan",
+                       "name every path it prints",
+                       "a directory is not accepted"):
+            self.assertIn(phrase, text, phrase)
 
 
 class Helper(unittest.TestCase):
