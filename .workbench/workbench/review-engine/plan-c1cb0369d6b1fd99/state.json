@@ -1,0 +1,123 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-11-07T20:56:17Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "Agreed: a recovery that depends on a refusal text cut at about 200 characters is not reliable. The plan now selects the files by the repository status (the printed paths that git status lists as new or modified, read just before the commit), keeps the refusal only as the reason the others are left out, and adds that read-only command to the skill closing rule and its test."
+    },
+    {
+      "at": "2026-11-07T20:58:00Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F1",
+      "reason": "Agreed: a staged file shows as M with a space after it, not the other way round, so a rule that lists only the work-tree codes would drop a changed review file. The plan now names every printed path that git status lists, whatever its code, leaves out only the paths it does not list, and the test pins an untracked, a modified and a staged case."
+    },
+    {
+      "at": "2026-11-07T20:58:00Z",
+      "choice": "rejected",
+      "earlier": [],
+      "finding": "R2-F2",
+      "reason": "True but not for this plan: the status line of an accepted decision names the accepter by git identity, as docs/decisions/README.md requires, with the no-reply address that every commit of the project already carries and the remote already publishes. It is a convention of the project, not a defect of this plan, and removing it would be a change to an accepted record."
+    }
+  ],
+  "format": 1,
+  "generation": 7,
+  "kind": "plan",
+  "path": "docs/plans/2026-11-07-review-record-paths-name-changed-files.md",
+  "rounds": [
+    {
+      "at": "2026-11-07T20:55:30Z",
+      "bridge": "ask-codex",
+      "document_sha256": "416cda3695b193bed23ee4b0d74f8f16359b89c54be03b3d9ed48b16260825a1",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "profile": "standard",
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra",
+        "options": {}
+      },
+      "sha256": "556aeaed5d49dc24df5cb4e66304d9ed747480d8fc615d95159a9387a3d96f07",
+      "usage": {
+        "input_tokens": 142268,
+        "output_tokens": 1771,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-07T20:57:37Z",
+      "bridge": "ask-codex",
+      "document_sha256": "9f395a98cc5ff3fd2f26067fa50650e05c56c89f8f9ed5ed85704ae1a19a9ba0",
+      "file": "round-2.json",
+      "findings": [
+        {
+          "id": "R2-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R2-F2",
+          "severity": "minor"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "profile": "standard",
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra",
+        "options": {}
+      },
+      "sha256": "dd2e3a8291274823f7955aa8ee5995756f34a29ffc50f54f1a79fe3a0280e235",
+      "usage": {
+        "input_tokens": 152702,
+        "output_tokens": 2852,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-07T20:58:12Z",
+      "bridge": "ask-codex",
+      "document_sha256": "15ca9c9437726cb7b5a34616a93c1a37909b822676fa091de1990c763baa0e69",
+      "file": "round-3.json",
+      "findings": [],
+      "mismatch": false,
+      "model": "gpt-6.1-sol",
+      "n": 3,
+      "profile": "second-opinion",
+      "reading": "no_meaningful_changes",
+      "requested": {
+        "effort": "low",
+        "model": "gpt-6.1-sol",
+        "options": {}
+      },
+      "sha256": "b91f4facc3a3c306195a0f1de8e9cf8c4a43911949fe2c9c722d6ecd2f662070",
+      "usage": {
+        "input_tokens": 69103,
+        "output_tokens": 198,
+        "total_tokens": null
+      },
+      "verdict": "no_meaningful_changes"
+    }
+  ],
+  "seal": "12ab51fb4e469495ee8745dd9474b8d4d6858f99b172079771921e17ef365e65",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

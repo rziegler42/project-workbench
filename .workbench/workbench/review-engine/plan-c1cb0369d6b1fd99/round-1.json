@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Assumptions and constraints (the proposed replacement wording)",
+      "problem": "The proposed recovery cannot reliably produce a commit containing only changed review files: it says to remove paths named in an unchanged-path refusal, while the plan itself establishes that the refusal is truncated and may omit other unchanged paths. The next commit can therefore fail for another omitted path, with no defined reliable way to select the remaining paths.",
+      "severity": "major",
+      "suggestion": "Define a deterministic selection procedure before the commit—such as comparing every path from `record-paths` with the index/worktree—and make the skill use that result. If retaining refusal-based recovery, specify how it obtains the complete set rather than relying on truncated refusal text."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The plan’s intended changed-file selection and unchanged-path recovery are not operationally reliable as written.",
+  "verdict": "changes_needed"
+}
