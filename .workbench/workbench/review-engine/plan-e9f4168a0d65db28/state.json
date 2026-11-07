@@ -1,0 +1,140 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-11-04T12:53:11Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "A, B and C now update every spec and development line their change makes false in the same commit; D only consolidates and adds."
+    },
+    {
+      "at": "2026-11-04T12:53:11Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F2",
+      "reason": "Increment A now has a separate hook-level test for a declined verdict with paths_not_credentials."
+    },
+    {
+      "at": "2026-11-04T12:55:17Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F1",
+      "reason": "The plan no longer claims a script guard stops start-up code: the entry uses env -i and -I, the guard only notes a missing -I, and sitecustomize and usercustomize are tested."
+    },
+    {
+      "at": "2026-11-04T12:57:01Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R3-F1",
+      "reason": "Criterion 4 now names the same hardened entry as the goal and increments B and D."
+    },
+    {
+      "at": "2026-11-04T12:57:01Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R3-F2",
+      "reason": "Increment C now cites the bridge spec confinement rule and its recorded probes, and says only that the engine call with its schema was not run against a real Codex."
+    }
+  ],
+  "format": 1,
+  "generation": 9,
+  "kind": "plan",
+  "path": "docs/plans/2026-11-04-shadow-hook-security-review-fixes.md",
+  "rounds": [
+    {
+      "at": "2026-11-04T12:52:58Z",
+      "bridge": "ask-codex",
+      "document_sha256": "291783719d780e15a0b240f8a7c7944df20b4fbe5f17372429ab1415b4a765a6",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F2",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "af1ae222fee0ec6894735ece235295d176ecc0e458ffeeb3e5e3d46a1dbea820",
+      "usage": {
+        "input_tokens": 480777,
+        "output_tokens": 4310,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-04T12:54:53Z",
+      "bridge": "ask-codex",
+      "document_sha256": "58ff2e42b944c0d87bc780c5e3d419afa5ea0397b991a644ecf1f3fc57adb63c",
+      "file": "round-2.json",
+      "findings": [
+        {
+          "id": "R2-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "1237597b8c0fa8c42ec95b9b6403d6ef236f4176ff9cc74f06cacdc98d98b159",
+      "usage": {
+        "input_tokens": 296026,
+        "output_tokens": 2798,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-04T12:56:44Z",
+      "bridge": "ask-codex",
+      "document_sha256": "5730ce5d8be3efab4abb56f870993f73ba3cdf9883c2fbc018eb8abd58826777",
+      "file": "round-3.json",
+      "findings": [
+        {
+          "id": "R3-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R3-F2",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 3,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "296c7250d46c19ee61dc025b86bd8fc9021c1002e1487f94888aa8f69d8722da",
+      "usage": {
+        "input_tokens": 220993,
+        "output_tokens": 2539,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    }
+  ],
+  "seal": "5606e1bcf28efdd411a4bb3d1a62c8ad14a2b42286b70ec8e0f334e241170daa",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

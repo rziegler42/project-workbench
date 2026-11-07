@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Increment A, “The plan approval is a key like the others” (lines 110–113)",
+      "problem": "The plan does not preserve or explicitly replace the current rule that a plan listing a hard-stop action in its Risks section is not delegable. Instead, its proposed exclusion covers only action keys on the floor or compiled hard stops. A plan approval is not such a key, so the proposed generalized route could delegate approval of a plan that the current trust-and-approval spec deliberately prohibits from delegated approval.",
+      "severity": "major",
+      "suggestion": "Make Increment A decide this existing plan-content restriction explicitly—either retain it in the generalized delegated route or state the intended replacement and rationale—and include the corresponding enforcement, tests, and same-increment spec update."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Assumptions and constraints (lines 59–60) versus Increments A and C (lines 80–85, 149–160)",
+      "problem": "The plan promises that a spec is never left false between increments, but Increment A accepts a decision that changes the meaning and offered keys of `delegated` while changing only `docs/decisions/`. The current specs state that only `approve-plan` offers `delegated` and define its current gate. Their update is deferred to Increment C, after an accepted decision and potentially after Increment B.",
+      "severity": "major",
+      "suggestion": "Update the affected specs in Increment A when the decision is accepted, clearly distinguishing decided future behavior from current implementation; leave Increment C only for behavior actually built by B or later work."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The plan leaves an existing delegated-plan safety rule unresolved and delays required spec synchronization after its decision increment.",
+  "verdict": "changes_needed"
+}

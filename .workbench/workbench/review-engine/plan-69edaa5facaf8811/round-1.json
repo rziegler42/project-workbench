@@ -1,0 +1,29 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Increment A dependencies (line 85) and plan prerequisites",
+      "problem": "The roadmap candidate requires `ask-ollama-bridge` and `bridge-model-configurations` to be complete, but this plan neither records nor verifies those prerequisites; Increment A instead declares no dependencies. Later increments rely on their endpoint/model configuration behavior.",
+      "severity": "major",
+      "suggestion": "Add an initial prerequisite check or make Increment A depend on verified completion of both roadmap candidates before work begins."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Increments I and J (lines 218-252)",
+      "problem": "The accepted delegated-approval record requires `wb doctor` to report a `delegate-profiles` name that dangles. Increment J implements doctor before Increment I introduces that setting, while Increment I neither changes `doctor.py` nor tests doctor output. The plan therefore has no increment that implements or verifies this required diagnostic.",
+      "severity": "major",
+      "suggestion": "Make J depend on I and include the delegated-setting dangling-name diagnostic and test, or add them explicitly to Increment I."
+    },
+    {
+      "id": "R1-F3",
+      "location": "Candidate reference (line 5)",
+      "problem": "The cited roadmap candidate still says both decisions are proposed and its promotion trigger awaits acceptance, while the plan relies on them as accepted. The decision records are now accepted, so the roadmap candidate is stale relative to the plan.",
+      "severity": "minor",
+      "suggestion": "Update the roadmap candidate's decision status and promotion trigger to match the accepted records."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The plan omits a roadmap prerequisite gate and does not assign the required delegated-profile doctor diagnostic to any increment.",
+  "verdict": "changes_needed"
+}

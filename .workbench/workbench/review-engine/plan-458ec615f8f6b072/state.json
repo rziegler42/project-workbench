@@ -1,0 +1,106 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-11-04T12:01:44Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "The plan now follows the accepted record per command and each increment lists what its digest binds, excludes and rechecks."
+    },
+    {
+      "at": "2026-11-04T12:01:44Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F2",
+      "reason": "B and C now depend only on the committed predecessor B, so each of the three can be dropped on its own."
+    },
+    {
+      "at": "2026-11-04T12:04:41Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F1",
+      "reason": "Criterion 1 now covers only tiers that govern a command; the tier that governs none is decided in C."
+    },
+    {
+      "at": "2026-11-04T12:04:41Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F2",
+      "reason": "A shared test matrix of every digest case is now required for each command that gains ask."
+    }
+  ],
+  "format": 1,
+  "generation": 7,
+  "kind": "plan",
+  "path": "docs/plans/2026-11-03-levels-for-recover-pin-approve-attach.md",
+  "rounds": [
+    {
+      "at": "2026-11-04T12:01:19Z",
+      "bridge": "ask-codex",
+      "document_sha256": "045c46ed4be52c2760986e9571cdb1d2d6157611596b06d92ee51e178d474345",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F2",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "ca65d75dd2e34fbcef3d328555774f46e5a38c5d5b308fbabd95c90b146b1baf",
+      "usage": {
+        "input_tokens": 213213,
+        "output_tokens": 2779,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-04T12:04:33Z",
+      "bridge": "ask-codex",
+      "document_sha256": "4b8e7f9a82becd8817f41eec8bcd27319a414b9f2f1e4d5fc39ca5ba0b606271",
+      "file": "round-2.json",
+      "findings": [
+        {
+          "id": "R2-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R2-F2",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "e19dae428a51010fc6bc30f7ac6d679b882fc60594b2bbe2331e7d061e9844bf",
+      "usage": {
+        "input_tokens": 416207,
+        "output_tokens": 3549,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    }
+  ],
+  "seal": "fd89e4ee8a5752b3a8be693c2e34a4f30417e88c578bb04211a2e5820dfc624e",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

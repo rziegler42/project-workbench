@@ -1,0 +1,29 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "The engine (default), “The model reads the facts, not the repository”; Accuracy and cutover, labelled-set storage",
+      "problem": "This is not guaranteed by the referenced model-bridge contract. A bridge starts the vendor program with a project-root working directory by default, and the bridge spec explicitly says the vendor may read any project file, including untracked scratch and repository instructions. Thus the labelled set and any other local facts file remain reachable by the vendor despite the proposed “kept out” rule, and hostile repository content can affect the model outside the quoted facts.",
+      "severity": "major",
+      "suggestion": "Replace the claim with the actual exposure, and specify a supported isolation boundary for action review (or explicitly record that no such boundary exists and prohibit storing sensitive labelled data where the vendor can read it). Add acceptance coverage for that boundary."
+    },
+    {
+      "id": "R1-F2",
+      "location": "The engine (default), first paragraph; The describe interface (default)",
+      "problem": "The contract does not define how the hook’s prompted command is parsed, matched, and bound to the exact arguments supplied to `describe`. A review of a shell command line can diverge from the command ultimately executed through quoting, shell syntax, wrappers, or argument reconstruction. That leaves a core authorization-adjacent boundary unspecified.",
+      "severity": "major",
+      "suggestion": "Define a single canonical invocation representation from the hook through rule matching and `describe`, including accepted grammar, rejection of shell constructs/ambiguous forms, and exact argument preservation. Test that the reviewed invocation and real action have identical parsed arguments."
+    },
+    {
+      "id": "R1-F3",
+      "location": "The engine (default); Constraints and assumptions",
+      "problem": "The spec requires `model-bridge` but does not specify how action-review selects its bridge, model, effort, timeout, or project and owner settings. Accepted decision 2026-10-22 requires each engine to have a project setting and makes the owner’s personal setting authoritative. Without this, implementations can disagree or omit that control.",
+      "severity": "major",
+      "suggestion": "Specify the action-review settings contract and its interaction with the owner setting, or explicitly incorporate the applicable model-bridge decision requirements and add acceptance tests for absent, uninstalled, unpinned, and owner-overridden bridge selections."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The proposed engine has material gaps at the model-data boundary, command-to-describe binding boundary, and required bridge-selection authority boundary.",
+  "verdict": "changes_needed"
+}

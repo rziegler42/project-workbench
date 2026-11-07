@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Candidate / Non-goals / Deferred work",
+      "problem": "The plan deliberately excludes `delegated` for `wb release-approvals`, but the named roadmap candidate requires that key to offer the same four levels as `approve-plan`; its boundary permits splitting by key, not omitting a required level for that key. The accepted decision cited by the candidate likewise requires `delegated` for this key.",
+      "severity": "major",
+      "suggestion": "Either include the delegated route for `wb release-approvals` in this plan, or make this explicitly a prerequisite/sub-plan that does not purport to implement the candidate and obtain owner direction for that narrower roadmap scope."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Increments / Risks and sensitive actions",
+      "problem": "This changes authorization and the command-permission boundary, yet the plan has no checkpoint to ask the owner whether to run a security review. Repository policy requires that question before materially touching authorization or a permission boundary.",
+      "severity": "major",
+      "suggestion": "Add an owner checkpoint before implementation that asks whether to run an available `security-review`, and record the owner’s decision and any review outcome in the plan Result."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The proposed work is concrete, but it omits the candidate’s required delegated level and lacks the mandatory security-review decision point for an authorization-boundary change.",
+  "verdict": "changes_needed"
+}

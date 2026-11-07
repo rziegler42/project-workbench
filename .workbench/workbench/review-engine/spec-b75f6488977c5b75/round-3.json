@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R3-F1",
+      "location": "docs/specs/ask-ollama.md — “When several conditions hold” and “Context window, truncation and thinking”",
+      "problem": "The stated precedence for 2xx replies omits `done: false`, although the preceding rule and error table require such a reply to be `unusable_reply`. A response with `done: false` and `done_reason: \"length\"` therefore has two conflicting outcomes: the precedence list selects `reply_cut`, while the explicit not-done rule selects `unusable_reply`.",
+      "severity": "major",
+      "suggestion": "Add the not-done condition to the 2xx precedence order and state its position relative to context overflow and `done_reason: \"length\"`."
+    }
+  ],
+  "format": 1,
+  "round": 3,
+  "summary": "One remaining ambiguity makes classification of some incomplete successful-status replies indeterminate.",
+  "verdict": "changes_needed"
+}

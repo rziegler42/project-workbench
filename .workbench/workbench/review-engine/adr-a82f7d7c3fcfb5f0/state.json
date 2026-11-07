@@ -1,0 +1,117 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-10-29T15:01:23Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "Git does not verify who owns an email, so calling it unique overstated the guarantee. The record now calls the identifier an unverified attribution label and says the email is only the part most likely to tell people apart."
+    },
+    {
+      "at": "2026-10-29T15:01:23Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F2",
+      "reason": "A cleaned environment was too vague to show that project configuration is excluded. The record now gives the exact two commands, the working directory, the minimal environment, the dropped git variables and the no-include behaviour of the global option, and notes the include default is from git documentation and was not tested."
+    },
+    {
+      "at": "2026-10-29T15:01:23Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F3",
+      "reason": "The grammar, normalization and length were left open although the record requires strict formats. The record now sets the name and email rules, a 210 character stored form, a 256 character field, comparison by lowercase email and a refusal naming the value and rule."
+    },
+    {
+      "at": "2026-10-29T15:01:23Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F4",
+      "reason": "The example used a real personal identity that the format does not need. I replaced it with a placeholder in every example in the record."
+    },
+    {
+      "at": "2026-10-29T15:03:42Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F1",
+      "reason": "The email rule banned a space but not tabs, line breaks or other control characters, which would break the one-line sentence and allow output injection. The email is now a positive set of printable ASCII characters other than the angle brackets, and the whole stored identifier must be one line of printable text."
+    }
+  ],
+  "format": 1,
+  "generation": 8,
+  "kind": "adr",
+  "path": "docs/decisions/2026-10-29-approvals-name-the-approver-by-git-identity.md",
+  "rounds": [
+    {
+      "at": "2026-10-29T14:59:30Z",
+      "bridge": "ask-codex",
+      "document_sha256": "c6dc8dc4b64c868e5f50ab2ca3d4c319364eb3a3a3d27edca0b5cedd00711156",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F2",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F3",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F4",
+          "severity": "minor"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "f7d2cd6b78b651dcdc20a7cfb3ab8bc7fb050219c390ee636a8c08230a0bb878",
+      "usage": {
+        "input_tokens": 93662,
+        "output_tokens": 2545,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-10-29T15:03:34Z",
+      "bridge": "ask-codex",
+      "document_sha256": "0ad4b267e57a4aa11efaef34f8d46617ed5b6614bddd5d93ac6b1c1f9bc49d18",
+      "file": "round-2.json",
+      "findings": [
+        {
+          "id": "R2-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "79088c6c37edf03a6790f81a8664afd4ad272c69fafe8b393970cca232a328b6",
+      "usage": {
+        "input_tokens": 103321,
+        "output_tokens": 1725,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    }
+  ],
+  "seal": "499d6ebd8d52a8ee2f8976a0444f9e694e565d78b261a4380c14b008bf587bab",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

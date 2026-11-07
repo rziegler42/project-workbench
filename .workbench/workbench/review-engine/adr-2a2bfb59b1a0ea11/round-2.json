@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "Decision 2 and Decision 4",
+      "problem": "The common-core option list omits `--server`, even though Decision 4 introduces it. Moreover, Decision 2 says every bridge accepts the listed options while Decision 4 requires program bridges to refuse `--server`. This leaves the version-2 command grammar and interchangeability claim internally inconsistent.",
+      "severity": "major",
+      "suggestion": "State explicitly whether `--server` is a seventh common, recognized option that program bridges refuse for content-routing safety, and include its complete occurrence/value grammar and validation rule in the version-2 option contract."
+    },
+    {
+      "id": "R2-F2",
+      "location": "Decision 7, “Guarantee 7 is replaced”",
+      "problem": "The network rule says a server bridge sends “nothing but the prompt and the model request,” but the same decision permits authenticated endpoint records with a credential. An authenticated bridge must transmit credential material as part of its request, so the stated guarantee is impossible or ambiguous for the supported authenticated case.",
+      "severity": "major",
+      "suggestion": "Amend the guarantee to expressly permit only the endpoint-record credential in the defined authentication mechanism, while retaining the prohibition on other prompt-derived or caller-supplied data and on logging or exposing the credential."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "The ADR resolves the earlier review issues, but its option contract and authenticated-server network guarantee still contain material internal contradictions.",
+  "verdict": "changes_needed"
+}

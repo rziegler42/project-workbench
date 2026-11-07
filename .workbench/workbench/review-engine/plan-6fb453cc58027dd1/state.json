@@ -1,0 +1,123 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-11-07T15:52:16Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "Agreed: the cleaner doubles a backslash, so a quoted printable path would not paste back as itself. The plan now shows a printable path as the shlex-quoted string with no further escaping, escapes only paths with control or non-ASCII characters and marks them not for pasting, and the round-trip test includes a literal backslash."
+    },
+    {
+      "at": "2026-11-07T15:52:16Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F2",
+      "reason": "Agreed: a word that begins with an equals sign expands in zsh. The equality sign is removed from the alphabet altogether, the round-trip test now runs sh, bash and zsh where installed, and a leading equals sign is a test case."
+    },
+    {
+      "at": "2026-11-07T15:53:26Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F1",
+      "reason": "Agreed: the shlex helper treats the equals sign and the colon as safe and would leave them bare. The plan now specifies a formatter of the tool own that returns a path unchanged only when it is of the plan alphabet and otherwise always emits one single-quoted word with the quote-break sequence for apostrophes, and the tests check equals-sign names in every available shell."
+    }
+  ],
+  "format": 1,
+  "generation": 7,
+  "kind": "plan",
+  "path": "docs/plans/2026-11-07-handle-paths-are-shell-safe.md",
+  "rounds": [
+    {
+      "at": "2026-11-07T15:51:51Z",
+      "bridge": "ask-codex",
+      "document_sha256": "5f61af8147ad5f8d1c57a05359e3b3781a012e1220c6df8e919ada76861a1db3",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F2",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "profile": "standard",
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra",
+        "options": {}
+      },
+      "sha256": "59b2051244a4f7975ad5d4dc4cd788d7e01b75b7399c49d8a4a4855f2f75ad97",
+      "usage": {
+        "input_tokens": 324101,
+        "output_tokens": 3085,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-07T15:53:15Z",
+      "bridge": "ask-codex",
+      "document_sha256": "aaf056bbc853151ebe7ba5a58bb5c5bd9d1e6cd5a746ab6058e9b2f9f29c0fdd",
+      "file": "round-2.json",
+      "findings": [
+        {
+          "id": "R2-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "profile": "standard",
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra",
+        "options": {}
+      },
+      "sha256": "f75e937f30beea1edbbacae97425773ebb15aebe828cb0ef47508cc9d7a2dec4",
+      "usage": {
+        "input_tokens": 160252,
+        "output_tokens": 1763,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-07T15:54:01Z",
+      "bridge": "ask-codex",
+      "document_sha256": "7c26e19f55b1afc5b4085bca2e2f9989d09a74b7f39bf91d629caa148890d7d7",
+      "file": "round-3.json",
+      "findings": [],
+      "mismatch": false,
+      "model": "gpt-6.1-sol",
+      "n": 3,
+      "profile": "second-opinion",
+      "reading": "no_meaningful_changes",
+      "requested": {
+        "effort": "low",
+        "model": "gpt-6.1-sol",
+        "options": {}
+      },
+      "sha256": "8ba006f2a7d8308b15e8cbe8d71fc1b0d231bc0ed10f0508cddd875191ea9e15",
+      "usage": {
+        "input_tokens": 148384,
+        "output_tokens": 480,
+        "total_tokens": null
+      },
+      "verdict": "no_meaningful_changes"
+    }
+  ],
+  "seal": "808c93c439fe8ef71dac228c7e416378ad4c69704e79eb955cc26f60a2091af2",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

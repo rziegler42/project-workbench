@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Increment D — Steps 1–2; Completion criterion 5",
+      "problem": "The plan requires an ask-level digest but does not specify an owned lock around recomputing and comparing it immediately before the mine begins. The referenced command-permissions spec requires a module helper to compare an ask digest inside its own lock. Sequential preview/run tests do not demonstrate this requirement or prevent concurrent helper operations from invalidating the previewed state.",
+      "severity": "major",
+      "suggestion": "Define the lock’s location, scope, acquisition/refusal behavior, and lifetime; recompute the preview lines and compare the digest while holding it through launch of the write. Add tests for contention and for state changing after preview but before the locked check."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The plan aligns with its roadmap candidate and named specs except that its ask-level mine design omits the required lock discipline.",
+  "verdict": "changes_needed"
+}

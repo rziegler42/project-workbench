@@ -1,0 +1,29 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "docs/specs/ask-ollama.md:147-166",
+      "problem": "The error classification is contradictory for a non-2xx response with a malformed or non-object body. The error-text section says such a status falls to `bad_exit`, while the stated precedence gives any non-object body `unusable_reply`.",
+      "severity": "major",
+      "suggestion": "Scope the non-object-body precedence rule to successful responses, or explicitly give it priority over status handling, and update the table/text so exactly one result is required."
+    },
+    {
+      "id": "R2-F2",
+      "location": "docs/specs/ask-ollama.md:231-232",
+      "problem": "The embedding request is specified as having exactly `model`, `input`, and `truncate`, then immediately requires `options.num_ctx` when context is present. Those requirements cannot both hold, so the request shape and conformance test are indeterminate.",
+      "severity": "major",
+      "suggestion": "Define the complete embedding body as `model`, `input`, `truncate`, and conditional `options` containing `num_ctx`, or remove the context option."
+    },
+    {
+      "id": "R2-F3",
+      "location": "docs/specs/ask-ollama.md:231-232",
+      "problem": "Unlike `ask`, the embedding request does not specify its required HTTP headers, including `Content-Type: application/json`, nor say that the common ask header set applies. A conforming implementation can therefore send an ambiguous or server-incompatible request.",
+      "severity": "major",
+      "suggestion": "State the embedding headers explicitly, or define a shared request-header rule that applies to both `ask` and `embed`."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "The embedding request is internally inconsistent and underspecified, and malformed error-body handling has conflicting outcomes.",
+  "verdict": "changes_needed"
+}

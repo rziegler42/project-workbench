@@ -1,0 +1,29 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Open questions 1; Behavior, “`wb check` reports staleness”; Acceptance criterion 1",
+      "problem": "The required `wb check` warning depends on an unresolved mechanism. The only recommended option is explicitly unverified, while the alternative says `check` reports nothing, contradicting the required behavior and acceptance criterion.",
+      "severity": "major",
+      "suggestion": "Choose and specify a verified source of staged rendered content for `check` (including how local `--package` installs are handled), or remove the warning requirement from this spec and its acceptance criteria."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Behavior, “Writes”; table states `edited`/`new`/`missing`; Acceptance criterion 7",
+      "problem": "The promised recovery after a partial write cannot work with the defined state rules. If a file is replaced or created before the manifest write fails, the manifest retains its old state. On the next run, a replaced or recreated file differs from its recorded hash and is therefore `edited`; a newly created file is still `new` but already exists and is refused. The whole run consequently cannot “finish the job.”",
+      "severity": "major",
+      "suggestion": "Define a resumable partially-applied state, including the manifest/record invariants and checks that prove a disk file matches the staged content, or change the failure/recovery guarantee."
+    },
+    {
+      "id": "R1-F3",
+      "location": "Behavior, “Writes”; Acceptance criterion 5",
+      "problem": "The requirement to refuse with “nothing written” when a rendered file changes between preview and write conflicts with sequential per-file replacements and the stated possibility of failure after one replacement. A conflict detected on a later file necessarily leaves earlier replacements written.",
+      "severity": "major",
+      "suggestion": "Qualify the no-write guarantee to validation before the first write, or specify an atomic transaction/rollback mechanism; otherwise state and test the partial-write recovery semantics."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The draft has unresolved staleness detection and incompatible partial-write, conflict, and retry guarantees.",
+  "verdict": "changes_needed"
+}

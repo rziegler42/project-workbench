@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R3-F1",
+      "location": "Scope / Increments (especially G); docs/specs/command-permissions.md “Not built”",
+      "problem": "The plan omits the unresolved pairing of `wb run remote-runner submit`/`fetch` with the `submit-remote-job`/`fetch-remote-output` checkpoint keys. The current spec explicitly assigns merging those pairs to this plan, and accepted decision `2026-11-02-one-permission-registry-and-key-model` likewise names it as follow-on work. No increment decides or implements it.",
+      "severity": "major",
+      "suggestion": "Add a decision increment and, if needed, implementation/tests that establish which key governs each pair, their offered levels/defaults, and the related registry, module-contract, and spec updates."
+    },
+    {
+      "id": "R3-F2",
+      "location": "Increment D affected areas and steps 1–3",
+      "problem": "If D implements `ask` or `none` for `wb rerender`, it changes code before the current specs are updated. `harness-refresh.md`, `command-permissions.md`, and `installer-interface.md` currently require rerender to remain terminal-only and block-only; D names only `harness-rerender.md`, while the corresponding updates are deferred to J. That leaves the specs false during intervening increments.",
+      "severity": "major",
+      "suggestion": "Make D update every affected current spec in the same increment/commit as any rerender behavior change, including harness-refresh, command-permissions, and installer-interface, or keep rerender block-only."
+    }
+  ],
+  "format": 1,
+  "round": 3,
+  "summary": "The plan still misses required remote-runner/checkpoint pairing work and defers rerender spec updates past the behavior change.",
+  "verdict": "changes_needed"
+}

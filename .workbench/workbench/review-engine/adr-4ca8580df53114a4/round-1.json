@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "docs/decisions/2026-10-19-restrictive-only-permissions.md:7,15",
+      "problem": "The ADR states that permission rules are rendered into each harness's local settings, without qualifying this to harnesses that provide permissions. The referenced specifications say harnesses without permission support receive a warning and have enforcement only by instruction.",
+      "severity": "minor",
+      "suggestion": "Say that rules are rendered into local, uncommitted configuration only for harnesses that provide permissions; other harnesses warn instead."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The decision is consistent with the restrictive-only policy, but overstates rendering coverage for harnesses without permission support.",
+  "verdict": "no_meaningful_changes"
+}

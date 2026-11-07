@@ -1,0 +1,162 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-10-26T00:04:04Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "The claim that the model reads only the facts was false given what the bridge allows. The spec now states the real exposure, stores the labelled data outside any project, claims no isolation, and adds an acceptance line."
+    },
+    {
+      "at": "2026-10-26T00:04:07Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F2",
+      "reason": "The binding from the hook command to the describe arguments was unspecified. The spec now defines one canonical form: single simple command only, one parse by the rule flags, an argument list to describe, and a tested corpus."
+    },
+    {
+      "at": "2026-10-26T00:04:10Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F3",
+      "reason": "The engine had no settings contract although the accepted bridge decision requires one. The spec now incorporates it: a project file, the owner setting winning, refusal for an uninstalled or unpinned bridge, acknowledgement of changes, plus acceptance tests."
+    },
+    {
+      "at": "2026-10-26T00:05:40Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F1",
+      "reason": "The rule field for describe could be read as command text. Rules now hold a module and an action only, and the engine builds the launcher argument list with the fixed verb."
+    },
+    {
+      "at": "2026-10-26T00:05:43Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F2",
+      "reason": "The criterion required a describe for every row, including retired actions that have none. It now covers only the retained actions, with separate criteria that the retired ones have no provider and no rule."
+    },
+    {
+      "at": "2026-10-26T00:07:25Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R3-F2",
+      "reason": "Tokenizing was left undefined and a sample corpus cannot prove equivalence. The spec now states an exact restricted grammar of safe bare words and single-quoted strings, refuses everything else, and makes the equivalence a property test over generated text."
+    },
+    {
+      "at": "2026-10-26T00:07:30Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R3-F1",
+      "reason": "Partly. The spec now fixes the rule properties: a format number, whole-token keys, refusal of duplicate or malformed rules for their own key only, and typed flags. The full versioned JSON schema is deliberately left as the first deliverable of the engine plan, which the spec says."
+    }
+  ],
+  "format": 1,
+  "generation": 11,
+  "kind": "spec",
+  "path": "docs/specs/action-review.md",
+  "rounds": [
+    {
+      "at": "2026-10-26T00:03:30Z",
+      "bridge": "ask-codex",
+      "document_sha256": "70799c3e86d235db84488c3d84e938347a7068e0f755d7588944a3fda0effa7a",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F2",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F3",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "b760223ec3b9f7832f50d448525b85d037563fb84751c8d4ca6e43b525da6527",
+      "usage": {
+        "input_tokens": 135095,
+        "output_tokens": 2299,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-10-26T00:05:32Z",
+      "bridge": "ask-codex",
+      "document_sha256": "605629ba3c91544a4e8c77f43953642f40abe74b79bcd7f50687005b7c26c8f3",
+      "file": "round-2.json",
+      "findings": [
+        {
+          "id": "R2-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R2-F2",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "5fefa14ecc0da1baf754c5996bc0a2a45204f19e93006da85d21f1c4821255c8",
+      "usage": {
+        "input_tokens": 134934,
+        "output_tokens": 2380,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-10-26T00:07:05Z",
+      "bridge": "ask-codex",
+      "document_sha256": "ef016899e8b70fc0f4a99681d1eb4ffa76561d7f837ce1c5331cc4b5a9773efb",
+      "file": "round-3.json",
+      "findings": [
+        {
+          "id": "R3-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R3-F2",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 3,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "84485b4efc03689a00fad865675a07a9a781456fdfdb103d95772e7ce8950d68",
+      "usage": {
+        "input_tokens": 163612,
+        "output_tokens": 2452,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    }
+  ],
+  "seal": "d306a48c9dae07d6632102f02da38a7584a7129afe095b3220c23e8657320ccd",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

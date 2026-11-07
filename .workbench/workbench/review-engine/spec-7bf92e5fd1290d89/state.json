@@ -1,0 +1,196 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-10-27T20:29:28Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "The spec offered the level none but required a terminal everywhere; I now say the terminal applies at block and that none runs without one, as upgrade does."
+    },
+    {
+      "at": "2026-10-27T20:29:28Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F2",
+      "reason": "Nothing tied the confirmed digest to the writes; I added a rebuild of the whole plan just before the first write, with a refusal and no writes on any difference, and a matching acceptance criterion."
+    },
+    {
+      "at": "2026-10-27T20:31:09Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F1",
+      "reason": "No digest was ambiguous; I now say none needs no supplied digest but still prints the one it computed, and the goal, design and criterion agree."
+    },
+    {
+      "at": "2026-10-27T20:31:09Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F2",
+      "reason": "The governing spec logs only the non-terminal route at a verified none, so I limited the logging requirement to that route and said a terminal run writes no level-log entry."
+    },
+    {
+      "at": "2026-10-27T20:33:09Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R3-F1",
+      "reason": "The read-only preview is a separate routed action and needs its own key; I added an agent-safe key for wb preview rerender and left writes to the rerender key."
+    },
+    {
+      "at": "2026-10-27T20:33:09Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R3-F2",
+      "reason": "Writing the record first could leave the record and replaced gate files agreeing while the render is half done; I reversed the order so the record is written last and any earlier failure reads as block, and changed criterion 4."
+    },
+    {
+      "at": "2026-10-27T20:33:09Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R3-F3",
+      "reason": "An edit can land after the hash check; I added a per-file check just before the atomic replace and listed the remaining window under Limits instead of claiming it is closed."
+    },
+    {
+      "at": "2026-10-27T20:41:08Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R4-F1",
+      "reason": "The none level cannot work for this command because the level read returns block exactly when a re-render is needed; at your choice I made the command terminal-only, offering block only, and removed the none flow from the goals, design and criteria."
+    }
+  ],
+  "format": 1,
+  "generation": 14,
+  "kind": "spec",
+  "path": "docs/specs/harness-rerender.md",
+  "rounds": [
+    {
+      "at": "2026-10-27T20:29:14Z",
+      "bridge": "ask-codex",
+      "document_sha256": "dbf187829915e5f9a6b952f84d06fabddea473192cfc8b1757c46b0910656d42",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F2",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "2f6493c114916936d66fd807545041e8eb46338a49aec4cd6d971917c2293be5",
+      "usage": {
+        "input_tokens": 100700,
+        "output_tokens": 2915,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-10-27T20:30:59Z",
+      "bridge": "ask-codex",
+      "document_sha256": "15372fad67aaca435a555086969429bb71346337b714308c4056579aa7832395",
+      "file": "round-2.json",
+      "findings": [
+        {
+          "id": "R2-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R2-F2",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "191d8eab19094bd2625d054ccb7c5a1c7b4481564ee836ff5640521ad5db82c8",
+      "usage": {
+        "input_tokens": 78399,
+        "output_tokens": 1868,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-10-27T20:32:47Z",
+      "bridge": "ask-codex",
+      "document_sha256": "8f335ccd8b0257d6a5b4a9caca1db021bdf187397057d0471391492a501bd315",
+      "file": "round-3.json",
+      "findings": [
+        {
+          "id": "R3-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R3-F2",
+          "severity": "major"
+        },
+        {
+          "id": "R3-F3",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 3,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "82fee636394ee47aa4037cb193046e663850e7fdb249fcb172b75c17ad2b398c",
+      "usage": {
+        "input_tokens": 98323,
+        "output_tokens": 2284,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-10-27T20:38:49Z",
+      "bridge": "ask-codex",
+      "document_sha256": "9e4b789468bdaa5915c5d0b5d96a4b5c6402d6203356ed07e99e690bb8491c17",
+      "file": "round-4.json",
+      "findings": [
+        {
+          "id": "R4-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 4,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "high",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "3a8952f8e691d317391c5905d12a51a3e48823796fbaa6786340b6b722661bed",
+      "usage": {
+        "input_tokens": 392696,
+        "output_tokens": 4202,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    }
+  ],
+  "seal": "de6f67bddded2e68318fe73c03075289ea88109753c0b0c6043e5065ed069121",
+  "window": {
+    "bound": 4,
+    "first": 1
+  }
+}

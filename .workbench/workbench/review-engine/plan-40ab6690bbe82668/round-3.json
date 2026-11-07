@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R3-F1",
+      "location": "Increment H — The rubric, the prompt and the bridge call",
+      "problem": "The plan never specifies the required model-bridge invocation shape. A conforming bridge exposes `wb run ask-<vendor> ask [options]`, but the plan only says to call the selected bridge through `wb run`; it also does not explicitly separate validation of the bridge envelope from validation of the JSON verdict carried in its `reply`. This leaves the central integration under-specified and can produce a call that every conforming bridge refuses.",
+      "severity": "major",
+      "suggestion": "State and test the exact argv: `wb run <configured-bridge> ask --timeout 20 --schema <shipped-schema> [--model ...] [--effort ...]`, with the prompt on stdin. Require validation of the model-bridge result envelope before parsing and validating its `reply`, including failure objects and malformed success envelopes."
+    }
+  ],
+  "format": 1,
+  "round": 3,
+  "summary": "The plan otherwise reflects the named roadmap candidate and specifications, but its bridge integration must be made executable and testable.",
+  "verdict": "changes_needed"
+}

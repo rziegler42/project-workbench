@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "Increment A — Outcome",
+      "problem": "The proposed decision says “no command is terminal-only by design,” but the accepted decision `2026-10-27-rerender-is-terminal-only` explicitly makes `wb rerender` block-only and terminal-only unless superseded by a new decision. `command-permissions.md` also specifies that exception. This plan neither scopes `wb rerender` out of that stance nor proposes to supersede the accepted decision, while its non-goals defer changes to rerender.",
+      "severity": "major",
+      "suggestion": "State that the one-key model preserves the accepted `wb rerender` terminal-only exception, or explicitly include a new superseding decision and the corresponding implementation work."
+    },
+    {
+      "id": "R2-F2",
+      "location": "Completion criterion 4; Increment E, step 1",
+      "problem": "Criterion 4 requires every declaration to be generated from the registry, but E builds the registry from declared module arguments and leaves `workbench/declarations.py` read-only. This is circular and conflicts with `module-contract.md`, which makes module declarations the source of module-specific checkpoints and `checkpoint_of` mappings. The plan never defines a viable source-of-truth direction for those facts.",
+      "severity": "major",
+      "suggestion": "Make declarations authoritative inputs for module-specific facts and require registry validation/reconciliation against them, or add explicit declaration-generation design and implementation work; adjust criterion 4 to match."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "Two unresolved design contradictions prevent the plan from being reliably implemented as written.",
+  "verdict": "changes_needed"
+}

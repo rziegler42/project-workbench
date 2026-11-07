@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R3-F1",
+      "location": "Assumptions and constraints (git-index reader); Completion criterion 2; Increment C step 1",
+      "problem": "Opening `index` with only `O_NOFOLLOW` can block indefinitely if the project replaces it with a FIFO. The subsequent `fstat` never runs until another process opens the FIFO for writing, so the promised rejection of non-regular files and bounded work do not hold.",
+      "severity": "major",
+      "suggestion": "Require a nonblocking open of the index before checking its descriptor with `fstat`, and explicitly test that a FIFO with no writer is rejected promptly without changing the hook's other rows or exit status."
+    }
+  ],
+  "format": 1,
+  "round": 3,
+  "summary": "The descriptor-based resolution addresses the earlier race finding, but opening a hostile FIFO can still block before validation.",
+  "verdict": "changes_needed"
+}

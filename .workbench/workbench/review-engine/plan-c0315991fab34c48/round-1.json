@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Increment D, steps 1–2",
+      "problem": "The plan proposes revising `harness-rerender.md`, but the governing `harness-refresh.md` explicitly records the owner’s choice to put this design in its own spec and not revise `harness-rerender.md`, whose scope remains permissions and the table.",
+      "severity": "major",
+      "suggestion": "Remove `harness-rerender.md` from Increment D and preserve its existing scope. Update the new refresh spec and interface documentation only where needed, unless the owner explicitly changes that accepted choice."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Increment B, Outcome and step 2",
+      "problem": "The write instructions include replacing an undefined “applied-pending” file. This conflicts with the refresh spec’s `applied` state: its action is to leave the file as-is and update only its manifest hash. Replacing it would make the write differ from the previewed action and can turn a manifest-only recovery into an unnecessary file write.",
+      "severity": "major",
+      "suggestion": "Define the write set explicitly: replace only stale files; create only new or missing files; leave applied and current files untouched; then write the manifest and record. Adjust the outcome, reporting, and tests accordingly."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The plan is generally aligned with the refresh design, but it conflicts with an explicit accepted documentation boundary and has a material ambiguity in the applied-state write behavior.",
+  "verdict": "changes_needed"
+}

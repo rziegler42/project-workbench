@@ -1,0 +1,29 @@
+{
+  "findings": [
+    {
+      "id": "R3-F1",
+      "location": "Design — “Name and shape”",
+      "problem": "The new routed subcommand `wb preview rerender` is given no key: the design names only `wb rerender`. The governing permission spec requires every distinct routed subcommand/action to have its own key, and specifically treats preview actions as separate agent-safe actions. Sharing the write command's owner-run key would also violate the one-action/one-key rule.",
+      "severity": "major",
+      "suggestion": "Specify a separate `wb preview rerender` agent-safe key (normally defaulting to `none`), its rendering/registry treatment, and that `wb rerender` alone governs writes."
+    },
+    {
+      "id": "R3-F2",
+      "location": "Design — “What it writes”; acceptance criterion 4",
+      "problem": "Writing the new rendering record first does not by itself guarantee that a later partial-write failure leaves every relaxed key blocked. If all files checked by `effective_level` are replaced before a later harness-file write fails, their hashes can match the new record and permissions can become relaxed while the re-render remains incomplete.",
+      "severity": "major",
+      "suggestion": "Define a commit protocol that keeps the new rendering inactive until every rendered artifact is installed successfully (for example, stage all artifacts and publish an activation record last), or otherwise ensure a failure cannot leave the record and all gate-relevant files mutually valid."
+    },
+    {
+      "id": "R3-F3",
+      "location": "Design — “What it writes”",
+      "problem": "The pre-write comparison detects edits only before replacement. An external edit after that comparison and before the overwrite can still be silently discarded, contradicting the anti-goal that owner- or harness-added rules must not be silently discarded.",
+      "severity": "major",
+      "suggestion": "Specify a concurrency-safe installation protocol: retain and verify file identity/content through replacement, use an agreed lock/CAS mechanism, or explicitly define the supported concurrent-writer behavior and refuse when it cannot preserve edits."
+    }
+  ],
+  "format": 1,
+  "round": 3,
+  "summary": "The revised terminal and none semantics are consistent, but the spec still lacks the required preview-command key and does not define a safe commit/concurrency protocol for its no-loss and fail-safe guarantees.",
+  "verdict": "changes_needed"
+}

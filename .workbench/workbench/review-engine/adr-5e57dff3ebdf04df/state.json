@@ -1,0 +1,50 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-11-01T20:37:02Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "Valid but minor. The evidence now names the platform, the system ls, the shell and how the files were read, beside the commit and the Python version that were already there."
+    }
+  ],
+  "format": 1,
+  "generation": 3,
+  "kind": "adr",
+  "path": "docs/decisions/2026-11-01-endpoint-records-in-the-store.md",
+  "rounds": [
+    {
+      "at": "2026-11-01T20:36:31Z",
+      "bridge": "ask-codex",
+      "document_sha256": "9c0349264aac93293c376a17dc4d119fb2c083e2caf53ff61b0ebc1bf44e3d3a",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "minor"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "reading": "no_meaningful_changes",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "ee16de053710bb6a407d423db5bb0fbe361574c2989e750898a7dec194780f72",
+      "usage": {
+        "input_tokens": 215103,
+        "output_tokens": 2722,
+        "total_tokens": null
+      },
+      "verdict": "no_meaningful_changes"
+    }
+  ],
+  "seal": "f733ecd9e3938a5259011b1523461fbd32589f252403ac6b7818030502428ff6",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

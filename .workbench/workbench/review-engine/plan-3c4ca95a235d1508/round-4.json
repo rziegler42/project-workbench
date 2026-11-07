@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R4-F1",
+      "location": "Specs header; Increment E affected areas and steps 0–2",
+      "problem": "The plan changes and requires updates to the `mempalace` and `remote-runner` module specifications, but neither is named on the plan’s Specs line. In particular, E resolves the remote command/checkpoint relationship currently described in `remote-runner.md` and changes the level/preview contract for both modules.",
+      "severity": "major",
+      "suggestion": "Add `mempalace` and `remote-runner` to the Specs line and explicitly carry their required as-built updates in Increment E and J."
+    },
+    {
+      "id": "R4-F2",
+      "location": "Increment E, step 0 (the `checkpoint_of` option)",
+      "problem": "One offered implementation option deliberately changes the shipped default for `wb run remote-runner submit` and `fetch` from `none` to `block`. That conflicts with this plan’s Non-goals, its goal that shipped defaults stay as they are, and the accepted registry decision that this follow-on plan changes no shipped default. Calling it “the owner's call” does not make it an in-scope branch of an approved plan.",
+      "severity": "major",
+      "suggestion": "Remove that option from this plan, or make it a separate follow-on candidate/plan requiring its own approved scope and decision; keep E limited to a pairing mechanism that preserves shipped defaults."
+    }
+  ],
+  "format": 1,
+  "round": 4,
+  "summary": "Two material plan gaps remain: omitted module specs and an in-scope branch that contradicts the no-default-change boundary.",
+  "verdict": "changes_needed"
+}

@@ -1,0 +1,118 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-10-30T00:12:39Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "Agreed in part: delegated stays out because its review subject is undecided, but the plan no longer names the candidate, so completing it cannot close the candidate, and it says the key offers three of four levels until a later plan."
+    },
+    {
+      "at": "2026-10-30T00:14:31Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F1",
+      "reason": "Chose the fallback: verification checks the field for form only, and the registry applies the mapping only when an installed process module declares the checkpoint, otherwise the argument keeps its own key; criteria and tests now say so."
+    },
+    {
+      "at": "2026-10-30T00:15:21Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R3-F1",
+      "reason": "Valid against the accepted record. The plan now has the helper print a bounded result line that the launcher validates and writes into the outcome line with approver, route and digest; a terminal acceptance writes no entry, as for every owner-run key, and the plan says so for the owner to confirm."
+    }
+  ],
+  "format": 1,
+  "generation": 7,
+  "kind": "plan",
+  "path": "docs/plans/2026-10-29-accept-decision-at-ask.md",
+  "rounds": [
+    {
+      "at": "2026-10-30T00:12:25Z",
+      "bridge": "ask-codex",
+      "document_sha256": "651f70ed698ce480d64ba18de54298479c2acd61efa413ddeacf9b9bad88dc92",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "ed09f28185e8ec9b55c6d3d513d1b937750da4a2890ee69b98eb566c2fac3cde",
+      "usage": {
+        "input_tokens": 294788,
+        "output_tokens": 3028,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-10-30T00:14:15Z",
+      "bridge": "ask-codex",
+      "document_sha256": "4d7870f967bd43b5408f0c7b528d78aec8b6189d60446b8a4ff42952260cd3d8",
+      "file": "round-2.json",
+      "findings": [
+        {
+          "id": "R2-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "af0319a1d7b55c7eef3eebbc909cf79f03b209be9fcef976b858e025caba032f",
+      "usage": {
+        "input_tokens": 462268,
+        "output_tokens": 3199,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-10-30T00:14:56Z",
+      "bridge": "ask-codex",
+      "document_sha256": "80210dad5d2763ec29fac92ec8cf544f444fde71cdf5bb6a6a364fe4e1ca3ded",
+      "file": "round-3.json",
+      "findings": [
+        {
+          "id": "R3-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 3,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "8ebc098cd7863d9e25cecd39da673fb6f16ba5ec33e519e1553d556b9dadfc5a",
+      "usage": {
+        "input_tokens": 180302,
+        "output_tokens": 1983,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    }
+  ],
+  "seal": "1a2bc841e0d653ece8d92f8da34d603d83e4fb01a441750e7e0e6923bedd9727",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

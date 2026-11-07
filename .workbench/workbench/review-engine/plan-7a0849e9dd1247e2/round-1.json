@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Increment A, step 1; Assumptions and constraints (latest-verdict-row matching)",
+      "problem": "The plan specifies that unmatched rows for a repeated command hash are attributed to the latest verdict rows, but its proposed tests never exercise that policy. The listed “collected row appears nowhere” case can use a distinct hash, so an implementation could retain the existing count while assigning the breakdown to an earlier row’s failed checks.",
+      "severity": "major",
+      "suggestion": "Add a test with multiple reviewed verdict rows sharing one command hash and fewer collected rows, where the older and latest unmatched rows have different failed checks (or one is approve). Assert the breakdown uses the latest unmatched row(s) and that the existing total remains unchanged."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The plan aligns with the named roadmap candidate and action-review spec, but its central repeated-hash attribution rule lacks a proving test.",
+  "verdict": "changes_needed"
+}

@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R3-F1",
+      "location": "Increments C and D",
+      "problem": "Increment C changes `ask-codex` and `model-bridge.md` to contract version 2, but Increment D (which depends on C) is the first increment to recognize and implement `--confine`. Contract version 2 requires all bridges to recognize `--confine`, and a program bridge may accept it only when it actually disables the required tools. Thus the verified local commit for C would advertise contract 2 while failing its required option contract until D.",
+      "severity": "major",
+      "suggestion": "Make the contract-2 transition atomic with the `--confine` implementation (for example, combine C and D), or implement `--confine` in C and reserve D for the release-check documentation. Keep B before that transition so both engines accept either version."
+    }
+  ],
+  "format": 1,
+  "round": 3,
+  "summary": "The plan otherwise reflects the named roadmap candidate and three specs, but its C-to-D sequencing temporarily produces a nonconforming contract-version-2 bridge.",
+  "verdict": "changes_needed"
+}

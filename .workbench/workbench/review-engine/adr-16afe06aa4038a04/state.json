@@ -1,0 +1,87 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-11-06T20:35:40Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "Item 4 now says a candidate is bounded new work that advances a roadmap finish line, existing or new, and Candidate none is for work too small to need roadmap direction."
+    },
+    {
+      "at": "2026-11-06T20:35:40Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F2",
+      "reason": "Evidence now names the macOS version and the grep version, and says wc prints none."
+    }
+  ],
+  "format": 1,
+  "generation": 5,
+  "kind": "adr",
+  "path": "docs/decisions/2026-11-06-roadmaps-are-scoped-by-finish-line.md",
+  "rounds": [
+    {
+      "at": "2026-11-06T20:35:25Z",
+      "bridge": "ask-codex",
+      "document_sha256": "f10f93697bb9384c3ccdc3bae1b40bd8bd3445aee3cd14a87e28883fabdb7f42",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F2",
+          "severity": "minor"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "profile": "standard",
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra",
+        "options": {}
+      },
+      "sha256": "7bc9aa43b7fe242bf916173cb0e7cbcb886f32881ef4bff29e77882602a40489",
+      "usage": {
+        "input_tokens": 95129,
+        "output_tokens": 2182,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-06T20:36:22Z",
+      "bridge": "ask-codex",
+      "document_sha256": "d526e36bf6a718d90840dacea17d6be907b7783c909b35c1384bfdeedeb97e9e",
+      "file": "round-2.json",
+      "findings": [],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "profile": "standard",
+      "reading": "no_meaningful_changes",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra",
+        "options": {}
+      },
+      "sha256": "09f5b15cf325b0931eb790a59bd1983bdab603149589198b1d91d81149944284",
+      "usage": {
+        "input_tokens": 90570,
+        "output_tokens": 1296,
+        "total_tokens": null
+      },
+      "verdict": "no_meaningful_changes"
+    }
+  ],
+  "seal": "7db1f014047db4ece059cb2d73458a7e0cd3330b24a10d068c9bec1027d48690",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "docs/plans/2026-11-01-ask-ollama-bridge.md (end of document)",
+      "problem": "The plan lacks the required `## Result` section. Plans must contain that section, and it is excluded from the approval hash so increment outcomes can be recorded without invalidating approval.",
+      "severity": "major",
+      "suggestion": "Add `## Result` after `## Deferred work`, initially stating that it is empty until work starts."
+    },
+    {
+      "id": "R1-F2",
+      "location": "docs/plans/2026-11-01-ask-ollama-bridge.md: Increment E, steps 2–3",
+      "problem": "The embedding command is planned as an additional command and capability on the model-bridge module, but the named `model-bridge` spec requires a bridge to provide only `model-bridge`, ship one helper, and expose the one `ask-<vendor>` command. The plan changes `terms.md` and `module-contract.md` but never amends that conflicting bridge contract.",
+      "severity": "major",
+      "suggestion": "Either add a planned amendment to `model-bridge.md` that defines how its declaration accommodates the embedding command/capability, or put embeddings in a separate module whose contract does not conflict with the bridge declaration."
+    },
+    {
+      "id": "R1-F3",
+      "location": "docs/plans/2026-11-01-ask-ollama-bridge.md: Increments A–C and completion criteria",
+      "problem": "The plan omits the required warning for an unauthenticated non-loopback `http` endpoint. The roadmap candidate and `model-bridge.md` guarantee 7 both require this diagnostic, but no spec step, implementation step, conformance test, or completion criterion covers it.",
+      "severity": "major",
+      "suggestion": "Specify the warning's safe output behavior in the bridge spec, implement it, and add fake-server tests and a completion criterion for it."
+    },
+    {
+      "id": "R1-F4",
+      "location": "docs/plans/2026-11-01-ask-ollama-bridge.md: Increment G, step 3 and Evidence",
+      "problem": "Increment G requires both its stated local commit and a separate commit for upgrade results. That conflicts with the plan rules and project policy that each increment produces exactly one verified, reviewed local commit.",
+      "severity": "major",
+      "suggestion": "Split the upgrade/release work into its own increment with its own verification and commit, or restructure G so it has exactly one commit."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The plan has four material gaps: it is structurally incomplete, its embedding design conflicts with the model-bridge spec, it misses the clear-text transport warning required by the candidate/spec, and its closeout increment violates the one-commit rule.",
+  "verdict": "changes_needed"
+}

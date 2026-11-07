@@ -1,0 +1,29 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Completion criteria 1; Increment B Outcome and Steps 1–3",
+      "problem": "The roadmap requires a disposition for every item found, but the plan's completion criterion and Increment B outcome only require a disposition for each settings rule group. A single `deny` or `ask` group can contain rules with different replacements or retention decisions, so a group-level record cannot demonstrate the required item-by-item comparison.",
+      "severity": "major",
+      "suggestion": "Define the inventory granularity for settings rules and require one disposition per individual rule entry (or explicitly defined homogeneous subgroup), with group summaries only as derived context."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Scope, third and fourth bullets; Increment C Step 2; Affected areas throughout",
+      "problem": "The plan says it will settle the superpowers dependencies and the settings-path-deny question, which are durable design choices, but it changes only a new spec and provides no decision record or owner-acceptance step. This conflicts with the plan convention that a plan making a durable choice is not complete until the spec edit and decision record exist.",
+      "severity": "major",
+      "suggestion": "Add a decision-record increment for each durable choice, or limit the inventory to proposed dispositions and defer settlement until the owner accepts separate decisions."
+    },
+    {
+      "id": "R1-F3",
+      "location": "Completion criterion 5; Assumptions and constraints, fourth bullet; Verification for the plan as a whole",
+      "problem": "The plan requires `~/.claude` to be unchanged, while acknowledging concurrent tools may modify it. Its verification accepts hash differences when explained, so it neither proves nor matches the stated completion criterion and can make completion depend on unrelated external changes.",
+      "severity": "major",
+      "suggestion": "Change the criterion to require that this work makes no writes to `~/.claude`, record before/after snapshots around each increment, and specify how concurrent changes are distinguished and reported."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The plan is aligned with the roadmap's inventory-first boundary, but its settings inventory granularity, durable-decision handling, and non-write verification need correction.",
+  "verdict": "changes_needed"
+}

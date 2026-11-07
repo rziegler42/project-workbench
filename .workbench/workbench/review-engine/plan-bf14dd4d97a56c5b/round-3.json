@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R3-F1",
+      "location": "docs/plans/2026-11-01-ask-ollama-bridge.md, Increment C step 2",
+      "problem": "The required test says no address, host, or port may appear in any argument the fake server saw, but an HTTP/1.1 request necessarily carries the selected endpoint authority in its Host header (and the server necessarily observes the connection destination). This makes the planned conformance test impossible for the stated http.client implementation.",
+      "severity": "major",
+      "suggestion": "Distinguish record-derived connection/Host metadata, which the server necessarily sees, from caller-supplied or leaked endpoint data. Require tests to show that only the selected validated record determines the destination and Host header, and that no address or credential is emitted in result objects, diagnostics, command arguments, or request fields beyond required transport metadata."
+    },
+    {
+      "id": "R3-F2",
+      "location": "docs/plans/2026-11-01-ask-ollama-bridge.md, Increment F step 2",
+      "problem": "The plan requires a real-server case for a reply cut at the length limit, but supplies no supported, controllable way to induce that condition; it explicitly says an output limit is not a contract option and proposes only a “very long task.” A model may end normally, so this required completion evidence is not reliably obtainable.",
+      "severity": "major",
+      "suggestion": "Specify an owner-controlled, documented test setup that deterministically causes the server length-limit reason, or make the real run confirm only observable API behavior while retaining the deterministic fake-server truncation test as the required proof of handling."
+    }
+  ],
+  "format": 1,
+  "round": 3,
+  "summary": "Two execution-critical test requirements are currently impossible or non-deterministic; the roadmap candidate and named specs are otherwise reflected by the plan.",
+  "verdict": "changes_needed"
+}

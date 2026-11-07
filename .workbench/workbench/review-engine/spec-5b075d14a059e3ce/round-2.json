@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "docs/specs/action-review.md:88",
+      "problem": "The rule schema says each rule contains a “describe command,” but does not constrain that field to a module and action or require the engine to construct the invocation. This leaves rules able to encode command-line portions, contrary to the proposed interface decision’s fixed `wb run <module> describe <action> ...` construction and its prohibition on a rule naming a whole command line.",
+      "severity": "major",
+      "suggestion": "Define the rule fields as module and action identifiers only, and require the engine to construct the launcher argv with the fixed `describe` verb; reject any rule format that can supply executable command text or extra verbs."
+    },
+    {
+      "id": "R2-F2",
+      "location": "docs/specs/action-review.md:250",
+      "problem": "The acceptance criterion requires a `describe` command for every table row, but the table explicitly says `ask-codex-archive` has none and that `safe-committer` and `amend-message` have no module counterpart. The criterion is therefore impossible to satisfy as written.",
+      "severity": "major",
+      "suggestion": "Limit the criterion to actions retained as reviewable module actions (commit, remove, push, and later remote actions), and add separate criteria confirming the listed retired actions have no `describe` provider."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "Two major specification gaps remain: the rule-to-describe invocation boundary is not constrained, and one acceptance criterion contradicts the migration table.",
+  "verdict": "changes_needed"
+}

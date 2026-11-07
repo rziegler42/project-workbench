@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "Completion criteria; Increments C–J",
+      "problem": "The plan omits the required test that the engine refuses command lines for retired actions (`ask-codex archive`, `safe-committer`, and `amend-message`). The action-review spec explicitly requires that test; merely having no shipped rule does not verify it.",
+      "severity": "major",
+      "suggestion": "Add a completion criterion and an increment test covering each retired action, asserting refusal with no bridge or describe call."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "One required acceptance test from action-review.md is absent.",
+  "verdict": "changes_needed"
+}

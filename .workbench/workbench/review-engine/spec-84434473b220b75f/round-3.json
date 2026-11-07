@@ -1,0 +1,29 @@
+{
+  "findings": [
+    {
+      "id": "R3-F1",
+      "location": "Behavior — “What the preview shows, per file” state table (`missing` and `orphaned` rows)",
+      "problem": "The states overlap in a way that makes a missing orphan take the earlier `missing` action: a manifest path whose source is no longer staged and whose on-disk file was deleted satisfies both rows. The specified order then attempts to recreate it “from its source,” although no staged source exists.",
+      "severity": "major",
+      "suggestion": "Make the predicates mutually exclusive: classify every manifest path absent from staged output as `orphaned` before considering missing, and define `missing` as a manifest path that is still staged."
+    },
+    {
+      "id": "R3-F2",
+      "location": "Behavior — “What the preview shows, per file” state table; “What ‘nothing written’ covers”; Acceptance criterion 5",
+      "problem": "A recorded staged path that is a symlink to content matching both the recorded and staged hashes is classified as `current` and left alone. The link check is only required immediately before writes for files that will be replaced or created, so an all-current linked file can avoid the required refusal.",
+      "severity": "major",
+      "suggestion": "Require link detection before state classification for every tracked/staged path, have preview report it as refused, and fail the command even when no replacement would otherwise occur."
+    },
+    {
+      "id": "R3-F3",
+      "location": "Acceptance criteria 2",
+      "problem": "It requires old and new hashes for every listed state, but `new` has no old file hash and `orphaned` has no new staged hash. This is impossible or ambiguous as written.",
+      "severity": "minor",
+      "suggestion": "Require explicit absent markers (for example, `none`/`not staged`) or limit the hash-pair requirement to states for which both values exist."
+    }
+  ],
+  "format": 1,
+  "round": 3,
+  "summary": "The draft still has two unsafe or unimplementable state-classification gaps around deleted orphans and unchanged symlinks.",
+  "verdict": "changes_needed"
+}

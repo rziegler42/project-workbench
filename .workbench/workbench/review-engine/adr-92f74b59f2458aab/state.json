@@ -1,0 +1,61 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-10-29T15:01:16Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "Leaving the acceptance mechanism to the plan left the trust model undefined. I chose it: the tracked status line is the acceptance, the command verifies the preview digest and replaces only that line with a hash-checked whole-file replace, and the guarded store logs the event. I also recorded the limit that an agent editing the line directly is not held by this gate."
+    },
+    {
+      "at": "2026-10-29T15:01:16Z",
+      "choice": "rejected",
+      "earlier": [],
+      "finding": "R1-F2",
+      "reason": "Same ground as the matching finding on the first record: the drafting skill allows the status line of an accepted record to name its successor once the owner accepts the successor, and existing records follow it. The accepted text is not touched, and the gap in the README is reported for the documentation cleanup."
+    }
+  ],
+  "format": 1,
+  "generation": 4,
+  "kind": "adr",
+  "path": "docs/decisions/2026-10-29-accept-decision-offers-the-ask-level.md",
+  "rounds": [
+    {
+      "at": "2026-10-29T14:57:55Z",
+      "bridge": "ask-codex",
+      "document_sha256": "707ff3edb102f770169b5c8ec9e81d11dfbffd37c151f92c4647f752a5687c1b",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F2",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "c636ec8752300d0a02ae5090ff7add906a6fc17cea3b98162c09976d9c52f03b",
+      "usage": {
+        "input_tokens": 108326,
+        "output_tokens": 1559,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    }
+  ],
+  "seal": "1c53543f01dd6fc19238f6483861a56224ffb8381378073c5097af2518ac40bf",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

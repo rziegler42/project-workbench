@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "Decision, item 3",
+      "problem": "`truncated` is required for the engine to fail closed, but it is absent from the stated output object fields and has no defined type, location, or required presence. Implementations could place it inside `facts`, omit it when false, or use incompatible encodings, leaving the engine unable to reliably recognize incomplete facts.",
+      "severity": "major",
+      "suggestion": "Add `truncated` to the fixed top-level contract as an always-present boolean (false for complete output), and specify the permitted `facts` form when it is true."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "The cap behavior is now directionally safe, but its essential incomplete-output signal is not part of the defined wire contract.",
+  "verdict": "changes_needed"
+}

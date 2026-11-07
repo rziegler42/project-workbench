@@ -1,0 +1,196 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-11-01T17:09:22Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "Valid. The owner agreed to widen the candidate, and the roadmap boundary now names the two engines that read the bridge object, with their tests and specs."
+    },
+    {
+      "at": "2026-11-01T17:09:25Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F2",
+      "reason": "Valid. The plan now records the exact feature names, the shell and web settings, the strict-config flag, their order and the tested program version, with the owner measurements, and increment D verifies those fixed values."
+    },
+    {
+      "at": "2026-11-01T17:10:48Z",
+      "choice": "rejected",
+      "earlier": [],
+      "finding": "R2-F1",
+      "reason": "The requirement that a caller of captured text always passes the option is about the knowledge base library, not these two engines. The review engine needs the program file access to read the plans it reviews, so confining it would break it, which is why the accepted decision keeps the default unconfined. The plan now says the engines do not pass it, and defers the action-review question."
+    },
+    {
+      "at": "2026-11-01T17:10:54Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F2",
+      "reason": "Valid. The stale risk about the candidate boundary is replaced by the current rule that the engines do not pass the confinement option."
+    },
+    {
+      "at": "2026-11-01T17:12:45Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R3-F1",
+      "reason": "Valid. The move to contract version 2 and the confinement option that version 2 requires of every bridge are now one increment, so no commit advertises version 2 without it. The later increments are renumbered and every reference to a label is updated."
+    },
+    {
+      "at": "2026-11-01T17:20:37Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R4-F1",
+      "reason": "Valid. The accepted decision replaces the network guarantee for both kinds of bridge, so increment C now writes the full replacement and the endpoint constraints into the spec and marks them as rules for a bridge to a server that no bridge implements yet. Only building the bridge and the exact record format stay deferred."
+    }
+  ],
+  "format": 1,
+  "generation": 14,
+  "kind": "plan",
+  "path": "docs/plans/2026-11-01-bridge-confine-and-usage.md",
+  "rounds": [
+    {
+      "at": "2026-11-01T16:59:12Z",
+      "bridge": "ask-codex",
+      "document_sha256": "a1209a5a015bc529f65193a5fcde67b12270dae38d14bcec73c9b253e8eb741c",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F2",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "951286c8eaade97768b9c6e41d11ce3bc101ca5d6e3a05dc1cab397799361785",
+      "usage": {
+        "input_tokens": 197567,
+        "output_tokens": 2034,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-01T17:10:35Z",
+      "bridge": "ask-codex",
+      "document_sha256": "13ec0188b96cac28572df9e8ae1761cd20993ceaeb31c4afe99ae3483a2a4761",
+      "file": "round-2.json",
+      "findings": [
+        {
+          "id": "R2-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R2-F2",
+          "severity": "minor"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "27bd10e24d2567c41f035ee3da7272b3060ef7cf7b8e2d6e1bea48734a5d5c86",
+      "usage": {
+        "input_tokens": 204415,
+        "output_tokens": 2439,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-01T17:11:57Z",
+      "bridge": "ask-codex",
+      "document_sha256": "a3842af5bbd0f0829cffde1fa514d9b4c77fbf5709d67d3fcc0345e98a4ce6c3",
+      "file": "round-3.json",
+      "findings": [
+        {
+          "id": "R3-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 3,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "a75b4753b9857a23d342c66dc6a393390f34f6a50849ffd300dccebb0417dc6c",
+      "usage": {
+        "input_tokens": 210960,
+        "output_tokens": 1988,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-01T17:20:10Z",
+      "bridge": "ask-codex",
+      "document_sha256": "ecec3abcc1d801bd3da51b852368a8628d0277baf44578926423f40a49038bc1",
+      "file": "round-4.json",
+      "findings": [
+        {
+          "id": "R4-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 4,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "78ed44899da6b1cbcb592310d4ef0ff67ae3b8e6efc77b5e4d2384e962032f68",
+      "usage": {
+        "input_tokens": 167335,
+        "output_tokens": 2302,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-01T17:22:23Z",
+      "bridge": "ask-codex",
+      "document_sha256": "06ad883c5c7669b082a601ea09436d37e67be38b76deb0d2359c4e840ec52775",
+      "file": "round-5.json",
+      "findings": [],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 5,
+      "reading": "no_meaningful_changes",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "1fef2919f4def1ee86c0efb89dc48ce06a9f1aebace2b1a05f7442348539242b",
+      "usage": {
+        "input_tokens": 167826,
+        "output_tokens": 1711,
+        "total_tokens": null
+      },
+      "verdict": "no_meaningful_changes"
+    }
+  ],
+  "seal": "8b089747798b6e3791279e2b1e75d44b894eeb13df0b40043be5b81371b5dfb4",
+  "window": {
+    "bound": 5,
+    "first": 1
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "docs/plans/2026-11-02-bridge-request-controls.md:87-89, 231-235",
+      "problem": "Increment F requires the new helper to show how the server handles an out-of-range temperature and malformed keep_alive, but the proposed grammars require the helper to refuse those values before sending a request. Those server observations therefore cannot be performed through the stated helper run.",
+      "severity": "major",
+      "suggestion": "Choose one coherent scope: treat invalid forms as local refusal-only cases and remove the promised server observations, or explicitly add an owner-approved raw-server probe with its request shape, bounds, and recording rules."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "The plan is generally aligned with the named specs, but its real-server increment asks the validated helper to send values it must reject locally.",
+  "verdict": "changes_needed"
+}

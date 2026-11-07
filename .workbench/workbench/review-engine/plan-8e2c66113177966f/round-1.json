@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Increments C–G",
+      "problem": "The plan changes the declaration schema and permission behavior in C/D, and the review-engine behavior in E/F, but defers all specification updates to G. This leaves the current specs—especially `module-contract.md`, whose concrete schema rejects unknown declaration fields—incorrect after earlier local commits, contrary to the repository rule that specs are living documents stating what is true now.",
+      "severity": "major",
+      "suggestion": "Update each affected spec in the same increment that changes its behavior: at minimum update `module-contract.md` in C, command-permissions behavior in C/D, and review-engine behavior in E/F. Keep G for consolidation and development-guide updates only."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The plan otherwise aligns with its Candidate:none rationale and the named specs, but its deferred documentation creates material spec drift between increments.",
+  "verdict": "changes_needed"
+}

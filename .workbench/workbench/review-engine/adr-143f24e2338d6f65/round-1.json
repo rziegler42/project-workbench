@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Decision 1 and Decision 5",
+      "problem": "The record says all eight keys offer all four levels, but for three of them it says `ask` has no distinct meaning and then both proposes treating it as `block` and leaves the choice to the owner. This leaves a material level semantic undecided while claiming the keys have the same levels and permissions as `approve-plan`.",
+      "severity": "major",
+      "suggestion": "Choose and state one complete rule: either give those keys an enforceable digest-bound `ask` route, or explicitly say they do not offer `ask` and adjust the decision’s scope and rationale accordingly."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Decision 6",
+      "problem": "The proposed `release-approvals` implementation depends on reading a personal setting in a context where the cited specification says no level can be read. The record labels this an unverified guess and defers confirmation of whether the command can safely distinguish a guarded personal setting from project-writable input, so the decision does not establish the required trust boundary.",
+      "severity": "major",
+      "suggestion": "Specify the trusted settings source and verification mechanism, backed by evidence, before deciding that `release-approvals` can honor relaxed levels; otherwise retain its current behavior and defer this key."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The proposed level expansion has unresolved semantics for agent-only keys and an unverified trust boundary for release-approvals.",
+  "verdict": "changes_needed"
+}

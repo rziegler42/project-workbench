@@ -1,0 +1,163 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-10-26T00:00:09Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "The cap had no behaviour at the limit. The record now fixes silent-drop as forbidden, a truncated flag, and a decline when facts are incomplete, and leaves the numbers to the module spec as the bridge spec does."
+    },
+    {
+      "at": "2026-10-26T00:00:13Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F2",
+      "reason": "Fair gap. Rather than invent a capability now, the record fixes the verb: the engine builds the describe command itself from a module and an action, and the existing pin check applies. That is enforceable and testable, and the optional capability stays open for the module contract."
+    },
+    {
+      "at": "2026-10-26T00:01:11Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F1",
+      "reason": "My earlier fix used a truncated signal the contract never defined. It is now a required top-level boolean, malformed if absent or not a boolean, with facts holding only whole values when it is true."
+    },
+    {
+      "at": "2026-10-26T00:02:05Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R3-F1",
+      "reason": "The spec and the record disagreed on whether a module declares describe. The owner approved the spec, so the record now requires the declaration, defers only its form to the module contract, and keeps the fixed verb and pin as the parts testable meanwhile."
+    },
+    {
+      "at": "2026-10-26T00:22:56Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R4-F1",
+      "reason": "Only two fields had types. The record now types every top-level field, requires action to match the request, ties ok to an empty errors list, bounds the error and fact shapes, and treats any deviation as malformed; fact names stay with each module spec."
+    }
+  ],
+  "format": 1,
+  "generation": 11,
+  "kind": "adr",
+  "path": "docs/decisions/2026-10-25-describe-interface-for-action-review.md",
+  "rounds": [
+    {
+      "at": "2026-10-25T23:59:50Z",
+      "bridge": "ask-codex",
+      "document_sha256": "602949b9bca559b4815a16cf9a474ff6d80f918399e5a00d62a15f348332e603",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F2",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "486a56abb054443529ae69cde9f025d878687f8087d61f6af9994faef136a9c9",
+      "usage": {
+        "input_tokens": 103002,
+        "output_tokens": 1342,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-10-26T00:01:04Z",
+      "bridge": "ask-codex",
+      "document_sha256": "c2de8b17310a63cf955b0d5032bacd5e31105b38fc5bacd7be5ce5a52aca176a",
+      "file": "round-2.json",
+      "findings": [
+        {
+          "id": "R2-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "ff23c9ebbda0aa3e61f27504a1b8acfa64af576efc415f74fb10f9f319edb8f0",
+      "usage": {
+        "input_tokens": 65202,
+        "output_tokens": 1476,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-10-26T00:01:53Z",
+      "bridge": "ask-codex",
+      "document_sha256": "67a3e5f8ed57e36fe3f71058272ad1e645c99dbfddef289ee3a87d15599c8b18",
+      "file": "round-3.json",
+      "findings": [
+        {
+          "id": "R3-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 3,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "fdfe48a285dd85577e3b51bab2162cad72839cb1fb178c558fe1a0c8743b95f9",
+      "usage": {
+        "input_tokens": 65431,
+        "output_tokens": 1040,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-10-26T00:22:40Z",
+      "bridge": "ask-codex",
+      "document_sha256": "901690c660fbe40234aa5d9e5c406e525787280203f414e38504fe4719515d2a",
+      "file": "round-4.json",
+      "findings": [
+        {
+          "id": "R4-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 4,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "0703c9d02340945c6a2b3e8f1253bf73e98b7f238c8c85aa23ef206cacf0b533",
+      "usage": {
+        "input_tokens": 99673,
+        "output_tokens": 1378,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    }
+  ],
+  "seal": "52172abd4214dd53e0bceb0a11f12f90b63fab803aad690bb28ad8b0c66ada05",
+  "window": {
+    "bound": 4,
+    "first": 1
+  }
+}

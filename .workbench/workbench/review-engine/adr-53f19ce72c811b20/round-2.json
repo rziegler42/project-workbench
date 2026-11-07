@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "Decision 1 and Decision 8; Questions for the owner, Question 2 default table",
+      "problem": "The record says the table maps each command to exactly one level, but it also makes checkpoints table entries. The default table includes `submit-remote-job` and `push-shared-branch`, which are checkpoint names rather than executable commands, and calls out `acknowledge` “(both tiers),” although the current process defines separate first- and second-tier acknowledgement checkpoints for the same command. This leaves no unambiguous table key or way to apply a setting consistently.",
+      "severity": "major",
+      "suggestion": "Define the table key explicitly (for example, command plus declared action/checkpoint), including how multiple checkpoints reached by one command are resolved; or keep commands and checkpoints as separate, explicitly related settings."
+    },
+    {
+      "id": "R2-F2",
+      "location": "Decision 5–6 and Questions for the owner, Question 2 `ask` defaults",
+      "problem": "`ask` is conditioned on the executable carrying a digest of its own read-only preview, but several proposed `ask` defaults are checkpoint labels or review-engine operations for which the current referenced specifications define no digest-bound preview. The record does not identify the concrete command and preview that bind an owner prompt to `submit-remote-job`, `push-shared-branch`, or the review operations. Consequently the claimed defaults cannot yet be implemented under the record's own approval rule.",
+      "severity": "major",
+      "suggestion": "For every `ask` default, name the exact command form and required read-only preview/digest contract, or state that it remains `block` until that contract is specified and implemented."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "The corrected release-approvals treatment is consistent with the installer specification, but the proposed table still conflates commands and checkpoints and lacks the required preview binding for several ask defaults.",
+  "verdict": "changes_needed"
+}

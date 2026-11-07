@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Decision 1 and Consequences — “under any global setting” / “in every project”",
+      "problem": "The decision treats a rendered harness `ask` as a project-wide guarantee. The accepted floor decision says guarantees that matter must be enforced in workbench code, and the harness spec says a harness without `permissions` receives only a warning and instruction. A rendered rule therefore cannot guarantee this prompt in every attached project.",
+      "severity": "major",
+      "suggestion": "Narrow the guarantee to harnesses that provide and honor permissions, or decide and specify code-level enforcement for the stated guarantee; retain the best-effort matcher limitation."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Decision 4 — instruction to alter the earlier accepted record’s status line",
+      "problem": "It directs a change to an already accepted decision record. Project policy says accepted decisions are never rewritten; the decisions index supports a full supersession status but not changing part of an accepted record’s status to annotate a successor.",
+      "severity": "major",
+      "suggestion": "Leave the earlier record unchanged and have this successor explicitly state that it supersedes only Question 1’s option-2 choice for the three named commands."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The proposed decision has two policy/guarantee conflicts that need resolution before it can be relied on.",
+  "verdict": "changes_needed"
+}

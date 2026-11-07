@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "Scope; Increment B; Increment D, step 4; completion criterion 3",
+      "problem": "The roadmap candidate requires every caller that sends captured text to pass `--confine`. Neither engine is planned to add that option to its bridge invocation: Increment B only changes their validation of returned objects, while Increment D only states the caller rule in the spec. Both engines send captured document/repository text today, so they would continue to invoke the newly confined-capable bridge without confinement.",
+      "severity": "major",
+      "suggestion": "Add engine changes and fake-bridge tests that assert `--confine` is passed for their captured-text calls; include the affected helpers in Increment D (or a dedicated increment), update their specs, and make this part of verification."
+    },
+    {
+      "id": "R2-F2",
+      "location": "Risks and sensitive actions — “The scope is wider than the candidate's boundary”",
+      "problem": "This still says the candidate names only `ask-codex` and that it “is not edited,” but the current named roadmap candidate explicitly includes the two engines, their tests, and their specs. It is now stale and contradicts the source of truth.",
+      "severity": "minor",
+      "suggestion": "Replace this risk with the current roadmap boundary, or remove it as resolved."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "The plan still omits implementation and verification that make both captured-text callers use confinement; it also retains one stale roadmap-boundary statement.",
+  "verdict": "changes_needed"
+}

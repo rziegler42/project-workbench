@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Candidate line",
+      "problem": "This preparatory documentation plan names `workbench-v1#action-review-engine`, but that roadmap candidate's outcome is the built action-review module. Under the plan conventions, completing a plan that names a candidate derives that candidate's completion; this plan explicitly leaves implementation to four later plans.",
+      "severity": "major",
+      "suggestion": "Use `Candidate: none` with a reason that this is plan 1 of the candidate's split, and reserve `action-review-engine` for the plan that completes the roadmap outcome."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Increment D, step 7; Scope; Completion criterion 5",
+      "problem": "The plan edits an accepted decision by appending a clarification. Repository policy says an accepted decision is never edited; a changed or newly settled durable choice requires a new decision that supersedes it. The proposed declaration form and the fact/cap choices are also durable choices, but the plan has no compliant decision record or owner-acceptance checkpoint for them.",
+      "severity": "blocker",
+      "suggestion": "Do not modify the accepted decision. Add a new proposed decision record covering the newly settled choices (superseding the prior record where appropriate), and stop for the owner's acceptance before treating the related increments as complete."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The plan matches the action-review spec's proposed first split, but its roadmap candidate would prematurely mark the engine complete and its decision-record handling violates the repository's immutable accepted-decision rule.",
+  "verdict": "changes_needed"
+}

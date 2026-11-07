@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R5-F1",
+      "location": "docs/plans/2026-11-01-ask-ollama-bridge.md: Increment C, step 2; Completion criterion 3",
+      "problem": "The completion criterion requires an expired HTTPS certificate to be refused, and Increment B makes that a specified transport behavior, but the planned fake-server tests cover only untrusted, hostname-mismatched, and trusted matching certificates. The planned certificates are valid for a hundred years, so none exercises expiration.",
+      "severity": "major",
+      "suggestion": "Add a fake-server case with an otherwise trusted expired certificate, and require it to produce the specified non-retryable `vendor_unreachable` result without exposing endpoint details."
+    }
+  ],
+  "format": 1,
+  "round": 5,
+  "summary": "The plan is otherwise aligned with its cited roadmap candidate and specs, but it lacks verification for one explicit TLS acceptance condition.",
+  "verdict": "changes_needed"
+}

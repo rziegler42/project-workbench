@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R4-F1",
+      "location": "docs/specs/ask-ollama.md:249-255",
+      "problem": "The embedding failure rules say reply checks follow the `ask` order, whose 2xx precedence requires `done: true` before success. `/api/embed` replies are specified to contain embeddings, not `done`, so this classifies every otherwise valid embedding response as `unusable_reply` and conflicts with the embedding output rules.",
+      "severity": "major",
+      "suggestion": "Define embedding-specific 2xx precedence: retain the body-size and JSON-object checks, then validate embeddings and output size, without applying chat-only `done`, context-overflow, reply-cut, or content checks."
+    }
+  ],
+  "format": 1,
+  "round": 4,
+  "summary": "The embedding reply precedence still imports chat-only validation and makes valid embedding replies indeterminate.",
+  "verdict": "changes_needed"
+}

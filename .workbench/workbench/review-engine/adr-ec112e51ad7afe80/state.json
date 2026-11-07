@@ -1,0 +1,61 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-10-29T15:01:15Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "The accepted floor decision says a rendered setting is a first line and not the guarantee, so promising a prompt in every project overstated it. I narrowed the wording to harnesses that provide permissions, named the text-match and merge limits, and said the plan may add code-level enforcement."
+    },
+    {
+      "at": "2026-10-29T15:01:15Z",
+      "choice": "rejected",
+      "earlier": [],
+      "finding": "R1-F2",
+      "reason": "The drafting skill says an accepted record keeps its text and changes only its status line to name its successor, once the owner accepts the successor, and existing records already do this. The record already says the supersession covers only three commands. The decisions README does not describe a partial clause, which I am reporting for the documentation cleanup."
+    }
+  ],
+  "format": 1,
+  "generation": 4,
+  "kind": "adr",
+  "path": "docs/decisions/2026-10-29-workbench-asks-for-remove-submit-and-fetch.md",
+  "rounds": [
+    {
+      "at": "2026-10-29T14:57:31Z",
+      "bridge": "ask-codex",
+      "document_sha256": "02f161f47d16efb5b34a1ef7c7c1c4ffa1f79d769508b2246f99e3112548712c",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F2",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "ca53523f32c24c3bce7da2c94e8aa83d6108e7e9c9fbf7dea9066dd1fc499808",
+      "usage": {
+        "input_tokens": 212541,
+        "output_tokens": 3062,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    }
+  ],
+  "seal": "8af9503fc2b54c6b029926011f0825bf3578e0567032da9a6099a553670dbe5f",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

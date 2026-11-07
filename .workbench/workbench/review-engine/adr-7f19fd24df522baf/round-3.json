@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R3-F1",
+      "location": "Decision, item 5; Related files (`docs/specs/action-review.md`, “The `describe` interface” and Acceptance criteria)",
+      "problem": "This record leaves a `describe` capability/declaration unsettled and says the fixed verb plus pin are sufficient, while the owner-approved action-review design requires the module to declare a `describe` provider and its acceptance criteria require that declaration. The same planned engine therefore has incompatible admission requirements.",
+      "severity": "major",
+      "suggestion": "Reconcile the record with the action-review spec before relying on it: either make declaration a requirement here and define it, or explicitly revise the spec and its acceptance criteria to use the module/action plus fixed-verb rule instead."
+    }
+  ],
+  "format": 1,
+  "round": 3,
+  "summary": "The truncation contract is now defined, but the provider-admission rule still conflicts with the referenced engine design.",
+  "verdict": "changes_needed"
+}

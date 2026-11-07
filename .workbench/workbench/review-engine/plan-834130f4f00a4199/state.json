@@ -1,0 +1,37 @@
+{
+  "closed": null,
+  "decisions": [],
+  "format": 1,
+  "generation": 2,
+  "kind": "plan",
+  "path": "docs/plans/2026-10-25-approver-program-and-the-module-spellings.md",
+  "rounds": [
+    {
+      "at": "2026-10-25T16:04:13Z",
+      "bridge": "ask-codex",
+      "document_sha256": "23c7242a3e9669a089800a519839de34ef96f34d628a0f7ad52187fc2435d31f",
+      "file": "round-1.json",
+      "findings": [],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "reading": "no_meaningful_changes",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "d3f94048588653765eca3beeb9d91311d90c06a3b110146387fb8c09ba893f07",
+      "usage": {
+        "input_tokens": 353324,
+        "output_tokens": 2648,
+        "total_tokens": null
+      },
+      "verdict": "no_meaningful_changes"
+    }
+  ],
+  "seal": "1820bc86d3aa72ddf8e4facd8faa06ce7ae7a185031acf28ea1feac97b00b1d8",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

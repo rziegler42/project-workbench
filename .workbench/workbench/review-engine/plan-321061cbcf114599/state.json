@@ -1,0 +1,118 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-11-02T20:57:25Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "The test list mixed a general leading-zero and sign refusal with values that are valid. I wrote an exact grammar for each field with its accepted and refused forms and made the increment D tests follow them."
+    },
+    {
+      "at": "2026-11-02T20:59:25Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F1",
+      "reason": "The helper refuses a value outside the grammar before sending, so the server cannot be asked about one. I took the first option: those forms are local refusals only, and I removed the promised server observations from the assumptions, the spec step, increment F and the risks, and deferred a raw probe."
+    },
+    {
+      "at": "2026-11-02T21:06:16Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R3-F1",
+      "reason": "My last edit made the real-server cases contradict the grammar: the helper sends minus one only as a number, so a string or minus one m cannot be run through it. I limited criterion 7 and increment F to the forms the helper produces, stated that the plan stops if the server refuses the number, and moved the other forms to the deferred raw probe."
+    }
+  ],
+  "format": 1,
+  "generation": 7,
+  "kind": "plan",
+  "path": "docs/plans/2026-11-02-bridge-request-controls.md",
+  "rounds": [
+    {
+      "at": "2026-11-02T20:57:10Z",
+      "bridge": "ask-codex",
+      "document_sha256": "6fe70616c19caf8bbce96c3b28ec381a57a17df06b1a47f79bf1236a3126e982",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "697967f9f395cb85cc9810bfd15e3a1f80b4c80e271af6938c13d628f76d6186",
+      "usage": {
+        "input_tokens": 383741,
+        "output_tokens": 2953,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-02T20:59:08Z",
+      "bridge": "ask-codex",
+      "document_sha256": "37314cb94b843248ee12dd7cbe6aaa0db1fead8b9fe72dc2904aeb13986ab096",
+      "file": "round-2.json",
+      "findings": [
+        {
+          "id": "R2-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "a5b3dd9a20033968248c93aac222a0cd767b7ed26a6ab34d1879723aa56c7ec9",
+      "usage": {
+        "input_tokens": 265005,
+        "output_tokens": 2755,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-02T21:05:59Z",
+      "bridge": "ask-codex",
+      "document_sha256": "fe58fc89009cd70574f228eac42c5dd410a0ff582b23b71476bb5510efc03e84",
+      "file": "round-3.json",
+      "findings": [
+        {
+          "id": "R3-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 3,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "6808b3708751a4ff45a492b89f9477694e4b97feecd3c3a45671880229bcb74e",
+      "usage": {
+        "input_tokens": 320230,
+        "output_tokens": 1777,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    }
+  ],
+  "seal": "7acad4e0b647e2c5d2b677659be1ee1e5bb665b61bb792a580ddb5716f13f9ea",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

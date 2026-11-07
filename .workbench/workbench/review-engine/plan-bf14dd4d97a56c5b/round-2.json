@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "docs/plans/2026-11-01-ask-ollama-bridge.md, Increment B (Affected areas and steps 1–8)",
+      "problem": "The plan only amends model-bridge.md's declaration rule and checklist, but the roadmap candidate explicitly requires amending guarantee 7 and the vendor-program search boundary for a server bridge. The current spec also defines a model bridge as a translator to a vendor program and applies program-specific guarantees and checklist items. Moreover, guarantee 7 currently requires credentials for authenticated endpoints, while this plan refuses every authenticated record. The planned limited amendment leaves the resulting contract internally contradictory.",
+      "severity": "major",
+      "suggestion": "Expand Increment B to amend model-bridge.md's purpose, applicable guarantees, endpoint-record/authentication rules, and conformance checklist so program-only rules are explicitly scoped away from this server bridge and the unsupported-authentication refinement is defined consistently."
+    },
+    {
+      "id": "R2-F2",
+      "location": "docs/plans/2026-11-01-ask-ollama-bridge.md, Increments B–C and completion criteria 3",
+      "problem": "The roadmap candidate and model-bridge.md require HTTPS transport to validate the server certificate. The plan mentions scheme selection but never specifies the verified-TLS implementation or a fake-server test for rejecting an invalid certificate; using http.client alone does not make this required behavior reviewable in the plan.",
+      "severity": "major",
+      "suggestion": "Specify verified HTTPS transport (including certificate/hostname validation and its error mapping) in Increment B, and add an Increment C test using a controlled invalid-certificate HTTPS server."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "The plan retains material drift from the candidate and model-bridge specification around the required server-bridge contract amendment and verified HTTPS transport.",
+  "verdict": "changes_needed"
+}

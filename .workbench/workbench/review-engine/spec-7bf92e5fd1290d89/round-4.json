@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R4-F1",
+      "location": "Design — “Name and shape” and “Binding the confirmation to the writes”",
+      "problem": "The promised non-terminal `none` path cannot perform a re-render under the stated reuse of `levelrun.route`. That route calls `rendering.effective_level`, which returns `block` whenever the rendering record’s table digest or permissions-file hash differs. Those are exactly the normal reasons to run this command: a changed table or a retained `allow` rule. Thus a previously configured `wb rerender: none` is refused without a terminal once it could make a change.",
+      "severity": "major",
+      "suggestion": "Either make re-render terminal-only, or specify a narrowly scoped recovery authorization path (and corresponding gate behavior) that can verify an eligible prior `none` rendering despite the expected stale record, while retaining fail-closed handling for every other mismatch."
+    }
+  ],
+  "format": 1,
+  "round": 4,
+  "summary": "The non-terminal behavior is incompatible with the current rendering-validity gate in the states this command is meant to repair.",
+  "verdict": "changes_needed"
+}

@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Context, first paragraph; Decision question 2 default table",
+      "problem": "`release-approvals` is described as terminal-only, but the current installer specification says it needs no terminal. It is nevertheless in the compiled owner-run/agent-deny list, and this ADR neither assigns it a default nor explicitly excludes it. That contradicts the proposed one-level-per-command model for the existing owner-run surface.",
+      "severity": "major",
+      "suggestion": "Correct its current behavior and explicitly assign `release-approvals` a level/default (or state and justify its exclusion from scope)."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The proposed command inventory is incomplete and misstates release-approvals, leaving a current owner-run command without a defined permission level.",
+  "verdict": "changes_needed"
+}

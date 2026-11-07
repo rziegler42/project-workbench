@@ -1,0 +1,29 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Increment A, steps 1 and 4; Verification",
+      "problem": "The proposed regression test never checks bare `unlink` or bare `shred`, although scope requires each deletion command both bare and with arguments. The argument examples can pass with only the wildcard rules, leaving the required bare rules unprotected by the new test.",
+      "severity": "major",
+      "suggestion": "Add `unlink` and `shred` to the commands matched by the test, alongside the existing argument forms."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Risks and sensitive actions; Increment A steps",
+      "problem": "This change materially alters an authorization/permission boundary and adds protection for secret paths, but the plan does not stop to ask the owner whether to run the installed `security-review` capability. Saying the documentation asks the owner to consider one does not fulfill the project policy.",
+      "severity": "major",
+      "suggestion": "Add a pre-implementation checkpoint that states `security-review` is installed, asks the owner whether to run it, and proceeds with a review only if the owner requests one."
+    },
+    {
+      "id": "R1-F3",
+      "location": "Plan-level verification and approval preparation",
+      "problem": "The plan does not include the required plan check (`wb run code-work check`) before it is submitted for approval. `wb check` is a project check and does not validate the plan format or approval-region requirements.",
+      "severity": "major",
+      "suggestion": "Run and record `wb run code-work check` before requesting owner approval, and include it in the plan’s approval-preparation verification."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The candidate and named spec align with the proposed floor additions, but the plan has three required process/verification gaps.",
+  "verdict": "changes_needed"
+}

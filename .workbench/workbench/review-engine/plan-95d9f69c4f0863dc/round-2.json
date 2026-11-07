@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "Increments A and B, target-rule test requirements",
+      "problem": "The plan says supplying both `<target>` and `--dir` is a usage error. `installer-interface.md` “The target,” rule 3 requires accepting both spellings when they identify the same directory, and refusing only when they differ.",
+      "severity": "major",
+      "suggestion": "Require the shared target parser behavior: accept identical existing targets by file identity (and identical nonexisting targets by resolved path), and make only differing spellings a usage error."
+    },
+    {
+      "id": "R2-F2",
+      "location": "Assumptions and constraints, sixth bullet; Increment B step 2; Increment D step 1",
+      "problem": "The proposed `wb rerender` key offers only `block`, which conflicts with accepted decision `2026-10-26-a-level-for-every-command`, decision 3: every key offers `block` and `none`, except the documented temporary exception for owner-run module-command arguments. Owner approval of a Draft spec does not supersede that accepted decision under the repository source-of-truth rules.",
+      "severity": "major",
+      "suggestion": "Either plan `wb rerender` with `block` and `none` as required by the accepted decision, or obtain and record a new accepted decision that expressly creates this additional exception before relying on the plan."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "Two major source-of-truth conflicts remain: target parsing diverges from the installer-interface spec, and the block-only key conflicts with an accepted decision.",
+  "verdict": "changes_needed"
+}

@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "Goals 2; Design — “Binding the confirmation to the writes”; Acceptance criteria 6",
+      "problem": "The spec says a `none` run has “no digest” and is “without a digest,” but the design also requires it to print the plan digest. This also misstates the governing `upgrade` behavior, which prints and logs a digest at `none`. It is unclear whether “no digest” means no typed/supplied confirmation digest or no digest at all.",
+      "severity": "major",
+      "suggestion": "State that `none` requires no supplied or confirmed digest, while it still emits a computed plan digest (and specify its log evidence consistently). Update the goal and criterion accordingly."
+    },
+    {
+      "id": "R2-F2",
+      "location": "Acceptance criteria 6",
+      "problem": "It requires both the terminal/default and `none` runs to be logged. The governing command-permissions spec logs non-terminal runs; terminal owner runs do not write level-log entries. This creates incompatible required behavior.",
+      "severity": "major",
+      "suggestion": "Require logging only for the non-terminal `none` route, or explicitly change the governing logging contract if terminal rerenders must be an exception."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "Two material inconsistencies remain around digest and logging behavior.",
+  "verdict": "changes_needed"
+}

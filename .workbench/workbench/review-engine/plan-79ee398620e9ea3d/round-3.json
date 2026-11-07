@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R3-F1",
+      "location": "Increment B — Steps 1–2",
+      "problem": "The format-3 plan-record rules do not tie `via` to the existing `delegate` object. They would admit, for example, `via: \"delegated\"` without delegate provenance, or a `terminal`/`ask`/`none` record carrying a delegate. Such records can still authorize a plan while falsely or incompletely representing how it was authorized, contrary to the decision’s separate-fields requirement.",
+      "severity": "major",
+      "suggestion": "Specify and test format-3 cross-field validation: when `via` is present, `delegated` requires a valid `delegate` object and every other value forbids it. Preserve the explicitly allowed legacy format-3 entries without `via`, including legacy delegated entries."
+    }
+  ],
+  "format": 1,
+  "round": 3,
+  "summary": "The plan otherwise tracks the named roadmap candidate and specs; its plan-approval format needs a provenance consistency invariant.",
+  "verdict": "changes_needed"
+}

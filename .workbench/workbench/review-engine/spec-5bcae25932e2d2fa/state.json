@@ -1,0 +1,140 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-10-26T16:04:22Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "Right: the digest steps named none by mistake. They now apply to ask only, and none has its own short rule with no preview and a log entry."
+    },
+    {
+      "at": "2026-10-26T16:04:29Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F2",
+      "reason": "The four review keys were bare names that the spec own key rule would reject. They now use the full wb spelling."
+    },
+    {
+      "at": "2026-10-26T16:04:34Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F3",
+      "reason": "Fair: block assumed a terminal that one command does not have. It now means the harness denies the agent, with the terminal test only where the command has one today."
+    },
+    {
+      "at": "2026-10-26T16:05:11Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F1",
+      "reason": "The criterion contradicted the accepted ask defaults. It now keeps the safety controls fixed, says nothing changes before the two keys are built, and says what changes after."
+    },
+    {
+      "at": "2026-10-26T16:07:04Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R3-F1",
+      "reason": "Correct: nothing a command could trust said the harness was attached and rendered. Added an attach-written record in the guarded store with a table digest, and every key fails closed to block without it. This edit was not reviewed again."
+    }
+  ],
+  "format": 1,
+  "generation": 9,
+  "kind": "spec",
+  "path": "docs/specs/command-permissions.md",
+  "rounds": [
+    {
+      "at": "2026-10-26T16:04:05Z",
+      "bridge": "ask-codex",
+      "document_sha256": "ec6ecebf7490a1aabd797043e1c0ba665a78047f4d36626ad8d4bc07ddea7ac2",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F2",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F3",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "dea8bfd951020ea1890028afe3e4d4e36536d59a8212d823065feab695814358",
+      "usage": {
+        "input_tokens": 106732,
+        "output_tokens": 2146,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-10-26T16:05:02Z",
+      "bridge": "ask-codex",
+      "document_sha256": "51a87379bc0d3cbf094f3613347384eda7de1216b87a7cdf203edb9c8c9d8219",
+      "file": "round-2.json",
+      "findings": [
+        {
+          "id": "R2-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "b1af8de356c05d543cc82526a34a322108db70e9afcc579501e030d6ca923ca7",
+      "usage": {
+        "input_tokens": 108113,
+        "output_tokens": 1837,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-10-26T16:06:30Z",
+      "bridge": "ask-codex",
+      "document_sha256": "b69fcf2f5d26da652cb26daabb38894776ec4a498e31340b1eccd28678b48dd3",
+      "file": "round-3.json",
+      "findings": [
+        {
+          "id": "R3-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 3,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "d0b1e1a96ff9d27469ad70827921285333772226f4784b5019a30e7dcb9f9bf7",
+      "usage": {
+        "input_tokens": 107797,
+        "output_tokens": 1851,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    }
+  ],
+  "seal": "22cfc66c065f6f3525e2b1ec33878a52a03d9811c3b1897e713646d0395a9a77",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

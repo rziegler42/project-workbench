@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R3-F1",
+      "location": "docs/plans/2026-11-02-bridge-request-controls.md:70-76, 115-118, 245-250",
+      "problem": "The real-server requirements contradict the defined helper grammar and wire mapping. The helper accepts `-1` but maps it to JSON number `-1`; `\"-1\"` as a wire value is not a helper input mode, and `-1m` is outside the grammar. Yet completion criterion 7 and increment F require testing all three, while the plan also says malformed keep_alive values are locally refused and raw probes are deferred.",
+      "severity": "major",
+      "suggestion": "Either limit increment F and criterion 7 to wire forms the helper can actually produce, or explicitly add a separately authorized raw-probe path with exact request shapes, recording location, and tests; do not describe `-1m` as a helper-run case."
+    }
+  ],
+  "format": 1,
+  "round": 3,
+  "summary": "The plan still has a material contradiction in its real-server keep_alive cases.",
+  "verdict": "changes_needed"
+}

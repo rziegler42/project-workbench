@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "docs/plans/2026-11-03-module-conformance-levels-and-hooks.md:45-47, 248; docs/specs/action-review.md:8-12, 524",
+      "problem": "The plan says the shadow hook is installed by the owner and writes their shadow log, but the named action-review spec says it has not been installed or run by the owner. This is drift from a named source-of-truth spec and affects the premise and sequencing of Increment C.",
+      "severity": "major",
+      "suggestion": "Reconcile the plan with the current action-review spec before approval: either correct the plan's claim, or update the spec through the appropriate approved work and make Increment C distinguish already-completed installation from the remaining registration guidance and doctor check."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "One material drift remains between the plan and its named action-review specification.",
+  "verdict": "changes_needed"
+}

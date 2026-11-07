@@ -1,0 +1,37 @@
+{
+  "closed": null,
+  "decisions": [],
+  "format": 1,
+  "generation": 2,
+  "kind": "adr",
+  "path": "docs/decisions/2026-11-02-command-gate-reads-gaps-and-data-positions.md",
+  "rounds": [
+    {
+      "at": "2026-11-03T01:27:33Z",
+      "bridge": "ask-codex",
+      "document_sha256": "108d50e1def9a6b26ae7d6fb954b88f53b72c0aee56363977f927e90f1e4098e",
+      "file": "round-1.json",
+      "findings": [],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "reading": "no_meaningful_changes",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "3cb1423e3bd4e9f47ea36dba76c5a6e9a696b29e91c909505297aac27ff31f8b",
+      "usage": {
+        "input_tokens": 230849,
+        "output_tokens": 3929,
+        "total_tokens": null
+      },
+      "verdict": "no_meaningful_changes"
+    }
+  ],
+  "seal": "f413ad8acedcdaae5146ac7b61ddc90cdcf6f23310a01fb25f35423c9cd88e62",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

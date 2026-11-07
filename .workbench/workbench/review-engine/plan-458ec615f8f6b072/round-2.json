@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "docs/plans/2026-11-03-levels-for-recover-pin-approve-attach.md:54-58, 66, 100-111",
+      "problem": "The completion criteria require Increment A to give `ask` to each acknowledge tier, while A limits its outcome to tiers that govern a command and C explicitly permits `acknowledge-second-tier` to remain without `ask` under an accepted record. Keeping A and C while that tier still governs no command therefore cannot satisfy the plan's own criteria.",
+      "severity": "major",
+      "suggestion": "Make criterion 1 apply only to acknowledge tiers that govern a command, or move the all-tier requirement to C and make it conditional on C's accepted decision."
+    },
+    {
+      "id": "R2-F2",
+      "location": "docs/plans/2026-11-03-levels-for-recover-pin-approve-attach.md:33-41, 75-77, 91-93, 112-114",
+      "problem": "The plan commits to the accepted record's full `ask` behavior, including refusal of malformed and repeated digests and the distinct terminal and `none` handling, but its required tests cover only missing and stale digests. The named verification could pass while these required cases regress or are implemented incorrectly.",
+      "severity": "major",
+      "suggestion": "Require a shared test matrix for every newly `ask`-enabled command covering missing, malformed, repeated, stale, terminal, and `none` digest cases, plus the no-change path's required lack of writes and log entries."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "Two internal verification/criteria gaps need correction before the plan can reliably implement the accepted digest decision.",
+  "verdict": "changes_needed"
+}

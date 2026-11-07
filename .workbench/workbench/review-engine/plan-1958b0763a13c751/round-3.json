@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R3-F1",
+      "location": "Increment D, steps 2–3; Increments F and G, logging steps",
+      "problem": "The plan requires every non-`block` run to log an entry before it acts, but never defines how the required `outcome` field is recorded. A pre-action append cannot know whether the later approval/extend succeeds or fails; the log is append-only, so it cannot simply be amended. This leaves the `command-permissions.md` log contract incomplete, including delegated approvals that refuse after their initial log write.",
+      "severity": "major",
+      "suggestion": "Specify a bounded append-only log format and lifecycle: for example, append a pre-action attempt entry with a stable operation ID, then append a terminal success/refusal outcome entry on every path; test both successful and post-log failure cases for delegated approval, `ask`, and `none`."
+    },
+    {
+      "id": "R3-F2",
+      "location": "Increment C, step 1",
+      "problem": "The plan immediately makes `accept-decision` offer `ask`, although this plan neither defines an agent-invokable acceptance command nor its required read-only preview and digest. That conflicts with `command-permissions.md`, which says `ask` is offered only when both exist, and makes the registry claim a permission level that the plan cannot safely implement.",
+      "severity": "major",
+      "suggestion": "Keep `accept-decision` at `block` until a dedicated plan defines and implements its prompt route, preview, digest, rendering mapping, and tests; or add that complete work to this plan if it is intentionally in scope."
+    }
+  ],
+  "format": 1,
+  "round": 3,
+  "summary": "Two material gaps remain: the append-only log cannot record final outcomes as planned, and Increment C enables `ask` for an unimplemented acceptance action.",
+  "verdict": "changes_needed"
+}

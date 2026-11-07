@@ -1,0 +1,14 @@
+{
+  "closed": null,
+  "decisions": [],
+  "format": 1,
+  "generation": 1,
+  "kind": "plan",
+  "path": "docs/plans/2026-10-29-specs-and-roadmap-cleanup.md",
+  "rounds": [],
+  "seal": "be971733cd00cf598a60687283c705e239fed3eb417e20401fc77f7e85e62023",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

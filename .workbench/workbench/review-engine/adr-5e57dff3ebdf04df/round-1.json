@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Evidence (first two bullets)",
+      "problem": "The provenance for the document reads and guarded-store listing omits the tool versions required by the project policy. The listing also does not identify the command environment beyond its date.",
+      "severity": "minor",
+      "suggestion": "Add the command/tool versions used for the reads and `ls` measurement (and the relevant environment where needed) to make the evidence reproducible."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The decision is internally coherent and consistent with the directly relevant contracts; its evidence provenance needs the required tool-version detail.",
+  "verdict": "no_meaningful_changes"
+}

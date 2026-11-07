@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Candidate line",
+      "problem": "The plan declares `Candidate: none` while introducing substantial new work beyond the completed `workbench-v1#ask-ollama-bridge` candidate. Reusing a completed candidate as a parenthetical rationale leaves this work unrepresented in the roadmap, contrary to the project workflow requiring work to move from a roadmap candidate into a plan.",
+      "severity": "major",
+      "suggestion": "Add a new roadmap candidate for model-specific endpoint configurations, context handling, `models`, and the endpoint-file rename; then name that candidate on this plan's Candidate line."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The plan is detailed and largely aligned with the two named specs, but it lacks a roadmap candidate for its new follow-up scope.",
+  "verdict": "changes_needed"
+}

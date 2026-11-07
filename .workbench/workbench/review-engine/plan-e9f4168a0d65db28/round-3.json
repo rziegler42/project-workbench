@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R3-F1",
+      "location": "Completion criteria 4",
+      "problem": "It specifies the settings entry as `python3 -I -B <dir>/shadow_hook.py --wb <absolute launcher>`, which omits both `env -i` and an absolute interpreter. This contradicts the Goal, Increment B, and Increment D, and would leave the unsafe, PATH-selected interpreter form in the required owner procedure.",
+      "severity": "major",
+      "suggestion": "Require the exact hardened entry consistently: `/usr/bin/env -i <absolute interpreter> -I -B <dir>/shadow_hook.py --wb <absolute launcher>`."
+    },
+    {
+      "id": "R3-F2",
+      "location": "Increment C, step 4",
+      "problem": "The planned spec statement that “the real Codex was not tried confined” and that the owner test-set is its first use drifts from `docs/specs/model-bridge.md`’s Confinement section, which records a successful confined `ask-codex` run with Codex CLI on 2026-11-01.",
+      "severity": "major",
+      "suggestion": "Remove that statement, or narrowly distinguish an untried real run of the action-review engine from the already recorded confined bridge run, while preserving the model-bridge evidence."
+    }
+  ],
+  "format": 1,
+  "round": 3,
+  "summary": "Two material inconsistencies remain in the hardened installation requirement and the recorded confinement evidence.",
+  "verdict": "changes_needed"
+}

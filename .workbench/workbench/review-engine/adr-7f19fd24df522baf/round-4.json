@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R4-F1",
+      "location": "Decision, item 3",
+      "problem": "The interface defines types only for `contract` and `truncated`. It does not require `action` to be the requested action string, `ok` to be a boolean, `errors` to have a defined JSON shape, or `facts` to be an object with an allowed value domain. The action-review engine therefore has no interoperable basis to validate these fields or reject a response for a different action.",
+      "severity": "major",
+      "suggestion": "Define the required type and validation rule for every top-level field, including that `action` exactly equals the requested action and `ok` is boolean. Define `errors` and `facts` shapes (including permitted fact-value types), or explicitly require each module contract version to provide those schemas and require the engine to validate them before using the response."
+    }
+  ],
+  "format": 1,
+  "round": 4,
+  "summary": "The revised declaration and truncation requirements address the earlier findings, but the remaining unspecified output-field schemas leave the core cross-module interface incomplete.",
+  "verdict": "changes_needed"
+}

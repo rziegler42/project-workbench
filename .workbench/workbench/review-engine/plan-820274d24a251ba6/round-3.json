@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R3-F1",
+      "location": "Increment E, step 4; Risks and sensitive actions",
+      "problem": "The first probe runs with proxy variables but without network confinement. A client that ignores those variables can connect directly outside the machine. Running a sandboxed probe afterwards does not prevent that first run from sending traffic, so the promised condition that nothing leaves the machine is unsupported.",
+      "severity": "major",
+      "suggestion": "Confine the proxy probe itself with an operating-system restriction that permits the loopback listener and denies external connections. If that confinement is unavailable, skip the probe and record the limitation."
+    }
+  ],
+  "format": 1,
+  "round": 3,
+  "summary": "The plan aligns with the roadmap candidate and explicitly proposes its spec changes, but the first telemetry probe does not enforce its promised network isolation.",
+  "verdict": "changes_needed"
+}

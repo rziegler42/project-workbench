@@ -1,0 +1,39 @@
+{
+  "closed": null,
+  "decisions": [],
+  "format": 1,
+  "generation": 2,
+  "kind": "plan",
+  "path": "docs/plans/2026-11-06-draft-plan-template-candidate.md",
+  "rounds": [
+    {
+      "at": "2026-11-06T23:30:37Z",
+      "bridge": "ask-codex",
+      "document_sha256": "ab575f7981e7a6aa9ed90727987cbee92317840b359a68ad63c333352f1d82f8",
+      "file": "round-1.json",
+      "findings": [],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "profile": "standard",
+      "reading": "no_meaningful_changes",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra",
+        "options": {}
+      },
+      "sha256": "62789baec12150da8be162a40a127630e5acf8a52cfb156f3f60fe6bde3527eb",
+      "usage": {
+        "input_tokens": 173581,
+        "output_tokens": 2227,
+        "total_tokens": null
+      },
+      "verdict": "no_meaningful_changes"
+    }
+  ],
+  "seal": "6b43174061210f230a4d18f3765b12d42c515aebd403d5c6beec9a26c8c177e3",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

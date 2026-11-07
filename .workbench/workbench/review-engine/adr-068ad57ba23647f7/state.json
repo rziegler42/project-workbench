@@ -1,0 +1,76 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-11-06T19:32:57Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "Agreed: the exemption was universal and rested on a per-helper property nothing enforced over time. Decision 3 now applies it only to a command that declares the property, verified by the installer against the pinned helper, so a new or changed helper loses it until revalidated."
+    }
+  ],
+  "format": 1,
+  "generation": 4,
+  "kind": "adr",
+  "path": "docs/decisions/2026-11-06-command-gate-and-prose-in-module-calls.md",
+  "rounds": [
+    {
+      "at": "2026-11-06T19:32:31Z",
+      "bridge": "ask-codex",
+      "document_sha256": "9f3335324172062417c358bc203889dc6a2d53f5d57069e1e26d1adace31716b",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "profile": "standard",
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra",
+        "options": {}
+      },
+      "sha256": "eafe279cd1dad77d9281a9dc59482ddf83965842a4d77a43e8c74ba9ed4de4e8",
+      "usage": {
+        "input_tokens": 454939,
+        "output_tokens": 4055,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-06T19:33:55Z",
+      "bridge": "ask-codex",
+      "document_sha256": "b60a671d9b28b302687d53abe76cbc65bf9c86e898f32172ef87f834f5ec50a5",
+      "file": "round-2.json",
+      "findings": [],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "profile": "standard",
+      "reading": "no_meaningful_changes",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra",
+        "options": {}
+      },
+      "sha256": "cd90194a8e47fb3be89a6e8d698f18472cdea72221c059ef7589fac6bfc3b27f",
+      "usage": {
+        "input_tokens": 114404,
+        "output_tokens": 1897,
+        "total_tokens": null
+      },
+      "verdict": "no_meaningful_changes"
+    }
+  ],
+  "seal": "34a60a779fd5000b84e82d658f707b3f9e22351176fbe405dfe84ab2afa6db8b",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

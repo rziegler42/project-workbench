@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Goals 2; Design — “Name and shape”; Acceptance criteria 1 and 6",
+      "problem": "The required terminal confirmation is stated as unconditional, but the command is also specified to offer `none`. In the governing permission spec, `none` expressly permits a non-terminal agent run; criterion 6 likewise limits the non-terminal refusal to the default level. The spec therefore does not define whether `none` is usable or whether rerender remains terminal-only.",
+      "severity": "major",
+      "suggestion": "State that terminal confirmation applies at `block`, while a valid rendered `none` level permits the defined non-terminal flow; or remove `none` from the command’s offered levels and acceptance criteria."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Design — “Name and shape” and “Plan output”",
+      "problem": "The digest is said to be typed after `wb preview rerender`, but the specification never requires the write command to rebuild and compare the preview/digest immediately before writing. A settings, manifest, package, or retained-rule change between commands could make the confirmed digest describe different writes, defeating the stated preview-before-change guarantee.",
+      "severity": "major",
+      "suggestion": "Specify the terminal and `none` execution flows: rebuild the complete plan immediately before mutation, require its digest to equal the confirmed digest when one is supplied, and refuse with no writes on any mismatch."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The draft has two material gaps around permission-level behavior and binding the confirmed preview to the writes.",
+  "verdict": "changes_needed"
+}

@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R3-F1",
+      "location": "Increment A step 3; Increment B step 1",
+      "problem": "The digest is specified to cover the table, two file hashes, retained/removed entries, and record body, but not the staged package or harness inputs. Rebuilding can therefore produce the same rendered permissions after a package input changes, leaving the confirmed digest unchanged. This conflicts with harness-rerender criterion 7, which requires refusal if anything the plan reads changes.",
+      "severity": "major",
+      "suggestion": "Include immutable identities/hashes for every staged package and relevant staged harness input in the plan digest, compare them during the pre-write rebuild, and add tests for an input change that leaves rendered permissions unchanged."
+    },
+    {
+      "id": "R3-F2",
+      "location": "Increment A outcome and steps 1, 3–4",
+      "problem": "The plan never explicitly requires preview output to list the files that will be replaced, nor tests that output. The referenced harness-rerender design explicitly requires the preview to list the files to replace.",
+      "severity": "major",
+      "suggestion": "Define the replacement-file entries in the preview output (including permissions file, local manifest, and rendering record as applicable) and add assertions that they are shown and covered by the digest."
+    }
+  ],
+  "format": 1,
+  "round": 3,
+  "summary": "The plan still omits binding staged package inputs to the confirmed plan and does not concretely plan the required replacement-file preview output.",
+  "verdict": "changes_needed"
+}

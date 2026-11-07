@@ -1,0 +1,230 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-11-01T21:06:08Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "Valid. The request bound was below what valid inputs need. It is now 2,100,000 bytes, with the arithmetic for the largest prompt and schema, and an oversize request is refused before any connection."
+    },
+    {
+      "at": "2026-11-01T21:06:14Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F2",
+      "reason": "Valid. A model name is now validated by both the contract rule and the record rule, so the fallback in the object always fits and model is never null for a call that was sent."
+    },
+    {
+      "at": "2026-11-01T21:06:14Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F3",
+      "reason": "Valid but minor. The request now names the literal User-Agent value and the exact content of each header."
+    },
+    {
+      "at": "2026-11-01T21:07:48Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F1",
+      "reason": "Valid. The order of conditions is now scoped: a body over its bound is reply_too_large for any status, an error status follows the status rows and the matching rule and falls to bad_exit when its body is not the expected shape, and the order of the remaining conditions applies to a success status."
+    },
+    {
+      "at": "2026-11-01T21:07:53Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F2",
+      "reason": "Valid. The embedding body is now model, input and truncate, plus options with num_ctx only when the record has a context, and no other field."
+    },
+    {
+      "at": "2026-11-01T21:07:54Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F3",
+      "reason": "Valid. The embedding request now names the same headers as ask, and says the transport, bounds and timeouts apply to it."
+    },
+    {
+      "at": "2026-11-01T21:09:00Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R3-F1",
+      "reason": "Valid. The order for a success status now includes done false, placed right after the body check and before context overflow and the cut reply, so every success reply has exactly one outcome."
+    },
+    {
+      "at": "2026-11-01T21:13:42Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R4-F1",
+      "reason": "Valid, and caused by my previous fix. The embedding command now has its own order of checks for a success status: the body, then the embeddings, then the size of the object, with the chat-only checks excluded and the status rows applying to an error status."
+    },
+    {
+      "at": "2026-11-01T21:23:38Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R5-F1",
+      "reason": "Valid. The embedding usage now follows the rule for ask: a whole number from 0 to 10^12 that is not a boolean is emitted, and anything else becomes null without making the reply unusable."
+    }
+  ],
+  "format": 1,
+  "generation": 17,
+  "kind": "spec",
+  "path": "docs/specs/ask-ollama.md",
+  "rounds": [
+    {
+      "at": "2026-11-01T21:05:26Z",
+      "bridge": "ask-codex",
+      "document_sha256": "7d5af31549d94f92af65efd8104a478d2aedad1df6087441a3388f7a68b6d1eb",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F2",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F3",
+          "severity": "minor"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "990932f72447c14fa23930d1fc238b231cc91eff2d368787a9f263766f523e5c",
+      "usage": {
+        "input_tokens": 119579,
+        "output_tokens": 3048,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-01T21:07:35Z",
+      "bridge": "ask-codex",
+      "document_sha256": "447c96d67e9eea6f0548c9e86fed3b46255e99a62feb0af97d244fbb2ef4172a",
+      "file": "round-2.json",
+      "findings": [
+        {
+          "id": "R2-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R2-F2",
+          "severity": "major"
+        },
+        {
+          "id": "R2-F3",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "dfe5ffbe32ba46bb874a6b05a4fa6a3b9a6e483513bf964e38e6c37690d1b149",
+      "usage": {
+        "input_tokens": 241159,
+        "output_tokens": 2915,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-01T21:08:50Z",
+      "bridge": "ask-codex",
+      "document_sha256": "64d089076974e26c69b94cefdabc49ddc63f5bfe23091f036c6f5a9ed2c90122",
+      "file": "round-3.json",
+      "findings": [
+        {
+          "id": "R3-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 3,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "7e49bda7b1c0b165a4fb8a92af0007a95ae7b1935ffd53ece54bc59af8c54800",
+      "usage": {
+        "input_tokens": 169261,
+        "output_tokens": 2049,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-01T21:13:14Z",
+      "bridge": "ask-codex",
+      "document_sha256": "f6a5def6337b704e3ab378fd789e88ee206cc86bc0a98107ad243356ba488b7a",
+      "file": "round-4.json",
+      "findings": [
+        {
+          "id": "R4-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 4,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "3c7afc93e028329fd02b128f0167b2bfaa761a6f2703bc12518a7fcb1bb4531e",
+      "usage": {
+        "input_tokens": 200333,
+        "output_tokens": 2406,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-01T21:23:30Z",
+      "bridge": "ask-codex",
+      "document_sha256": "da1c55f75a7ec90390649484aadd8d89b5109ad23af09182b163dcdae31bb386",
+      "file": "round-5.json",
+      "findings": [
+        {
+          "id": "R5-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 5,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "383fe2004b65265b7377880be14f673a70faa5f097bc91c7bc6a56b84b9b0152",
+      "usage": {
+        "input_tokens": 108676,
+        "output_tokens": 2490,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    }
+  ],
+  "seal": "962e9097cc2a280b34c016a7b10ef0a1dcf99a65ce097b3f9f76347ede424178",
+  "window": {
+    "bound": 5,
+    "first": 1
+  }
+}

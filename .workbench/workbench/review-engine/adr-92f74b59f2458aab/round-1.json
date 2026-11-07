@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Decision 3",
+      "problem": "The record leaves the durable acceptance mechanism to a later plan, choosing between directly changing the decision status and recording a separate approval. Those designs have materially different trust roots and semantics, so the decision does not define what it means for the new `ask` gate to accept a record.",
+      "severity": "major",
+      "suggestion": "Choose and specify the acceptance state model here, including the authoritative record and how the command atomically verifies the preview digest before recording acceptance."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Decision 4",
+      "problem": "It requires altering the status line of an already accepted decision to name this record. That conflicts with `docs/decisions/README.md` and the project policy, which require accepted decisions to remain unrevised and changes to be expressed by a new superseding record.",
+      "severity": "major",
+      "suggestion": "Do not modify the accepted record. State this record's supersession/refinement relationship in this new record using the repository's durable-decision convention, or adjust the governing decision-record policy through an explicitly accepted replacement."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The proposal leaves the acceptance trust model unresolved and conflicts with the repository's immutable accepted-decision rule.",
+  "verdict": "changes_needed"
+}

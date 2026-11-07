@@ -1,0 +1,36 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Increment A, step 1",
+      "problem": "The proposed definition says any owner-run command may be set to `delegated`. `command-permissions.md` says only `approve-plan` offers that level; other owner-run commands may offer only `ask` and/or `none`, or remain block-only. This would make the terms spec contradict its owning permissions spec.",
+      "severity": "major",
+      "suggestion": "Define delegation as available only where that command/key offers `delegated` and its declared gate applies; retain the per-command offered-level restriction."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Increment C, step 2",
+      "problem": "It directs the inventory to say the project floor “now covers” four protections from the floor-rules plan, but that plan is still Proposed and its Result says its required local commit is pending. This plan neither depends on it nor limits the wording to an uncommitted local state, so the historical inventory could assert a shipped/current capability that is not established by the plan state.",
+      "severity": "major",
+      "suggestion": "Either add the floor-rules increment as a completed, committed dependency and verify the resulting code, or describe those protections as pending until that increment is committed."
+    },
+    {
+      "id": "R1-F3",
+      "location": "Increment C, step 4",
+      "problem": "The plan directs a tracked inventory to enumerate previously unrecorded sensitive authentication material from an owner-local backup, but has no security-review checkpoint. Project policy requires asking the owner whether to run the installed security review when work materially touches secrets.",
+      "severity": "major",
+      "suggestion": "Add a checkpoint before this step asking the owner whether to run a security review, and limit the tracked record to the minimum non-sensitive provenance/status needed."
+    },
+    {
+      "id": "R1-F4",
+      "location": "Increment D, step 6",
+      "problem": "The roadmap is to assert that the former template is the only other copy needed by two candidates, but the plan provides neither a source nor a verification step for that exclusivity claim. A false assertion could lead to archiving the remaining source before needed material is preserved.",
+      "severity": "major",
+      "suggestion": "Add an evidence step that verifies the relevant backup/template contents and records provenance by role, retrieval date, and hash; otherwise state the claim conditionally and defer archival until the owner verifies it."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The plan has several material contradictions and missing safeguards around permission-state claims, sensitive backup inventory, and roadmap archival assertions.",
+  "verdict": "changes_needed"
+}

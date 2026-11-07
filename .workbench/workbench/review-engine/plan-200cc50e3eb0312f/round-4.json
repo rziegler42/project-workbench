@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R4-F1",
+      "location": "Scope; Non-goals; Increment C steps 4–5",
+      "problem": "The plan moves `model-bridge.md` to contract version 2 but explicitly excludes the version-2 replacement for guarantee 7, only stating that server-bridge rules are not implemented. The accepted contract-version-2 decision requires that guarantee 7 be replaced with the program-bridge and server-bridge rules, including endpoint and transport constraints. Leaving the version-1 no-network guarantee in a version-2 contract makes the governing spec incomplete and contradicts that decision.",
+      "severity": "major",
+      "suggestion": "In Increment C, update guarantee 7 to the complete version-2 contract from the accepted decision, clearly distinguishing rules that govern a future server bridge from functionality not yet implemented. Remove the non-goal that defers the contract change itself; defer only implementation of the Ollama bridge."
+    }
+  ],
+  "format": 1,
+  "round": 4,
+  "summary": "The plan is otherwise aligned with the named roadmap candidate and engine specs, but its proposed version-2 contract omits the required guarantee-7 amendment.",
+  "verdict": "changes_needed"
+}

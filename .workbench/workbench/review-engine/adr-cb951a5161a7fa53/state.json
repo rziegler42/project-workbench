@@ -1,0 +1,72 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-11-04T18:23:04Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "Checked against item 9 of the 2026-10-23 record: the finding is right. Item 6 now limits itself to the profile check and says item 9 stands, and the closing sentence names item 9."
+    }
+  ],
+  "format": 1,
+  "generation": 4,
+  "kind": "adr",
+  "path": "docs/decisions/2026-11-04-delegated-approval-checks-the-profile-of-the-last-round.md",
+  "rounds": [
+    {
+      "at": "2026-11-04T18:22:46Z",
+      "bridge": "ask-codex",
+      "document_sha256": "984222421f6b6fa36e6af831cfce36cde6d7ca04f699608fa9c5f34fd6c995fe",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "9a95b5e56e67a59f2dea601125ea3d4358d5f1a7475b2e01713cafaed5e88ef4",
+      "usage": {
+        "input_tokens": 244160,
+        "output_tokens": 3107,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-04T18:33:31Z",
+      "bridge": "ask-codex",
+      "document_sha256": "92f1f15ef3cee0cd16ccc66312de40e7b71aa0ae33d19103474423879c242417",
+      "file": "round-2.json",
+      "findings": [],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "reading": "no_meaningful_changes",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "0f9335108f662a8911bf6c3dc138af8ed691a85bfc74ffc275da1140a04b0771",
+      "usage": {
+        "input_tokens": 69736,
+        "output_tokens": 1019,
+        "total_tokens": null
+      },
+      "verdict": "no_meaningful_changes"
+    }
+  ],
+  "seal": "94addd1a3190006d900bc9afab5c4411ff8b0972cda2810d837fc51b5c6fd1d8",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

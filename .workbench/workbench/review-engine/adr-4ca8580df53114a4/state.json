@@ -1,0 +1,52 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-11-05T03:12:30Z",
+      "choice": "rejected",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "True of harnesses without permissions, but the record is accepted and is never rewritten; harness-modules.md already states the warning case."
+    }
+  ],
+  "format": 1,
+  "generation": 3,
+  "kind": "adr",
+  "path": "docs/decisions/2026-10-19-restrictive-only-permissions.md",
+  "rounds": [
+    {
+      "at": "2026-11-05T03:12:15Z",
+      "bridge": "ask-codex",
+      "document_sha256": "8eb500260b8556fba1ca9d893760d1aaacd6daab9bd164d1a2b96ee7ccb05951",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "minor"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "profile": "standard",
+      "reading": "no_meaningful_changes",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra",
+        "options": {}
+      },
+      "sha256": "ee6ade824ea7473d21fe9ab39ae201bf6a86113c48d43ad2f0505aa042a0fddd",
+      "usage": {
+        "input_tokens": 95611,
+        "output_tokens": 1057,
+        "total_tokens": null
+      },
+      "verdict": "no_meaningful_changes"
+    }
+  ],
+  "seal": "23a0bcca6d0aea049abde4c53fc921c628f37fe8d0c51ddcf4737430140252ce",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

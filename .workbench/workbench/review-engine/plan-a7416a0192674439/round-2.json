@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "docs/plans/2026-11-06-verify-names-a-package.md:23, 29, 43",
+      "problem": "The planned refusal only gives the placeholder command form `wb verify <package>`; it gives no concrete package-directory example. The named roadmap candidate explicitly requires an example such as `packages/workbench`, so the plan still drifts from its candidate despite the round-1 disposition.",
+      "severity": "major",
+      "suggestion": "Include a concrete directory example in the refusal wording and assertions, for example `wb verify packages/workbench`, while retaining the required `wb` command prefix."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "The plan otherwise addresses the prior dangling-link concern, but it still omits the roadmap-required concrete package example.",
+  "verdict": "changes_needed"
+}

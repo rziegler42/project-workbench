@@ -1,0 +1,36 @@
+{
+  "findings": [
+    {
+      "id": "R3-F1",
+      "location": "docs/specs/mempalace-notes.md:202-216",
+      "problem": "`review` has no wing selector even though drafts may exist in multiple project, topic, and shared wings. It is unclear which drafts are reviewed and how `keep` selects them; the per-wing journal design does not resolve this.",
+      "severity": "major",
+      "suggestion": "Add an explicit `--wing` to `review` and define whether `keep` handles one wing per digest, or specify an all-wings digest and corresponding locking/journal behavior."
+    },
+    {
+      "id": "R3-F2",
+      "location": "docs/specs/mempalace-notes.md:91-95,228-231",
+      "problem": "Filename collision checks exclude archived notes. A new draft can reuse the filename of an archived draft, and a later `drop` can rename over the existing archive entry, losing the recoverable note.",
+      "severity": "major",
+      "suggestion": "Include the archive namespace in collision checks, or define unique archive filenames and require refusal rather than replacement on collision."
+    },
+    {
+      "id": "R3-F3",
+      "location": "docs/specs/mempalace-notes.md:178-181,198-200",
+      "problem": "`drop` and `merge` do not define how their draft arguments identify a wing or resolve a title versus filename. Identical names can exist in different wings, so the commands can target the wrong note or cannot be implemented safely; self-merge is also not ruled out.",
+      "severity": "major",
+      "suggestion": "Define an unambiguous target syntax including wing and state, reject paths and reviewed/archive targets where inappropriate, and explicitly refuse merging a draft into itself."
+    },
+    {
+      "id": "R3-F4",
+      "location": "docs/specs/mempalace-notes.md:91-94,188-190",
+      "problem": "`--new` is said to create a note despite overlap when the title differs, but titles that normalize to the same filename still collide and no alternate filename rule is provided. Thus a valid `--new` request cannot reliably create the requested note.",
+      "severity": "major",
+      "suggestion": "Define a collision-safe suffix or identifier for `--new`, or state that normalized-name collisions remain refusals and adjust the `--new` behavior and acceptance criteria accordingly."
+    }
+  ],
+  "format": 1,
+  "round": 3,
+  "summary": "The remaining gaps concern multi-wing review scope, archive data loss on filename reuse, ambiguous mutation targets, and contradictory `--new` filename behavior.",
+  "verdict": "changes_needed"
+}

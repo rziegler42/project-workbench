@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Scope and completion criteria (lines 16, 32, 40-41, 54-55)",
+      "problem": "The release-record exemption is specified as any one path segment under `workbench/shipped_approvals/packages/`, although the Goal limits it to records under `<hash>`. This would let an arbitrary file such as `workbench/shipped_approvals/packages/not-a-hash/approval.json` bypass the long-token scan, expanding the security exception beyond actual release records.",
+      "severity": "major",
+      "suggestion": "Require the intervening segment to be exactly the release-record hash format (for example, 64 lowercase hexadecimal characters), and add a non-hash single-segment path to the look-alike tests that must still return `long_hex`."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The plan has one material path-scope gap: its proposed release-record exemption is broader than the hash-record path named in its goal.",
+  "verdict": "changes_needed"
+}

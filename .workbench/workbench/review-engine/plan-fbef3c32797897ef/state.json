@@ -1,0 +1,117 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-10-25T14:37:08Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "Settings rules are now inventoried one entry at a time, with a shared line allowed only for entries of the same disposition and reason; group counts are summaries."
+    },
+    {
+      "at": "2026-10-25T14:37:08Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F2",
+      "reason": "The plan now only proposes dispositions for the durable choices and leaves any decision record to the owner, so it makes no durable choice itself."
+    },
+    {
+      "at": "2026-10-25T14:37:08Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F3",
+      "reason": "The criterion now says this work wrote nothing under the global directory, and hashes are taken at the start and end of each increment with outside changes reported and not failed."
+    },
+    {
+      "at": "2026-10-25T14:39:26Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F1",
+      "reason": "Real conflict with the provenance rule; the spec now names global files by role, date and hash with an owner-local note and writes no path to them."
+    },
+    {
+      "at": "2026-10-25T14:39:27Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F2",
+      "reason": "The review record section is filled with both rounds and how each finding was handled."
+    }
+  ],
+  "format": 1,
+  "generation": 8,
+  "kind": "plan",
+  "path": "docs/plans/2026-10-25-global-config-migration.md",
+  "rounds": [
+    {
+      "at": "2026-10-25T14:36:39Z",
+      "bridge": "ask-codex",
+      "document_sha256": "b211c3f7f6dc3191412bfad147bb5c8124a076328fab25bbfe1166fc8ab0d267",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F2",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F3",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "d138d27ef9e2c75edd22271be9662f5de7305731a94997cf1fb88f0df9573e2a",
+      "usage": {
+        "input_tokens": 116097,
+        "output_tokens": 3886,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-10-25T14:39:09Z",
+      "bridge": "ask-codex",
+      "document_sha256": "b64fd308259ac5f4e339e6dd710c68087de5849fc52e6f45f817e4b717ecc10c",
+      "file": "round-2.json",
+      "findings": [
+        {
+          "id": "R2-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R2-F2",
+          "severity": "minor"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "f449f7ee0a466d1da0f3922f6b2e52c2c00466a0757114e16bcdf345358568ac",
+      "usage": {
+        "input_tokens": 101643,
+        "output_tokens": 2447,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    }
+  ],
+  "seal": "0452497cd66094ba055edf521ce7dbf8c396196cecdb575de1f7305e76164c1a",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

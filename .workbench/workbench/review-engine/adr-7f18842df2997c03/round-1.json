@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Decision, item 3",
+      "problem": "The record is still `Status: Proposed`, but says the owner already chose to wait and that the choice is part of this decision. That presents an unapproved decision as settled, contrary to the record's own status and the project approval process.",
+      "severity": "major",
+      "suggestion": "State this only as the author's recommendation while Proposed; record an owner choice only when the decision is formally accepted."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Decision, item 5; Alternatives considered, “Ignore `__pycache__` and `.pyc`”",
+      "problem": "The rejection relies on the categorical claim that Python loads a cache file found beside imported code. A `__pycache__` bytecode cache is not independently loadable merely because it exists; its use depends on the corresponding import/source and bytecode validation. The document also expressly says it did not check whether any shipped helper has the relevant import behavior.",
+      "severity": "major",
+      "suggestion": "Remove the unsupported loadability claim, or verify and document the relevant shipped import paths. Retain the simpler, supported rationale that untracked files must remain covered by the package integrity hash."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "Two material issues: the proposed record treats an owner choice as already settled, and its security rationale for rejecting cache exclusions overstates Python bytecode-cache behavior.",
+  "verdict": "changes_needed"
+}

@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R3-F1",
+      "location": "docs/plans/2026-11-05-mempalace-per-clone-use.md — Completion criterion 5; Increment D, Step 1 and “The lock”",
+      "problem": "The preview must “write nothing,” but it must also acquire a lock whose file and parent directory it creates when absent. On a fresh machine, the specified preview therefore changes the filesystem and cannot pass its required verification. This contradiction was introduced by moving the lock beside the palace.",
+      "severity": "major",
+      "suggestion": "Define whether preview may create the lock file and its parent directory. If permitted, explicitly narrow the no-write guarantee and test those exact filesystem effects; otherwise specify how preview acquires the lock without creating either."
+    }
+  ],
+  "format": 1,
+  "round": 3,
+  "summary": "The revised lock design conflicts with the preview’s no-write requirement. The earlier applied findings are otherwise not repeated.",
+  "verdict": "changes_needed"
+}

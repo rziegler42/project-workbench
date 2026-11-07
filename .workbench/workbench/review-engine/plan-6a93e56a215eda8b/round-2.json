@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "Increment C — Affected areas and Steps 1–3 (lines 132–140); Increment B Step 1 (lines 117–121)",
+      "problem": "The plan removes `init` but does not explicitly update the recall-memory skill or its guidance test. B explicitly preserves the skill text that says “Never run `init` or `mine`”, while the current guidance test pins that wording. This conflicts with completion criterion 4’s requirement that no test, spec, or doc offer `init`.",
+      "severity": "major",
+      "suggestion": "Add the skill and `test_mempalace_guidance.py` to C, and specify replacement wording that prohibits the remaining owner-run commands (`mine` and `sync`) without naming removed `init`; update B so its preservation requirement applies only until C."
+    },
+    {
+      "id": "R2-F2",
+      "location": "Increment D — “The lock” and D Step 1 (lines 163–177)",
+      "problem": "Every mine/sync run is specified to lock `.workbench/local/mempalace.lock`, but the plan does not define or test safe creation of the untracked `local` directory when it is absent. A fresh clone normally has no untracked `local` directory, and criterion 1 expressly treats that absence as valid. As written, terminal owner runs can fail before starting the program, undermining the per-clone/no-setup goal.",
+      "severity": "major",
+      "suggestion": "Specify a no-follow, descriptor-relative creation path for a missing `local` directory (with its required mode and refusal cases), or narrowly state and implement an alternative safe lock location. Add tests for terminal and ask-level runs from a clone with no `local` directory, plus link/non-directory contention cases."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "Two implementation gaps remain: the init-removal guidance contradicts its completion criterion, and the lock design does not handle a fresh clone without `.workbench/local`.",
+  "verdict": "changes_needed"
+}

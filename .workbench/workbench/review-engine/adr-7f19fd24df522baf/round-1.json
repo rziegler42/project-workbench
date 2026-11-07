@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Decision, item 3",
+      "problem": "The required size cap for `facts` has no defined value or measurement rule. Because facts may contain diffs and are sent onward to checks and a model, each implementation could choose an incompatible or ineffective bound.",
+      "severity": "major",
+      "suggestion": "Define a numeric maximum and what it applies to (for example, serialized UTF-8 object size, plus any per-value limits), along with the required refusal or truncation behavior."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Decision, item 5; Consequences, Neutral",
+      "problem": "The record requires the engine to run `describe` only through the launcher, but does not define a capability or declaration mechanism by which the launcher can distinguish an approved describe provider from another pinned command. The record explicitly leaves that mechanism unsettled, so this security-relevant restriction cannot yet be implemented or verified.",
+      "severity": "major",
+      "suggestion": "Specify the capability/declaration contract now (including the launcher invocation constraint), or narrow the decision to defer that enforcement requirement until the module-contract decision establishes it."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The proposed interface has two material gaps: its data bound is undefined, and its required launcher authorization cannot yet be enforced.",
+  "verdict": "changes_needed"
+}

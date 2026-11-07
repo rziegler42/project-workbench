@@ -1,0 +1,29 @@
+{
+  "findings": [
+    {
+      "id": "R5-F1",
+      "location": "docs/specs/command-permissions.md:864-873; plan Scope and Increments",
+      "problem": "The named spec still assigns merging `wb run remote-runner submit`/`fetch` with `submit-remote-job`/`fetch-remote-output` to this plan. This split version has no such scope, increment, named remote-runner/mempalace specs, or replacement plan reference, so it drifts from its source spec and leaves the assigned work unplanned.",
+      "severity": "major",
+      "suggestion": "Restore a decision/build increment for the pairing and name the affected specs, or first make an owner-approved decision/spec update that explicitly reassigns it to one of the split plans and names that plan."
+    },
+    {
+      "id": "R5-F2",
+      "location": "docs/plans/2026-11-02-permission-levels-for-every-command.md:47-49, 86-117, 141-155",
+      "problem": "The plan-wide constraint requires every behavior change to update the affected specs in the same commit, but B changes four commands and C changes six more without listing or stepping any spec updates. E postpones those updates until after the implementation and walk-through. That would knowingly leave current specifications false between increments, contrary to the plan and to the existing terminal-only/`none` descriptions in the named specs.",
+      "severity": "major",
+      "suggestion": "For B and C, name the applicable specification files as affected areas and add same-commit update steps; reserve E for reconciling remaining intended text and recording the completed evidence."
+    },
+    {
+      "id": "R5-F3",
+      "location": "docs/plans/2026-11-02-permission-levels-for-every-command.md:150-157",
+      "problem": "The proposed walk-through treats a throwaway project as sufficient for every command. `wb approve` changes the machine-wide guarded-store approval records, and other commands can change guarded-store state; a throwaway project does not isolate those writes. The plan therefore lacks a safe, reproducible verification arrangement and could leave real owner state changed by a test.",
+      "severity": "major",
+      "suggestion": "Specify an isolated test store/home supported by the test harness (or an explicitly approved disposable store) for the walkthrough, enumerate each non-project write it contains, and record cleanup/retention expectations."
+    }
+  ],
+  "format": 1,
+  "round": 5,
+  "summary": "The plan still drifts from the command-permissions assignment for remote checkpoint pairing, postpones required spec updates beyond behavior changes, and lacks isolation for store-mutating walkthroughs.",
+  "verdict": "changes_needed"
+}

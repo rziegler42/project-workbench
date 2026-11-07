@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Goal; Non-goals; Completion criterion 2; Increments A, C, D, E and F",
+      "problem": "The plan intentionally leaves `delegated` unsupported and makes it read as `block`, despite the named roadmap candidate requiring `accept-decision` to offer `block`, `ask`, `delegated`, and `none`. This also conflicts with the accepted decision the plan relies on, which explicitly gives `accept-decision` all four levels. The decision’s unresolved delegated-review subject is a reason to obtain a follow-up decision, not to represent the level as unavailable while claiming this plan advances that candidate.",
+      "severity": "major",
+      "suggestion": "Either add a decided delegated route and its implementation/tests, or narrowly retarget this plan to the `ask` command work and record a separate approved roadmap candidate/decision for the outstanding delegated behavior before claiming the original candidate can close."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The plan has a material scope drift: it omits the required delegated level for accept-decision.",
+  "verdict": "changes_needed"
+}

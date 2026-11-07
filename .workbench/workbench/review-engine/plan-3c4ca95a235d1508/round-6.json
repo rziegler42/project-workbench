@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R6-F1",
+      "location": "Completion criterion 3; Increment C, steps 1–3",
+      "problem": "Criterion 3 requires any command that cannot offer `ask` to name both the reason and the decision record that keeps it so. Increment C permits recording only a reason in a spec and contains no decision-record draft, owner checkpoint, or accepted-record reference for `recover`, `approve`, `pin`, or the acknowledge tiers. Thus its allowed no-preview outcome cannot satisfy the completion criterion, and it leaves a terminal-only exception without the promised owner decision.",
+      "severity": "major",
+      "suggestion": "For every C command that remains without `ask`, require a Proposed decision record (or cite a specific existing accepted record), stop for the required owner acceptance, and update the spec with that record; alternatively revise the completion criterion if a spec-only exception is intended."
+    }
+  ],
+  "format": 1,
+  "round": 6,
+  "summary": "The plan has a material inconsistency for any remaining terminal-only command in Increment C.",
+  "verdict": "changes_needed"
+}

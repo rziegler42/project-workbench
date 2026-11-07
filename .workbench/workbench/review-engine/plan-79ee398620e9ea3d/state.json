@@ -1,0 +1,129 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-10-29T16:42:45Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "Verified: two more writers of pins exist. The plan now lists them, keeps their role text without via, makes via optional in the new pin format, and tests install, upgrade, add and acknowledge."
+    },
+    {
+      "at": "2026-10-29T16:42:45Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F2",
+      "reason": "Verified: only plan approvals had an output contract. Increment C now names the current output lines, the new forms for approve and pin, and tests that fix the text."
+    },
+    {
+      "at": "2026-10-29T16:44:58Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F1",
+      "reason": "Verified: only the delegated form was given. Increment B now fixes the line for terminal, ask, none and delegated approvals and for a repeat, with exact-output tests, and Increment D copies them into the interface spec."
+    },
+    {
+      "at": "2026-10-29T16:47:16Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R3-F1",
+      "reason": "Verified: nothing tied via to the delegate object. Increment B now requires that delegated carries a valid delegate and the other values forbid one, tested on read and write, with old entries still read."
+    }
+  ],
+  "format": 1,
+  "generation": 8,
+  "kind": "plan",
+  "path": "docs/plans/2026-10-29-approvals-name-the-approver.md",
+  "rounds": [
+    {
+      "at": "2026-10-29T16:42:13Z",
+      "bridge": "ask-codex",
+      "document_sha256": "3732c51678abd11570a237fc31e2e8ce3a8cbecc16052443422781cbef470416",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F2",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "e29caa3580f46da0e82e7dad8d5764a9d655bf9e17a80fdcc0cb1e58f1b1a274",
+      "usage": {
+        "input_tokens": 251328,
+        "output_tokens": 3488,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-10-29T16:44:50Z",
+      "bridge": "ask-codex",
+      "document_sha256": "fbb7f35c93491c58b960e843e552e542c6fdcfc5ff4f0f8d959bbb994dbc8164",
+      "file": "round-2.json",
+      "findings": [
+        {
+          "id": "R2-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "ca5995beb4da0a831e0692ece40f59195ae7e5855be4764e0b9f81693a714bac",
+      "usage": {
+        "input_tokens": 320009,
+        "output_tokens": 3556,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-10-29T16:47:11Z",
+      "bridge": "ask-codex",
+      "document_sha256": "23f2ce9eb190fffde8a8cb7303cd2c4f90f8c97bc5ac5e8d27f21c1076529cfe",
+      "file": "round-3.json",
+      "findings": [
+        {
+          "id": "R3-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 3,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "532f0072ce839c25d1fd72564534004328b1dc838b55e1c43c897fb5a04ae597",
+      "usage": {
+        "input_tokens": 271691,
+        "output_tokens": 3932,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    }
+  ],
+  "seal": "b40b6f3815ae2c5984cc1a08722cbd0a55f0df814cbed6f44a65e6ec710208d4",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

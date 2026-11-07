@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R3-F1",
+      "location": "Behavior — “The preview and the digest (`ask`)”, `none` paragraph; “Rendering”; Acceptance criterion 7",
+      "problem": "`none` is required to have no rendered rule, yet it must refuse unless the harness is “shown” to hold no stopping rule and reads as `block` when unattached or rendered rules drift. The spec defines no authoritative attachment/rendering attestation that a command can use for this test. `wb check` cannot supply one because the referenced installer spec says its local manifest is not evidence; absence of a rule cannot distinguish an intentional `none` rendering from no permissions harness or a removed rendering. The parenthetical that both `ask` and `none` need a rule that produces a prompt also contradicts `none`’s required absence of a rule.",
+      "severity": "major",
+      "suggestion": "Specify a fail-closed, guarded-store-backed attachment/rendering record (including harness identity and a digest of the effective level table or generated rules) that commands validate before honoring `none`; define how attach writes it, how drift invalidates it, and revise the rendering text to say that only `ask` requires a prompt rule."
+    }
+  ],
+  "format": 1,
+  "round": 3,
+  "summary": "The `none` level lacks a defined, authoritative way to establish that its intentionally absent rule is a valid attached rendering rather than missing enforcement.",
+  "verdict": "changes_needed"
+}

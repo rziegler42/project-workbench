@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "Assumptions and constraints “The key” (lines 59–61); Completion criterion 1; Increment C step 1",
+      "problem": "The plan gives incompatible behavior for a command mapping whose checkpoint is absent: it says the argument keeps its own key when no installed process module declares the checkpoint, while the completion criterion and tests require an undeclared checkpoint mapping to be refused. This matters for `groundwork`, which is not a process module and can currently be installed without `code-work`; the plan does not say whether its `accept` command is rejected, falls back to a separate `wb run groundwork accept` key, or requires a process module. Those choices have different permission and rendering behavior.",
+      "severity": "major",
+      "suggestion": "Choose and specify one install-time/verification rule, including the selected-module case and its tests. If fallback is intended, require it explicitly and test its offers and gate behavior; if it is not, reject the selected configuration and state how this coexists with groundwork’s supported installation without a process module."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "The plan is otherwise aligned with its stated partial scope, but its checkpoint-command mapping has a material unresolved contradiction.",
+  "verdict": "changes_needed"
+}

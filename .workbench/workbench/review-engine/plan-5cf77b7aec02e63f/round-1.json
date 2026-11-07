@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "The section, second bullet; Completion criterion 2",
+      "problem": "The planned text says not to name a relaxed command in any other command and forbids pipes, but the command-permissions spec expressly permits a closed data-position form, including pipelines of read-only tools and single-quoted search terms. This misstates accepted forms, contradicting the plan goal, and can prevent the intended safe search/read workflow.",
+      "severity": "major",
+      "suggestion": "Revise the section and criterion to describe the permitted data-position form precisely (including its limited pipeline syntax), while retaining prohibitions for all other forms."
+    },
+    {
+      "id": "R1-F2",
+      "location": "The section, fourth bullet; Completion criterion 2",
+      "problem": "It says every refusal ends with an alternative form and names only names, gap, and size-limit. The spec says only names and gap refusals provide an alternative; dollar-quote-limit is also a possible named rule, and size-limit has no prescribed replacement form.",
+      "severity": "major",
+      "suggestion": "Distinguish names/gap refusals, which provide a retry form, from size-limit and dollar-quote-limit refusals, which require reporting or shortening/simplifying rather than retrying an asserted hint."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The planned guidance materially drifts from the command-gate specification on allowed data-position commands and refusal handling.",
+  "verdict": "changes_needed"
+}

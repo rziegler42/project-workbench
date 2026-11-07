@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Decision 3, “Free a literal call of another module command”",
+      "problem": "The proposed exemption applies to every current and future module command, but its safety depends on each helper dispatching only an exact first argument. Per-helper tests at implementation time do not preserve that condition when a module is added or its helper changes; a later helper that accepts prefixes, aliases, or re-dispatches another argument would silently receive the exemption.",
+      "severity": "major",
+      "suggestion": "Make the exemption an explicit reviewed allowlist, or establish and enforce a module-declaration/verification invariant that every eligible helper uses an exact first-argument dispatch. Require revalidation before a new or changed helper can receive the exemption."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The proposed universal exemption lacks an enforceable safety boundary for future module helpers.",
+  "verdict": "changes_needed"
+}

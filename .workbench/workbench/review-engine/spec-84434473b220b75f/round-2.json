@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "Behavior — “What the preview shows, per file” state table; “The permissions file”",
+      "problem": "The universal state rules conflict with the retained-`allow` behavior inherited from `harness-rerender.md`. A normal permissions file containing an owner-added `allow` differs both from the recorded attach hash and from the freshly rendered permissions bytes, so the table classifies it as `edited` and refuses the whole refresh. The existing rerender design instead carries those rules into the planned bytes, previews them, and records their resulting hash.",
+      "severity": "major",
+      "suggestion": "Define the permissions-file planned/staged bytes as the rendered permissions plus validated carried `allow` rules, with those rules and the resulting digest shown in preview; then apply the state comparison to those bytes. Alternatively, explicitly retain its existing special-case behavior outside the universal table."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "The refresh state model would reject ordinary rerenders that preserve owner-added permission allow rules.",
+  "verdict": "changes_needed"
+}

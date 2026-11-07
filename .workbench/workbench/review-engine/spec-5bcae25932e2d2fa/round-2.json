@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "Acceptance criteria 1; “Shipped defaults” and “The preview and the digest (`ask`)”",
+      "problem": "Criterion 1 says that with no settings or a version-1 settings file, no currently owner-run action becomes runnable by an agent. But the specified shipped defaults make `approve-plan` and `wb run review-engine extend` effective `ask` actions once their previews exist; at `ask`, the agent runs the command after the owner's prompt confirmation. A version-1 file has no `levels`, so it receives those defaults. This conflicts with the intended migration/default behavior.",
+      "severity": "major",
+      "suggestion": "Revise criterion 1 to distinguish preserved safety controls from preserved behavior, or specify that version-1 settings retain `block` defaults until the owner explicitly migrates to version 2. Ensure the chosen rule agrees with missing-file seeding and shipped defaults."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "One migration acceptance criterion conflicts with the defined `ask` shipped defaults.",
+  "verdict": "changes_needed"
+}

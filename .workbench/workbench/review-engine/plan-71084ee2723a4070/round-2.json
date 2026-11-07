@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "Candidate line 5; Scope lines 23-29; Increment A lines 113-120",
+      "problem": "The plan names no roadmap candidate, while its stated closest candidate explicitly excludes changing who may approve a plan. Increment A may fold the existing delegated-plan approval route into a bridge route, so it is outside that candidate's boundary. This also conflicts with the project workflow requiring work to move from a roadmap candidate to a plan.",
+      "severity": "major",
+      "suggestion": "Add and name a roadmap candidate that authorizes the delegation-semantics and plan-approval decision, or constrain this plan to the existing candidate boundary. Do not retain the instruction that the roadmap is not edited if a new candidate is required."
+    },
+    {
+      "id": "R2-F2",
+      "location": "Increment A, steps 4-5 and Evidence lines 138-146",
+      "problem": "Increment A is explicitly one or two commits: the decision record is committed before acceptance, then the required spec updates are a second commit. Project policy requires each increment to be one verified, reviewed local commit, so this increment cannot be completed as planned.",
+      "severity": "major",
+      "suggestion": "Split the post-acceptance spec synchronization into its own increment with its own outcome, verification, review, and commit trailer; update B and C dependencies accordingly."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "The plan has two workflow-level defects: it lacks a roadmap candidate covering its plan-approval scope, and Increment A permits two commits.",
+  "verdict": "changes_needed"
+}

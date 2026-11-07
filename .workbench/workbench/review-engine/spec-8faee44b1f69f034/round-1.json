@@ -1,0 +1,29 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "docs/specs/verification-effort.md:44-46, 77-82",
+      "problem": "The spec says the existing rule to ask whenever a change materially touches a listed security area “stays,” but later says merely touching such an area is not a reason to ask. These prescribe opposite triggers, so the policy and skills cannot be implemented consistently.",
+      "severity": "major",
+      "suggestion": "State explicitly that the material-touch trigger is replaced by the concrete-exposure trigger, while retaining only the capability lookup and owner-only execution parts of the existing rule."
+    },
+    {
+      "id": "R1-F2",
+      "location": "docs/specs/verification-effort.md:55-73, 91-94, 104-121",
+      "problem": "The proposed behavior changes increment verification but does not define verification after the last increment. The current increment-loop spec requires verification of the whole plan then; leaving that rule intact can reintroduce a mandatory broad run, contrary to the stated full-suite anti-goal.",
+      "severity": "major",
+      "suggestion": "Specify the final-plan verification rule and update the corresponding `code-work.md` acceptance criterion so it uses the same risk-based selection and recommendation process."
+    },
+    {
+      "id": "R1-F3",
+      "location": "docs/specs/verification-effort.md:96-102, 104-120",
+      "problem": "The reviewer is required to identify a security risk the agent did not recommend for review, but the documented review inputs do not include the agent’s security-review recommendation or owner decision. A read-only reviewer therefore cannot reliably distinguish an unrecommended risk from one already raised.",
+      "severity": "major",
+      "suggestion": "Require `request-review` to provide the recommendation/decision record to the reviewer, or redefine the reviewer’s duty as flagging every concrete security risk it finds regardless of prior recommendation."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The draft has three implementation-blocking ambiguities around security-review triggers, end-of-plan verification, and reviewer evidence.",
+  "verdict": "changes_needed"
+}

@@ -1,0 +1,36 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "docs/specs/mempalace-notes.md:76-82",
+      "problem": "The note filename is “named from the title,” but the spec defines no normalization, collision, length, or path-separator rules. A title containing `/`, `..`, control characters, or a conflicting normalized name could escape the intended topic directory or overwrite another note.",
+      "severity": "major",
+      "suggestion": "Define a safe, deterministic title-to-filename encoding, reject unsafe or empty titles, handle collisions explicitly, and require no-follow-link checks for every component and file operation."
+    },
+    {
+      "id": "R1-F2",
+      "location": "docs/specs/mempalace-notes.md:129,136,140-145,216",
+      "problem": "The required update-before-create behavior is not implementable as specified. `save` accepts a title and body, but no existing-note identifier or deterministic matching algorithm is defined; “if the idea belongs to” an existing note is a semantic decision with no testable rule.",
+      "severity": "major",
+      "suggestion": "Add an explicit note identifier/target option, or specify a deterministic matching and disambiguation algorithm, including the behavior when multiple notes could match."
+    },
+    {
+      "id": "R1-F3",
+      "location": "docs/specs/mempalace-notes.md:161-175,217-220",
+      "problem": "The review-to-keep workflow is underspecified and internally incomplete. `review` emits a digest, while the prose says the agent applies free-form owner instructions such as dropping or merging notes, but no command, input format, or digest update rules define how those decisions are applied before `keep`; consequently the acceptance criterion that `keep` moves only the intended drafts cannot be verified.",
+      "severity": "major",
+      "suggestion": "Specify the owner-response protocol and its effect on drafts/notes, make the resulting set and digest explicit, and require `keep` to validate that exact post-review set."
+    },
+    {
+      "id": "R1-F4",
+      "location": "docs/specs/mempalace-notes.md:127,175,183,219-220",
+      "problem": "Expiry has no defined trigger or visibility semantics. The spec says drafts are moved after 30 days, but does not say whether this occurs during save, list, review, wings, or a scheduled process; archived drafts are also not defined for listing, counts, or recovery. The 30-day acceptance criterion is therefore not operationally testable.",
+      "severity": "minor",
+      "suggestion": "Define which command performs expiry, how age is computed, whether it is atomic and idempotent, and how archived drafts appear in or are excluded from `list` and `wings`."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The spec has unresolved safety and workflow gaps around title-derived paths, note selection, review decisions, and draft expiry.",
+  "verdict": "changes_needed"
+}

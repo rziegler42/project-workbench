@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "Increment F, steps 1–2",
+      "problem": "The proposed `wb verify` conformance check would have to execute a package-supplied preview and owner-run action in order to confirm its output digest and refusal of a wrong digest. That happens before the module is approved or installed: the module contract defines verification as pre-write structural/hash validation, and approval depends on that verification. A throwaway project protects the owner’s tree but is not a sandbox; running an unapproved helper can still affect the machine or external systems. Calling it “pinned” cannot establish trust before verification has succeeded.",
+      "severity": "major",
+      "suggestion": "Do not make ordinary `wb verify` execute candidate module code. Specify a non-executing declaration/interface check, or introduce a separately authorized, explicitly sandboxed post-approval conformance run with a defined trust boundary and failure behavior."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "The plan has an unsafe trust-boundary gap in its proposed module-preview verification.",
+  "verdict": "changes_needed"
+}

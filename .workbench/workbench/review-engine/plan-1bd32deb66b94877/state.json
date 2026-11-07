@@ -1,0 +1,83 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-10-29T15:42:31Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "The definition said an approver may set an owner-run command to any of ask, delegated or none, but the levels table offers delegated only where a command declares a gate and each key offers its own set. That was my error. The definition now says a level the command key offers, with delegated only where a gate is declared."
+    },
+    {
+      "at": "2026-10-29T15:42:31Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F2",
+      "reason": "The inventory step said the floor now covers four protections, but the floor rules plan result still read as pending and a clone renders them only after the owner re-renders. I fixed that result, added the committed floor rules plan as a dependency, and worded the step as carried by the compiled floor with a check of the rules file first."
+    },
+    {
+      "at": "2026-10-29T15:42:31Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F3",
+      "reason": "Listing items from the backup names authentication material such as a seal key, so the project rule to ask about a security review applies. I added a checkpoint before that step and limited the tracked list to role and existence only, with no value, hash of a secret, content or path."
+    },
+    {
+      "at": "2026-10-29T15:42:32Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F4",
+      "reason": "The claim that the old template is the only other copy came from a reviewer report and I had not verified it. The step now checks read-only which sources exist in the backup and in the old template, records the finding by role, date and content hash, and writes the claim only if verified, otherwise leaving archival to the owner."
+    }
+  ],
+  "format": 1,
+  "generation": 6,
+  "kind": "plan",
+  "path": "docs/plans/2026-10-29-terms-inventory-and-roadmap-cleanup.md",
+  "rounds": [
+    {
+      "at": "2026-10-29T15:41:37Z",
+      "bridge": "ask-codex",
+      "document_sha256": "a21906138544b7b789f41b22148f27d67b99c2fa1f8c7fe145df6d160d7cfb80",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F2",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F3",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F4",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "904b5323d1e3bafadc416e9739852ee80562bfff7d74693ddf7e808be5086ef2",
+      "usage": {
+        "input_tokens": 597309,
+        "output_tokens": 5755,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    }
+  ],
+  "seal": "4f3c17b265940ceb8b1d075bc6ecb82455a6b48e414e2d2b088bae2c1ab9d9a5",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

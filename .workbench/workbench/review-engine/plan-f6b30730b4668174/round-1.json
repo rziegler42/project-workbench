@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Increment A, Steps 2 and 1; Assumptions and constraints",
+      "problem": "The planned implementation selects files by scanning the review directory for names the engine could write. A pre-existing or injected regular file named, for example, `round-999.json` matches that rule even when it is not named by the review state, so it can be reported and then committed. The listed set must be derived from the validated state’s round entries, not from directory names.",
+      "severity": "major",
+      "suggestion": "Specify state-driven enumeration: emit `state.json` and `ledger.md`, include `schema.json` only when it exists as the engine’s record, and include only round filenames named by validated state entries and present as regular no-follow files. Add a test for an unreferenced but syntactically valid `round-<n>.json` file."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Increment A, Step 4",
+      "problem": "The plan updates the commands table and conformance checklist but omits the spec’s Declaration section, which explicitly enumerates every supported argument. Adding the command without updating that list leaves the spec internally inconsistent.",
+      "severity": "major",
+      "suggestion": "Include an edit to the Declaration argument list to add `record-paths`, and state its one-document argument shape and read-only behavior alongside the other command contract details."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The plan has two material specification and record-selection gaps.",
+  "verdict": "changes_needed"
+}

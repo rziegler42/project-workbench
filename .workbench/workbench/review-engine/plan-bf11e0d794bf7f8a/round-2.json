@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "Assumptions and constraints (git-index reader); Completion criterion 2; Increment C step 1",
+      "problem": "The plan requires that a `.git` link yields no index and that the index is opened without following a link, but it does not define race-safe pathname resolution. A usual `lstat` followed by `open('.git/index', O_NOFOLLOW)` can still follow a `.git` directory swapped for a symlink after the check, exposing tracked names from another repository. The listed hostile-index tests also omit a `.git` directory symlink and this swap case.",
+      "severity": "major",
+      "suggestion": "Specify descriptor-based traversal that retains and verifies no-follow directory descriptors, then opens `index` relative to the verified `.git` descriptor (and revalidates metadata on the opened fd). Add tests for a `.git` symlink and for replacement between discovery/check and open; both must keep no paths."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "The plan aligns with the named spec and roadmap candidate, but its key no-link index-read guarantee needs a race-safe implementation and verification.",
+  "verdict": "changes_needed"
+}

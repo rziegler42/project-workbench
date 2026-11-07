@@ -1,0 +1,36 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Scope; Increments F and G; Completion criterion 3",
+      "problem": "The plan says both commands support `ask` and `none`, but only specifies and tests the `ask` path. The scope also implies that `none` carries a digest, contrary to `command-permissions.md`, which requires no digest at `none` while still requiring a matching no-rule rendering record and a log entry.",
+      "severity": "major",
+      "suggestion": "State that digests are `ask`-only, and add explicit `none` behavior and refusal/logging tests for both `approve-plan` and `review-engine extend`."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Increment D and Increment F affected areas/steps",
+      "problem": "The plan requires every non-`block` run to be logged and preserves delegated `approve-plan`, but no increment integrates the new log with `delegate-approve-plan`/`delegation.py`. Increment F covers the owner approval route only. This leaves an existing `delegated` run outside the required append-only audit trail.",
+      "severity": "major",
+      "suggestion": "Add `delegation.py` and delegated-approval tests to the logging integration, including failure-before-action behavior when the log is unwritable."
+    },
+    {
+      "id": "R1-F3",
+      "location": "Risks and sensitive actions",
+      "problem": "This work changes authorization, a permission boundary, and guarded-store writes. Repository policy requires asking the owner whether to run a security review, but the plan only says the owner decides before H and has no explicit checkpoint or recorded outcome.",
+      "severity": "major",
+      "suggestion": "Add a bounded owner decision checkpoint before the authorization/guarded-store implementation proceeds, and record whether a security review was requested and its outcome."
+    },
+    {
+      "id": "R1-F4",
+      "location": "Candidate line",
+      "problem": "The reason says this follows a Proposed decision, but the named decision is Accepted and `command-permissions.md` records that acceptance.",
+      "severity": "minor",
+      "suggestion": "Update the reason to say there is no roadmap candidate, without describing the accepted decision as Proposed."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The plan misses required `none` and delegated logging behavior, and lacks the required security-review decision checkpoint. It also contains a minor stale decision-status statement.",
+  "verdict": "changes_needed"
+}

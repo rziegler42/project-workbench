@@ -1,0 +1,61 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-10-25T21:11:40Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "The mirror rule is still in force until its repository is archived; the plan now states that as a transitional assumption with its end condition."
+    },
+    {
+      "at": "2026-10-25T21:11:40Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F2",
+      "reason": "The development document names tests/run_all.py as the full test command; the plan now uses it."
+    }
+  ],
+  "format": 1,
+  "generation": 4,
+  "kind": "plan",
+  "path": "docs/plans/2026-10-25-retire-global-asks.md",
+  "rounds": [
+    {
+      "at": "2026-10-25T21:11:25Z",
+      "bridge": "ask-codex",
+      "document_sha256": "d372579109a33c6c2af1bd98fc94fb8a39d03c13661f070a506a4031fd71776d",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F2",
+          "severity": "minor"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "e0686d99bd103ee3edf6d793e09313a405e8ad8d118e4e74eea20f9fa26f2f10",
+      "usage": {
+        "input_tokens": 220424,
+        "output_tokens": 2808,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    }
+  ],
+  "seal": "f0655f91dd9ce8da647b0a1412b232889286a57f7825f7290ecbd97860b98e84",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Current state — `installer-interface` bullet",
+      "problem": "It says the plan is still being written and its spec is a draft awaiting approval, but the referenced plan is `Status: Completed` and `docs/specs/installer-interface.md` is `Status: Current`, approved by the owner on 2026-10-20. This gives an incorrect current prerequisite state.",
+      "severity": "major",
+      "suggestion": "Update the bullet to state that the installer-interface plan completed and the specification is Current, retaining only genuinely unresolved implementation work or limitations."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Candidate `checkpoint-levels-beyond-block` — Outcome and Dependencies",
+      "problem": "The candidate describes its decision as accepted, but the relevant decision record `docs/decisions/2026-10-28-every-key-offers-the-approve-plan-levels.md` remains `Status: Proposed`. The candidate therefore misstates whether its stated dependency and promotion condition have been met.",
+      "severity": "major",
+      "suggestion": "Either have the owner accept the decision and update its record, or change the candidate to describe it as Proposed and preserve acceptance as an unmet dependency/promotion condition."
+    },
+    {
+      "id": "R1-F3",
+      "location": "Suggested order",
+      "problem": "`checkpoint-levels-beyond-block` is a candidate but is omitted from the otherwise comprehensive suggested-order list, leaving its intended prioritization unclear.",
+      "severity": "minor",
+      "suggestion": "Add `checkpoint-levels-beyond-block` to the suggested order at the intended point, or explicitly state that it is deliberately outside that ordering."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The roadmap contains two material current-state/dependency inaccuracies and one ordering omission.",
+  "verdict": "changes_needed"
+}

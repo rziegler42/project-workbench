@@ -1,0 +1,94 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-11-04T18:36:35Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "Real gap in item 10: a record with no default model made no profile but the Ollama ladder still named it. The ladder is now written only when the local profile exists, and the install says the owner must configure a chat model."
+    },
+    {
+      "at": "2026-11-04T18:36:40Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F2",
+      "reason": "Real gap in item 3: a declaration could have let a profile supply the engine-owned timeout or schema, defeating the action-review time limit. Item 3 now reserves model, effort, timeout, schema, root and confine, and the module reader refuses a declaration that lists one as a review option."
+    },
+    {
+      "at": "2026-11-04T18:36:51Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F3",
+      "reason": "Real conflict in item 5: a multi-rung default ladder could apply to action-review, which must hold one rung. The default ladder is now for the four document kinds only, and action-review needs a ladder of its own; item 10 writes one."
+    }
+  ],
+  "format": 1,
+  "generation": 6,
+  "kind": "adr",
+  "path": "docs/decisions/2026-11-04-review-profiles-in-the-guarded-store.md",
+  "rounds": [
+    {
+      "at": "2026-11-04T18:36:03Z",
+      "bridge": "ask-codex",
+      "document_sha256": "b1179e3bd63f345b7c0beb6dc28cccb79ea948a8e6e459f7f484a220f51bc390",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F2",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F3",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "5f499b67b7a34fa126eb594aa0848edf007e08166804167e7a1d7dc7312e8860",
+      "usage": {
+        "input_tokens": 298502,
+        "output_tokens": 3516,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-04T18:38:19Z",
+      "bridge": "ask-codex",
+      "document_sha256": "baa3bfb772e40a186da5df80f963dc6221e18dca56a0aaee10a67e860c3b98b9",
+      "file": "round-2.json",
+      "findings": [],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "reading": "no_meaningful_changes",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "8a19de25f7b19f112ff1b148ee0266f09315746ef32bdaf0aa9a39a265ed144e",
+      "usage": {
+        "input_tokens": 234591,
+        "output_tokens": 2607,
+        "total_tokens": null
+      },
+      "verdict": "no_meaningful_changes"
+    }
+  ],
+  "seal": "2ca9e964bc30b1dc46c2db03a0c91db8d9cc1e16dc694b56c4fef939f695a323",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

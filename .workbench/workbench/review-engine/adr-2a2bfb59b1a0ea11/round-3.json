@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R3-F1",
+      "location": "Decision 7, “The endpoint record” / Consequences, line 131",
+      "problem": "The record permits an endpoint record to name any host, yet says the Ollama bridge is the route for text that must not leave the machine. A guarded-store record can therefore direct a supposedly local call to a remote host.",
+      "severity": "major",
+      "suggestion": "Either require locally bound endpoints with a DNS-rebinding-safe host/address rule, or remove and qualify the claim that this bridge keeps text on the machine."
+    },
+    {
+      "id": "R3-F2",
+      "location": "Decision 7, “The endpoint record”, lines 75-80",
+      "problem": "Authenticated endpoints may use `http`; the separate TLS field is neither tied to the scheme nor required for credentials. This permits transmitting the stored credential in cleartext and leaves contradictory scheme/TLS records undefined.",
+      "severity": "major",
+      "suggestion": "Define transport semantics unambiguously, reject inconsistent scheme/TLS fields, and require authenticated non-local endpoints to use HTTPS with certificate validation (or explicitly limit any HTTP exception to local transport)."
+    }
+  ],
+  "format": 1,
+  "round": 3,
+  "summary": "The version-2 contract remains unsafe/ambiguous for the local server and authenticated endpoint claims.",
+  "verdict": "changes_needed"
+}

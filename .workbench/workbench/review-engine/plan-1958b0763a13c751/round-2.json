@@ -1,0 +1,36 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "Completion criterion 3; Increment G, Steps 2–3",
+      "problem": "The plan changes `wb run review-engine extend` to `extend <document> --digest <12>`, omitting the required increment argument. `review-engine.md` currently defines `extend <document> <n>` and its behavior is to raise the bound by that requested amount (1–5), not merely extend a document. The plan neither preserves nor deliberately replaces that argument.",
+      "severity": "major",
+      "suggestion": "Specify the complete ask/none grammar, including `<n>` and how its value is incorporated into the preview/digest; add tests for it and update the completion criterion accordingly."
+    },
+    {
+      "id": "R2-F2",
+      "location": "Scope; Increment C, Step 1; Increments F and G",
+      "problem": "The plan says it builds shipped defaults as specified, and the cited command-permissions spec requires `approve-plan` and `wb run review-engine extend` to ship with an `ask` default once their preview digests exist. The increments only establish `block` defaults in C and enable offered levels in F/G; they never change or test either key’s shipped default as `ask`.",
+      "severity": "major",
+      "suggestion": "Add explicit F/G steps and tests that change the two registry defaults to `ask` when their digest implementations ship, including no-settings/version-1 behavior and rendered rules after attach."
+    },
+    {
+      "id": "R2-F3",
+      "location": "Non-goals: “Any trust-changing command”; Increment C",
+      "problem": "The plan says all trust-changing commands will offer only `block` until each has a preview digest. This conflicts with `command-permissions.md`, which requires every non-floor key to offer `none` even without a preview, and with the accepted decision’s rule that `none` is offered wherever a command is not on the floor. The plan’s broad registry work therefore cannot satisfy its cited spec as written.",
+      "severity": "major",
+      "suggestion": "Either implement the spec-required `none` behavior, rendering, and logging for every applicable non-floor key, or revise the plan/spec/decision relationship so the deferred keys are explicitly outside this table’s offered-level contract."
+    },
+    {
+      "id": "R2-F4",
+      "location": "Increment H, Step 3",
+      "problem": "The plan instructs changing the status line of the accepted `2026-10-23-delegated-plan-approval` decision. Repository policy says an accepted decision is superseded, never edited; that policy outranks a conflicting decision-record instruction.",
+      "severity": "major",
+      "suggestion": "Do not edit the accepted decision. Record any supersession through a new decision or another policy-compliant durable record, and update the plan’s documentation step."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "The plan still has four major gaps: the review-extension grammar, required shipped ask defaults, none-level coverage, and an impermissible edit to an accepted decision.",
+  "verdict": "changes_needed"
+}

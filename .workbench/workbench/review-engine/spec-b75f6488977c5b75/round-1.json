@@ -1,0 +1,29 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Transport — Bounds",
+      "problem": "The 1,700,000-byte request-body bound is incompatible with otherwise valid inputs: a 262,144-byte prompt and a 65,536-byte schema may each require up to six bytes per source byte when JSON-escaped, already exceeding the bound before request framing. The spec also does not define the outcome when this occurs.",
+      "severity": "major",
+      "suggestion": "Set a request bound that accommodates the maximum permitted prompt and schema plus framing, or reduce the input bounds; explicitly specify the pre-send refusal or failure for an oversized encoded request."
+    },
+    {
+      "id": "R1-F2",
+      "location": "ask: the reply — model",
+      "problem": "The fallback rule says a `--model` value fits the endpoint record's model-field rule because it was validated by that rule, but `ask` actually validates `--model` using the model-bridge contract. That contract permits values the record rule rejects, such as a name containing `..`. Thus a valid request can unexpectedly yield `model: null` when the server omits or returns an invalid model.",
+      "severity": "major",
+      "suggestion": "Use one grammar consistently, or state that the fallback is the valid contract `--model` value regardless of the endpoint-record model grammar."
+    },
+    {
+      "id": "R1-F3",
+      "location": "ask: the request",
+      "problem": "The request requires a fixed `User-Agent` header but does not specify its value, so the claimed exact request and its conformance test are not fully determinate.",
+      "severity": "minor",
+      "suggestion": "Specify the literal User-Agent value, including any versioning policy."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The spec has two input/output-boundary contradictions that prevent deterministic implementation, plus one incomplete exact-header requirement.",
+  "verdict": "changes_needed"
+}

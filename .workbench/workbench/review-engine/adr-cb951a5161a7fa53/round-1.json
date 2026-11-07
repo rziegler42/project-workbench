@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Decision item 6; relation statement at lines 44-45",
+      "problem": "“After an approval nothing is checked again” conflicts with accepted decision 2026-10-23-delegated-plan-approval item 9, which requires plan-status and the edit gate to re-check the current approve-plan delegation setting and withdraw a delegated approval when that setting no longer permits delegation. This record says it refines only items 2 and 4, so it leaves unclear whether item 9 still applies.",
+      "severity": "major",
+      "suggestion": "Limit item 6 to the new delegate-profiles/profile-match gate, and explicitly preserve the existing re-check of approve-plan’s current delegation level when a delegated approval is read."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The post-approval rule conflicts with an accepted, supposedly unchanged rule for delegated approvals.",
+  "verdict": "changes_needed"
+}

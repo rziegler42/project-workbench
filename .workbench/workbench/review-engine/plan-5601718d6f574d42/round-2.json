@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "Increment C, step 4; Completion criterion 3",
+      "problem": "The plan requires `truncated: true` when a facts object exceeds its cap, but omits the accepted describe-interface rule that retained facts must be whole values and values must never be cut. A valid-but-shortened diff or string would otherwise meet the planned truncation description while violating the decision's data-integrity guarantee.",
+      "severity": "major",
+      "suggestion": "Require `safe-git.md` to state that truncation retains only complete fact values, never cuts a value, and add this to the cap-behaviour verification."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "The plan otherwise follows the referenced roadmap split and specs; its truncation instruction is incomplete relative to the accepted describe-interface decision.",
+  "verdict": "changes_needed"
+}

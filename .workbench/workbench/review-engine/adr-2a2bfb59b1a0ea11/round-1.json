@@ -1,0 +1,29 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Decision 5, “--confine is part of the core”",
+      "problem": "The new core option has no command-line grammar or complete contract semantics. It never says whether it is a valueless flag or accepts a value, nor defines the observable conditions that make a bridge conform when the vendor's feature controls differ. Leaving the fixed-versus-derived tool list to a later plan means independently implemented bridges can make materially different `--confine` promises.",
+      "severity": "major",
+      "suggestion": "Specify the exact `--confine` syntax and a vendor-neutral conformance rule, including which capabilities must be disabled or cause refusal; retain vendor-specific mappings as implementation detail only."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Decision 8, “usage gains the counts a program reports”",
+      "problem": "The version-2 result contract leaves a required token-accounting relationship unresolved: it says the contract will later state whether `reasoning_output_tokens` is included in `output_tokens`. Consumers cannot safely calculate or display usage until that is decided, so the proposed versioned shape is not yet a complete interoperable contract.",
+      "severity": "major",
+      "suggestion": "State the relationship now (or explicitly make the fields independent and prohibit aggregation), then require every bridge and engine to implement that same rule."
+    },
+    {
+      "id": "R1-F3",
+      "location": "Decision 4 and Decision 7, server endpoint resolution",
+      "problem": "The record introduces endpoint selection from the guarded store but defines neither the endpoint-record format nor validation/authentication and transport constraints for the resolved value. The cited fixed-store decision establishes only the store location, and no existing project document defines server endpoints. Therefore the claim that a server bridge connects only to the owner-named endpoint is not testable or consistently implementable.",
+      "severity": "major",
+      "suggestion": "Define the guarded-store endpoint record and its validation rules (including allowed scheme, host/port handling, credentials, and redirect/DNS behavior), plus conformance tests for invalid or substituted records."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The ADR has unresolved contract semantics for confinement, usage accounting, and guarded-store endpoint resolution, so it is not yet reliable as the version-2 bridge contract.",
+  "verdict": "changes_needed"
+}

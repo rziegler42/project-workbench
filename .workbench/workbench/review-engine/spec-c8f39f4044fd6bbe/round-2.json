@@ -1,0 +1,36 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "docs/specs/mempalace-notes.md:135-141, 199-203, 245-247",
+      "problem": "The prose and acceptance criteria rely on `list --archived`, but the command shape declares only `list [--wing W] [--kind K] [--drafts]`. It is therefore unclear how archived notes are requested, whether `--drafts` combines with it, and how `read` selects an archived note.",
+      "severity": "major",
+      "suggestion": "Add `--archived` to the command contract and define its combinations, output state, wing selection, and how `read` addresses archived notes."
+    },
+    {
+      "id": "R2-F2",
+      "location": "docs/specs/mempalace-notes.md:141, 192-194, 207-209",
+      "problem": "The workflow requires the owner to answer the review suggestions and then confirm `keep`, while `keep` is explicitly owner-level `ask`; this requires two owner interactions in one session and conflicts with the promise that the owner is asked at most once per session.",
+      "severity": "major",
+      "suggestion": "Define whether the review answer itself authorizes the digest-bound keep, or explicitly allow and describe two prompts; align the command permissions and the not-needy requirement."
+    },
+    {
+      "id": "R2-F3",
+      "location": "docs/specs/mempalace-notes.md:138-141, 160-164, 192-197",
+      "problem": "Failure atomicity is specified for a single save, but not for multi-file `merge`, `drop`, or `keep`. A crash can therefore leave a merged target updated while its source is not archived, or a keep operation with only some drafts moved/replaced, despite the digest describing an exact set.",
+      "severity": "major",
+      "suggestion": "Specify transactional or recoverable ordering for each multi-file operation, including crash recovery and idempotent retry behavior, and add acceptance tests for interruption at each step."
+    },
+    {
+      "id": "R2-F4",
+      "location": "docs/specs/mempalace-notes.md:168-174, 242",
+      "problem": "Credential protection is not testable: “common token shapes” and the applicable scan scope are undefined, especially for titles, source/verify fields, and the full resulting note when extending an existing note. The acceptance criterion cannot establish that a credential in a non-body field or an appended paragraph is refused.",
+      "severity": "major",
+      "suggestion": "Define the exact patterns and state that the complete serialized note, including metadata and the resulting text after `--into`, is scanned before any write; specify false-positive and line-reporting behavior."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "The earlier filename, update-target, review-keep, and expiry gaps appear addressed, but archived-note access, owner-prompt semantics, multi-file crash safety, and credential-scan behavior remain underspecified.",
+  "verdict": "changes_needed"
+}

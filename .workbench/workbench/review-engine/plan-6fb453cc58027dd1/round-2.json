@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "Assumptions and constraints; Completion criteria 1–2; Increment A steps 1–2",
+      "problem": "The plan requires every printable path outside the custom alphabet to be single-quoted, including `=ls` and `a=b`, but it specifies `shlex.quote(path)` exactly. Python's `shlex.quote` leaves both strings unquoted because `=` is in its own safe set. In zsh, unquoted leading `=ls` can undergo equals expansion, so the stated cross-shell round trip will fail and the display is not safe as claimed.",
+      "severity": "major",
+      "suggestion": "Specify a custom formatter: return the path unchanged only when it matches the plan's safe alphabet and existing path rules; otherwise always emit single-quote shell syntax, representing embedded apostrophes with the standard quote-break sequence. Test `=ls` and `a=b` against that formatter in all available shells."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "The intended quoting mechanism does not meet the plan's own zsh-safe requirement for paths containing `=`.",
+  "verdict": "changes_needed"
+}

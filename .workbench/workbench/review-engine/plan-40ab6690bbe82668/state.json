@@ -1,0 +1,129 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-10-26T16:53:21Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "Correct that the spec designs its own action-review.json file. The owner chose to reuse review.json on 2026-10-26, which changes a default the spec marks as the owner to change. The plan will say so, Increment A will edit that spec section, and the personal-setting precedence stays unbuilt as it is for the review engine, recorded as a limit."
+    },
+    {
+      "at": "2026-10-26T16:53:21Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F2",
+      "reason": "Correct: the reviewer-text check is a rubric question, so an always-approving fake cannot decline it. Deterministic cases will be declined by code checks with that fake, and rubric-only cases tested with a fake that declines, proving only that the engine passes a decline through and sends the text as data."
+    },
+    {
+      "at": "2026-10-26T16:55:10Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F1",
+      "reason": "Correct: the spec requires a test that the engine refuses command lines naming the retired actions, and the plan lacked it. A criterion and a test in the rules increment will assert refusal with no describe or bridge call."
+    },
+    {
+      "at": "2026-10-26T16:57:07Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R3-F1",
+      "reason": "Correct: the bridge call was not specified exactly. Increment H will state the argv with the prompt on standard input, and require the bridge result envelope, success or failure, to be validated before the reply is parsed and checked as a verdict."
+    }
+  ],
+  "format": 1,
+  "generation": 8,
+  "kind": "plan",
+  "path": "docs/plans/2026-10-26-action-review-engine.md",
+  "rounds": [
+    {
+      "at": "2026-10-26T16:53:06Z",
+      "bridge": "ask-codex",
+      "document_sha256": "84ea17599eaeecb59ce501ac809e0e5e8cde19c526faf15b6f291bbeabd3f0da",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F2",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "a99a2b6ba7546f2eb60fba49ae2f9e4f16d9eb97b9c840004b3b29d2084233d4",
+      "usage": {
+        "input_tokens": 348781,
+        "output_tokens": 2107,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-10-26T16:55:00Z",
+      "bridge": "ask-codex",
+      "document_sha256": "7639dda7852540fb961030781bc6b8948d17381c6f21c2ac388a9a8dfa185d82",
+      "file": "round-2.json",
+      "findings": [
+        {
+          "id": "R2-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "2966c2266857d2edcb7fefbe5c3ed01b3e6ab9736dbad991e321aa48d8d7f0be",
+      "usage": {
+        "input_tokens": 214411,
+        "output_tokens": 2197,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-10-26T16:56:54Z",
+      "bridge": "ask-codex",
+      "document_sha256": "5d3fb4adf9c2f44376c1af99b19921e3bd0a15da0acee9f4a4f70e40eb4c89cf",
+      "file": "round-3.json",
+      "findings": [
+        {
+          "id": "R3-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 3,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "91cbec6e3f9ef21d55f59c23c9e915434284f8e12ebc77c1d92ae0b312546af6",
+      "usage": {
+        "input_tokens": 334033,
+        "output_tokens": 3263,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    }
+  ],
+  "seal": "35d918ff93d2f9ed6d4df921c02080c9b3a57f261ad6e4b154ce190754c07374",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

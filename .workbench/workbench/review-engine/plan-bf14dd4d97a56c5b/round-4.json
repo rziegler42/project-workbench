@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R4-F1",
+      "location": "docs/plans/2026-11-01-ask-ollama-bridge.md, Increment A step 2; Increment B step 1; Increment C step 2",
+      "problem": "The endpoint record format never defines a bounded, strict grammar for `host`. Saying it holds a host with no credential, path, or URL leaves delimiters, whitespace/control characters, bracketed/zone-qualified IP literals, and ambiguous host:port forms unspecified. That prevents the promised validation and refusal behavior from being implemented and tested consistently at this network boundary.",
+      "severity": "major",
+      "suggestion": "Specify the accepted hostname and IP-literal forms, maximum length, canonical/bracket rules, and every rejected form in the decision/spec increment; add fake-server tests for malformed host values and verify they are refused without a connection or address disclosure."
+    }
+  ],
+  "format": 1,
+  "round": 4,
+  "summary": "The plan is otherwise aligned with its named roadmap candidate and specs, but its endpoint validation remains incomplete.",
+  "verdict": "changes_needed"
+}

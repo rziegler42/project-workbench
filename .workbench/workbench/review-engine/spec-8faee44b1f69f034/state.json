@@ -1,0 +1,117 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-11-02T21:07:23Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "The two statements did conflict; the spec now says the trigger is replaced by a named exposure and only the capability lookup and owner-only execution stay."
+    },
+    {
+      "at": "2026-11-02T21:07:27Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F2",
+      "reason": "The loop spec asks to verify the whole plan after the last increment, which could bring back a mandatory broad run; added a rule for it and acceptance criteria covering that paragraph and the plan template."
+    },
+    {
+      "at": "2026-11-02T21:07:31Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F3",
+      "reason": "The reviewer was never given the recommendations, so it now flags any concrete security risk it finds and the agent filters against its records through evaluate-findings; this adds no new input."
+    },
+    {
+      "at": "2026-11-02T21:09:19Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F1",
+      "reason": "There was no way to tell which plans the guidance covers. It now governs agent behavior for every plan from installation, rewrites no plan, and honors an existing verification line as written; narrowing an approved plan needs re-approval."
+    },
+    {
+      "at": "2026-11-02T21:09:21Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F2",
+      "reason": "The filtering of reviewer security findings depends on evaluate-findings, which was missing from the scope; added it to the skills to change and added an acceptance criterion that it checks the recorded decision and cites it."
+    }
+  ],
+  "format": 1,
+  "generation": 8,
+  "kind": "spec",
+  "path": "docs/specs/verification-effort.md",
+  "rounds": [
+    {
+      "at": "2026-11-02T21:04:44Z",
+      "bridge": "ask-codex",
+      "document_sha256": "7bdeb71eb290a175e82506a1f3e046e9cf3624048e54300a2daba4ef15841d0d",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F2",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F3",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "163eb13e9cb16a9ea704fe76c9e6547663b50db11130a363a7401881706af5c9",
+      "usage": {
+        "input_tokens": 100086,
+        "output_tokens": 2224,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-02T21:09:03Z",
+      "bridge": "ask-codex",
+      "document_sha256": "b5aac3116523d4322dbb72b5f8cc652badf4e7fae7bce0b42b9b0e5321eb33ab",
+      "file": "round-2.json",
+      "findings": [
+        {
+          "id": "R2-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R2-F2",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra"
+      },
+      "sha256": "3ca9746f8d50a05cc7dc98c99a20932771511d5d520e5dd59639445e29e84708",
+      "usage": {
+        "input_tokens": 96671,
+        "output_tokens": 2466,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    }
+  ],
+  "seal": "69d3e85190c058a537e3c2e0b197e0e3ec479895b41d9485b75a3e76b5b97d07",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

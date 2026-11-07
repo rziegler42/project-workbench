@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R5-F1",
+      "location": "docs/specs/ask-ollama.md: `embed` — Output",
+      "problem": "`usage.input_tokens` is specified as the server's `prompt_eval_count` or `null`, without validating its type or range. A successful embedding response with a string, boolean, negative value, or oversized number would therefore have no determinate compliant output: copying it violates the stated `<n or null>` shape, while nulling or refusing it is not specified.",
+      "severity": "major",
+      "suggestion": "Match the `ask` usage rule: emit `prompt_eval_count` only when it is a non-negative whole number no greater than 10^12; otherwise emit `null` (and state this in the embedding reply checks/output rules)."
+    }
+  ],
+  "format": 1,
+  "round": 5,
+  "summary": "The embedding usage-token mapping needs validation to keep successful output well-formed for malformed server metadata.",
+  "verdict": "changes_needed"
+}

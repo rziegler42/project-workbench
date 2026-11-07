@@ -1,0 +1,29 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Behavior — The preview and the digest (`ask`), first paragraph and numbered step 1",
+      "problem": "The rules apply the preview recomputation to both `ask` and `none` (“At `ask` or `none` ... recomputes the preview”), even though `none` is defined as requiring nothing and is offered to every non-floor key, including keys with no preview. This leaves implementations unable to determine whether a `none` run must have a preview or can run without one.",
+      "severity": "major",
+      "suggestion": "Limit the digest and preview-recomputation requirements explicitly to `ask`; state the separate `none` execution checks (if any)."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Behavior — Shipped defaults table, `ask` row",
+      "problem": "`reset`, `archive`, `prune`, and `amend` are listed as bare keys, but the table-key rule requires an owner-run action without a checkpoint to use its full `wb` spelling. The governing decision and `review-engine.md` identify these as `wb run review-engine <argument>` commands. These entries would be rejected as unknown keys, so their intended defaults cannot take effect.",
+      "severity": "major",
+      "suggestion": "Replace the bare names with `wb run review-engine reset`, `wb run review-engine archive`, `wb run review-engine prune`, and `wb run review-engine amend`."
+    },
+    {
+      "id": "R1-F3",
+      "location": "Behavior — The levels; Shipped defaults; Acceptance criterion 1",
+      "problem": "`wb release-approvals` is assigned the default `block`, whose definition requires an owner terminal, although the governing decision and `installer-interface.md` state that this command intentionally needs no terminal. This conflicts with acceptance criterion 1's requirement that version-1/no-settings behavior remain unchanged.",
+      "severity": "major",
+      "suggestion": "Specify the intended `block` semantics for this existing non-terminal owner-only command, or give it a distinct compatible treatment and acceptance test that preserves its current terminal behavior."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The draft has three implementation-blocking ambiguities/inconsistencies in level execution and key/default mapping.",
+  "verdict": "changes_needed"
+}

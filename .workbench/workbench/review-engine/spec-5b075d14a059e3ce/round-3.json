@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R3-F1",
+      "location": "docs/specs/action-review.md:88-96, 116-120",
+      "problem": "The rule format is not defined. It lists concepts a rule has, but gives no versioned schema or constraints for command spellings, flag declarations, positional arguments, matching precedence, or duplicate/overlapping rules. Yet those fields determine which action is reviewed and the arguments sent to `describe`; the stated per-rule failure behavior cannot be implemented deterministically for malformed or ambiguous rules.",
+      "severity": "major",
+      "suggestion": "Define a versioned rule schema with field types and bounds, token-boundary matching and a uniqueness/ambiguity rule; define the flag and positional-argument grammar, and state how a malformed rule is associated with (and refuses) only its command spelling."
+    },
+    {
+      "id": "R3-F2",
+      "location": "docs/specs/action-review.md:107-122",
+      "problem": "“Must tokenize,” “simple command,” and the rejected shell constructs do not define a tokenizer or quoting/escaping grammar. The engine therefore has no specified way to derive the canonical argument list from the raw harness command, while the actual command may use a different parser. A finite corpus cannot establish the required equivalence for all accepted command text.",
+      "severity": "major",
+      "suggestion": "Specify an exact accepted command-text grammar and tokenizer (or require a particular harness-provided argument vector), including quoting, escaping, whitespace, and token boundaries; require the hook to pass that canonical vector to both review binding and execution, or reject forms for which this cannot be guaranteed."
+    }
+  ],
+  "format": 1,
+  "round": 3,
+  "summary": "The spec still leaves the rule and command-parsing contracts too underspecified to guarantee that the reviewed action is the one that executes.",
+  "verdict": "changes_needed"
+}

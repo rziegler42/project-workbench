@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Assumptions and constraints; Completion criteria 1–2; Increment A step 1",
+      "problem": "The plan promises that every printable path outside the allowlist is shell-safe to paste after `shlex.quote` and terminal cleaning, but `visible()` doubles literal backslashes. For a legacy handle path containing one backslash, quoting first and then cleaning displays two backslashes inside single quotes; pasting it yields a different pathname. The proposed shell round-trip test must therefore fail for one of its listed hostile characters.",
+      "severity": "major",
+      "suggestion": "Define a shell-display formatter that preserves printable backslashes inside the shell-quoted word, while still rendering control and non-ASCII characters visibly. Add a round-trip case for a pathname containing a literal backslash."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Assumptions and constraints safe alphabet; Completion criteria 1; Increment B step 1",
+      "problem": "The proposed safe alphabet includes `=`, although a word beginning with `=` has shell meaning in zsh (a shell the project explicitly accounts for). Such a path is shown unquoted, so the claim that allowlisted paths contain no shell syntax and paste as the same argument is not true across supported shells. The required `/bin/sh` test cannot detect this.",
+      "severity": "major",
+      "suggestion": "Remove `=` from the unquoted alphabet, or require quoting for leading/equality-expansion forms, and add zsh coverage (or an equivalent test) for the selected rule."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The plan has two shell-rendering gaps: backslashes do not round-trip after cleaning, and the proposed unquoted alphabet is not safe in zsh.",
+  "verdict": "changes_needed"
+}

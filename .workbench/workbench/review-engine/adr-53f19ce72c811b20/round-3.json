@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R3-F1",
+      "location": "Decision 1; Questions for the owner, Question 2 default table",
+      "problem": "For owner-run actions without checkpoints, Decision 1 requires the key to be the command in `wb` spelling, but the defaults table uses bare or informal labels such as `install`, `release-approvals`, and `review extend`. These are not the required command spelling and do not specify a stable settings key, so the table cannot unambiguously map every action to exactly one level.",
+      "severity": "major",
+      "suggestion": "Define a canonical key syntax and use it consistently in the defaults table—for example, explicitly list `wb install`, `wb release-approvals`, and `wb run review-engine extend` (or define equivalent canonical symbolic keys)."
+    },
+    {
+      "id": "R3-F2",
+      "location": "Questions for the owner, Question 4",
+      "problem": "It proposes changing the status line of the already accepted 2026-10-23 decision record. Repository policy says an accepted decision is superseded, never edited, so this migration step conflicts with the governing record rules.",
+      "severity": "major",
+      "suggestion": "Leave the accepted decision record unchanged. State the supersession solely in this new decision record and, if needed, use an allowed separate index or clarification mechanism that does not edit the accepted record."
+    }
+  ],
+  "format": 1,
+  "round": 3,
+  "summary": "Two major consistency issues remain: the proposed settings keys are not canonical, and the proposed supersession edits an accepted ADR.",
+  "verdict": "changes_needed"
+}
