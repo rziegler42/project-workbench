@@ -1,6 +1,6 @@
 # Make the shadow report split "reviewed but not collectable" by failed check
 
-Status: Proposed
+Status: In Progress
 Created: 2026-11-06
 Candidate: workbench-v1#action-review-engine
 Specs: action-review
@@ -74,6 +74,8 @@ Codex (`gpt-5.6-terra`), plan review, 2 rounds of 3, converged with no meaningfu
 - Applied (round 1): the plan stated that, for a command reviewed more often than it has collected rows, the gap goes to its latest verdict rows, but no test could tell that from attributing it to an older row. Step 1 now has a test for a command reviewed twice with one collected row (one gap, the latest row's check only) and one reviewed three times with one collected row (the latest two rows), each with the existing count unchanged; criterion 3 says the same. While applying it I corrected my own first wording, which said "three times" for the one-gap case.
 - Rejected: none. Left for the owner: nothing from the review.
 
+Increment A: the `reviewer` agent, one exchange, no blocking finding. Applied: the module docstring of `report.py` was re-wrapped (the edit had left a short orphan line), and the third passage of the spec that lists what the report prints now says the not-collectable line is grouped on the next line. Rejected: the reviewer called the `assertNotIn(MARK, out)` of the no-text test nearly vacuous because it had not opened the test helper; `verdict_row` writes `"reason": MARK` into every reviewed row, so the assertion is a real one. The reviewer found the count identical to the old function for every input, the latest-rows attribution as planned and discriminated by both tests, the `approve` bucket right, and the spec in agreement with the code. Not checked by the reviewer: the test runs and the document check (it ran nothing); I ran the tests, and the check runs after the copy.
+
 ## Deferred work
 
 - A breakdown of `unreviewable` (by the form that made it so), if the owner suspects reviewable commits are being missed.
@@ -82,4 +84,9 @@ Codex (`gpt-5.6-terra`), plan review, 2 rounds of 3, converged with no meaningfu
 
 ## Result
 
-Empty until work starts.
+**Increment A (2026-11-06), done in a scratch clone at commit `6c9c637`; not yet copied, released or committed.**
+
+- Built: `tools/report.py` has `uncollected` (the verdict rows of reviewed commands that lack a collected row, matched by the command's hash, the gap of a command reviewed more often than collected going to its latest verdict rows), `not_collectable` (now the length of that list, so the count is the same as before) and `not_collectable_by_check` (the failed checks of those rows, each counted once per row, a reviewed approve under the name `approve`). `report` prints, directly after `reviewed but not collectable: <n>` and only when `<n>` is above zero, `  by failed check (a row counts under each check it failed): <ranked names and counts>`. Seven new tests in `NotReviewed` pin the grouping, the line's place, a row with two failed checks, the absence of the line at zero, the one-gap and two-gap latest-rows cases, and that no hash or text of the store is printed. The spec's two scoped passages and the third passage that lists what the report prints say so. The code builds lists without `.append`, because a source-guard test bans that text in the report.
+- Verification as run: the new tests failed before the `report.py` edit (five failures, the count right and the split line absent; the two guard tests already passed); after the edit and the review changes `test_tools_report` ran 75 tests, all passing. The whole `action-review` module suite in the clone ran 797 tests with one failure, `test_hook_shadow_hook.Launcher.test_the_environment_holds_exactly_path_home_and_lang`: the recorded environment of a launched process holds an extra macOS variable, `__CF_USER_TEXT_ENCODING`. The same single test fails on the clone with my edits set aside, so it predates this plan; I did not change it. A search of `docs` and the module found no other description of the line outside history plans. Not run: the whole repository suite, the document check (after the copy) and the release steps.
+- Review: Codex on the plan, two rounds, converged; the `reviewer` agent on the increment, one exchange, two non-blocking findings applied and one rejected with a reason.
+- Left for the owner: the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/nc_install_files.py`, three files, only if their hashes are those recorded); the release approvals (`wb preview release-approvals`, then `wb release-approvals --digest`), and the stale shipped records for you to approve before I remove them; then "commit a"; after the commit the acknowledge, upgrade and rerender (the module's tree hash changes). To see the new line on your store, replace `~/action-review-shadow/report.py` with the committed file, as you did for the previews change.

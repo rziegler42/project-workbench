@@ -629,6 +629,67 @@ class NotReviewed(Base):
         self.command("safe-git-commit", "approve", (), "right")  # one collected row, with the shared test hash
         self.assertEqual("reviewed but not collectable: 2", self.line(self.text(), "reviewed but not collectable"))
 
+    SPLIT = "  by failed check (a row counts under each check it failed): "
+
+    def uncollected(self, digest, verdict, failed=()):
+        """One reviewed verdict row with its own command hash (so it has no collected row unless the test makes one)."""
+        self.verdict_row("reviewed", verdict, failed, digest=digest)
+
+    def test_the_uncollectable_commands_are_grouped_by_their_failed_checks(self):
+        for number in range(3):
+            self.uncollected("%064x" % (number + 1), "decline", ["no_secret_lines"])
+        self.uncollected("%064x" % 4, "decline", ["paths_not_credentials"])
+        for number in (5, 6):
+            self.uncollected("%064x" % number, "approve")
+        self.verdict_row("reviewed", "approve")  # its hash has a collected row below
+        self.command("safe-git-commit", "approve", (), "right")
+        out = self.text()
+        self.assertEqual("reviewed but not collectable: 6", self.line(out, "reviewed but not collectable"))
+        self.assertEqual(self.SPLIT + "no_secret_lines 3, approve 2, paths_not_credentials 1", self.line(out, self.SPLIT[:12]))
+
+    def test_the_split_line_follows_the_count_line_directly(self):
+        self.uncollected("%064x" % 1, "decline", ["no_secret_lines"])
+        lines = self.text().splitlines()
+        at = lines.index("reviewed but not collectable: 1")
+        self.assertTrue(lines[at + 1].startswith(self.SPLIT), lines)
+
+    def test_a_decline_that_failed_two_checks_counts_under_both_and_the_count_stays_one(self):
+        self.uncollected("%064x" % 1, "decline", ["no_secret_lines", "paths_not_credentials"])
+        out = self.text()
+        self.assertEqual("reviewed but not collectable: 1", self.line(out, "reviewed but not collectable"))
+        self.assertEqual(self.SPLIT + "no_secret_lines 1, paths_not_credentials 1", self.line(out, self.SPLIT[:12]))
+
+    def test_nothing_uncollectable_prints_no_split_line(self):
+        self.verdict_row("reviewed", "approve")
+        self.command("safe-git-commit", "approve", (), "right")  # the collected row of that hash
+        out = self.text()
+        self.assertEqual("reviewed but not collectable: 0", self.line(out, "reviewed but not collectable"))
+        self.assertNotIn("a row counts under each check", out)
+
+    def test_a_command_reviewed_twice_with_one_collected_row_is_grouped_by_its_latest_verdict_row(self):
+        self.verdict_row("reviewed", "decline", ["no_secret_lines"])  # the older one
+        self.verdict_row("reviewed", "decline", ["paths_not_credentials"])  # the latest
+        self.command("safe-git-commit", "approve", (), "right")  # one collected row for the shared hash
+        out = self.text()
+        self.assertEqual("reviewed but not collectable: 1", self.line(out, "reviewed but not collectable"))
+        self.assertEqual(self.SPLIT + "paths_not_credentials 1", self.line(out, self.SPLIT[:12]))
+
+    def test_a_command_reviewed_three_times_with_one_collected_row_is_grouped_by_its_latest_two(self):
+        self.verdict_row("reviewed", "decline", ["no_secret_lines"])
+        self.verdict_row("reviewed", "approve")
+        self.verdict_row("reviewed", "decline", ["paths_not_credentials"])
+        self.command("safe-git-commit", "approve", (), "right")
+        out = self.text()
+        self.assertEqual("reviewed but not collectable: 2", self.line(out, "reviewed but not collectable"))
+        self.assertEqual(self.SPLIT + "approve 1, paths_not_credentials 1", self.line(out, self.SPLIT[:12]))
+
+    def test_the_split_line_prints_no_hash_reason_or_other_text_of_the_store(self):
+        self.uncollected("%064x" % 7, "decline", ["no_secret_lines"])
+        out = self.text()
+        self.assertNotIn(MARK, out)
+        self.assertNotIn("%064x" % 7, out)
+        self.assertTrue(out.isascii())
+
     def test_with_no_verdict_rows_it_says_none_were_recorded(self):
         out = self.text()
         self.assertIn("prompted 0", self.line(out, "prompted:"))

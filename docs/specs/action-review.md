@@ -687,7 +687,8 @@ as `failed`. A `reviewed` outcome with no `facts:` line, and a decline for `no_s
 verdict row with `reviewed` true and no collected row, and the report counts it as reviewed but not collectable, by the `command_sha256`
 that links the two files. **A decline for a secret can therefore never be labelled**, so a false decline of that kind does not reach the
 labelled set that the false-decline rate is computed from; the owner reads the count of such commands in the report when judging a
-cutover.
+cutover. The report follows the count with a line that groups those commands by the failed checks of their verdict rows ("Labelling and
+the report"), so the owner can see how many are declines for a secret and how many are something else.
 
 **Placement of the programs.** `module-boundary.md` ("Module directories") puts a script that something runs at use time in
 `ships` and a script for measuring in `tools/`. The hook and the store library it imports are shipped data files under `hook/`
@@ -707,6 +708,11 @@ skipped counts; any false approve on the labels or the test set is printed first
 whose collected `confirm` fact is false (a preview) is not in the `remove` line: it is on the line "unconfirmed removals (previews)",
 with its labelled, right, wrong, false-decline and false-approve counts and its own false declines by check, and its false approves
 still count toward the alarm and the cutover line (the accepted decision `2026-11-05-unconfirmed-removals-are-outside-the-action-review-measure`).
+The count of reviewed commands that have no collected row ("reviewed but not collectable", matched by the command's hash) is followed by one
+line, "by failed check (a row counts under each check it failed)", that groups them by the failed checks of their verdict rows, ordered like the
+other "by check" lines; a reviewed approve that has no collected row (no `facts:` line, or a row too large to store) is counted under the name
+`approve`. When a command was reviewed more often than it has collected rows, the gap is attributed to its latest verdict rows. The line is
+absent when the count is zero, and it prints check names and counts only (plan `2026-11-06-shadow-report-splits-not-collectable`).
 The report reads that one boolean of a collected row's facts and no other; a fact that is missing or not a boolean leaves the
 removal in the `remove` line.
 
@@ -747,7 +753,7 @@ is "met" only when the test set holds exactly the shipped number of distinct cas
 the case file; the report is copied out of the checkout and cannot read the file): fewer reads "the test set has N of 29 cases", more
 reads "more than the 29 shipped". It counts the prompted commands from `verdicts.jsonl`, the reviewed ones and the others by reason (the `no_rule`
 count says it includes pushes and remote jobs), the reviewed commands with no collected row (matched by the hash of the command
-text), the unlabelled and skipped, and the lines each file could not be read from. A false approve on the labels or the test set is
+text, and grouped on the next line by the failed checks of their verdicts), the unlabelled and skipped, and the lines each file could not be read from. A false approve on the labels or the test set is
 the first line printed and the cutover line then says "blocked". Otherwise the cutover line says "not yet", with its reasons (fewer
 than 10 labelled of either action, a rate over the bound for either, or a test set that is missing, short or over), or that the bound
 is met on the labels and the test set, which leaves the cutover to the owner; the line then gives the number of test cases and, when

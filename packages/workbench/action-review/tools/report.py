@@ -7,11 +7,12 @@ The owner copies this file and ``shadow_store.py`` out of the project to a direc
 
 (``docs/specs/action-review.md``, "Labelling and the report"). It reads the four files of the store and prints, per action, the
 engine's false declines and false approves against the owner's labels, the rate of false declines against the bound, and the false
-declines by failed check; the same for the test set; what the engine did not review, by reason; and what is still unlabelled. A
-false approve on the labels or the test set, in any run of a test case, is the first thing printed and keeps the cutover closed;
-the cutover line is "met" only when the test set holds exactly the shipped number of distinct cases. It prints counts, rule
-names, check names and the names of test cases approved wrongly (the shipped synthetic ids) only: never a command, a fact, a
-reason or a note, and nothing that is not printable ASCII. It writes nothing and starts no program.
+declines by failed check; the same for the test set; what the engine did not review, by reason; what it reviewed but the store could
+not collect, by the failed checks of those verdicts (a decline for a secret is never collected and so never labelled); and what is
+still unlabelled. A false approve on the labels or the test set, in any run of a test case, is the first thing printed and keeps
+the cutover closed; the cutover line is "met" only when the test set holds exactly the shipped number of distinct cases. It prints
+counts, rule names, check names and the names of test cases approved wrongly (the shipped synthetic ids) only: never a command, a
+fact, a reason or a note, and nothing that is not printable ASCII. It writes nothing and starts no program.
 
 The bound is the owner's, decided on 2026-10-29: at most 10% of the labelled real commands are false declines, with at least 10
 labelled commits and 10 labelled removals, and no false approve on the labels or the test set. The 10% is provisional.
@@ -134,15 +135,39 @@ def test_set(rows):
     return len(runs), len(bad), in_latest, declines, bad
 
 
-def not_collectable(verdicts, collected):
-    """Reviewed commands that have no collected row, matched by the hash of the command text."""
+def uncollected(verdicts, collected):
+    """The verdict rows of reviewed commands that have no collected row, matched by the hash of the command text.
+
+    A command reviewed more often than it has collected rows leaves a gap, and which of its verdict rows lack a collected row cannot
+    be told, so the gap is attributed to the latest verdict rows of that command (file order)."""
     reviewed, kept = {}, {}
     for row in verdicts:
         if row["reviewed"]:
-            reviewed[row["command_sha256"]] = reviewed.get(row["command_sha256"], 0) + 1
+            reviewed[row["command_sha256"]] = reviewed.get(row["command_sha256"], []) + [row]
     for row in collected:
         kept[row["command_sha256"]] = kept.get(row["command_sha256"], 0) + 1
-    return sum(max(0, count - kept.get(digest, 0)) for digest, count in reviewed.items())
+    found = []
+    for digest, rows in reviewed.items():
+        gap = len(rows) - kept.get(digest, 0)
+        if gap > 0:
+            found.extend(rows[-gap:])
+    return found
+
+
+def not_collectable(verdicts, collected):
+    """How many reviewed commands have no collected row."""
+    return len(uncollected(verdicts, collected))
+
+
+def not_collectable_by_check(rows):
+    """The failed checks of the given verdict rows, each counted once per row that failed it. A reviewed approve names no failed
+    check (it has no collected row because its `facts:` line was missing or the row was too large to store) and is counted under
+    the name ``approve``. Names and counts only: the hash, the reason and the time of a row are not read."""
+    counts = {}
+    for row in rows:
+        for check in row["failed_checks"] or ["approve"]:
+            counts[check] = counts.get(check, 0) + 1
+    return counts
 
 
 def action_line(action, entry):
@@ -211,8 +236,11 @@ def report(files):
     lines += ["not reviewed: " + (", ".join("%s %d" % (name, counts[name]) for name in NOT_REVIEWED if counts.get(name)) or "none")]
     if counts.get("no_rule"):
         lines += ["  (no_rule includes pushes and remote jobs; the engine cannot tell them apart)"]
-    uncollectable = not_collectable(verdicts, collected)
+    gaps = uncollected(verdicts, collected)
+    uncollectable = len(gaps)
     lines += ["reviewed but not collectable: %d" % uncollectable]
+    if gaps:
+        lines += ["  by failed check (a row counts under each check it failed): " + ranked(not_collectable_by_check(gaps))]
     lines += ["unreadable lines: verdicts %d, collected %d, labels %d, testset %d" % tuple(
         files[name][1] for name in ("verdicts", "collected", "labels", "testset"))]
     reasons = []
