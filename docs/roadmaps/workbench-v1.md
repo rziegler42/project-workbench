@@ -1,7 +1,7 @@
 # Roadmap: workbench-v1
 
 Status: Active
-Updated: 2026-11-05
+Updated: 2026-11-06
 
 This roadmap is direction only. It does not authorize implementation and does not
 change any plan. A candidate is referred to as `workbench-v1#<id>`. Candidates are
@@ -1045,6 +1045,16 @@ that describe them; a security review of the installer's new write is part of it
 owner (those stay in the user-level configuration, outside a project's reach), a status-line entry written without the owner's choice
 (it replaces a user-level one, so it is an opt-in), any change to the edit gate or the command gate, and a harness other than Claude.
 **Promotion trigger:** one of the two dependencies above is met and the owner chooses to begin.
+
+### verify-names-a-package — `wb verify` says what it needs when it is run on a directory that is not a package
+
+**Outcome:** `wb verify` run with no argument at a repository root, or on any directory that is not a package, refuses with a reason that says a package
+directory is needed and gives an example such as `packages/workbench`, and not with `package '.': package.json: path may not touch git metadata: .git`,
+which reads as a fault in the package. The refusal itself stays: nothing is verified there.
+**Dependencies:** none.
+**Boundary:** the refusal text of `verify` and the test that pins it, and the sentence of `docs/development.md` or `installer-interface.md` that describes the default target
+if it needs one. Not part of it: the safe-path rule that rejects a `.git` segment, which is deliberate; a change of the default target; and any other command's refusal text.
+**Promotion trigger:** the owner chooses to begin.
 
 ## Deferred
 
