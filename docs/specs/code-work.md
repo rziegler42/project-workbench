@@ -128,7 +128,7 @@ Status is `Proposed`, `Approved`, `In Progress`, `Completed` or `Superseded`.
   and existing labels are not renumbered. New findings are classified before the
   plan is edited: add a step when the outcome is unchanged; add an increment for a
   separately reviewable outcome or prerequisite; update assumptions or risks when no
-  work is added; record out-of-scope work as deferred or in a roadmap.
+  work is added; record out-of-scope work as deferred, or propose it to the owner as a roadmap candidate.
 
 ### Work records
 
@@ -256,6 +256,10 @@ reports the effective values. The owner may also set a key, `approve-plan` among
 `fetch-remote-output` and `change-direction` offer `block` only. The `delegable` marks above describe what a way of working may
 allow; they do not make a checkpoint delegable until the installer builds it, and the installer builds `delegate` for
 `approve-plan` only.
+
+Changing a roadmap's direction (`change-direction`) is any change to a roadmap other than correcting a typo, such as adding a
+candidate, and it always stops. The agent shows the owner the candidate it would add and writes it on the owner's word; the owner's request to add a
+candidate is that word (`groundwork.md`, "Roadmaps" and "Checkpoints").
 
 Delegability *(built by plan `2026-10-23-delegated-approval`, increment C; the installer's use of it is increment D)*.
 The module's helper has a read-only subcommand, `delegable <plan>`, that tells the installer whether a plan may be
