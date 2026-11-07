@@ -1,6 +1,6 @@
 # Make `wb verify` say it needs a package directory when the target has no package.json
 
-Status: In Progress
+Status: Completed
 Created: 2026-11-06
 Candidate: workbench-v1#verify-names-a-package
 Specs: installer-interface
@@ -80,9 +80,9 @@ Increment A: the `reviewer` agent, one exchange, no blocking finding. Applied: a
 
 ## Result
 
-**Increment A (2026-11-06), done in a scratch clone at commit `e2c876c`; not yet copied or committed.**
+**Increment A (2026-11-06), done in a scratch clone at commit `e2c876c`; copied and committed as `ac1e956`.**
 
 - Built: `workbench/cli.py` has a constant `NOT_A_PACKAGE`, a function `_lacks_package_json` and one check just before `verify.verify_package`. A real directory (an `lstat`, no link followed) in which `lstat` of `package.json` fails with "no such file" is refused with `refused: <path> has no package.json, so it is not a package directory; give the package directory, as in wb verify <package>` and exit 1. Every other result of either `lstat` falls through to the verifier. Three new tests in `tests/test_cli.py` pin the refusal for a directory with a `.git` and for a plain one, with an explicit path and with the default `.`, and pin that a dangling `package.json` link, a `package.json` directory, a directory with both `package.json` and `.git`, a link to a directory and a missing path keep their own refusals. The `verify` entry of `installer-interface.md` says so in one sentence.
 - Verification as run: the new tests failed before the `cli.py` edit, each showing the old text (`package '.': package.json: path may not touch git metadata: .git`, or `package.json is missing or is not a regular file`); after the edit and the review changes `tests/test_cli.py` and `tests/test_verify.py` ran 105 tests, all passing, importing the clone's code (a runner script prints the `workbench` it loaded). A search of `docs` and `README.md` found no other copy of the old text or the default-target wording that disagrees (the roadmap candidate and this plan quote the old text on purpose). Not run: the whole suite, the module suites, and, until the copy, `wb verify packages/workbench` and `wb run code-work check`.
 - Review: the `reviewer` agent, one exchange, no blocking finding, two non-blocking findings applied.
-- Left for the owner: the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/vn_install_files.py`, three files, only if their hashes are those recorded), then "commit a". No file under `packages/` changes, so no release approvals, upgrade or rerender are needed. After the copy I run `wb verify packages/workbench`, a bare `wb verify` and `wb run code-work check`.
+- After the owner's copy (the three files matched their recorded hashes): `wb verify packages/workbench` accepted all 13 modules with unchanged tree hashes (`code-work` still `bd38477d6397`); a bare `wb verify` gave `refused: . has no package.json, so it is not a package directory; give the package directory, as in wb verify <package>` and exit 1; `wb run code-work check` passed (104 plans). No file under `packages/` changed, so no release approvals, upgrade or rerender were needed. The tests were not rerun in the live tree; the live files are byte-identical to the clone's.
