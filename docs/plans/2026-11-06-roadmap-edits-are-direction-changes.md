@@ -158,4 +158,15 @@ Done, not committed. Added the dated clarification note, verbatim from "Assumpti
 
 - Verification run: `git diff -U0` of the record; `wb run code-work check` (checked 107 plans, no problems); `wb check` (no problems). No test suite (no code or shipped file changed).
 - Reviewer (`reviewer` agent), one exchange: no blocking finding. It confirmed the note matches the plan's words and fits the `draft-decision` rule. One non-blocking observation, which I checked with `grep -c`: `docs/decisions/README.md` holds no row for this record (count 0), so step 2's "row" has nothing to touch and the index is unchanged; the missing row is an earlier gap outside this increment.
-- Not done: increments B, C and D.
+- Not done: increments C and D (B is below).
+
+### Increment B
+
+Made and tested in a scratch clone; waiting for the owner to copy six files into the live tree (a script with the files' recorded hashes) and for the owner's word to commit. Nothing in the live tree has changed yet.
+
+- Tests first: `test_groundwork_roadmap_scope.py` was rewritten with a new class `WhoWritesAChange` (9 tests) and a docstring that names this plan; 8 of its 14 tests failed before the text changed. One test walks all 82 shipped markdown files under `base/` and `packages/` outside `tests/`, plus the spec, and fails for "If it does, add it there" or "is added to it as a candidate".
+- Text: the `draft-roadmap` skill (description now "propose a candidate for one", step 1, step 6, the rules), the roadmaps README (Naming, Contents, Retiring), one new bullet in the policy block, and `docs/specs/groundwork.md` (the roadmap bullets, the candidate-definition bullet and the checkpoint section).
+- Verification run: all 9 groundwork module test files plus `tests.test_rendering` and `tests.test_permissions_drift`, 374 tests, OK; `wb run code-work check` OK. Not run: the whole suite.
+- Deviations from the plan, both small. (1) The policy sentence says "Check that a candidate shares the finish line of the roadmap it would join" where the plan's proposal says "Do the placement test", because "placement test" is defined in no shipped text. (2) `test_groundwork_module.py` also changed, one number: its cap on the policy block's length went from 16 to 21 lines, because the one new policy sentence takes the block from 16 to 21; the owner chose this over shortening the sentence. The plan named neither.
+- Reviewer, one exchange, no blocking finding. Applied: the spec's candidate-definition bullet said "investigative work may reshuffle, add or drop candidates" with no owner step, so it now ends "each on the owner's word", with a test; a missing blank line in the test file. Noted, not changed: the first deviation above; the walk test is case-sensitive on exact sentences, which is what the plan names. The old sentences remain in this repository's seeded `docs/roadmaps/README.md` and in the installed copies, which are increment D and the rerender.
+- Left for the owner: the six-file copy, release approvals, removal of the stale shipped records, acknowledge, upgrade and rerender (once, together with C if you prefer).

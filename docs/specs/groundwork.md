@@ -70,7 +70,8 @@ it does not authorize work and does not alter a plan that is in progress.
   There may be several roadmaps.
 - A scope is a body of work with its own finish line: one the owner can call finished, or pause,
   without that deciding anything about other scopes. New work that shares the finish line of the
-  roadmap it would join is added to it as a candidate; otherwise a new roadmap is proposed to the
+  roadmap it would join becomes a candidate of that roadmap, once the owner has seen it and said to
+  write it; otherwise a new roadmap is proposed to the
   owner, with its scope and its finish line, and written once the owner accepts or renames it. An
   agent never adds to the nearest roadmap because it is nearest. A candidate is bounded new work that
   advances the finish line of its roadmap; work too small to need roadmap direction is a plan with
@@ -82,7 +83,7 @@ it does not authorize work and does not alter a plan that is in progress.
   when a candidate is promoted.
 - A roadmap is retired like a plan, by setting its status to `Archived`. The file is never
   moved or renamed, so `<roadmap>#<id>` stays valid. One roadmap that is not archived is
-  kept for each scope, each with its own finish line, and updated in place; a replacement takes a new name, and the old
+  kept for each scope, each with its own finish line, and updated in place on the owner's word; a replacement takes a new name, and the old
   one is archived when it is written. Retiring or replacing a roadmap changes direction,
   so it needs the owner.
 - A roadmap states its status, its update date, its purpose, the current state, its
@@ -92,7 +93,7 @@ it does not authorize work and does not alter a plan that is in progress.
 - A **candidate** is sized to be exactly one unit of work. It has a stable ID, a
   title, the outcome wanted, dependency hints, a boundary, and the trigger for
   starting it. Order and dependencies are hints only: investigative work may
-  reshuffle, add or drop candidates.
+  reshuffle, add or drop candidates, each on the owner's word.
 - A candidate's ID is a short topic slug in lowercase kebab-case, fixed when the
   candidate is created. It is unique within its roadmap, and a check reports a
   duplicate, which is how two people adding the same slug at once is caught. There is
@@ -107,7 +108,12 @@ it does not authorize work and does not alter a plan that is in progress.
   when a completed work record, supplied by a process module (see `code-work.md`),
   refers to it. This module defines only the reference syntax; when no process module
   provides `plans`, the completion report is empty and nothing fails. The roadmap
-  file changes only when direction changes.
+  file changes only when direction changes. Any change to a roadmap other than correcting a typo
+  is a change of direction: adding, dropping or rewording a candidate, changing a roadmap's purpose,
+  scope or status, or creating, retiring or replacing a roadmap. It is the `change-direction`
+  checkpoint and always stops for the owner. The agent checks that a candidate shares the finish line
+  of the roadmap it would join, shows the owner the candidate it would add, and writes it only on the
+  owner's word; the owner's request to add a candidate is that word.
 - A large item that would need several units of work is split into several
   candidates.
 
@@ -248,7 +254,12 @@ at `ask`, run the helper's `preview`, show it, and run `accept` with its digest 
 | checkpoint | default |
 |---|---|
 | accept a decision | stop |
-| change a spec's or roadmap's direction | stop |
+| change a spec's or roadmap's direction (`change-direction`) | stop |
+
+The `change-direction` checkpoint covers any change to a roadmap other than correcting a typo (adding, dropping or rewording a
+candidate, changing a roadmap's purpose, scope or status, or creating, retiring or replacing a roadmap) and any change to what a spec
+says about direction. It always stops for the owner: the agent shows the owner the candidate it would add and writes it only on the
+owner's word, and the owner's request to add a candidate is that word.
 
 The owner sets each in the personal settings (`command-permissions.md`; for `accept-decision`, `block`, `ask` and `none` are built).
 Acknowledgement of changes to specs,

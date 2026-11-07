@@ -115,7 +115,7 @@ class Blocks(unittest.TestCase):
 
     def test_the_policy_block_is_short_and_names_no_tool(self):
         text = block("policy")
-        self.assertLessEqual(len(text.splitlines()), 16)
+        self.assertLessEqual(len(text.splitlines()), 21)
         for word in ("Claude", "claude", "opencode", "Codex", "CLAUDE.md"):
             self.assertNotIn(word, text)
 
