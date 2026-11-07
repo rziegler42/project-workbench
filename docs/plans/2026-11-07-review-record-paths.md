@@ -98,4 +98,11 @@ A second round has not been asked for.
 
 ## Result
 
-Empty until work starts.
+### Increment A — done and committed
+
+- **Changed:** `helper/review-engine` (`record_paths`, its dispatch, the usage text and the argument shape), `module.json`, the new `tests/test_review_record_paths.py` (14 tests), `tests/test_review_module.py` (fifteen arguments, and a temporary skip of `record-paths` in the skill-mentions-every-argument test, which increment B removes), and `docs/specs/review-engine.md` (Declaration list, commands table, a "Record paths" subsection, the argument count, conformance item 15).
+- **Verification as run:** from `packages/workbench/review-engine/tests`, `python3 -B -m unittest test_review_record_paths test_review_module test_review_commands`: 60 tests, OK. Before the helper change 10 of the 13 tests then written failed with the usage refusal. Not run: the other `test_review_*` files, the installer's tests of rendered modules, `wb doctor`.
+- **Review:** one reviewer round, no blocking finding. Applied: a test that a closed review still lists its files. Not applied: a `ledger.md` or `schema.json` over 4 MiB is left out of the list without a message; the engine's own bound on those files was not checked, so it is an accepted limit and not a claim that it cannot happen.
+- **Deviation:** the plan's A verification names `test_review_module.py`, which requires the skill to mention every argument, so A needed the temporary skip above; B removes it.
+- **Gate:** the shipped approval of the package goes stale at every edit under `packages/workbench/review-engine/`, and the gate then refuses every tool call until the owner releases it. This cost many releases in A and will in B.
+- **Security review:** recommended to the owner once for the surface (a directory read in the project); the owner declined it, 2026-11-07, accepting the risk. The reviewer of the increment found no concrete exposure.

@@ -42,7 +42,7 @@ Non-goals:
 | convergence | `{"command": "review-engine", "argument": "convergence"}`, the argument the installer asks for a delegated plan approval (see "Convergence") |
 
 The arguments are `status`, `init`, `review-plan`, `review-spec`, `review-roadmap`, `review-adr`, `decide`,
-`amend`, `extend`, `reset`, `archive`, `prune`, `convergence` and `preview`. The engine is run as
+`amend`, `extend`, `reset`, `archive`, `prune`, `convergence`, `record-paths` and `preview`. The engine is run as
 `wb run review-engine <argument> [...]`.
 
 ## The commands
@@ -65,6 +65,7 @@ review's own directory, and none changes the reviewed document.
 | `archive <document> [--digest <digest>]` | closes the review: the ledger is its summary, and no further round, decision or change is taken (owner-run); with a digest, only if it is that of this closing of the review now |
 | `prune [--apply [--digest <digest>]]` | lists, and with `--apply` deletes, closed reviews closed 90 days ago or more (owner-run); with a digest, which only `--apply` takes, only if it is that of the list it would delete now |
 | `convergence <document>` | prints whether the last review of a plan converged, for the installer's delegated approval (read-only; see "Convergence") |
+| `record-paths <document>` | prints `{"document": ..., "paths": [...]}`: the project-relative files of the review that a commit holds, for `wb run safe-git commit`, which takes files and not a directory (read-only and agent-safe; see "Record paths") |
 
 `<document>` is a path relative to the project root. It must be a regular file with no link in any component, inside
 the project, in the directory of its kind (`docs/plans/`, `docs/specs/`, `docs/roadmaps/`, `docs/decisions/`) and no
@@ -106,6 +107,15 @@ A round is one call to the bridge and, if the reply is valid, one recorded set o
   reviewer's), `reading` (the engine's), `verdict_mismatch`, `summary`, `model`, `findings` (each with its `id`,
   `severity`, `location`, `problem` and `suggestion`), `meaningful` (the number of blocker and major findings),
   `pending` (the meaningful findings of the window with no decision) and `converged`.
+
+### Record paths
+
+*(Built by plan `2026-11-07-review-record-paths`, increment A.)* A review's directory is committed with the project, but
+`wb run safe-git commit` takes files and refuses a directory. `record-paths <document>` prints the files to name:
+`state.json`, `ledger.md` and `schema.json`, then the file of each round the state names, each as a path from the project
+root and only where it is a regular file reached without following a link. The list comes from the state and not from the
+directory, so a file that the state does not name is never listed. A seal that does not hold does not stop the listing,
+because it names files and vouches for nothing. The command is read-only and agent-safe, and is not in the owner-run list.
 
 ### Convergence
 
@@ -345,6 +355,11 @@ The module conforms when tests against a fake bridge, installed as a real pinned
     differ, more rounds than the bound, and true for a clean last round with every earlier meaningful finding decided; it
     follows the last round and the current window. It refuses a document that is not a plan, a plan with no review or no
     round in the window, and a state that is unsealed, rolled back or unreadable. It is not in the owner-run list.
+15. `record-paths` prints the documented object and writes nothing. It lists `state.json`, `ledger.md`, `schema.json` and
+    the file of each round the state names, in that order, each only where it is a regular file reached without a link; it
+    does not list a file the state does not name (a valid `round-<n>.json` beyond the rounds included), a missing file or a
+    link. It lists an unsealed review and refuses a document with no review and a state that cannot be used. It is not in the
+    owner-run list.
 
 ## Acceptance criteria
 
@@ -370,7 +385,7 @@ The module conforms when tests against a fake bridge, installed as a real pinned
 Built by plan `2026-10-23-review-engine`, increments C to G (the module `review-engine`, version 0.1.0):
 
 - The declaration provides `peer-review`, requires `model-bridge` (hard) and declares the command `review-engine` with
-  the arguments of "The commands" (fourteen now: twelve at first, then `convergence`, the thirteenth, and `preview`, which came later) and the `owner` list `amend`, `extend`, `reset`, `archive`, `prune`. It ships
+  the arguments of "The commands" (fifteen now: twelve at first, then `convergence`, the thirteenth, `preview`, which came later, and `record-paths`, the fifteenth) and the `owner` list `amend`, `extend`, `reset`, `archive`, `prune`. It ships
   the neutral skill `peer-review`. The package approval is shipped (`workbench/shipped_approvals/`), released by the owner at increment G.
   Plan `2026-10-23-delegated-approval` added the thirteenth argument, `convergence`, and the declaration field that names
   it (increment B, below); that edit made the shipped approval stale until the owner released it again in that plan's

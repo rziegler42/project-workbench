@@ -60,11 +60,12 @@ class Declaration(unittest.TestCase):
         for field in ("writes", "fills", "checks", "helpers", "blocks", "slots", "layout"):
             self.assertNotIn(field, document)
 
-    def test_the_command_has_its_own_name_and_the_fourteen_arguments(self):
+    def test_the_command_has_its_own_name_and_the_fifteen_arguments(self):
         self.assertEqual(["review-engine"], list(declaration()["commands"]))
         command = declaration()["commands"]["review-engine"]
         self.assertEqual(["status", "init", "review-plan", "review-spec", "review-roadmap", "review-adr", "decide",
-                          "amend", "extend", "reset", "archive", "prune", "convergence", "preview"], command["arguments"])
+                          "amend", "extend", "reset", "archive", "prune", "convergence", "record-paths", "preview"],
+                         command["arguments"])
         self.assertEqual((HELPER, "python", 1), (command["helper"], command["runtime"], command["kit"]))
 
     def test_every_owner_argument_offers_ask_and_none_and_names_preview_as_its_preview(self):
@@ -179,6 +180,8 @@ class Skill(unittest.TestCase):
         for argument in declaration()["commands"]["review-engine"]["arguments"]:
             if argument == "convergence":
                 continue   # the installer asks it for a delegated plan approval; the skill's guidance is increment E
+            if argument == "record-paths":
+                continue   # plan 2026-11-07-review-record-paths: the skill's step is increment B, which removes this
             self.assertIn(argument, mentioned, argument)
 
 
