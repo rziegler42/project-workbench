@@ -807,6 +807,61 @@ that can read user-level paths can read it. The owner's steps include a user-lev
 `~/.config/project-workbench/action-review/**`. This is the owner's rule, not one the workbench renders, and a `Read` deny does
 not stop a `cat` through the shell, so it narrows the gap and does not close it.
 
+### Labelling a declined secret (proposed; not built; roadmap candidate `workbench-v1#shadow-label-secret-declines`)
+
+*Status: a design, written on 2026-11-07 at the owner's request. Nothing here is built. The text above and below that says a decline for a
+secret is never collected and can never be labelled stays true until this is built, and the plan that builds it changes those places.*
+
+**Why.** A command the engine declines for `no_secret_lines` or `paths_not_credentials` leaves a verdict row and no collected row, so it
+cannot be labelled and is counted only as "reviewed but not collectable". On 2026-11-07 that was 65 of 187 reviewed commands (about a
+third), every one of them a decline for `no_secret_lines`, 34 of them also failing `facts_complete`
+(the report's count, read by the owner on that day). The false-decline rate and the cutover bound
+("Accuracy and cutover") rest on labelled commands only, so a third of the evidence is out of reach, and the share grows with every
+project that works with secrets, because the hook is registered for the owner's whole account.
+
+**What stays true.** The accepted rule that a declined secret leaves no text in the collected data
+(`2026-11-04-shadow-hook-security-review-fixes`, increment A) stays true. The redactor cannot name every secret shape the engine's scan
+finds, so nothing that the redactor would have to clean is kept for these commands.
+
+**The design (decided by the owner on 2026-11-07, except where marked as the author's).**
+
+- **An allowlist, not a redaction (author's call).** For a declined secret the hook writes one handle row, built from a fixed list of fields
+  known to hold no secret, and from nothing else. It does not run the redactor over the command, the diff or the facts and keep what is
+  left. A field that is not on the list cannot reach the row, whatever the facts hold.
+- **What the handle holds (author's call; the plan fixes the exact fields and caps).** The rule, the failed checks, the time, the name of the
+  project's directory (its last path segment, not the path), the `confirm` flag, and the paths of the facts that name paths
+  (`paths`, `requested_paths`, `target_paths`), each at most 256 characters, with a count of the paths dropped. A path that the redactor
+  would change, or that holds a character the store refuses, is dropped and counted. A push has no paths; its handle holds the rest.
+- **What it never holds.** The command text, the diff, the subject, the body, the trailers, the model's reason, and any other fact.
+- **Where it goes (author's call).** A row of `collected.jsonl`, so that the labelling tool, the label rows and the match by
+  `command_sha256` work as they do now, and the report's "not collectable" count falls by the handled rows. The row carries a marker that
+  tells it from an ordinary collected row (the plan names it), and the store's rules for rows are kept: ASCII, a line cap, no unknown field.
+- **The engine does not change (decided by the owner).** The engine's scan keeps returning only whether it hit. The kind of the hit and
+  the file are not asked of it, so the handle cannot name them. This is why the candidate's boundary excludes the engine's scan.
+- **Judging it.** The labelling tool shows a handle as a handle: the rule, the failed checks, the paths and the time, and says that the
+  owner may look at the change in the project (for example with `git diff -- <paths>` in that directory) or skip. The tool runs no program,
+  as it does not now. `right` means the owner would have declined too, `wrong` that the owner sees no secret. A handle the owner cannot
+  judge from the paths and the time is skipped.
+- **Counted apart (author's call).** The report counts labelled handles apart from ordinary commands, as it counts previews, because the
+  owner judges them from less than the ordinary row shows. They fold into the false-decline rate and the cutover bound only when the owner
+  says so, and the report says which it did.
+
+**Not part of this.** The engine's secret scan and rules, the redactor for other commands, the cutover decision, and what is stored for
+a command that is not a declined secret.
+
+**Acceptance criteria (outline; the plan makes them exact).**
+
+1. A command declined for `no_secret_lines` or `paths_not_credentials` leaves exactly one handle row and no other collected row.
+2. A test passes hostile facts through the hook (a secret in a path, in every other fact, in a key; a path over the cap; a character the store
+   refuses; many paths) and finds no field outside the list and no secret in the row.
+3. The report's "reviewed but not collectable" count falls by the handled rows, counts labelled handles apart, and says whether they are
+   folded into the rate.
+4. The labelling tool shows a handle, accepts `right`, `wrong` and `skip`, and runs no program.
+5. The sentences of this spec that say a declined secret is never collected or can never be labelled are changed in the same plan, and a
+   test pins them against the hook.
+
+**Owed.** A security review of the change: it touches secrets, the store and untrusted command text. It runs only when the owner asks.
+
 ### Accuracy and cutover (default)
 
 The approver is not the standard, because the owner finds it wrongly declines. So the engine is judged against a
