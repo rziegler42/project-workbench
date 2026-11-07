@@ -745,6 +745,18 @@ characters, the backslash and every escape sequence are written as visible escap
 terminal. Each label is one whole row or none; an interrupt ends the tool with 130 and a store that cannot be read or written ends
 it with 1. It starts no program and opens no file but the store's.
 
+A **handle** (a collected row whose facts carry the boolean `handle` set to true; plan `2026-11-07-label-declined-secrets`, increment B; the
+hook writes them from increment C, "Labelling a declined secret") is shown as a handle, not as a command: the number and the time and the rule,
+the line "handle: declined for a secret; the command and the change are not kept, only the paths below", the engine's verdict and failed
+checks, the paths one to a line (cleaned like every other text, each cut at 256 characters, at most 50, with the count of the rest) or
+"paths: none kept", the count of paths the hook left out when it is a whole number from 0 to 100,000, and two lines about judging it. It shows no command line
+and not the row's fixed reason. The first line, "to judge it", says that the owner may look at the change in the project they were working in at
+that time, for example with `git diff -- <the paths>` there, or skip the handle if they cannot tell. That text names `<the paths>` and puts no path
+into a command line, so a path cannot become a command by being copied. The tool runs nothing. The second, "for this handle", says that `right` means
+the owner would have declined it too and `wrong` that the owner sees no secret in the change; the general meaning of right and wrong is still shown
+with it. A row whose `handle` fact is not the boolean true, or a `handle` among the inner facts, is shown as an ordinary command. `r`, `w`, `s`, `f`
+and `q` work as for any row; `f` shows the facts, cleaned.
+
 *As built (Increment F, `tools/report.py`).* `python3 -B report.py`, copied with `shadow_store.py`, takes no argument but the one option
 `--fold-handles`, given alone (any other argument exits 2), and needs no terminal, because it prints only counts, rule names and check names: never a command, a fact, a reason or a
 note, and nothing that is not printable ASCII. It writes nothing. The latest label of each collected command is the one counted; a
@@ -1137,7 +1149,10 @@ file `~/.claude/settings.json`.
    judged as the engine did, `wrong` that you would not. Judge from the command and the facts (press `f`), not from the engine's reason:
    when a model was asked, its reason is the model's own words, which the commit's text may have steered. Until there are at least 10
    labelled commits and 10 labelled removals the report says "not enough labels". A commit the engine declined for a secret is never
-   collected, so a false decline of that kind cannot be labelled and is not in the rate.
+   collected, so a false decline of that kind cannot be labelled and is not in the rate. (From the hook of increment C of plan
+   `2026-11-07-label-declined-secrets`, such a command leaves a handle. The tool shows a handle with its paths and the line "to judge it": look
+   at the change in the project, for example with `git diff -- <the paths>` there, or press `s` when you cannot tell. For a handle `right` means you
+   would have declined it too and `wrong` that you see no secret in the change.)
 8. **Run the test set against a real model, once,** from the root of a checkout you trust: `python3 -B
    packages/workbench/action-review/tools/run_testset.py [--codex-dir <absolute path>]`. It needs the `codex` program on your `PATH` and a
    Codex directory (`~/.codex` by default) with your sign-in, and refuses without them. It sends 3 synthetic prompts (not yours) to Codex

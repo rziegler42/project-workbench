@@ -336,6 +336,186 @@ class Showing(Base):
             self.assertTrue(char == "\n" or " " <= char <= "~", repr(char))
 
 
+FIXED = "[declined for a secret; the command is not kept]"
+FIXED_REASON = "declined for a secret; nothing of the command is kept"
+
+
+def handle_row(number=1, paths=("a.txt", "dir/b.py"), dropped=1, **changes):
+    """A collected handle: the row the hook keeps of a command declined for a secret (plan `2026-11-07-label-declined-secrets`)."""
+    row = {"id": "%032x" % number, "ts": "2026-10-30T01:02:%02dZ" % number, "rule": "safe-git-commit",
+           "command_sha256": SHA, "command": FIXED,
+           "facts": {"handle": True, "facts": {"paths": list(paths), "paths_dropped": dropped, "confirm": True}},
+           "verdict": "decline", "failed_checks": ["no_secret_lines"], "reason": FIXED_REASON}
+    row.update(changes)
+    return row
+
+
+class Handles(Base):
+    """Plan `2026-11-07-label-declined-secrets`, increment B. A handle is shown as a handle: the rule, the failed checks, the time and
+    the paths, with a line that says the owner may look at the change in the project or skip. It has no command to show and its
+    fixed reason is not printed. Labelling it is as for any row."""
+
+    def test_a_handle_is_shown_with_its_rule_failed_checks_time_and_paths(self):
+        self.add(handle_row(1, paths=("a.txt", "dir/b.py"), dropped=2))
+        _, out, _ = self.run_tool("s")
+        self.assertIn("handle:", out)
+        self.assertIn("rule safe-git-commit", out)
+        self.assertIn("2026-10-30T01:02:01Z", out)
+        self.assertIn("the engine said: decline (failed checks: no_secret_lines)", out)
+        self.assertIn("a.txt", out)
+        self.assertIn("dir/b.py", out)
+        self.assertIn("paths left out: 2", out)
+
+    def test_a_handle_shows_no_command_line_and_not_its_fixed_texts(self):
+        self.add(handle_row(1))
+        _, out, _ = self.run_tool("s")
+        self.assertEqual([], [line for line in out.splitlines() if line.startswith("command:")])
+        self.assertEqual([], [line for line in out.splitlines() if line.startswith("the reason")])
+        self.assertNotIn(FIXED, out)
+        self.assertNotIn(FIXED_REASON, out)
+
+    def test_a_handle_says_the_owner_may_look_at_the_change_in_the_project_or_skip(self):
+        self.add(handle_row(1))
+        _, out, _ = self.run_tool("s")
+        lines = [line for line in out.splitlines() if line.startswith("to judge it:")]
+        self.assertEqual(1, len(lines), out)
+        self.assertIn("git diff -- <the paths>", lines[0])
+        self.assertIn("skip", lines[0])
+
+    def test_the_hint_never_puts_a_path_into_a_command_line(self):
+        self.add(handle_row(1, paths=("a.txt; rm -rf x", "$(touch y)")))
+        _, out, _ = self.run_tool("s")
+        for line in out.splitlines():
+            if "git diff" in line:
+                self.assertNotIn("a.txt", line)
+                self.assertNotIn("rm -rf", line)
+                self.assertNotIn("touch", line)
+
+    def test_right_wrong_and_skip_mean_for_a_handle_what_the_line_says_and_the_general_meaning_stays(self):
+        self.add(handle_row(1))
+        _, out, _ = self.run_tool("s")
+        self.assertIn("right = you would have judged as the engine did; wrong = you would not", out)
+        self.assertIn("for this handle: right = you would have declined it too; wrong = you see no secret in the change", out)
+
+    def test_a_handle_is_labelled_as_any_row_with_a_note(self):
+        self.add(handle_row(1), handle_row(2), handle_row(3))
+        code, _, _ = self.run_tool("r a real key", "w a fixture", "s")
+        self.assertEqual(0, code)
+        self.assertEqual([("right", "a real key"), ("wrong", "a fixture"), ("skip", None)],
+                         [(r["label"], r.get("note")) for r in self.labels()])
+        self.assertEqual(["%032x" % number for number in (1, 2, 3)], [r["id"] for r in self.labels()])
+
+    def test_a_labelled_handle_is_not_shown_again(self):
+        self.add(handle_row(1))
+        self.run_tool("w")
+        _, out, _ = self.run_tool()
+        self.assertIn("Nothing to label.", out)
+
+    def test_paths_are_shown_cleaned_so_they_cannot_drive_the_terminal(self):
+        self.add(handle_row(1, paths=("a\x1b[2J.txt", "b‮.txt", "c\x00d", "e\\f", "g\nh")))
+        _, out, _ = self.run_tool("f", "s")
+        for char in out:
+            self.assertTrue(char == "\n" or " " <= char <= "~", repr(char))
+        self.assertIn("a\\x1b[2J.txt", out)
+        self.assertIn("b\\u202e.txt", out)
+        self.assertIn("e\\\\f", out)
+
+    def test_a_very_long_path_and_many_paths_are_cut_with_a_count(self):
+        self.add(handle_row(1, paths=tuple("p%02d.txt" % number for number in range(60)) + ("x" * 5000,)))
+        _, out, _ = self.run_tool("s")
+        self.assertIn("p49.txt", out)
+        self.assertNotIn("p50.txt", out)
+        self.assertRegex(out, r"\[11 more\]")
+        self.assertNotIn("x" * 400, out)
+
+    def test_a_handle_with_no_paths_says_so(self):
+        self.add(handle_row(1, paths=(), dropped=0))
+        _, out, _ = self.run_tool("s")
+        self.assertIn("paths: none kept", out)
+
+    def test_a_handle_whose_facts_are_not_what_the_hook_writes_is_still_shown_safely(self):
+        shapes = [{"handle": True}, {"handle": True, "facts": []}, {"handle": True, "facts": {"paths": "a.txt"}},
+                  {"handle": True, "facts": {"paths": [1, None, ["x"], {"y": 1}], "paths_dropped": "many"}},
+                  {"handle": True, "facts": {"paths": ["a"], "paths_dropped": True}}]
+        for number, facts in enumerate(shapes, 1):
+            self.add(handle_row(number, facts=facts))
+        code, out, _ = self.run_tool("s", "s", "s", "s", "s")
+        self.assertEqual(0, code)
+        self.assertEqual(5, len(self.labels()))
+        for char in out:
+            self.assertTrue(char == "\n" or " " <= char <= "~", repr(char))
+
+    def test_a_count_of_paths_left_out_that_is_not_a_whole_number_in_range_is_not_shown(self):
+        for number, dropped in enumerate((True, "many", 2.5, None, -1, 100001, 10 ** 40), 1):
+            self.add(handle_row(number, paths=("a.txt",), dropped=dropped))
+        code, out, _ = self.run_tool("s", "s", "s", "s", "s", "s", "s")
+        self.assertEqual(0, code)
+        self.assertNotIn("paths left out", out)
+        self.assertNotIn("many", out)
+        self.add(handle_row(8, paths=("a.txt",), dropped=100000), handle_row(9, paths=("a.txt",), dropped=0))
+        _, out, _ = self.run_tool("s", "s")
+        self.assertIn("paths left out: 100000", out)
+        self.assertIn("paths left out: 0", out)
+
+    def test_a_command_or_reason_in_a_handle_row_is_never_printed(self):
+        """The hook writes fixed texts there, but a row that holds anything else must not have it shown: the tool reads neither."""
+        self.add(handle_row(1, command="SECRET-IN-COMMAND wb run x", reason="SECRET-IN-REASON"))
+        _, out, _ = self.run_tool("f", "s")
+        self.assertNotIn("SECRET-IN-COMMAND", out)
+        self.assertNotIn("SECRET-IN-REASON", out)
+
+    def test_a_path_that_is_not_text_is_shown_as_not_text_and_nothing_of_it_is_printed(self):
+        self.add(handle_row(1, paths=(12345, ["secret-list-entry"], {"k": "secret-dict-value"}, None)))
+        _, out, _ = self.run_tool("s")
+        self.assertEqual(4, out.count("(not text)"))
+        self.assertNotIn("12345", out.split("paths:")[1].split("paths left out")[0])
+        self.assertNotIn("secret-list-entry", out.split("paths:")[1].split("paths left out")[0])
+        self.assertNotIn("secret-dict-value", out.split("paths:")[1].split("paths left out")[0])
+
+    def test_f_shows_the_facts_of_a_handle_cleaned(self):
+        self.add(handle_row(1, paths=("a.txt",)))
+        _, out, _ = self.run_tool("f", "s")
+        self.assertIn("--- the facts, cleaned ---", out)
+        self.assertIn("a.txt", out)
+        self.assertEqual(2, out.count("[r]ight"))
+
+    def test_a_row_whose_handle_fact_is_not_the_boolean_true_is_shown_as_an_ordinary_command(self):
+        for number, marker in enumerate((False, "yes", 1, None), 1):
+            self.add(handle_row(number, command="wb run safe-git commit -- a%d.txt" % number,
+                                facts={"handle": marker, "facts": {"paths": ["a.txt"]}}))
+        _, out, _ = self.run_tool("s", "s", "s", "s")
+        self.assertEqual(4, len([line for line in out.splitlines() if line.startswith("command: ")]))
+        self.assertNotIn("to judge it:", out)
+
+    def test_a_fact_called_handle_among_the_inner_facts_does_not_make_a_handle(self):
+        row = collected(1)
+        row["facts"]["facts"]["handle"] = True
+        self.add(row)
+        _, out, _ = self.run_tool("s")
+        self.assertIn("command: wb run safe-git commit", out)
+        self.assertNotIn("to judge it:", out)
+
+    def test_handles_and_ordinary_commands_are_numbered_together_in_file_order(self):
+        self.add(collected(1), handle_row(2), collected(3))
+        _, out, _ = self.run_tool("s", "s", "s")
+        self.assertIn("1 of 3", out)
+        self.assertIn("2 of 3", out)
+        self.assertIn("3 of 3", out)
+        self.assertLess(out.index("1 of 3"), out.index("handle:"))
+        self.assertLess(out.index("handle:"), out.index("3 of 3"))
+
+    def test_the_source_reads_the_handle_marker_in_one_function(self):
+        import ast
+        with open(LABEL, "rb") as handle:
+            tree = ast.parse(handle.read())
+        where = {}
+        for function in [node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)]:
+            for node in ast.walk(function):
+                if isinstance(node, ast.Constant) and node.value == "handle":
+                    where.setdefault("handle", set()).add(function.name)
+        self.assertEqual({"is_handle"}, where.get("handle"))
+
+
 class Interrupting(Base):
     def test_an_interrupt_ends_the_tool_with_130_and_leaves_only_whole_rows(self):
         self.add(collected(1), collected(2))

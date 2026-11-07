@@ -11,6 +11,11 @@ the note. ``f`` shows the facts in full, ``q`` stops. A command already labelled
 that were skipped are shown once more. ``right`` means the owner would have judged as the engine did, ``wrong`` that they
 would not.
 
+A command the engine declined for a secret is collected only as a handle (a row whose facts carry ``handle`` set to true, with
+paths and no text). It is shown as a handle: the rule, the failed checks, the time and the paths, and a line that says the owner may
+look at the change in the project (``git diff -- <the paths>``, which the tool does not run) or skip it. For a handle ``right``
+means the owner would have declined it too and ``wrong`` that the owner sees no secret in the change.
+
 It runs only when standard input and standard output are terminals, because the label is the owner's own act. What it shows
 is made harmless: every character that is not printable ASCII, escape sequences included, is written as a visible escape, so
 nothing in a command or a diff can drive the terminal. A fact is shown by name and size until the owner asks for it. It starts
@@ -29,6 +34,8 @@ PROMPT = "[r]ight  [w]rong  [s]kip  [f]acts  [q]uit > "
 MEANING = "right = you would have judged as the engine did; wrong = you would not"
 MAX_COMMAND = 8000
 MAX_REASON = 600
+MAX_PATH = 256
+MAX_LEFT_OUT = 100000  # the count of paths a handle says the hook left out; any other number is not shown
 MAX_NOTE = 300
 MAX_FACT = 4000
 MAX_FACTS_SHOWN = 40000
@@ -112,7 +119,52 @@ def full_lines(value, indent=0, name=None):
     return [head + visible(str(value), 40)]
 
 
+def is_handle(row):
+    """True for a collected row whose facts carry the boolean ``handle`` set to true: what the hook keeps of a command the engine
+    declined for a secret, which is a list of paths and no text (plan ``2026-11-07-label-declined-secrets``). Any other value, or a
+    ``handle`` among the inner facts, makes it False and the row is shown as an ordinary command."""
+    facts = row.get("facts")
+    return isinstance(facts, dict) and facts.get("handle") is True
+
+
+def handle_paths(row):
+    """``(paths, left out)`` from a handle's inner facts: the list of paths (empty when it is not a list) and the count of paths the
+    hook left out (None when it is not a whole number from 0 to MAX_LEFT_OUT)."""
+    inner = row["facts"].get("facts")
+    inner = inner if isinstance(inner, dict) else {}
+    paths, dropped = inner.get("paths"), inner.get("paths_dropped")
+    whole = isinstance(dropped, int) and not isinstance(dropped, bool) and 0 <= dropped <= MAX_LEFT_OUT
+    return (paths if isinstance(paths, list) else []), (dropped if whole else None)
+
+
+def show_handle(stdout, row, number, total):
+    """A handle: the rule, the engine's verdict and failed checks, the time and the paths, and how to judge it. It has no command
+    to show and its fixed reason is not printed. The line about the change never puts a path into a command line."""
+    stdout.write("\n%d of %d   %s   rule %s\n" % (number, total, visible(row["ts"], 24), visible(row["rule"], 64)))
+    stdout.write("handle: declined for a secret; the command and the change are not kept, only the paths below\n")
+    checks = ", ".join(visible(name, 64) for name in row["failed_checks"]) or "none"
+    stdout.write("the engine said: %s (failed checks: %s)\n" % (visible(row["verdict"], 16), checks))
+    paths, dropped = handle_paths(row)
+    if paths:
+        stdout.write("paths:\n")
+        for item in paths[:MAX_ITEMS]:
+            stdout.write("  %s\n" % (visible(item, MAX_PATH) if isinstance(item, str) else "(not text)"))
+        if len(paths) > MAX_ITEMS:
+            stdout.write("  [%d more]\n" % (len(paths) - MAX_ITEMS))
+    else:
+        stdout.write("paths: none kept\n")
+    if dropped is not None:
+        stdout.write("paths left out: %d\n" % dropped)
+    stdout.write("to judge it: look at the change in the project you were working in at that time (for example with "
+                 "git diff -- <the paths> there), or skip it if you cannot tell\n")
+    stdout.write("for this handle: right = you would have declined it too; wrong = you see no secret in the change\n")
+    stdout.write(MEANING + "\n")
+
+
 def show(stdout, row, number, total):
+    if is_handle(row):
+        show_handle(stdout, row, number, total)
+        return
     stdout.write("\n%d of %d   %s   rule %s\n" % (number, total, visible(row["ts"], 24), visible(row["rule"], 64)))
     stdout.write("command: %s\n" % visible(row["command"], MAX_COMMAND))
     checks = ", ".join(visible(name, 64) for name in row["failed_checks"]) or "none"
