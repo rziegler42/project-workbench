@@ -1,6 +1,6 @@
 # Let the commit that completes a plan carry the review engine's record of it
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-07
 Candidate: none (a correction that follows from a report in another project, knowledge-base, 2026-11-07: the commit that completes a plan leaves out the plan's review directory)
 Specs: review-engine
@@ -106,6 +106,18 @@ A second round has not been asked for.
 - **Deviation:** the plan's A verification names `test_review_module.py`, which requires the skill to mention every argument, so A needed the temporary skip above; B removes it.
 - **Gate:** the shipped approval of the package goes stale at every edit under `packages/workbench/review-engine/`, and the gate then refuses every tool call until the owner releases it. This cost many releases in A and will in B.
 - **Security review:** recommended to the owner once for the surface (a directory read in the project); the owner declined it, 2026-11-07, accepting the risk. The reviewer of the increment found no concrete exposure.
+
+### Completion, 2026-11-07
+
+Both increments are committed (A `decd897`, B `52405ba`). Completion criteria:
+
+1. `record-paths` lists the review's existing files from its state and refuses a document with no review; a closed or unsealed review is listed. Evidence: `tests/test_review_record_paths.py`, 14 tests, OK.
+2. It is declared in `module.json`. Evidence: `test_review_module.py`, with `test_review_commands.py`, 61 tests with the other file, OK.
+3. The spec lists it: Declaration arguments, commands table, "Record paths", the count, conformance item 15 (commit `decd897`).
+4. The `peer-review` skill tells the agent to name its files in the commit that completes or closes the plan. Evidence: the step 7 test, in the same 61.
+5. The two commits changed only `packages/workbench/review-engine/`, `docs/specs/review-engine.md` and this plan. The `workbench/shipped_approvals/` files that the owner's releases wrote are outside both commits.
+
+Whole-plan verification: B changed no input of A's tests, which ran again inside B's run (61 tests, OK), so nothing else was rerun. Not run: the other `test_review_*` files, the installer's tests of rendered modules, `wb doctor`. Left to the owner, outside this plan: release the shipped approval for the final tree and commit the `shipped_approvals` files, refresh the installed `review-engine` in this repository and in knowledge-base, and commit knowledge-base's two untracked review directories. In this repository the review directories are excluded locally (`.git/info/exclude`), so its own plans' reviews are not tracked here.
 
 ### Increment B — done and committed
 
