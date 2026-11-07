@@ -750,11 +750,17 @@ it with 1. It starts no program and opens no file but the store's.
 A **handle** (a collected row whose facts carry the boolean `handle` set to true; plan `2026-11-07-label-declined-secrets`, increment B;
 "Labelling a declined secret") is shown as a handle, not as a command: the number and the time and the rule,
 the line "handle: declined for a secret; the command and the change are not kept, only the paths below", the engine's verdict and failed
-checks, the paths one to a line (cleaned like every other text, each cut at 256 characters, at most 50, with the count of the rest) or
-"paths: none kept", the count of paths the hook left out when it is a whole number from 0 to 100,000, and two lines about judging it. It shows no command line
+checks, the paths one to a line (at most 50, with the count of the rest) or "paths: none kept", the count of paths the hook left out when it is a whole number from 0 to 100,000, and two lines about judging it. It shows no command line
 and not the row's fixed reason. The first line, "to judge it", says that the owner may look at the change in the project they were working in at
 that time, for example with `git diff -- <the paths>` there, or skip the handle if they cannot tell. That text names `<the paths>` and puts no path
-into a command line, so a path cannot become a command by being copied. The tool runs nothing. The second, "for this handle", says that `right` means
+into a command line. The tool runs nothing. Each path is shown so that copying it does not run it (plan `2026-11-07-handle-paths-are-shell-safe`,
+increment A; the security review of 2026-11-07, Low 1): a path of the safe alphabet `[A-Za-z0-9._/+@%,-]` is shown as it is; any other path of
+printable ASCII is shown as one single-quoted word, an apostrophe written as `'"'"'`, with nothing else changed (not through the tool's text
+cleaner, which doubles a backslash, and not through `shlex.quote`, which leaves `=` and `:` bare while a word that starts with `=` expands in
+zsh); a path with a control or non-ASCII character is shown as visible escapes inside quotes followed by `[not for pasting]`; a path over 256
+characters is shown only as its length; a value that is not text is shown as `(not text)`. The "to judge it" line says that a path with a
+character a shell reads as syntax is shown in single quotes. A test puts the shown words after `git diff --` in `sh`, `bash` and `zsh -f` with
+a fake `git` and finds exactly the paths as arguments and nothing else run. The second, "for this handle", says that `right` means
 the owner would have declined it too and `wrong` that the owner sees no secret in the change; the general meaning of right and wrong is still shown
 with it. A row whose `handle` fact is not the boolean true, or a `handle` among the inner facts, is shown as an ordinary command. `r`, `w`, `s`, `f`
 and `q` work as for any row; `f` shows the facts, cleaned.
@@ -1176,8 +1182,8 @@ file `~/.claude/settings.json`.
    when a model was asked, its reason is the model's own words, which the commit's text may have steered. Until there are at least 10
    labelled commits and 10 labelled removals the report says "not enough labels". A commit the engine declined for a secret leaves a handle
    and no text. The tool shows a handle with its paths and the line "to judge it": look at the change in the project, for example with
-   `git diff -- <the paths>` there, or press `s` when you cannot tell. For a handle `right` means you would have declined it too and `wrong`
-   that you see no secret in the change. A handle is counted apart from the commands in the rate unless you run the report with
+   `git diff -- <the paths>` there, or press `s` when you cannot tell. A path that a shell would read as syntax is shown in single quotes, so
+   you can paste what is shown (not a path marked `[not for pasting]` or shown only as its length). For a handle `right` means you would have declined it too and `wrong` that you see no secret in the change. A handle is counted apart from the commands in the rate unless you run the report with
    `--fold-handles`. The declined commands recorded before the hook wrote handles left nothing to label.
 8. **Run the test set against a real model, once,** from the root of a checkout you trust: `python3 -B
    packages/workbench/action-review/tools/run_testset.py [--codex-dir <absolute path>]`. It needs the `codex` program on your `PATH` and a

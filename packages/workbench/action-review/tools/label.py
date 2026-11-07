@@ -15,6 +15,8 @@ A command the engine declined for a secret is collected only as a handle (a row 
 paths and no text). It is shown as a handle: the rule, the failed checks, the time and the paths, and a line that says the owner may
 look at the change in the project (``git diff -- <the paths>``, which the tool does not run) or skip it. For a handle ``right``
 means the owner would have declined it too and ``wrong`` that the owner sees no secret in the change.
+A path with a character that a shell reads as syntax is shown as one single-quoted word, so that pasting it gives the same argument; a path
+with a control or non-ASCII character is shown as visible escapes and marked as not for pasting.
 
 It runs only when standard input and standard output are terminals, because the label is the owner's own act. What it shows
 is made harmless: every character that is not printable ASCII, escape sequences included, is written as a visible escape, so
@@ -23,6 +25,7 @@ no program, reads no file but the store, and each label is one whole row or none
 """
 
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
@@ -35,6 +38,7 @@ MEANING = "right = you would have judged as the engine did; wrong = you would no
 MAX_COMMAND = 8000
 MAX_REASON = 600
 MAX_PATH = 256
+SAFE_PATH = re.compile(r"[A-Za-z0-9._/+@%,-]+")  # what the hook keeps in a handle; a shell reads none of it as syntax
 MAX_LEFT_OUT = 100000  # the count of paths a handle says the hook left out; any other number is not shown
 MAX_NOTE = 300
 MAX_FACT = 4000
@@ -137,6 +141,28 @@ def handle_paths(row):
     return (paths if isinstance(paths, list) else []), (dropped if whole else None)
 
 
+def shell_word(path):
+    """`path` as one word a shell reads back as the same argument, or None when that cannot be said in printable ASCII. A path of the
+    safe alphabet is the word itself; any other printable path is one single-quoted word, an apostrophe written as ``'"'"'``. This is
+    not ``shlex.quote``, which leaves ``=`` and ``:`` bare (a word that starts with ``=`` expands in zsh), and it does not go through
+    ``visible``, which doubles a backslash and would change what is pasted. A path with a control or non-ASCII character gives None."""
+    if SAFE_PATH.fullmatch(path):
+        return path
+    if all(" " <= char <= "~" for char in path):
+        return "'" + path.replace("'", "'\"'\"'") + "'"
+    return None
+
+
+def path_line(item):
+    """How one path of a handle is shown: the word to paste, or what it is and why it is not shown."""
+    if not isinstance(item, str):
+        return "(not text)"
+    if len(item) > MAX_PATH:
+        return "(a path of %d characters; not shown)" % len(item)
+    word = shell_word(item)
+    return word if word is not None else visible("'" + item + "'", MAX_PATH + 2) + " [not for pasting]"
+
+
 def show_handle(stdout, row, number, total):
     """A handle: the rule, the engine's verdict and failed checks, the time and the paths, and how to judge it. It has no command
     to show and its fixed reason is not printed. The line about the change never puts a path into a command line."""
@@ -148,7 +174,7 @@ def show_handle(stdout, row, number, total):
     if paths:
         stdout.write("paths:\n")
         for item in paths[:MAX_ITEMS]:
-            stdout.write("  %s\n" % (visible(item, MAX_PATH) if isinstance(item, str) else "(not text)"))
+            stdout.write("  %s\n" % path_line(item))
         if len(paths) > MAX_ITEMS:
             stdout.write("  [%d more]\n" % (len(paths) - MAX_ITEMS))
     else:
@@ -156,7 +182,8 @@ def show_handle(stdout, row, number, total):
     if dropped is not None:
         stdout.write("paths left out: %d\n" % dropped)
     stdout.write("to judge it: look at the change in the project you were working in at that time (for example with "
-                 "git diff -- <the paths> there), or skip it if you cannot tell\n")
+                 "git diff -- <the paths> there), or skip it if you cannot tell. A path with a character that a shell reads as syntax "
+                 "is shown in single quotes\n")
     stdout.write("for this handle: right = you would have declined it too; wrong = you see no secret in the change\n")
     stdout.write(MEANING + "\n")
 
