@@ -1,6 +1,6 @@
 # Say, in every shipped text, that a change to a roadmap is a change of direction and waits for the owner
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-06
 Candidate: none (a correction that follows from a finding: the shipped roadmap text says an agent adds a candidate when the finish line is shared, and also that a roadmap changes only when direction changes and that changing direction needs the owner, and it never says whether adding a candidate is such a change)
 Specs: groundwork, code-work
