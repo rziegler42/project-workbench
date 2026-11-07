@@ -1,0 +1,87 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-11-07T17:40:16Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "Agreed: soon after is no boundary. The record now says a review of a spec, decision or roadmap is committed in the commit that makes the change it informed, or in a commit of its own before the next push, and never left untracked past that push; it is still marked as the author call that accepting the record confirms."
+    },
+    {
+      "at": "2026-11-07T17:40:16Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F2",
+      "reason": "Agreed: a Proposed record must not read as the authority for work already done. Item 4 now says the tracking commit and push were made earlier on the owner instruction and not by this record, that the record gives no authority after the fact, and the evidence section says it reports earlier work and is not an outcome of the decision."
+    }
+  ],
+  "format": 1,
+  "generation": 5,
+  "kind": "adr",
+  "path": "docs/decisions/2026-11-07-review-records-are-committed-with-the-project.md",
+  "rounds": [
+    {
+      "at": "2026-11-07T17:39:52Z",
+      "bridge": "ask-codex",
+      "document_sha256": "ceba04374783155a9dac4e0b41aea68c42f56626f460b2d4e7a32d313232e0f5",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F2",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "profile": "standard",
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra",
+        "options": {}
+      },
+      "sha256": "8af32b12377881c7e93c600d4cfe988afa78d23271cd4833cc73225595c1633c",
+      "usage": {
+        "input_tokens": 112041,
+        "output_tokens": 1882,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-07T17:41:08Z",
+      "bridge": "ask-codex",
+      "document_sha256": "896016db9c365d1801efa725596c28dd8cbf51001e560bbcf04fda0e8bbeb475",
+      "file": "round-2.json",
+      "findings": [],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "profile": "standard",
+      "reading": "no_meaningful_changes",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra",
+        "options": {}
+      },
+      "sha256": "e3b00909ce6711a931d403760c6b17c6575ac9db69c874c77a3b6321ea187770",
+      "usage": {
+        "input_tokens": 144389,
+        "output_tokens": 1426,
+        "total_tokens": null
+      },
+      "verdict": "no_meaningful_changes"
+    }
+  ],
+  "seal": "3164f8d03625255096c3f02ad0d3895289fe4296846940803a204142d7837b0f",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

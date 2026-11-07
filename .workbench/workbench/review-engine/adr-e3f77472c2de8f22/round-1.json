@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Decision, item 2",
+      "problem": "The rule for reviews of specs, decision records, and roadmaps is explicitly marked “Author's call, to be confirmed” and allows an undefined “soon after” commit. That leaves those review files without a definite commit boundary, despite item 1 requiring every review to be committed.",
+      "severity": "major",
+      "suggestion": "Make the non-plan rule a decided requirement with a concrete boundary—for example, require inclusion in the reviewed document's change commit, or a separate record-only commit before any subsequent related change."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Status and Evidence",
+      "problem": "The record remains Proposed while its evidence says the decision's repository-wide remediation was already committed and pushed. The document therefore presents an unaccepted decision as completed durable history, contrary to the decision-record workflow.",
+      "severity": "major",
+      "suggestion": "Either obtain and record acceptance before presenting the remediation as the decision's result, or revise the draft to distinguish prior operational evidence from actions authorized by this decision."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The proposed record leaves a material part of its commit policy undecided and conflates proposed status with completed implementation.",
+  "verdict": "changes_needed"
+}
