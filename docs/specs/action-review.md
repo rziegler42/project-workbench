@@ -872,8 +872,12 @@ finds, so nothing that the redactor would have to clean is kept for these comman
   fixed text `[declined for a secret; the command is not kept]`, `reason` the fixed text `declined for a secret; nothing of the command is
   kept`, `verdict` is `decline`, and `facts` is `{"handle": true, "facts": {"paths": [...], "paths_dropped": n}}` with `confirm` added only
   when the engine's fact is a boolean. A candidate path is one of `paths`, `requested_paths` or `target_paths` of the engine's object, in
-  first-seen order and without repeats; it must be printable ASCII of 1 to 256 characters, relative, without an empty, `.` or `..` segment and
-  without a leading `-`. At most 100 candidates are considered and at most 20 are kept; every other entry counts in `paths_dropped`. A decline
+  first-seen order and without repeats; it must be of 1 to 256 characters, all of them in the alphabet `[A-Za-z0-9._/+@%,-]`, relative, without an
+  empty, `.` or `..` segment and without a leading `-` (plan `2026-11-07-handle-paths-are-shell-safe`, increment B; the security review of
+  2026-11-07, Low 1). The alphabet holds no character that a shell reads as syntax in an argument and no space; `=` is left out because a word
+  that starts with it expands in zsh. A tracked name with any other character (a space, `;`, `$`, a quote, `=`, `:`, `~` ...) is dropped and counted in
+  `paths_dropped`, so a file name chosen by a hostile repository cannot be shown for the owner to paste into a shell. Rows written before this
+  restriction may hold such names; the labelling tool shows them quoted. At most 100 candidates are considered and at most 20 are kept; every other entry counts in `paths_dropped`. A decline
   whose rule is not a string leaves the verdict row only, and so does a handle that cannot be built (a fixed note is made on standard error).
 - **As built, the index reader.** The directory of the command is resolved once with `realpath`; from the root down each directory is opened with
   `O_NOFOLLOW` relative to its parent's descriptor, and `.git` is looked for the same way on the way up, so a name swapped for a link after
@@ -1184,7 +1188,8 @@ file `~/.claude/settings.json`.
    and no text. The tool shows a handle with its paths and the line "to judge it": look at the change in the project, for example with
    `git diff -- <the paths>` there, or press `s` when you cannot tell. A path that a shell would read as syntax is shown in single quotes, so
    you can paste what is shown (not a path marked `[not for pasting]` or shown only as its length). For a handle `right` means you would have declined it too and `wrong` that you see no secret in the change. A handle is counted apart from the commands in the rate unless you run the report with
-   `--fold-handles`. The declined commands recorded before the hook wrote handles left nothing to label.
+   `--fold-handles`. The declined commands recorded before the hook wrote handles left nothing to label. A path with a character outside
+   the alphabet `[A-Za-z0-9._/+@%,-]` is never kept in a handle by the current hook; an older handle may hold one, and is shown quoted.
 8. **Run the test set against a real model, once,** from the root of a checkout you trust: `python3 -B
    packages/workbench/action-review/tools/run_testset.py [--codex-dir <absolute path>]`. It needs the `codex` program on your `PATH` and a
    Codex directory (`~/.codex` by default) with your sign-in, and refuses without them. It sends 3 synthetic prompts (not yours) to Codex
