@@ -695,6 +695,200 @@ class NotReviewed(Base):
         self.assertIn("prompted 0", self.line(out, "prompted:"))
 
 
+class Handles(Base):
+    """Plan `2026-11-07-label-declined-secrets`, increment A. A handle is a collected row for a command the engine declined for a
+    secret: its facts carry the boolean `handle` and nothing the report reads but that. The report counts the labelled handles on a
+    line of their own, apart from the actions and from the previews, and folds them into the counts of their action only when the
+    owner passes `--fold-handles`; the line says which it did."""
+
+    FOLD = "--fold-handles"
+    FIXED = "[declined for a secret; the command is not kept]"
+
+    def handle(self, rule="safe-git-commit", label=None, confirm=None, paths=("a.txt",), digest=SHA, failed=("no_secret_lines",),
+               marker=True):
+        """One collected handle and, if `label` is given, its label. `marker` replaces the value of the `handle` fact."""
+        self.count += 1
+        ident = "%032x" % self.count
+        inner = {"paths": list(paths), "paths_dropped": 0}
+        if confirm is not None:
+            inner["confirm"] = confirm
+        self.store.append("collected.jsonl", {
+            "id": ident, "ts": "2026-10-30T01:02:03Z", "rule": rule, "command_sha256": digest, "command": self.FIXED,
+            "facts": {"handle": marker, "facts": inner}, "verdict": "decline", "failed_checks": list(failed),
+            "reason": "declined for a secret; nothing of the command is kept"}, self.home)
+        if label:
+            self.label(ident, label)
+        return ident
+
+    def folded(self):
+        code, out, err = self.run_report([self.FOLD])
+        self.assertEqual((0, ""), (code, err), err)
+        return out
+
+    def test_a_labelled_handle_is_counted_on_its_own_line_and_not_in_the_action_count(self):
+        self.command("safe-git-commit", "approve", (), "right")
+        self.handle("safe-git-commit", "wrong")
+        out = self.text()
+        self.assertIn("labelled 1 (right 1, wrong 0)", self.line(out, "commit:"))
+        handles = self.line(out, "handles:")
+        self.assertIn("apart", handles)
+        self.assertIn("labelled 1 (right 0, wrong 1)", handles)
+        self.assertIn("false declines 1", handles)
+
+    def test_apart_the_counts_the_bound_and_the_verdict_are_those_of_the_same_store_without_handles(self):
+        self.labelled("safe-git-commit", 10, wrong_declines=1)
+        self.labelled("safe-git-remove", 10)
+        self.full_test_set()
+        before = self.text()
+        for _ in range(5):
+            self.handle("safe-git-commit", "wrong")
+        self.handle("safe-git-remove", "wrong")
+        after = self.text()
+        for start in ("commit:", "remove:", "cutover:"):
+            self.assertEqual(self.line(before, start), self.line(after, start), start)
+
+    def test_folded_the_handles_join_the_counts_of_their_action_and_the_line_says_so(self):
+        self.labelled("safe-git-commit", 10)
+        self.labelled("safe-git-remove", 10)
+        self.handle("safe-git-commit", "wrong")
+        self.handle("safe-git-commit", "right")
+        out = self.folded()
+        self.assertIn("labelled 12 (right 11, wrong 1)", self.line(out, "commit:"))
+        self.assertIn("false declines 1", self.line(out, "commit:"))
+        handles = self.line(out, "handles:")
+        self.assertIn("folded", handles)
+        self.assertNotIn("apart", handles)
+
+    def test_folded_handles_can_put_a_rate_over_the_bound_and_apart_they_cannot(self):
+        self.labelled("safe-git-commit", 10)
+        self.labelled("safe-git-remove", 10)
+        self.full_test_set()
+        for _ in range(3):
+            self.handle("safe-git-commit", "wrong")
+        self.assertIn("the bound is met", self.line(self.text(), "cutover:"))
+        self.assertIn("false declines over the bound for commit", self.line(self.folded(), "cutover:"))
+
+    def test_a_removal_handle_is_never_a_preview_whatever_its_confirm_fact_says(self):
+        self.handle("safe-git-remove", "wrong", confirm=False)
+        apart = self.text()
+        self.assertIn("labelled 0", self.line(apart, PREVIEWS))
+        self.assertIn("labelled 0", self.line(apart, "remove:"))
+        folded = self.folded()
+        self.assertIn("labelled 0", self.line(folded, PREVIEWS))
+        self.assertIn("labelled 1 (right 0, wrong 1)", self.line(folded, "remove:"))
+
+    def test_a_handle_that_waits_or_was_skipped_is_counted_as_waiting_or_skipped(self):
+        self.handle("safe-git-commit")
+        self.handle("safe-git-commit", "skip")
+        out = self.text()
+        self.assertIn("unlabelled 1, skipped 1", self.line(out, "waiting:"))
+        handles = self.line(out, "handles:")
+        self.assertIn("labelled 0", handles)
+        self.assertIn("waiting 1", handles)
+        self.assertIn("skipped 1", handles)
+
+    def test_a_later_label_replaces_an_earlier_one_for_a_handle(self):
+        ident = self.handle("safe-git-commit", "wrong")
+        self.label(ident, "right")
+        self.assertIn("labelled 1 (right 1, wrong 0)", self.line(self.text(), "handles:"))
+
+    def test_a_row_whose_handle_fact_is_not_the_boolean_true_is_an_ordinary_command(self):
+        for marker in (False, "yes", 1, None, ["handle"]):
+            self.handle("safe-git-commit", "right", marker=marker)
+        out = self.text()
+        self.assertIn("labelled 5 (right 5, wrong 0)", self.line(out, "commit:"))
+        self.assertEqual([], [line for line in out.splitlines() if line.startswith("handles:")])
+
+    def test_a_fact_called_handle_in_the_inner_facts_does_not_make_a_handle(self):
+        self.command("safe-git-commit", "decline", ["scope_is_coherent"], "wrong", facts={"handle": True})
+        out = self.text()
+        self.assertIn("labelled 1 (right 0, wrong 1)", self.line(out, "commit:"))
+        self.assertEqual([], [line for line in out.splitlines() if line.startswith("handles:")])
+
+    def test_with_no_handle_there_is_no_handles_line(self):
+        self.labelled("safe-git-commit", 4, wrong_declines=1)
+        self.assertEqual([], [line for line in self.text().splitlines() if line.startswith("handles:")])
+        self.assertEqual([], [line for line in self.folded().splitlines() if line.startswith("handles:")])
+
+    def test_the_false_declines_of_the_handles_are_grouped_by_check_under_their_line_and_not_under_the_actions(self):
+        self.command("safe-git-commit", "decline", ["scope_is_coherent"], "wrong")
+        self.handle("safe-git-commit", "wrong", failed=("no_secret_lines", "paths_not_credentials"))
+        lines = self.text().splitlines()
+        by_check = [number for number, line in enumerate(lines) if line.startswith("  false declines by check")]
+        handles_at = next(number for number, line in enumerate(lines) if line.startswith("handles:"))
+        self.assertEqual(2, len(by_check), lines)
+        self.assertIn("scope_is_coherent 1", lines[by_check[0]])
+        self.assertNotIn("no_secret_lines", lines[by_check[0]])
+        self.assertEqual(handles_at + 1, by_check[1])
+        self.assertIn("no_secret_lines 1", lines[by_check[1]])
+        self.assertIn("paths_not_credentials 1", lines[by_check[1]])
+
+    def test_a_handle_removes_a_command_from_the_not_collectable_count(self):
+        other = "b" * 64
+        self.verdict_row("reviewed", "decline", ["no_secret_lines"], digest=SHA)
+        self.verdict_row("reviewed", "decline", ["no_secret_lines"], digest=other)
+        self.assertIn("reviewed but not collectable: 2", self.text())
+        self.handle("safe-git-commit", digest=SHA)
+        out = self.text()
+        self.assertIn("reviewed but not collectable: 1", out)
+        self.assertIn("no_secret_lines 1", self.line(out, "  by failed check"))
+
+    def test_the_handles_line_prints_no_path_fact_command_reason_or_note(self):
+        self.handle("safe-git-commit", "wrong", paths=(MARK, "dir/" + MARK))
+        out = self.text() + self.folded()
+        self.assertNotIn(MARK, out)
+        self.assertNotIn(self.FIXED, out)
+        for char in out:
+            self.assertTrue(char == "\n" or " " <= char <= "~", repr(char))
+
+    def test_the_option_is_the_only_argument_and_stands_alone(self):
+        for argv in (["--fold-handles", "x"], ["--fold-handles=1"], ["--fold-handles", "--fold-handles"], ["--fold"], ["fold-handles"]):
+            code, out, err = self.run_report(argv)
+            self.assertEqual((2, ""), (code, out), argv)
+            self.assertIn("usage: report.py [--fold-handles]", err)
+
+    def test_the_cutover_stays_blocked_by_a_false_approve_on_a_handle_row_that_says_approve(self):
+        """A handle is always a decline. A row that says otherwise is not hidden: it is a false approve when the owner labels it wrong."""
+        self.count += 1
+        ident = "%032x" % self.count
+        self.store.append("collected.jsonl", {
+            "id": ident, "ts": "2026-10-30T01:02:03Z", "rule": "safe-git-commit", "command_sha256": SHA, "command": self.FIXED,
+            "facts": {"handle": True, "facts": {"paths": [], "paths_dropped": 0}}, "verdict": "approve", "failed_checks": [],
+            "reason": "x"}, self.home)
+        self.label(ident, "wrong")
+        for out in (self.text(), self.folded()):
+            self.assertIn("blocked by a false approve", out)
+            self.assertIn("FALSE APPROVE: labels 1, test set 0.", out)  # once, in either mode: a folded handle is not counted twice
+        self.assertIn("false approves 1", self.line(self.text(), "handles:"))
+
+    def test_the_bound_is_met_with_a_handle_waiting_and_the_still_waiting_suffix_counts_it(self):
+        """The met-or-not verdict is that of the actions alone; the informational suffix counts the unlabelled and skipped commands,
+        handles included, because the owner still has them to judge."""
+        self.labelled("safe-git-commit", 10)
+        self.labelled("safe-git-remove", 10)
+        self.full_test_set()
+        without = self.line(self.text(), "cutover:")
+        self.assertIn("the bound is met", without)
+        self.assertNotIn("still waiting", without)
+        self.handle("safe-git-commit")
+        self.handle("safe-git-commit", "skip")
+        for out in (self.text(), self.folded()):
+            cutover = self.line(out, "cutover:")
+            self.assertIn("the bound is met", cutover)
+            self.assertIn("still waiting: unlabelled 1, skipped 1, not collectable 0", cutover)
+
+    def test_folded_a_waiting_or_skipped_handle_is_counted_as_waiting_or_skipped_and_not_as_labelled(self):
+        self.handle("safe-git-commit")
+        self.handle("safe-git-remove", "skip")
+        out = self.folded()
+        self.assertIn("unlabelled 1, skipped 1", self.line(out, "waiting:"))
+        self.assertIn("labelled 0", self.line(out, "commit:"))
+        self.assertIn("labelled 0", self.line(out, "remove:"))
+        handles = self.line(out, "handles:")
+        self.assertIn("folded", handles)
+        self.assertIn("waiting 1, skipped 1", handles)
+
+
 class Output(Base):
     def test_no_command_fact_reason_or_note_is_ever_printed(self):
         self.labelled("safe-git-commit", 6, wrong_declines=2, wrong_approves=1)
@@ -782,19 +976,21 @@ class Source(Base):
         self.assertNotIn("command\"]", text, "the report must not read the command text of a collected row")
         self.assertNotIn("facts\"]", text.replace("\"facts\"] =", ""), "the report must not read the facts of a collected row")
 
-    def test_the_only_fact_of_a_collected_row_it_reads_is_confirm_and_only_in_one_function(self):
-        """Plan `2026-11-05-shadow-report-counts-previews-apart`: the report reads one boolean of the facts, in `is_preview`, and
-        no other part of a collected row's facts, command or reason."""
+    def test_the_only_facts_of_a_collected_row_it_reads_are_confirm_and_handle_each_in_one_function(self):
+        """Plan `2026-11-05-shadow-report-counts-previews-apart`: the report reads one boolean of the facts, in `is_preview`. Plan
+        `2026-11-07-label-declined-secrets`, increment A: and one more, `handle`, in `is_handle`. No other part of a collected row's
+        facts, command or reason."""
         with open(REPORT, "rb") as handle:
             tree = ast.parse(handle.read())
         where = {}
         for function in [node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)]:
             for node in ast.walk(function):
-                if isinstance(node, ast.Constant) and node.value in ("facts", "confirm", "command", "reason", "diff"):
+                if isinstance(node, ast.Constant) and node.value in ("facts", "confirm", "handle", "command", "reason", "diff", "paths"):
                     where.setdefault(node.value, set()).add(function.name)
         self.assertEqual({"is_preview"}, where.get("confirm"))
-        self.assertEqual({"is_preview"}, where.get("facts"))
-        for name in ("command", "reason", "diff"):
+        self.assertEqual({"is_handle"}, where.get("handle"))
+        self.assertEqual({"is_preview", "is_handle"}, where.get("facts"))
+        for name in ("command", "reason", "diff", "paths"):
             self.assertNotIn(name, where, name)
 
 

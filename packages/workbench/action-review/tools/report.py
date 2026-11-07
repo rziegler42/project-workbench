@@ -8,8 +8,8 @@ The owner copies this file and ``shadow_store.py`` out of the project to a direc
 (``docs/specs/action-review.md``, "Labelling and the report"). It reads the four files of the store and prints, per action, the
 engine's false declines and false approves against the owner's labels, the rate of false declines against the bound, and the false
 declines by failed check; the same for the test set; what the engine did not review, by reason; what it reviewed but the store could
-not collect, by the failed checks of those verdicts (a decline for a secret is never collected and so never labelled); and what is
-still unlabelled. A false approve on the labels or the test set, in any run of a test case, is the first thing printed and keeps
+not collect, by the failed checks of those verdicts (a decline for a secret is collected only as a handle, when the hook writes
+one, and is otherwise never labelled); the handles on a line of their own; and what is still unlabelled. A false approve on the labels or the test set, in any run of a test case, is the first thing printed and keeps
 the cutover closed; the cutover line is "met" only when the test set holds exactly the shipped number of distinct cases. It prints
 counts, rule names, check names and the names of test cases approved wrongly (the shipped synthetic ids) only: never a command, a
 fact, a reason or a note, and nothing that is not printable ASCII. It writes nothing and starts no program.
@@ -21,7 +21,13 @@ A removal whose collected facts say ``confirm`` is false is a preview and delete
 ``2026-11-05-unconfirmed-removals-are-outside-the-action-review-measure`` it is reported on a line of its own,
 "unconfirmed removals (previews)", and is not counted in the removal rate, the minimum of 10 labelled removals or the false-decline
 count. A preview that the engine approved and the owner labelled wrong is a false approve like any other and blocks the cutover.
-This is the one fact of a collected row that the report reads; it prints none of the facts.
+This is one of the two facts of a collected row that the report reads; it prints none of the facts.
+
+A handle is a collected row for a command the engine declined for a secret. Its facts carry the boolean ``handle``, set to true, and
+paths and no text. The owner judges it from a path and a time, which is less than an ordinary row shows, so the labelled handles are
+counted on a line of their own, ``handles: apart from the counts above``, and are not in the rate, the minimum or the cutover line.
+``python3 -B report.py --fold-handles`` counts them in the entry of their action instead, and the line then says ``folded into the
+counts above``. This is the other fact of a collected row that the report reads, and it prints none of the paths.
 """
 
 import os
@@ -30,7 +36,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 import shadow_store as store  # noqa: E402  the store beside this file
 
-USAGE = "usage: report.py"
+USAGE = "usage: report.py [--fold-handles]"
+FOLD_OPTION = "--fold-handles"
 REQUIRED_ACTIONS = ("commit", "remove")
 # The number of cases of `tests/dangerous-cases.json`. The report is copied out of the checkout and cannot read the file, so a test
 # pins this number to it; the cutover line wants exactly this many distinct case names, not fewer and not more.
@@ -80,39 +87,65 @@ def is_preview(row):
     return isinstance(inner, dict) and inner.get("confirm") is False
 
 
-def tally(collected, labels):
+def is_handle(row):
+    """True for a collected row whose facts carry the boolean ``handle`` set to true: the handle that the hook keeps of a command the
+    engine declined for a secret, which holds paths and no text (plan ``2026-11-07-label-declined-secrets``). It reads that one
+    boolean and nothing else of the facts. Any other value, or a ``handle`` that sits elsewhere, makes it False, so the row is
+    counted as an ordinary command."""
+    facts = row.get("facts")
+    return isinstance(facts, dict) and facts.get("handle") is True
+
+
+def new_handle_entry():
+    entry = new_entry()
+    entry.update({"rows": 0, "waiting": 0, "skipped": 0})
+    return entry
+
+
+def tally(collected, labels, fold=False):
     """Per action: labelled, agreements, false declines, false approves, false declines by check; the same for the removals that
-    are previews, apart; and the commands still waiting. A later label of a command replaces an earlier one."""
+    are previews, apart; the same for the handles, apart; and the commands still waiting. A later label of a command replaces an
+    earlier one. A handle is counted in its own entry and, only when `fold` is true, also in the entry of its action (a removal
+    handle is never a preview); the commands waiting and skipped include the handles, and the handle entry also counts its own."""
     by_id = {}
     for row in collected:
         by_id.setdefault(row["id"], row)
     latest = {row["id"]: row["label"] for row in labels}
     actions = {}
     previews = new_entry()
+    handles = new_handle_entry()
     unlabelled = skipped = 0
     for ident, row in by_id.items():
         action = action_of(row["rule"])
-        if action == "remove" and is_preview(row):
-            entry = previews
+        if is_handle(row):
+            entries = [handles] + ([actions.setdefault(action, new_entry())] if fold else [])
+            handles["rows"] += 1
+        elif action == "remove" and is_preview(row):
+            entries = [previews]
         else:
-            entry = actions.setdefault(action, new_entry())
+            entries = [actions.setdefault(action, new_entry())]
         label = latest.get(ident)
         if label is None:
             unlabelled += 1
+            if is_handle(row):
+                handles["waiting"] += 1
         elif label == "skip":
             skipped += 1
+            if is_handle(row):
+                handles["skipped"] += 1
         else:
-            entry["labelled"] += 1
-            if label == "right":
-                entry["agreements"] += 1
-            elif row["verdict"] == "decline":
-                entry["false_declines"] += 1
-                for check in row["failed_checks"]:
-                    entry["by_check"][check] = entry["by_check"].get(check, 0) + 1
-            else:
-                entry["false_approves"] += 1
+            for entry in entries:
+                entry["labelled"] += 1
+                if label == "right":
+                    entry["agreements"] += 1
+                elif row["verdict"] == "decline":
+                    entry["false_declines"] += 1
+                    for check in row["failed_checks"]:
+                        entry["by_check"][check] = entry["by_check"].get(check, 0) + 1
+                else:
+                    entry["false_approves"] += 1
     unknown = sum(1 for ident in latest if ident not in by_id)
-    return actions, previews, unlabelled, skipped, unknown
+    return actions, previews, handles, unlabelled, skipped, unknown
 
 
 def test_set(rows):
@@ -192,13 +225,23 @@ def preview_line(entry):
         entry["false_approves"])
 
 
-def report(files):
+def handle_line(entry, fold):
+    """The handles: the commands declined for a secret that the hook kept as paths only. They are judged from less than an ordinary
+    row shows, so they are counted apart from the actions unless the owner passed ``--fold-handles``; the line says which."""
+    return "handles: %s; labelled %d (right %d, wrong %d); false declines %d; false approves %d; waiting %d, skipped %d" % (
+        "folded into the counts above" if fold else "apart from the counts above", entry["labelled"], entry["agreements"],
+        entry["labelled"] - entry["agreements"], entry["false_declines"], entry["false_approves"], entry["waiting"], entry["skipped"])
+
+
+def report(files, fold=False):
     verdicts, collected, labels, tests = (files[name][0] for name in ("verdicts", "collected", "labels", "testset"))
-    actions, previews, unlabelled, skipped, unknown = tally(collected, labels)
+    actions, previews, handles, unlabelled, skipped, unknown = tally(collected, labels, fold)
     for name in REQUIRED_ACTIONS:
         actions.setdefault(name, new_entry())
     ran = test_set(tests)
     label_approves = previews["false_approves"] + sum(entry["false_approves"] for entry in actions.values())
+    if not fold:  # a folded handle is already in the entry of its action; apart, a false approve on one still blocks the cutover
+        label_approves += handles["false_approves"]
     test_approves = ran[1] if ran else 0
     lines = []
     if label_approves or test_approves:
@@ -218,6 +261,10 @@ def report(files):
     lines += [preview_line(previews)]
     if previews["by_check"]:
         lines += ["  false declines by check: " + ranked(previews["by_check"])]
+    if handles["rows"]:
+        lines += [handle_line(handles, fold)]
+        if handles["by_check"]:
+            lines += ["  false declines by check: " + ranked(handles["by_check"])]
     lines += ["", "waiting: unlabelled %d, skipped %d, labels of unknown commands %d" % (unlabelled, skipped, unknown)]
     if ran:
         lines += ["test set: cases %d of %d, false approves %d (in any run; %d in the latest), false declines %d"
@@ -270,8 +317,9 @@ def report(files):
 
 
 def main(argv, out, err, home=None):
-    """Print the report and return 0; 2 for any argument, 1 when the store cannot be read."""
-    if argv:
+    """Print the report and return 0; 2 for any argument but the one option ``--fold-handles`` alone, 1 when the store cannot be
+    read."""
+    if argv not in ([], [FOLD_OPTION]):
         err.write(USAGE + "\n")
         return 2
     try:
@@ -279,7 +327,7 @@ def main(argv, out, err, home=None):
     except store.StoreError as exc:
         err.write("the store cannot be read: %s\n" % plain(exc))
         return 1
-    out.write("\n".join(report(files)) + "\n")
+    out.write("\n".join(report(files, argv == [FOLD_OPTION])) + "\n")
     return 0
 
 

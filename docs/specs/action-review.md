@@ -713,8 +713,18 @@ line, "by failed check (a row counts under each check it failed)", that groups t
 other "by check" lines; a reviewed approve that has no collected row (no `facts:` line, or a row too large to store) is counted under the name
 `approve`. When a command was reviewed more often than it has collected rows, the gap is attributed to its latest verdict rows. The line is
 absent when the count is zero, and it prints check names and counts only (plan `2026-11-06-shadow-report-splits-not-collectable`).
-The report reads that one boolean of a collected row's facts and no other; a fact that is missing or not a boolean leaves the
+The report reads that one boolean of a collected row's facts and no other for the previews; a fact that is missing or not a boolean leaves the
 removal in the `remove` line.
+A **handle** (plan `2026-11-07-label-declined-secrets`, increment A; the hook writes them from increment C, "Labelling a declined secret")
+is a collected row whose facts carry the boolean `handle` set to true, and nothing else of the facts is read for it. The labelled handles are
+counted on a line of their own, "handles: apart from the counts above", with labelled, right, wrong, false-decline and false-approve counts, the
+handles still waiting and skipped, and their own false declines by check on the line after it. They are not in the rate, the minimum of 10 or the
+met-or-not reading of the cutover line, because the owner judges them from a path and a time, which is less than an ordinary row shows. The
+unlabelled and skipped counts of the report include them, and so does the "still waiting" suffix of a met cutover line. A false approve on a handle (a handle is always an engine decline, so only a row that says otherwise can be one) still
+blocks the cutover. `python3 -B report.py --fold-handles` counts them in the entry of their action instead, a removal handle never being a
+preview, and the line then says "folded into the counts above"; folding is the owner's choice, made on each run. The line is absent when
+the store holds no handle. A handle's paths are not printed. A handle is a collected row, so it removes its command from the "reviewed but not
+collectable" count.
 
 *As built (Increment E, `tools/label.py`).* `python3 -B label.py [--skipped]`, copied with `shadow_store.py` to a directory outside
 the project, runs only when standard input and output are both terminals (otherwise it prints one line to standard error and exits
@@ -735,8 +745,8 @@ characters, the backslash and every escape sequence are written as visible escap
 terminal. Each label is one whole row or none; an interrupt ends the tool with 130 and a store that cannot be read or written ends
 it with 1. It starts no program and opens no file but the store's.
 
-*As built (Increment F, `tools/report.py`).* `python3 -B report.py`, copied with `shadow_store.py`, takes no argument (any argument
-exits 2) and needs no terminal, because it prints only counts, rule names and check names: never a command, a fact, a reason or a
+*As built (Increment F, `tools/report.py`).* `python3 -B report.py`, copied with `shadow_store.py`, takes no argument but the one option
+`--fold-handles`, given alone (any other argument exits 2), and needs no terminal, because it prints only counts, rule names and check names: never a command, a fact, a reason or a
 note, and nothing that is not printable ASCII. It writes nothing. The latest label of each collected command is the one counted; a
 skipped command is counted as skipped and not as labelled; a label of a command with no collected row is counted apart. Per action
 (the last word of the rule's name, so `commit` and `remove`; others appear as they are met) it prints the labelled count, the
