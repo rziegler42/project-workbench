@@ -63,3 +63,5 @@ Read at commit `f3640f6` on `main` (2026-11-06), on macOS 26.7.1, with `grep` (u
 `docs/roadmaps/workbench-v1.md` (`grep -c '^### '` gave 58; `wc -l` gave 1061). `grep` over `docs/` found no earlier record on how many roadmaps may be active; the rule comes from the plans
 `2026-10-27-give-shipped-text-the-missing-rules` and `2026-10-27-retire-carried-instructions` (item RP5). The positions on splitting, on small corrections and on a size prompt are the owner's,
 given in conversation on 2026-11-06; the finish-line wording and the figure of 15 are the agent's proposal.
+
+*Clarified 2026-11-06, with the owner's approval of the plan `2026-11-06-roadmap-edits-are-direction-changes`:* Decision 2 says where a candidate goes. Adding a candidate to a roadmap, like any change to a roadmap other than correcting a typo, is a change of direction and the `change-direction` checkpoint, which always stops for the owner. The agent runs the placement test, shows the owner the candidate it would add, and writes it on the owner's word; the owner's request to add a candidate is that word. The proposal of a new roadmap, and the rest of this record, stand as written.

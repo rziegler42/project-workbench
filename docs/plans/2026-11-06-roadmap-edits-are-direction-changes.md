@@ -152,4 +152,10 @@ Codex (`gpt-5.6-terra`), plan review, 2 rounds of 3, converged with no meaningfu
 
 ## Result
 
-Empty until work starts.
+### Increment A
+
+Done, not committed. Added the dated clarification note, verbatim from "Assumptions and constraints", as a paragraph after the last paragraph of the Evidence section of `docs/decisions/2026-11-06-roadmaps-are-scoped-by-finish-line.md`. `git diff` shows two added lines (a blank line and the note) and no changed line; the status line is untouched.
+
+- Verification run: `git diff -U0` of the record; `wb run code-work check` (checked 107 plans, no problems); `wb check` (no problems). No test suite (no code or shipped file changed).
+- Reviewer (`reviewer` agent), one exchange: no blocking finding. It confirmed the note matches the plan's words and fits the `draft-decision` rule. One non-blocking observation, which I checked with `grep -c`: `docs/decisions/README.md` holds no row for this record (count 0), so step 2's "row" has nothing to touch and the index is unchanged; the missing row is an earlier gap outside this increment.
+- Not done: increments B, C and D.
