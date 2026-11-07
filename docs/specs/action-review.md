@@ -828,10 +828,13 @@ finds, so nothing that the redactor would have to clean is kept for these comman
 - **An allowlist, not a redaction (author's call).** For a declined secret the hook writes one handle row, built from a fixed list of fields
   known to hold no secret, and from nothing else. It does not run the redactor over the command, the diff or the facts and keep what is
   left. A field that is not on the list cannot reach the row, whatever the facts hold.
-- **What the handle holds (author's call; the plan fixes the exact fields and caps).** The rule, the failed checks, the time, the name of the
-  project's directory (its last path segment, not the path), the `confirm` flag, and the paths of the facts that name paths
-  (`paths`, `requested_paths`, `target_paths`), each at most 256 characters, with a count of the paths dropped. A path that the redactor
-  would change, or that holds a character the store refuses, is dropped and counted. A push has no paths; its handle holds the rest.
+- **What the handle holds (author's call; the plan fixes the exact fields and caps).** The rule, the failed checks, the time, the `confirm`
+  flag, and the paths of the facts that name paths (`paths`, `requested_paths`, `target_paths`), each at most 256 characters, with a count
+  of the paths dropped. It holds no project name. **A path is kept only if the project already tracks it (decided by the owner on
+  2026-11-07, after the review of the plan):** it is equal to a path of the project's git index, or is a directory above one. The redactor
+  is not the rule, because it cannot name every secret shape; a secret that is already a tracked filename is already in the repository.
+  Any other path is dropped and counted, so a file that is not tracked yet is never shown. The hook reads the index itself, as untrusted
+  bytes, with no program started. A push has no paths; its handle holds the rest.
 - **What it never holds.** The command text, the diff, the subject, the body, the trailers, the model's reason, and any other fact.
 - **Where it goes (author's call).** A row of `collected.jsonl`, so that the labelling tool, the label rows and the match by
   `command_sha256` work as they do now, and the report's "not collectable" count falls by the handled rows. The row carries a marker that
@@ -852,8 +855,9 @@ a command that is not a declined secret.
 **Acceptance criteria (outline; the plan makes them exact).**
 
 1. A command declined for `no_secret_lines` or `paths_not_credentials` leaves exactly one handle row and no other collected row.
-2. A test passes hostile facts through the hook (a secret in a path, in every other fact, in a key; a path over the cap; a character the store
-   refuses; many paths) and finds no field outside the list and no secret in the row.
+2. A test passes hostile facts through the hook (a secret in a path that is not tracked, in every other fact, in a key; a path over the cap;
+   a character the store refuses; many paths) and finds no field outside the list and no untracked string in the row; a second set passes
+   hostile indexes (a link, an oversized or truncated file, a wrong checksum, version 4) and finds that each keeps no path.
 3. The report's "reviewed but not collectable" count falls by the handled rows, counts labelled handles apart, and says whether they are
    folded into the rate.
 4. The labelling tool shows a handle, accepts `right`, `wrong` and `skip`, and runs no program.
