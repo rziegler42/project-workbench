@@ -1,6 +1,6 @@
 # The files of a review are committed with the project, all of them
 
-Status: Proposed
+Status: Accepted by Robert Ziegler <25854477+rziegler42@users.noreply.github.com> on 2026-11-07
 
 ## Context
 
