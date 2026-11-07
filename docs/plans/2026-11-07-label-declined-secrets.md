@@ -1,6 +1,6 @@
 # Let the owner label a command the engine declined for a secret, without keeping the secret
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-07
 Candidate: workbench-v1#shadow-label-secret-declines
 Specs: action-review
@@ -152,3 +152,7 @@ Codex, plan review, 3 rounds of 3 (the bound); not converged: every round found 
 - **A weaker guarantee than the plan's Risks text says (found in review).** The plan says a secret that is already a tracked filename is already in the repository and that a new untracked file is never shown. The rule is the index, which holds what is staged and not only what is committed: a newly staged file of the very commit that was declined is in the index, so a secret that is the name of a staged new file is admitted and repeated in the handle (a row of mode 0600 outside every project). A test pins it and the spec states it. The plan's Risks section is part of what the owner approved and is not edited here.
 - **Review:** the `reviewer` agent, one exchange, no blocking finding. Applied: the size-cap test now uses a valid signed 40 MiB index (a file of zeros failed on its magic and could not tell a missing cap); the FIFO test now fails by a time limit and does not hang; tests for the entry cap and for the 2-second bound; the late-engine guard (finding 4); the spec states the staged-file case and the sparse and split cases. Noted: a refused handle write is reported by `write()` with the store's own message (`problem[:200]`), which is fixed text or an `strerror` of the store and quotes no field, but the hook's own code does not guarantee it; this is existing behaviour for every row and is not changed. The fixes after the review were tested but not read again by a reviewer.
 - **Owed and not done:** a security review of the hook (it now parses `.git/index`, a file that each project controls, in a user-level hook that runs for every project). It runs only if the owner asks; the owner has not been asked in this Result's words and is asked in the report. The hook in `~/action-review-shadow` must not be replaced before that is decided. The copy order stays: `report.py` and `label.py` were replaced first; `shadow_hook.py` is last.
+
+### The plan as a whole (2026-11-07)
+
+Increments A (`1f93cd5`), B (`3639204`) and C (`62f2e45`) are committed, each followed by its install state (`a6933ab`, `33bab32`, `2e52b3d`). Completion criteria 1 to 8 are met in the project: a declined secret leaves one handle (tests with the real engine's bytes), the handle holds only the listed fields (hostile-facts and hostile-index tests), other commands are collected as before, the report counts handles apart or folded and says which, the labelling tool shows a handle, the spec describes the handle and a test pins the removed sentences, and `wb run code-work check` passes. What the project does not yet show is the hook running for real: `~/action-review-shadow/shadow_hook.py` is the old file until the owner copies the new one, so no handle exists in the owner's store, and the 68 declined commands recorded before stay unlabellable. The security review of the hook is owed and runs only if the owner asks.
