@@ -1,6 +1,6 @@
 # Make the code-work spec's lifecycle allow a plan with no candidate
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-06
 Candidate: none (a correction that follows from a finding: the spec's purpose and lifecycle text reads as if every plan starts from a roadmap candidate, while `docs/plans/README.md` and decision 4 of the accepted record `2026-11-06-roadmaps-are-scoped-by-finish-line` allow `Candidate: none`)
 Specs: code-work
@@ -70,7 +70,7 @@ Increment A: the `reviewer` agent, one exchange, no blocking finding. Applied: t
 
 ## Result
 
-**Increment A (2026-11-06), done in a scratch clone at commit `0e16756`; not yet copied or committed.**
+**Increment A (2026-11-06), done in a scratch clone at commit `0e16756`; copied and committed as `fc4ffcc`.**
 
 - Built: the purpose paragraph of `docs/specs/code-work.md` says a unit of work moves from a roadmap candidate, or from work too small to need roadmap direction, to a verified, reviewed, committed result. The Lifecycle paragraph says such work, such as a correction that follows from a finding, goes straight to a plan naming `Candidate: none` with a one-line reason, with no roadmap edited, and that the candidate is reported complete only when the plan names one. The diagram line is unchanged. One new test in `test_codework_candidate_text.py` slices the purpose and lifecycle passages and pins `too small to need roadmap direction` in both and `Candidate: none` in the lifecycle.
 - Verification as run: the new test failed before the spec edit and passes after; the code-work suite in the clone, run with `python3 -B -m unittest discover`, gave 353 tests, all passing (2 skipped, as before). A first run without `-B` wrote a `__pycache__` that made two module tests fail and made the project's command hook refuse every Bash call; the owner removed it, and the rerun is the one recorded. After the review edit the candidate-text file was run again (6 tests, OK); the whole suite was not rerun after that edit, which touches only the spec's wording. `wb run code-work check` passes (103 plans). A search of `docs/specs` found no other copy of the purpose wording. Not run: `tests.test_rendering` and `tests.test_permissions_drift` (no skill, template or shipped file changed) and the whole repository suite.
