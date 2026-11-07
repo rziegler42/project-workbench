@@ -99,8 +99,8 @@ plans that name each candidate. Known limits are recorded in each specification,
 
 ## Contributing
 
-Changes follow [AGENTS.md](AGENTS.md). A change starts as a roadmap candidate, becomes a plan
-the owner approves, and lands as reviewed local commits.
+Changes follow [AGENTS.md](AGENTS.md). A change starts as a roadmap candidate, or as work too
+small to need roadmap direction, becomes a plan the owner approves, and lands as reviewed local commits.
 
 ## Security
 
