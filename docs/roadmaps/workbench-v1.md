@@ -1,7 +1,7 @@
 # Roadmap: workbench-v1
 
 Status: Active
-Updated: 2026-11-06
+Updated: 2026-11-07
 
 This roadmap is direction only. It does not authorize implementation and does not
 change any plan. A candidate is referred to as `workbench-v1#<id>`. Candidates are
@@ -1055,6 +1055,20 @@ which reads as a fault in the package. The refusal itself stays: nothing is veri
 **Boundary:** the refusal text of `verify` and the test that pins it, and the sentence of `docs/development.md` or `installer-interface.md` that describes the default target
 if it needs one. Not part of it: the safe-path rule that rejects a `.git` segment, which is deliberate; a change of the default target; and any other command's refusal text.
 **Promotion trigger:** the owner chooses to begin.
+
+### shadow-label-secret-declines — Declined secret commands can be labelled without storing the secret
+
+**Outcome:** a command the engine declined because of a secret or a credential-named path (`no_secret_lines`,
+`paths_not_credentials`) leaves a row the owner can label right or wrong, so it counts toward the shadow report and the cutover bound
+and not as "reviewed but not collectable". The row holds nothing that can be a secret: no command text, no diff and no line of
+either. What the owner sees to judge it is decided in the plan, and the accepted rule that a declined secret leaves no text in
+the collected data (`2026-11-04-shadow-hook-security-review-fixes`) stays true.
+**Dependencies:** none. The shadow hook, the labelling tool and the report exist.
+**Boundary:** the shadow hook's record of a declined secret, the labelling tool and the report's handling of it, with their tests and the
+`action-review` spec. Not part of it: the engine's secret scan and its rules, the redactor for other commands, the cutover decision, and any
+change to what is stored for a command that is not a declined secret.
+**Promotion trigger:** the owner chooses to begin. The reason to: 65 of the 187 commands reviewed so far (about a third) cannot be labelled,
+the count grows with every project that works with secrets, and the cutover bound can only be met on what is labelled.
 
 ## Deferred
 
