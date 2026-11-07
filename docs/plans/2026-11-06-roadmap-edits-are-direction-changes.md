@@ -180,4 +180,13 @@ Made and tested in a scratch clone; waiting for the owner to copy four files int
 - Text: the plans README (the opening sentence, the out-of-scope sentence now "deferred, or propose it to the owner as a roadmap candidate", and a new paragraph after the checkpoint list), the policy block line 3 (a candidate, or work too small to need one), and `docs/specs/code-work.md` (the same sentence and a paragraph after the checkpoint table notes).
 - Verification run: all 16 code-work module test files plus `tests.test_rendering` and `tests.test_permissions_drift`, 465 tests, OK (2 skipped as before). Not run: the whole suite.
 - Reviewer, one exchange, no blocking finding. Applied: the plans README opening line "It is how a roadmap candidate becomes a verified, reviewed, committed result" was candidate-first and missing from the audit table, so it now names both starts, with a test; the new checkpoint paragraphs now say "it always stops", the README adding "whatever level is set", pinned in the tests. Noted, not changed: the new paragraphs are shorter than the groundwork text (no list of what counts; the code-work spec points to the groundwork spec); spec line 245 calls `change-direction` "delegable" while later lines say it offers `block` only, which is earlier text.
-- Left for the owner: the four-file copy, release approvals, removal of the stale shipped records, acknowledge, upgrade and rerender.
+- Committed: the files and release records as `8d6d14a`, the install state as `9e365d6`.
+
+### Increment D
+
+Done, not committed. This repository's `docs/roadmaps/README.md` and `docs/plans/README.md` were copied over from the shipped files (`cp`), after a `diff` of each showed they differed from the shipped file by the sentences of B and C only.
+
+- Verification run: `diff` of each README against its shipped file prints nothing; `git status` shows exactly those two files changed; a `grep -c` of the root `AGENTS.md` for the two new policy sentences gives 2 (the groundwork bullet and the code-work line, both regenerated and committed in `6ad1b86`'s and `9e365d6`'s install states); `wb run code-work check` OK.
+- Reviewer, one exchange, no finding. It read both READMEs, the root `AGENTS.md`, both specs and the installed skill and found the rule the same everywhere, and found none of the four old sentences in any tracked file outside the plans and decisions that quote them. It could not run `diff`, so byte-equality rests on my run.
+- Plan as a whole: criteria 1 to 6 are met by A (`f6dbc5e`), B (`6ad1b86`, `d7ef145`), C (`8d6d14a`, `9e365d6`) and this increment. Not run: the live check in "Verification for the plan as a whole" (ask an agent in a scratch clone to add a candidate and see that it shows the candidate and waits); it is for the owner to choose.
+- Left for the owner: the word to commit D, and to mark the plan completed.
