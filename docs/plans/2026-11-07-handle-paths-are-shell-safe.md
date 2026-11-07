@@ -1,6 +1,6 @@
 # Keep shell metacharacters out of the paths of a handle, and quote what the labelling tool shows
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-07
 Candidate: none (a correction that follows from the Low 1 finding of the security review of the shadow hook handle, 2026-11-07)
 Specs: action-review
@@ -116,3 +116,7 @@ Codex, plan review, 3 rounds of 3 (the bound); converged with no meaningful find
 - **Deviations:** none from the plan.
 - **Review:** the `reviewer` agent, one exchange, no blocking finding. It confirmed the class is spelled out with the hyphen last and no flags, the order of the checks cannot raise on a non-string or an empty string, and the spec agrees with the code. Applied: a test for a trailing newline, a NUL and non-ASCII letters and digits, which the per-character loop (0x20 to 0x7e) did not cover, and two more mutants (a `$` anchor with `match`, a Unicode word class), both killed. The reviewer ran nothing and could not recompute the pin; the pin in the helper was checked here against the hook's hash.
 - **Copy and release (the owner's):** the owner copies the four files with a script that checks each source against its recorded hash, makes the release approvals, and replaces `shadow_hook.py` in `~/action-review-shadow` after the release.
+
+### The plan as a whole (2026-11-07)
+
+Increments A (`cebe242`) and B (`1685dfb`) are committed, each followed by its install state (`3187a80`, `ad70cc2`). Completion criteria 1 to 5 are met in the project: the labelling tool shows a path that a shell would read as syntax as one single-quoted word, checked by running the shown words in `sh`, `bash` and `zsh` (with options); the hook keeps only paths of the alphabet `[A-Za-z0-9._/+@%,-]`; the regression test of the review's finding (`$(touch pwned)`, `has space;x`) failed before and passes; the spec states both; and `wb run code-work check` passes. What the project does not yet show is the hook running: when this was marked completed the owner had copied `label.py` into `~/action-review-shadow` (its hash equals the committed file) and had not yet copied `shadow_hook.py`, so the registered hook is the previous version, which still admits any printable ASCII in a tracked name. Handle rows already written may hold such names; the tool quotes them. The expected hash of the hook to copy is `3931a57cd38d9dc4a9ac8273f6dbea163bec11f5678868aac64778f80466965a`. Deferred, as the plan says: the 30 second budget under lock contention, the Linux check of the `O_NOFOLLOW` walk, and widening the alphabet.
