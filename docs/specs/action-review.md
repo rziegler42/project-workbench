@@ -599,8 +599,8 @@ line only when it is the last line of standard error and agrees with the exit co
 fields, an approve with no failed check); otherwise the command is `failed`. With no `outcome:` line, exit 1 is `refused` and any
 other status is `failed`. A command over 4,096 characters is `unreviewable` without starting the engine; malformed input is
 `malformed_input` and a tool other than `Bash` is `not_bash`, each with no command hash. A verdict row is written first, then the
-collected row (none for a command declined for a secret or a credential-named path), and a failed write is noted without changing
-anything else. Nothing the hook prints, writes or returns can be an
+collected row (for a command declined for a secret or a credential-named path, a handle in its place: "Labelling a declined secret"),
+and a failed write is noted without changing anything else. Nothing the hook prints, writes or returns can be an
 answer to the harness: its source holds no answer object and no write to standard output, and the tests read both.
 
 **The data files.** The directory is `~/.config/project-workbench/action-review/`, a subdirectory of the guarded store found from
@@ -621,8 +621,8 @@ JSON is refused on write and skipped, with a count, on read.
   redacted ("Redaction", below). A case where the
   directory cannot be written leaves no row and is noted on standard error; the plan's earlier `store_error` outcome is dropped
   for that reason, since it could never appear in a row.
-- `collected.jsonl`: one row per reviewed command, except a command the engine declined because of `no_secret_lines` or
-  `paths_not_credentials`, which leaves a verdict row and no collected row (below, "Redaction"). Fields: `id` (a random 128-bit hex string), `ts`, `rule` (the engine's rule
+- `collected.jsonl`: one row per reviewed command; a command the engine declined because of `no_secret_lines` or
+  `paths_not_credentials` leaves a handle, a row of a fixed shape with no command text (below, "Labelling a declined secret"). Fields: `id` (a random 128-bit hex string), `ts`, `rule` (the engine's rule
   name, such as `safe-git-commit`, which names the action for the per-action counts), `command_sha256` (of the raw text, equal to
   the verdict row's), `command` (the text as redacted, at most 4,096 characters), `facts` (a redacted copy of the `describe`
   object, at most the object cap of `safe-git.md`), `verdict`, `failed_checks`, `reason` (redacted). It may still hold what the
@@ -661,14 +661,16 @@ that starts with `sk-` and runs on. The owner then judges from the command and t
 entropy, because it would hide the git hashes that the owner needs. The work is linear in the text: a test redacts the largest text
 the hook can hold (393,216 characters) in each of 24 hostile shapes, with a limit of 2 seconds; the longest took under 0.1 second.
 
-*As built: a command declined for a secret is not collected* (plan `2026-11-04-shadow-hook-security-review-fixes`, increment A; found by
-the security review of 2026-11-04). When the verdict is a decline whose failed checks include `no_secret_lines` (the engine's own scan
-found a secret in the diff or the message) or `paths_not_credentials` (a credential-named path), the hook writes the verdict row, with its
-failed checks and its redacted reason, and no collected row, so the diff, the command text and the facts are not kept. The patterns above
+*As built: a command declined for a secret leaves no text* (plan `2026-11-04-shadow-hook-security-review-fixes`, increment A; found by
+the security review of 2026-11-04; since plan `2026-11-07-label-declined-secrets`, increment C, it leaves a handle). When the verdict is a
+decline whose failed checks include `no_secret_lines` (the engine's own scan found a secret in the diff or the message) or
+`paths_not_credentials` (a credential-named path), the hook writes the verdict row, with its failed checks and its redacted reason, and,
+in place of the collected row, a handle ("Labelling a declined secret"), so the diff, the command text and the facts are not kept. The patterns above
 cannot recognise every shape that the engine's scan does (the review found a `glpat-` token, a bare `npm_` token, `sk_live_`, `pwd=` and a
 `Basic` header declined by the engine and not redacted). Two shapes were not declined by the engine in that review, `pass=...` and a Slack
 webhook, so a commit with only those is approved by the engine and collected as the patterns leave it: that gap is the engine's scan and
-the redactor's, it is not closed here, and the report's "reviewed commands with no collected row" count includes the declined ones.
+the redactor's, it is not closed here, and the report's "reviewed commands with no collected row" count includes the declined ones that
+were recorded before the hook wrote handles.
 
 *As built: when a redaction cannot be done.* It raises (an object nested deeper than 64, a key that is not a string, a value that is
 not JSON), or the redacted reason would be over 300 characters, or the redacted command over 4,096. The verdict row is then written
@@ -683,12 +685,13 @@ and `verdict`. A row with a field the format does not name, a duplicate key, a n
 ASCII, or a line over its cap (verdicts and testset 8 KiB, collected 512 KiB, labels 4 KiB) is refused on write and skipped, with a
 count, on read. A file is full at 128 MiB. A writer killed part-way leaves a fragment; the next row starts a new line, so the
 fragment is one skipped line. So the hook cannot record an approve that names a failed check as `reviewed`: it records that case
-as `failed`. A `reviewed` outcome with no `facts:` line, and a decline for `no_secret_lines` or `paths_not_credentials`, is recorded as a
-verdict row with `reviewed` true and no collected row, and the report counts it as reviewed but not collectable, by the `command_sha256`
-that links the two files. **A decline for a secret can therefore never be labelled**, so a false decline of that kind does not reach the
-labelled set that the false-decline rate is computed from; the owner reads the count of such commands in the report when judging a
-cutover. The report follows the count with a line that groups those commands by the failed checks of their verdict rows ("Labelling and
-the report"), so the owner can see how many are declines for a secret and how many are something else.
+as `failed`. A `reviewed` outcome with no `facts:` line is recorded as a verdict row with `reviewed` true and no collected row, and the
+report counts it as reviewed but not collectable, by the `command_sha256` that links the two files. A decline for `no_secret_lines` or
+`paths_not_credentials` is recorded as a verdict row and a handle, so it can be labelled; the ones recorded before the hook wrote handles
+left no collected row, stay counted as not collectable and cannot be labelled, and their false declines do not reach the labelled set that the
+false-decline rate is computed from: the owner reads the count in the report when judging a cutover. The report follows the count with a line
+that groups those commands by the failed checks of their verdict rows ("Labelling and the report"), so the owner can see how many are
+declines for a secret and how many are something else.
 
 **Placement of the programs.** `module-boundary.md` ("Module directories") puts a script that something runs at use time in
 `ships` and a script for measuring in `tools/`. The hook and the store library it imports are shipped data files under `hook/`
@@ -715,8 +718,7 @@ other "by check" lines; a reviewed approve that has no collected row (no `facts:
 absent when the count is zero, and it prints check names and counts only (plan `2026-11-06-shadow-report-splits-not-collectable`).
 The report reads that one boolean of a collected row's facts and no other for the previews; a fact that is missing or not a boolean leaves the
 removal in the `remove` line.
-A **handle** (plan `2026-11-07-label-declined-secrets`, increment A; the hook writes them from increment C, "Labelling a declined secret")
-is a collected row whose facts carry the boolean `handle` set to true, and nothing else of the facts is read for it. The labelled handles are
+A **handle** (plan `2026-11-07-label-declined-secrets`, increment A; "Labelling a declined secret") is a collected row whose facts carry the boolean `handle` set to true, and nothing else of the facts is read for it. The labelled handles are
 counted on a line of their own, "handles: apart from the counts above", with labelled, right, wrong, false-decline and false-approve counts, the
 handles still waiting and skipped, and their own false declines by check on the line after it. They are not in the rate, the minimum of 10 or the
 met-or-not reading of the cutover line, because the owner judges them from a path and a time, which is less than an ordinary row shows. The
@@ -745,8 +747,8 @@ characters, the backslash and every escape sequence are written as visible escap
 terminal. Each label is one whole row or none; an interrupt ends the tool with 130 and a store that cannot be read or written ends
 it with 1. It starts no program and opens no file but the store's.
 
-A **handle** (a collected row whose facts carry the boolean `handle` set to true; plan `2026-11-07-label-declined-secrets`, increment B; the
-hook writes them from increment C, "Labelling a declined secret") is shown as a handle, not as a command: the number and the time and the rule,
+A **handle** (a collected row whose facts carry the boolean `handle` set to true; plan `2026-11-07-label-declined-secrets`, increment B;
+"Labelling a declined secret") is shown as a handle, not as a command: the number and the time and the rule,
 the line "handle: declined for a secret; the command and the change are not kept, only the paths below", the engine's verdict and failed
 checks, the paths one to a line (cleaned like every other text, each cut at 256 characters, at most 50, with the count of the rest) or
 "paths: none kept", the count of paths the hook left out when it is a whole number from 0 to 100,000, and two lines about judging it. It shows no command line
@@ -829,13 +831,14 @@ that can read user-level paths can read it. The owner's steps include a user-lev
 `~/.config/project-workbench/action-review/**`. This is the owner's rule, not one the workbench renders, and a `Read` deny does
 not stop a `cat` through the shell, so it narrows the gap and does not close it.
 
-### Labelling a declined secret (proposed; not built; roadmap candidate `workbench-v1#shadow-label-secret-declines`)
+### Labelling a declined secret (built; plan `2026-11-07-label-declined-secrets`, roadmap candidate `workbench-v1#shadow-label-secret-declines`)
 
-*Status: a design, written on 2026-11-07 at the owner's request. Nothing here is built. The text above and below that says a decline for a
-secret is never collected and can never be labelled stays true until this is built, and the plan that builds it changes those places.*
+*Status: a design written on 2026-11-07 at the owner's request, and built by the plan `2026-11-07-label-declined-secrets`: the report in
+increment A, the labelling tool in B and the hook in C. The hook writes handles from the day the owner installs the hook of increment C in
+`~/action-review-shadow`; a command declined before then left a verdict row and no collected row, and stays counted as not collectable.*
 
-**Why.** A command the engine declines for `no_secret_lines` or `paths_not_credentials` leaves a verdict row and no collected row, so it
-cannot be labelled and is counted only as "reviewed but not collectable". On 2026-11-07 that was 65 of 187 reviewed commands (about a
+**Why.** A command the engine declined for `no_secret_lines` or `paths_not_credentials` used to leave a verdict row and no collected row, so it
+could not be labelled and was counted only as "reviewed but not collectable". On 2026-11-07 that was 65 of 187 reviewed commands (about a
 third), every one of them a decline for `no_secret_lines`, 34 of them also failing `facts_complete`
 (the report's count, read by the owner on that day). The false-decline rate and the cutover bound
 ("Accuracy and cutover") rest on labelled commands only, so a third of the evidence is out of reach, and the share grows with every
@@ -847,7 +850,7 @@ finds, so nothing that the redactor would have to clean is kept for these comman
 
 **The design (decided by the owner on 2026-11-07, except where marked as the author's).**
 
-- **An allowlist, not a redaction (author's call).** For a declined secret the hook writes one handle row, built from a fixed list of fields
+- **An allowlist, not a redaction (author's call).** For a declined secret the hook writes one handle row (`keep_handle`), built from a fixed list of fields
   known to hold no secret, and from nothing else. It does not run the redactor over the command, the diff or the facts and keep what is
   left. A field that is not on the list cannot reach the row, whatever the facts hold.
 - **What the handle holds (author's call; the plan fixes the exact fields and caps).** The rule, the failed checks, the time, the `confirm`
@@ -855,8 +858,28 @@ finds, so nothing that the redactor would have to clean is kept for these comman
   of the paths dropped. It holds no project name. **A path is kept only if the project already tracks it (decided by the owner on
   2026-11-07, after the review of the plan):** it is equal to a path of the project's git index, or is a directory above one. The redactor
   is not the rule, because it cannot name every secret shape; a secret that is already a tracked filename is already in the repository.
-  Any other path is dropped and counted, so a file that is not tracked yet is never shown. The hook reads the index itself, as untrusted
+  Any other path is dropped and counted, so a file that is not in the index yet is never shown. **The index holds what is staged, not only
+  what is committed:** the new files of the very commit that was declined are in it, so a secret that is the name of a newly staged file is
+  admitted and repeated in the handle (a row of mode 0600 outside every project). That is the residual risk of this rule. The hook reads the index itself, as untrusted
   bytes, with no program started. A push has no paths; its handle holds the rest.
+- **As built, the exact shape.** The row is `{id, ts, rule, command_sha256, command, facts, verdict, failed_checks, reason}`. `command` is the
+  fixed text `[declined for a secret; the command is not kept]`, `reason` the fixed text `declined for a secret; nothing of the command is
+  kept`, `verdict` is `decline`, and `facts` is `{"handle": true, "facts": {"paths": [...], "paths_dropped": n}}` with `confirm` added only
+  when the engine's fact is a boolean. A candidate path is one of `paths`, `requested_paths` or `target_paths` of the engine's object, in
+  first-seen order and without repeats; it must be printable ASCII of 1 to 256 characters, relative, without an empty, `.` or `..` segment and
+  without a leading `-`. At most 100 candidates are considered and at most 20 are kept; every other entry counts in `paths_dropped`. A decline
+  whose rule is not a string leaves the verdict row only, and so does a handle that cannot be built (a fixed note is made on standard error).
+- **As built, the index reader.** The directory of the command is resolved once with `realpath`; from the root down each directory is opened with
+  `O_NOFOLLOW` relative to its parent's descriptor, and `.git` is looked for the same way on the way up, so a name swapped for a link after
+  it was checked is not followed. A `.git` that is a file, a link or anything but a directory keeps no path, and the walk does not go on above it.
+  `index` is opened relative to the `.git` descriptor with `O_NOFOLLOW | O_NONBLOCK`, and the opened descriptor is checked with `fstat`: a
+  regular file with one link, owned by the current user, from 32 bytes to 32 MiB. Versions 2 and 3 are read; version 4 (names compressed), an
+  unknown version, a wrong magic, a wrong trailing SHA-1, more than 200,000 entries, an entry count that cannot fit the size, an entry that
+  runs past the end, and work over 2 seconds keep no path. A name that is not ASCII is skipped, not a fault. The extensions are ignored:
+  a split index lists only the entries of its main file, so it names less; a sparse index lists a directory as `dir/`, and the directory
+  above its entries is admitted, which is a tracked directory. When the engine took more than 24 seconds the index is not read at all (the
+  harness stops the hook at 30), and the paths are counted as left out; the verdict row is written before any of this. Paths of a repository found above
+  a subdirectory are compared as the index names them, relative to its root. A path relative to a subdirectory is therefore not admitted.
 - **What it never holds.** The command text, the diff, the subject, the body, the trailers, the model's reason, and any other fact.
 - **Where it goes (author's call).** A row of `collected.jsonl`, so that the labelling tool, the label rows and the match by
   `command_sha256` work as they do now, and the report's "not collectable" count falls by the handled rows. The row carries a marker that
@@ -876,17 +899,19 @@ a command that is not a declined secret.
 
 **Acceptance criteria (outline; the plan makes them exact).**
 
-1. A command declined for `no_secret_lines` or `paths_not_credentials` leaves exactly one handle row and no other collected row.
+1. A command declined for `no_secret_lines` or `paths_not_credentials` leaves exactly one handle row and no other collected row
+   (`test_hook_handle.py`, `test_hook_shadow_hook.py`, class `DeclinedSecrets`).
 2. A test passes hostile facts through the hook (a secret in a path that is not tracked, in every other fact, in a key; a path over the cap;
    a character the store refuses; many paths) and finds no field outside the list and no untracked string in the row; a second set passes
    hostile indexes (a link, an oversized or truncated file, a wrong checksum, version 4) and finds that each keeps no path.
 3. The report's "reviewed but not collectable" count falls by the handled rows, counts labelled handles apart, and says whether they are
    folded into the rate.
 4. The labelling tool shows a handle, accepts `right`, `wrong` and `skip`, and runs no program.
-5. The sentences of this spec that say a declined secret is never collected or can never be labelled are changed in the same plan, and a
-   test pins them against the hook.
+5. The sentences of this spec that said a declined secret is never collected or can never be labelled are changed in the same plan, and a
+   test (`SpecPins` in `test_hook_handle.py`) pins them against the hook.
 
-**Owed.** A security review of the change: it touches secrets, the store and untrusted command text. It runs only when the owner asks.
+**Owed.** A security review of the change: it touches secrets, the store, untrusted command text and a file that the project controls (the
+git index). It runs only when the owner asks.
 
 ### Accuracy and cutover (default)
 
@@ -1114,7 +1139,8 @@ file `~/.claude/settings.json`.
    **What leaves your machine from here on:** every prompted command that matches a rule is reviewed by the engine, which sends its
    facts, a commit's diff included, to the bridge's vendor (two model calls at most per command). `collected.jsonl` keeps the command
    text, those facts and the reason on your disk (mode 0600, outside every project) until you delete it, except for a commit the engine
-   declined for a secret or a credential-named path, which leaves a verdict row and nothing else ("Redaction"). The hook redacts the rest
+   declined for a secret or a credential-named path, which leaves a verdict row and a handle of paths the project tracks and no text
+   ("Labelling a declined secret"). The hook redacts the rest
    with a fixed list of patterns, which is best effort: a secret in a shape it does not name, and one the engine does not name either
    (`pass=...`, a Slack webhook, an unnamed AWS secret), is kept as it was. Do not copy, share or back up that file to anywhere you do not
    control. **The vendor program is started confined** (`--confine`), which is a tripwire and not a boundary ("The bridge call is
@@ -1148,11 +1174,11 @@ file `~/.claude/settings.json`.
 7. **Label** at a terminal with `python3 -B ~/action-review-shadow/label.py` (`--skipped` revisits the skipped). `right` means you would have
    judged as the engine did, `wrong` that you would not. Judge from the command and the facts (press `f`), not from the engine's reason:
    when a model was asked, its reason is the model's own words, which the commit's text may have steered. Until there are at least 10
-   labelled commits and 10 labelled removals the report says "not enough labels". A commit the engine declined for a secret is never
-   collected, so a false decline of that kind cannot be labelled and is not in the rate. (From the hook of increment C of plan
-   `2026-11-07-label-declined-secrets`, such a command leaves a handle. The tool shows a handle with its paths and the line "to judge it": look
-   at the change in the project, for example with `git diff -- <the paths>` there, or press `s` when you cannot tell. For a handle `right` means you
-   would have declined it too and `wrong` that you see no secret in the change.)
+   labelled commits and 10 labelled removals the report says "not enough labels". A commit the engine declined for a secret leaves a handle
+   and no text. The tool shows a handle with its paths and the line "to judge it": look at the change in the project, for example with
+   `git diff -- <the paths>` there, or press `s` when you cannot tell. For a handle `right` means you would have declined it too and `wrong`
+   that you see no secret in the change. A handle is counted apart from the commands in the rate unless you run the report with
+   `--fold-handles`. The declined commands recorded before the hook wrote handles left nothing to label.
 8. **Run the test set against a real model, once,** from the root of a checkout you trust: `python3 -B
    packages/workbench/action-review/tools/run_testset.py [--codex-dir <absolute path>]`. It needs the `codex` program on your `PATH` and a
    Codex directory (`~/.codex` by default) with your sign-in, and refuses without them. It sends 3 synthetic prompts (not yours) to Codex
