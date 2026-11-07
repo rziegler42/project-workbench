@@ -21,10 +21,31 @@
       "earlier": [],
       "finding": "R1-F3",
       "reason": "Added the candidate to the suggested order after mempalace-scoping; order is a hint only."
+    },
+    {
+      "at": "2026-11-07T20:19:34Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F1",
+      "reason": "Agreed: the review engine, the action-review engine and the second bridge are built, and the review engine has run reviews through ask-codex. The Current state sentence now says so."
+    },
+    {
+      "at": "2026-11-07T20:19:34Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F2",
+      "reason": "Agreed: the decision on bridge contract version 2 is accepted, so the candidate now says the accepted decision moves the contract to version 2 and no longer calls it proposed."
+    },
+    {
+      "at": "2026-11-07T20:19:41Z",
+      "choice": "rejected",
+      "earlier": [],
+      "finding": "R2-F3",
+      "reason": "True but not for this change: every one of the 61 candidate headings uses the dash form and the README says the colon form, so only the README or all the headings can change, and the README is a seeded file other projects share. It is the owner decision and is reported for the owner."
     }
   ],
   "format": 1,
-  "generation": 5,
+  "generation": 10,
   "kind": "roadmap",
   "path": "docs/roadmaps/workbench-v1.md",
   "rounds": [
@@ -62,9 +83,70 @@
         "total_tokens": null
       },
       "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-07T19:57:19Z",
+      "bridge": "ask-codex",
+      "document_sha256": "d59e86f249ee6ad27a6138c9eb6b7ffb5c2e2d514f1f4053dc1dec7aa295aced",
+      "file": "round-2.json",
+      "findings": [
+        {
+          "id": "R2-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R2-F2",
+          "severity": "major"
+        },
+        {
+          "id": "R2-F3",
+          "severity": "minor"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "profile": "standard",
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra",
+        "options": {}
+      },
+      "sha256": "cc2610a8d2d7c97a88019d29ad1a396fd88b01229c4eb8a2e365e0c0378ce787",
+      "usage": {
+        "input_tokens": 599792,
+        "output_tokens": 4038,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-07T20:21:07Z",
+      "bridge": "ask-codex",
+      "document_sha256": "1f58934f0e2a5df334d43f30c7b0d35c9efb3e1bb1af5c31bb9ee76bbd96535c",
+      "file": "round-3.json",
+      "findings": [],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 3,
+      "profile": "standard",
+      "reading": "no_meaningful_changes",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra",
+        "options": {}
+      },
+      "sha256": "19893ea9b3ef11b75f99b4d7c9dc47d28ddebfffbca23e068abbd2953ba2a236",
+      "usage": {
+        "input_tokens": 288261,
+        "output_tokens": 2767,
+        "total_tokens": null
+      },
+      "verdict": "no_meaningful_changes"
     }
   ],
-  "seal": "344498a40ebce4712a9b8b09bad228468bb2d932dd3e669b60bb63b7561294e9",
+  "seal": "3f005fcff768f4ac4fdc121684176cbc6531b0adb8e0d00df8330be47943be67",
   "window": {
     "bound": 3,
     "first": 1

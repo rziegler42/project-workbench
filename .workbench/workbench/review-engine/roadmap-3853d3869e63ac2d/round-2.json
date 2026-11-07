@@ -1,0 +1,29 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "Current state — model-bridge/`ask-codex` bullet",
+      "problem": "It says the review engine, action-review engine, and a second vendor are “still to do.” Their corresponding plans are completed: `2026-10-23-review-engine`, `2026-10-26-action-review-engine`, and `2026-11-01-ask-ollama-bridge`. This also contradicts the later current-state entry for the review engine.",
+      "severity": "major",
+      "suggestion": "Replace the stale unfinished-work sentence with the actual remaining limitations, and mention the completed second bridge and engines as appropriate."
+    },
+    {
+      "id": "R2-F2",
+      "location": "Candidate `bridge-confine-and-usage` — Interchangeable bridges",
+      "problem": "It describes `2026-11-01-bridge-contract-version-2` as a proposal, but that decision record is `Accepted` on 2026-11-01.",
+      "severity": "major",
+      "suggestion": "State that the accepted decision establishes contract version 2, rather than describing it as proposed."
+    },
+    {
+      "id": "R2-F3",
+      "location": "All candidate headings under `## Candidates`",
+      "problem": "The headings use an em dash (`### id — title`), while `docs/roadmaps/README.md` specifies the candidate format as `### <id>: <title>`.",
+      "severity": "minor",
+      "suggestion": "Use the documented colon separator, or revise the roadmap convention if both forms are intentionally valid."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "The roadmap contains two material stale-status statements and one formatting inconsistency with the roadmap convention.",
+  "verdict": "changes_needed"
+}

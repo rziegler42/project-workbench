@@ -108,8 +108,9 @@ committed through the git helper. The part of that order that is still open is `
   installed module's pinned command through the kit's `wbkit/call.py` and `wb run --provides <capability>`
   (`module-boundary.md`). The first-party module `ask-codex` provides the capability `model-bridge` and the
   command `ask-codex ask`; it passes the conformance checklist against a fake `codex` program, and no test starts a
-  real one. Security and workflow reviews found no Critical or High finding. The review engine and the
-  action-review engine (candidates below), a second vendor and the hand run against a real Codex are still to do.
+  real one. Security and workflow reviews found no Critical or High finding. The review engine, the
+  action-review engine and a second bridge, `ask-ollama` (candidates below), are built, and the review engine has reviewed documents through
+  `ask-codex` on a real Codex.
 - Plan approval is a recorded approval (plan `2026-10-22-plan-approval-records`, increments A to F; it had
   `Candidate: none`, so its completion is not derived). The installer records an owner-made approval per project
   (`wb approve-plan`, `wb plan-status`); the process module declares an `approval` command and the `code-work` helper's
@@ -595,7 +596,7 @@ bridge with no tools satisfies by construction; the same success and failure obj
 be reached, so that neither `program_not_found` nor a new Ollama-only class is the caller's concern. An option that only tunes
 behaviour and that a vendor cannot use (`--root` for a server) is accepted and ignored. An option that decides where
 content goes (`--server`) is refused by a bridge that cannot honour it, so that local-only content is never served by a cloud vendor
-by accident. This is proposed by the decision `2026-11-01-bridge-contract-version-2`, which moves the contract to version 2. What differs between vendors (the model name, whether usage is reported, and
+by accident. The accepted decision `2026-11-01-bridge-contract-version-2` moves the contract to version 2. What differs between vendors (the model name, whether usage is reported, and
 the reasons a call fails) stays in the object's existing fields. The same conformance checklist is run against both bridges.
 **Promotion trigger:** the owner chooses to begin it.
 
@@ -1069,6 +1070,20 @@ the collected data (`2026-11-04-shadow-hook-security-review-fixes`) stays true.
 change to what is stored for a command that is not a declined secret.
 **Promotion trigger:** the owner chooses to begin. The reason to: 65 of the 187 commands reviewed so far (about a third) cannot be labelled,
 the count grows with every project that works with secrets, and the cutover bound can only be met on what is labelled.
+
+### command-gate-python-heredoc — The command gate does not read the body of a quoted python heredoc for gaps
+
+**Outcome:** a command that is one python here-document, written as the accepted record says (`python3` or `python` with at most the flags `-B`, `-I`, `-E`
+and `-u`, then `-`, a quoted or escaped delimiter, a body, and a terminator line that is exactly the tag), is no longer refused for the letters its body
+shares with a relaxed command. The gap rule and the free-region test stop reading that body; the names test still reads the whole text, so a body that
+writes a relaxed command's words stays refused (`2026-11-03-a-python-script-in-a-quoted-heredoc-is-not-read-for-gaps`, decisions 1 and 2).
+**Dependencies:** none. The record is accepted, and the gate it changes exists (`2026-11-02-command-gate-reads-gaps-and-data-positions`).
+**Boundary:** the gate's reading of that one shape, with its corpus and tests and the "Limits" passage of `docs/specs/command-permissions.md`. Not part of it:
+shell interpreters and every other consumer of a here-document (`bash`, `sh`, `zsh`, `eval`, `xargs`, `cat`, `tee`, `git commit -F -`, a redirect), an unquoted
+delimiter, `<<-`, `<<<`, two here-documents, the names test, any change to a level or a key, and the limit the gate record already accepts, that a script can build a
+word at run time.
+**Promotion trigger:** the owner chooses to begin. The reason to: the refusal recurs, and each one costs a second call to write the script as a file; the
+accepted record asks for a security review of the built change, because a mistake in where the body ends is a bypass.
 
 ## Deferred
 
