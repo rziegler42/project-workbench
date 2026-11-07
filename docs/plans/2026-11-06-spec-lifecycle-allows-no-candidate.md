@@ -60,7 +60,9 @@ The recorded verification of increment A stands. Whether an agent follows the te
 
 ## Review record
 
-Empty until a review is asked for.
+Codex (`gpt-5.6-terra`), plan review, 1 round of 3, converged with no meaningful finding; nothing to decide.
+
+Increment A: the `reviewer` agent, one exchange, no blocking finding. Applied: the last sentence of the Lifecycle paragraph said the candidate is reported complete, which assumes every plan has one; it now begins "When the plan names a candidate". Applied: the re-wrapped purpose line was about 130 characters; it is wrapped again. The reviewer found the new wording says neither more nor less than decision 4 and the test not brittle. Not checked by the reviewer: the test runs and the repository-wide search (it ran nothing); both were run by me.
 
 ## Deferred work
 
@@ -68,4 +70,9 @@ Empty until a review is asked for.
 
 ## Result
 
-Empty until work starts.
+**Increment A (2026-11-06), done in a scratch clone at commit `0e16756`; not yet copied or committed.**
+
+- Built: the purpose paragraph of `docs/specs/code-work.md` says a unit of work moves from a roadmap candidate, or from work too small to need roadmap direction, to a verified, reviewed, committed result. The Lifecycle paragraph says such work, such as a correction that follows from a finding, goes straight to a plan naming `Candidate: none` with a one-line reason, with no roadmap edited, and that the candidate is reported complete only when the plan names one. The diagram line is unchanged. One new test in `test_codework_candidate_text.py` slices the purpose and lifecycle passages and pins `too small to need roadmap direction` in both and `Candidate: none` in the lifecycle.
+- Verification as run: the new test failed before the spec edit and passes after; the code-work suite in the clone, run with `python3 -B -m unittest discover`, gave 353 tests, all passing (2 skipped, as before). A first run without `-B` wrote a `__pycache__` that made two module tests fail and made the project's command hook refuse every Bash call; the owner removed it, and the rerun is the one recorded. After the review edit the candidate-text file was run again (6 tests, OK); the whole suite was not rerun after that edit, which touches only the spec's wording. `wb run code-work check` passes (103 plans). A search of `docs/specs` found no other copy of the purpose wording. Not run: `tests.test_rendering` and `tests.test_permissions_drift` (no skill, template or shipped file changed) and the whole repository suite.
+- Review: Codex on the plan, one round, no finding; the `reviewer` agent on the increment, two non-blocking findings, both applied.
+- Left for the owner: the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/sl_install_files.py`, two files, only if their hashes are those recorded), then "commit a". The test file is under `packages/`, so run `wb preview release-approvals` after the copy to see whether the release asks for anything. The deferred wording in `policy.md` and `AGENTS.md` is untouched.

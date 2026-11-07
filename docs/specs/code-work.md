@@ -13,9 +13,9 @@ authority rules in `trust-and-approval.md`; the documents it builds on in
 ## Purpose and scope
 
 `code-work` is the process module for programming. It defines how a unit of work
-moves from a roadmap candidate to a verified, reviewed, committed result: plans made
-of increments, a mandatory review at each step, and a small number of named
-checkpoints. Its aim is continuous work without supervision: the agent drives itself
+moves from a roadmap candidate, or from work too small to need roadmap direction, to a
+verified, reviewed, committed result: plans made of increments, a mandatory review at
+each step, and a small number of named checkpoints. Its aim is continuous work without supervision: the agent drives itself
 inside what the owner authorized and stops when something is wrong.
 
 Non-goals:
@@ -53,11 +53,14 @@ spec(s) -> roadmap -> candidate -> plan -> increments -> review -> commit -> arc
 ```
 
 Specs and roadmaps are written first, as `groundwork` describes. A candidate is
-chosen from a roadmap and a plan is drafted for it. The plan is reviewed and
-approved. Each increment is implemented, verified, reviewed and committed in turn.
-When the last increment is done the whole plan is reviewed and verified, and the plan
-is archived by a status change. The roadmap candidate is then reported complete by
-derivation, and the roadmap file is not edited.
+chosen from a roadmap and a plan is drafted for it. Work too small to need roadmap
+direction, such as a correction that follows from a finding, goes straight to a plan
+that names `Candidate: none` with a one-line reason, and no roadmap is edited. The plan
+is reviewed and approved. Each increment is implemented, verified, reviewed and
+committed in turn. When the last increment is done the whole plan is reviewed and
+verified, and the plan is archived by a status change. When the plan names a candidate,
+the candidate is then reported complete by derivation, and the roadmap file is not
+edited.
 
 ## Plans
 

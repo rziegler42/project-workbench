@@ -53,6 +53,14 @@ class CandidateText(unittest.TestCase):
     def test_the_skill_keeps_the_search_that_makes_a_candidate_id_exist(self):
         self.assertIn("Search the roadmap so the candidate ID exists, for a named candidate", text(SKILL))
 
+    def test_the_spec_purpose_and_lifecycle_allow_a_plan_with_no_candidate(self):
+        found = text(SPEC)
+        purpose = found.split("## Purpose and scope", 1)[1].split("Non-goals:", 1)[0]
+        lifecycle = found.split("## Lifecycle", 1)[1].split("## Plans", 1)[0]
+        self.assertIn("too small to need roadmap direction", purpose)
+        self.assertIn("too small to need roadmap direction", lifecycle)
+        self.assertIn("`Candidate: none`", lifecycle)
+
 
 if __name__ == "__main__":
     unittest.main()
