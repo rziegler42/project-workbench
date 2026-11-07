@@ -1,6 +1,6 @@
 # Let agents save short notes as they work, and let the owner review them by exception
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-06
 Candidate: workbench-v1#mempalace-notes
 Specs: mempalace-notes, mempalace, command-permissions
@@ -369,3 +369,7 @@ its findings were fixed in C before the commit (above).
   (and the agent hid the cause); the agent appended a pipe to `keep` and the gate's hint omits `run`; the agent put its own findings into a note holding the owner's accepted decision;
   `review` prints "1 drafts"; a second question about filing after the owner's answer.
 - Verification: `wb run code-work check`.
+
+### The plan as a whole (closed 2026-11-07)
+
+All five increments are committed, each with the trailer `Plan: 2026-11-06-mempalace-notes#<label>`: A `5f56401` (install state `c75ea38`), B `4396afa` (`57c6393`), C `e9653c5` (`59b8c70`), D `d5f1884` (`e98c027`) and E `8bd307f`. The progress lines above that say D or E is "not yet copied, released or committed" were written when it was built; this paragraph gives the commits. The defects the live run found, listed just above, went to the plans `2026-11-06-notes-live-run-fixes` and `2026-11-06-notes-single-quoted-forms`, and the decision on the command gate and prose was accepted on 2026-11-06 (`830696c`). Not shown by the live run and still open: the notes after a compaction, other save moments, more than one draft or wing. This plan was marked completed on 2026-11-07 at the owner's word, from the plan's own text and the git log; its tests were not run again for it.

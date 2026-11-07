@@ -1,6 +1,6 @@
 # Show the notes and search forms in single quotes
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-06
 Candidate: none (decision 2 of the accepted record `2026-11-06-command-gate-and-prose-in-module-calls`, a follow-up to the plan `2026-11-06-notes-live-run-fixes`)
 Specs: mempalace, mempalace-notes
@@ -104,3 +104,7 @@ Empty until work starts.
   `test_mempalace_run.py` describe it). The plan changes no code, so it is left; it is recorded here and should join the gate plan or a small code fix.
 - Left for the owner: the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/sq_install_files.py`, four files, only if their hashes are those recorded), the release approvals, the removal of the stale records
   after you approve the list, then "commit a"; after the commit the upgrade and the rerender (the rendered `AGENTS.md` and the skill gain the new forms).
+
+### The plan as a whole (closed 2026-11-07)
+
+The one increment is committed as `dcb9ae1` (trailer `Plan: 2026-11-06-notes-single-quoted-forms#A`), with its install state `f3640f6`. The progress line above that says it is "not yet copied, released or committed" was written when it was built. Still open and outside this plan, as the Result above says: the helper's refusal of a search with no `--` still prints `wb run mempalace search -- "your question"` in double quotes (`helper/mempalace` line 323 and `docs/specs/mempalace.md` line 66 on 2026-11-07). This plan was marked completed on 2026-11-07 at the owner's word, from the plan's own text and the git log; its tests were not run again for it.

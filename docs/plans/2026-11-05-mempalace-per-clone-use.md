@@ -1,6 +1,6 @@
 # Make mempalace work per clone without setup, and run mine and sync at ask
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-05
 Candidate: workbench-v1#mempalace-per-clone-use
 Specs: mempalace, command-permissions
@@ -504,3 +504,7 @@ scratch clone, a fake program, a scratch home); its findings are the work of inc
   on its own); the held-lock text matches by substring only. The reviewer ran nothing.
 - Left for the owner: the copy (`python3 -I -B /private/tmp/claude-501/-Users-rziegler-projects-project-workbench/123b16b0-cb65-4586-88ec-122e23f59d31/scratchpad/pcg_install_files.py`, two files,
   only if their hashes are those recorded), the release approvals, and after the commit `wb upgrade` (the installed helper changes; no new keys).
+
+### The plan as a whole (closed 2026-11-07)
+
+All seven increments are committed, each with the trailer `Plan: 2026-11-05-mempalace-per-clone-use#<label>`: A `7c8a241`, B `8cc697b`, C `835da71`, D `ea53436`, E `28e1d1a` (the install state of D and E is `a2d56b8`), F `6728c6f` (install state `bfb3f37`) and G `c4fe224` (install state `533b272`); `cb2b6cf` is the install state of the setting move. The progress lines above that say an increment is "not yet copied, released or committed" were written when it was built; the commit follows in the next line of this Result or here, and the last of them (G) is closed by this paragraph. Not part of this plan and still open: the question from increment B about a program found in an untrusted `PATH` entry, which gets the same skip message; and what the owner left out on purpose (capture of lessons and brainstorms, a module check, the embedder-identity warning, a `sources` key). This plan was marked completed on 2026-11-07 at the owner's word, from the plan's own text and the git log; its tests were not run again for it.

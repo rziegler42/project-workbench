@@ -1,6 +1,6 @@
 # Fix what the live run of the notes found
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-06
 Candidate: none (a follow-up to `workbench-v1#mempalace-notes`, whose live run is recorded under "Evidence" in `mempalace-notes.md`; the owner may want it as a roadmap candidate first)
 Specs: mempalace-notes, mempalace, command-permissions
@@ -155,3 +155,7 @@ Empty until work starts.
   helper to test; the guard's behaviour is from reading the code and not from a run; the plan's wording of the evidence (the corpus was not read or replayed) is stated as a departure. The reviewer ran nothing.
 - Verification: `wb run code-work check` passes. Not run: the whole suite (no code changed).
 - Left for the owner: read the record and decide (accept, reject or change it); nothing else is needed for this plan. The record is `Proposed` and an agent does not accept it. Then "commit c".
+
+### The plan as a whole (closed 2026-11-07)
+
+All three increments are committed, each with the trailer `Plan: 2026-11-06-notes-live-run-fixes#<label>`: A `fd39b4f` (install state `75407c9`), B `16b4c81` (install state `1314b5f`) and C `d8a0238`, the decision record `2026-11-06-command-gate-and-prose-in-module-calls`, which the owner accepted on 2026-11-06 (`830696c`; its status line reads `Accepted by Robert Ziegler`). The progress lines above that say an increment is "not yet copied, released or committed" or that the record is `Proposed` were written when it was built; this paragraph gives the commits and the outcome. The gate's treatment of prose followed in the plan `2026-11-06-gate-forms-in-the-base` (completed). This plan was marked completed on 2026-11-07 at the owner's word, from the plan's own text and the git log; its tests were not run again for it.
