@@ -146,6 +146,54 @@ class SecretScan(Base):
         self.assertEqual("pattern", self.helper.diff_secret_kind(section("package-lock.json", AWS)))
         self.assertEqual("high_entropy", self.helper.diff_secret_kind(section("src/lock.json", RANDOM)))
 
+    RECORD_DIR = "ab" * 32  # 64 lowercase hexadecimal characters: the form of a release record's directory name
+
+    def record(self, directory=None, name="approval.json"):
+        return "workbench/shipped_approvals/packages/%s/%s" % (directory or self.RECORD_DIR, name)
+
+    def test_the_install_manifest_and_a_release_record_skip_only_the_entropy_check(self):
+        for path in (".workbench/manifest.json", self.record()):
+            with self.subTest(path=path):
+                hashes = '"tree": "%s",' % HEX64
+                self.assertIsNone(self.helper.diff_secret_kind(section(path, hashes)))
+                self.assertEqual("pattern", self.helper.diff_secret_kind(section(path, hashes, AWS)))
+                self.assertEqual("pattern", self.helper.diff_secret_kind(section(path, hashes, KEY)))
+                self.assertEqual("pattern", self.helper.diff_secret_kind(section(path, hashes, GITHUB)))
+
+    def test_a_look_alike_of_those_two_paths_is_scanned_with_the_entropy_check(self):
+        paths = (
+            "sub/.workbench/manifest.json", "workbench/.workbench/manifest.json", ".workbench/manifest.json.bak",
+            ".workbench/manifest.jsonx", "manifest.json", ".workbench/other.json",
+            "workbench/shipped_approvals/approval.json", "workbench/shipped_approvals/packages/a/b/approval.json",
+            "workbench/shipped_approvals/packages/a/other.json", "other/approval.json",
+            "x/workbench/shipped_approvals/packages/%s/approval.json" % self.RECORD_DIR,
+            self.record(name="approval.jsonx"), self.record(name="approval.json.txt"),
+            self.record("not-a-hash"), self.record("ab" * 31 + "a"), self.record("ab" * 32 + "a"),
+            self.record("Ab" + "ab" * 31), self.record("ab" * 31 + "AB"),
+        )
+        for path in paths:
+            with self.subTest(path=path):
+                self.assertEqual("long_hex", self.helper.diff_secret_kind(section(path, '"tree": "%s",' % HEX64)))
+
+    def test_an_exempt_file_hides_nothing_in_the_files_beside_it(self):
+        manifest = section(".workbench/manifest.json", '"tree": "%s",' % HEX64)
+        self.assertIsNone(self.helper.diff_secret_kind(manifest + section(self.record(), HEX64)))
+        self.assertEqual("long_hex", self.helper.diff_secret_kind(manifest + section("src/a.py", HEX64)))
+        self.assertEqual("pattern", self.helper.diff_secret_kind(manifest + section("src/a.py", AWS)))
+
+    def test_a_diff_of_an_unknown_shape_that_names_an_exempt_path_is_scanned_as_a_whole(self):
+        for path in (".workbench/manifest.json", self.record()):
+            with self.subTest(path=path):
+                diff = "--- HEAD/%s\n+++ work/other\n+%s\n" % (path, HEX64)
+                self.assertEqual("long_hex", self.helper.diff_secret_kind(diff))
+
+    def test_a_header_like_line_inside_a_hunk_does_not_claim_an_exemption(self):
+        for path in (".workbench/manifest.json", self.record()):
+            with self.subTest(path=path):
+                spoof = ("--- HEAD/src/a.py\n+++ work/src/a.py\n@@ -1 +1,2 @@\n--- HEAD/%s\n+++ work/%s\n+%s\n"
+                         % (path, path, HEX64))
+                self.assertEqual("long_hex", self.helper.diff_secret_kind(spoof))
+
     def test_a_test_directory_relaxes_only_the_generic_assignment_patterns(self):
         self.assertIsNone(self.helper.diff_secret_kind(section("tests/fixture.py", LOGIN)))
         self.assertEqual("pattern", self.helper.diff_secret_kind(section("tests/fixture.py", AWS)))
@@ -484,6 +532,24 @@ class RealCommit(Base):
         self.assertEqual((), self.checked("package-lock.json"))
         self.write("package-lock.json", RANDOM + "\n" + AWS + "\n")
         self.assertEqual(("no_secret_lines",), self.checked("package-lock.json"))
+
+    def test_the_hashes_of_a_new_manifest_and_a_new_release_record_do_not_fail_the_secret_scan(self):
+        record = "workbench/shipped_approvals/packages/%s/approval.json" % ("ab" * 32)
+        manifest = '{\n  "tree": "%s",\n  "declaration": "%s"\n}\n' % (HEX64, HEX64)
+        for path in (".workbench/manifest.json", record):
+            with self.subTest(path=path):
+                os.makedirs(os.path.dirname(os.path.join(self.dir, path)), exist_ok=True)
+                self.write(path, manifest)
+                self.assertEqual((), self.checked(path))
+
+    def test_the_same_hashes_in_a_file_that_is_not_one_of_them_still_fail_the_secret_scan(self):
+        self.write("manifest.json", '{\n  "tree": "%s"\n}\n' % HEX64)
+        self.assertEqual(("no_secret_lines",), self.checked("manifest.json"))
+
+    def test_a_key_in_a_new_manifest_is_still_seen_by_a_pattern(self):
+        os.makedirs(os.path.join(self.dir, ".workbench"))
+        self.write(".workbench/manifest.json", '{\n  "tree": "%s",\n  "note": "%s"\n}\n' % (HEX64, AWS))
+        self.assertEqual(("no_secret_lines",), self.checked(".workbench/manifest.json"))
 
     def test_a_secret_in_the_subject(self):
         self.assertEqual(("no_secret_lines",), self.checked(subject="Add " + GITHUB))

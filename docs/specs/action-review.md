@@ -270,7 +270,7 @@ approver, and where it goes"):
 | `paths_not_credentials` | commit | `requested_paths`, `paths`, list `credential_names` | the final segment of a path, case-folded, equals a listed name, or ends with a listed name that begins with `.` (an extension such as `.pem`); as built, an entry may also hold `*` or end in `/` (see `lists`) | none |
 | `paths_regular` | commit | `not_regular_paths` | it is not empty | none |
 | `facts_complete` | commit, remove | `truncated`, and for a commit `binary_paths` | `truncated` is true, or a commit has a binary path | `repository_unreadable`, `index_unreadable`, and any unmapped code |
-| `no_secret_lines` | commit | `diff`, `subject`, `body`, `trailers` | the secret scan (ported from the approver by Increment F) hits; a hit withholds the diff from anything sent to a bridge | none |
+| `no_secret_lines` | commit | `diff`, `subject`, `body`, `trailers` | the secret scan (ported from the approver by Increment F) hits, each file under its own options ("As built, and its limits"); a hit withholds the diff from anything sent to a bridge | none |
 | `confirm_present` | remove | `confirm` | it is false | none |
 | `removal_valid` | remove | `ok` | a removal error | `usage`, `path_duplicate`, `path_refused`, `target_missing`, `recursive_required`, `repository_root_refused`, `nested_repository`, `other_filesystem`, `tree_too_large`, `target_changed` |
 | `ignore_status_known` | remove | `ignore_unknown_targets` | it is not empty | none |
@@ -929,7 +929,13 @@ was reviewed by the approver and declines under `describe` (`safe-git.md`).
   stands between text there and a pass.
 - The secret scan is best effort: lock files in any directory skip the entropy test, generic assignments are relaxed under
   `tests/`, and some token shapes and file names are not scanned. The exemptions avoid false declines on real files; the
-  model is the backstop.
+  model is the backstop. The install manifest (`.workbench/manifest.json`, only at the root) and a release record
+  (`workbench/shipped_approvals/packages/<64 lowercase hex>/approval.json`, an exact shape) also skip the entropy test, because
+  they hold the public tree and declaration hashes of the packages, which the test otherwise reads as a secret: on 2026-11-06, a
+  read-only approximation (the engine's scan section over `git diff -U3` of each of the last 40 commits of this repository) found 17
+  that would be declined for that reason alone, and none after the change (plan `2026-11-06-secret-scan-skips-hash-records`). The
+  15 patterns still run on both. The residual risk is a hex secret placed in one of those two kinds of file, which only the model,
+  GitHub push protection and `safe-git push-check` stand behind.
 - A reply schema swapped after the helper checked it and before the bridge reads it is not covered, because the bridge reads
   the path itself; the reply is validated again against the rule, so only instruction text could reach the vendor. A fix
   needs a bridge that takes the schema's content.
