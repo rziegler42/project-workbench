@@ -719,7 +719,11 @@ the rules above are named so a later plan can change them; this plan changes non
   accepted and to standard error when it is refused. Writes nothing. Exits 0 accepted, 1
   refused, 2 usage error. The package directory is a positional argument or `--dir`, and
   defaults to `.`; if both are given and name the same directory that is accepted, and
-  different directories are a usage error. Agent may run it. Never commits or publishes.
+  different directories are a usage error. A directory in which nothing is named `package.json`
+  (a repository root, for example) is refused with `<path> has no package.json, so it is not a
+  package directory; give the package directory, as in wb verify <package>`, before any file
+  of it is read; a path that is not a directory, and a `package.json` that is a link or a
+  directory, keep the verifier's own refusal. Agent may run it. Never commits or publishes.
 - **`approve (<package> | --source <url> [--ref <ref>]) [--module <name>]`**
   Owner-run, terminal on standard input and output. Shows the approval request, verifies again
   before writing, and records the module records before the package record. Without

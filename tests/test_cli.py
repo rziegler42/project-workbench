@@ -116,6 +116,53 @@ class VerifyTest(CliBase):
         self.assertEqual(code, 1)
         self.assertIn("refused:", err)
 
+    NOT_A_PACKAGE = "has no package.json, so it is not a package directory; give the package directory, as in wb verify <package>"
+
+    def test_a_directory_with_no_package_json_is_not_a_package(self):
+        with_git = os.path.join(self.base, "with-git")
+        os.makedirs(os.path.join(with_git, ".git"))
+        plain = os.path.join(self.base, "plain")
+        os.makedirs(plain)
+        for target in (with_git, plain):
+            with self.subTest(target=target):
+                code, out, err = run("verify", target)
+                self.assertEqual((code, out), (1, ""))
+                self.assertEqual(err, "refused: %s %s\n" % (target, self.NOT_A_PACKAGE))
+                self.assertNotIn("git metadata", err)
+
+    def test_the_default_target_without_a_package_json_is_not_a_package(self):
+        before = os.getcwd()
+        self.addCleanup(os.chdir, before)
+        with_git = os.path.join(self.base, "root")
+        os.makedirs(os.path.join(with_git, ".git"))
+        os.chdir(with_git)
+        code, out, err = run("verify")
+        self.assertEqual((code, out), (1, ""))
+        self.assertEqual(err, "refused: . %s\n" % self.NOT_A_PACKAGE)
+
+    def test_other_cases_keep_their_own_refusal(self):
+        dangling = os.path.join(self.base, "dangling")
+        os.makedirs(dangling)
+        os.symlink("nowhere", os.path.join(dangling, "package.json"))
+        directory = os.path.join(self.base, "directory")
+        os.makedirs(os.path.join(directory, "package.json"))
+        with_both = os.path.join(self.base, "both")
+        shutil.copytree(FIXTURE, with_both)
+        os.makedirs(os.path.join(with_both, ".git"))
+        empty = os.path.join(self.base, "empty")
+        os.makedirs(empty)
+        linked = os.path.join(self.base, "linked")
+        os.symlink(empty, linked)
+        missing = os.path.join(self.base, "nowhere")
+        for target in (dangling, directory, with_both, linked, missing):
+            with self.subTest(target=target):
+                code, out, err = run("verify", target)
+                self.assertEqual((code, out), (1, ""))
+                self.assertIn("refused:", err)
+                self.assertNotIn(self.NOT_A_PACKAGE, err)
+                if target == with_both:
+                    self.assertIn("git metadata", err)
+
     def test_set_refusal_names_the_selection(self):
         code, _, err = run("verify", self.path, "--select", "sample-harness", "nope")
         self.assertEqual(code, 1)

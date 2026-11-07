@@ -8,6 +8,7 @@ import argparse
 import io
 import os
 import re
+import stat
 import sys
 
 from . import (acknowledge, agent_gate, approvalcmd, approve, attach, check, command_gate, delegation, doctor, firstparty,
@@ -132,6 +133,29 @@ def _target(args):
     if len(given) == 2 and os.path.realpath(given[0]) != os.path.realpath(given[1]):
         raise _Usage("two different packages were given: %r and --dir %r" % tuple(given))
     return given[0] if given else "."
+
+
+NOT_A_PACKAGE = "has no package.json, so it is not a package directory; give the package directory, as in wb verify <package>"
+
+
+def _lacks_package_json(path):
+    """True when `path` is a real directory (a link is not followed) in which nothing is named ``package.json``.
+
+    A link, a directory or anything else of that name, an unreadable place and a path that is not there are left to the
+    verifier, which refuses each in its own words."""
+    try:
+        is_directory = stat.S_ISDIR(os.lstat(path).st_mode)
+    except OSError:
+        return False
+    if not is_directory:
+        return False
+    try:
+        os.lstat(os.path.join(path, "package.json"))
+    except FileNotFoundError:
+        return True
+    except OSError:
+        return False
+    return False
 
 
 RELEASE_KEY = "wb release-approvals"
@@ -885,6 +909,9 @@ def main(argv, out=None, err=None, *, store_root=None, distribution=None, stdin=
         return approve.run(guarded, args.package, args.module, stdin, out, err, distribution,
                            args.source, args.ref or "HEAD", log=log, digest=args.digest[0] if args.digest else None)
 
+    if _lacks_package_json(path):
+        err.write("refused: %s %s\n" % (_clean(path), NOT_A_PACKAGE))
+        return 1
     result = verify.verify_package(path, select=args.select,
                                    harness_required=not args.no_harness_required,
                                    first_party=firstparty.is_first_party(path, distribution))
