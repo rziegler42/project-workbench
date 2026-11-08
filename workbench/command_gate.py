@@ -99,6 +99,40 @@ _DATA_SIMPLE = r"(?:%s)(?: (?:%s|%s))*" % ("|".join(DATA_PROGRAMS), _DATA_ARGUME
 _DATA_COMMAND = re.compile(r"%s(?: \| %s)*" % (_DATA_SIMPLE, _DATA_SIMPLE))
 
 
+# The shape of a python here-document whose body the gap rule does not read (decision
+# ``2026-11-03-a-python-script-in-a-quoted-heredoc-is-not-read-for-gaps``, 1; plan ``2026-11-08-python-heredoc-gate``): one
+# simple command, optionally after ``cd <plain token> && ``, that is ``python3`` or ``python`` with only the separate flags
+# ``-B``, ``-I``, ``-E`` and ``-u``, then ``-``, then ``<<`` and a quoted (``'TAG'``, ``"TAG"``) or escaped (``\TAG``) delimiter,
+# single spaces throughout, and nothing after the delimiter. The tag is narrower than bash allows (no quoting can make it differ
+# from the line that ends the body); a valid tag outside it is not the shape and is judged as before.
+_HEREDOC_TAG = r"[A-Za-z_][A-Za-z0-9_]{0,31}"
+_PYTHON_HEREDOC = re.compile(
+    r"(?:cd %s && )?python3? (?:-[BEIu] )*- <<(?:'(?P<single>%s)'|\"(?P<double>%s)\"|\\(?P<bare>%s))"
+    % (_RUN_PLAIN, _HEREDOC_TAG, _HEREDOC_TAG, _HEREDOC_TAG))
+
+
+def python_heredoc(text):
+    """The first line of `text` when `text` is exactly one python here-document of the shape above, otherwise ``None``.
+
+    The terminator is as bash reads it: the first line after the first that is exactly the tag. It must be the last line of
+    the text, with at most one final newline after it; a line that only looks like the tag, text after the terminator and a
+    text with no terminator are not the shape. Lines are split on ``\\n`` and nothing else, as bash splits them (``splitlines``
+    also splits on ``\\r``, ``\\x0b``, ``\\x0c``, ``\\x85`` and ``\\u2028``, which would end a body that bash does not end)."""
+    head, newline, rest = text.partition("\n")
+    if not newline or "\0" in text:
+        return None
+    found = _PYTHON_HEREDOC.fullmatch(head)
+    if found is None:
+        return None
+    tag = found.group("single") or found.group("double") or found.group("bare")
+    lines = rest.split("\n")
+    if lines and lines[-1] == "":
+        lines.pop()
+    if tag not in lines or lines.index(tag) != len(lines) - 1:
+        return None
+    return head
+
+
 def words(key):
     """The words of the command `key` names, in order: ``approve-plan``; ``wb run <command> <argument>`` gives both."""
     found = levels.command_words(key)
