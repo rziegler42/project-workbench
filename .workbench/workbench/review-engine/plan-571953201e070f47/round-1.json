@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Completion criteria 4; Increment A, step 1",
+      "problem": "The required test that “a secret pattern on an exempt header line is still reported” cannot be made with a valid exact-path diff section. Such a header contains only the fixed prefixes and the constrained review path; its only variable component is 16 lowercase hex characters, which cannot match any of the 15 secret patterns. Injecting a pattern makes the path non-matching or the diff shape invalid, so it would test fallback behavior rather than the exemption.",
+      "severity": "major",
+      "suggestion": "Replace this criterion with an observable assertion that the two header lines are passed to the normal pattern-scanning function with only entropy disabled (for example, a spy or narrowly mocked call), while retaining content-pattern tests on matching files."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Assumptions and constraints; Completion criterion 1",
+      "problem": "The plan limits round files to `round-<n>.json` for n 1–999, but the review engine permits 1,000 rounds (`MAX_ROUNDS = 1000`) and generates `round-%d.json`. Thus a valid `round-1000.json` review record remains vulnerable to the false decline, drifting from the review-engine spec’s record-file definition.",
+      "severity": "major",
+      "suggestion": "Make the exact path grammar include `round-1000.json` and add it to the boundary tests (or derive the bound from the review-engine contract if sharing it is practical)."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The approach is scoped and aligned with the candidate, but two completion requirements need correction before the plan can be relied on.",
+  "verdict": "changes_needed"
+}
