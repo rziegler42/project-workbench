@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Assumptions and constraints — shape bullet",
+      "problem": "The plan narrows the accepted candidate’s shape without reconciling that change. The roadmap/decision permit `cd <plain path>` using the data-position plain-token grammar and a quoted or escaped delimiter; this plan instead uses `_PATH` and a new `[A-Za-z_][A-Za-z0-9_]{0,31}` tag grammar. Valid shell spellings such as a plain-token path containing `@` or a quoted delimiter tag containing `-` would remain judged as today, contrary to the stated goal of handling the decision’s shape.",
+      "severity": "major",
+      "suggestion": "Use the decision’s plain-token grammar and support quoted/escaped delimiter tags as specified, or obtain an owner-approved clarification narrowing the accepted decision and roadmap candidate before implementing this subset. Add corpus cases for the chosen boundary."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The implementation shape is narrower than the roadmap candidate and accepted decision describe.",
+  "verdict": "changes_needed"
+}
