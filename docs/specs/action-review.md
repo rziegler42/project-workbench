@@ -75,8 +75,8 @@ changes, when the hook is built and not before:
   decline is shown as far as the harness allows and is not required.
 - The hook is registered in the owner's user-level configuration, outside a project's reach, and reads the owner's levels table to
   learn which keys are `delegated`; `wb doctor` can only note that it depends on a hook it cannot see.
-- Whether the harness shows the permission prompt while a `PermissionRequest` hook runs is not known; a test on a copy comes before
-  the hook is built, and a record says what the owner sees and for how long if the prompt is held.
+- The harness shows the permission prompt while a `PermissionRequest` hook runs, and an `allow` from the hook ends the prompt (tested on a
+  copy on 2026-11-08 in auto mode; "The shadow hook", "What the harness does, tested on a copy").
 - The cutover bound ("Accuracy and cutover") is a precondition, and the old approver's declines by failed check are the evidence that
   false declines are what to measure.
 - The `action-review` plans build all of this after the shadow period; none of it is built now. The named risk profiles of the same
@@ -537,8 +537,8 @@ run for this reading.
 - **When it fires.** "When Claude Code is about to ask you for permission to use a tool", and for a call that would otherwise be
   auto-denied because it cannot prompt. It matches on tool name (`Bash`). It does not fire for a command that an `allow` rule
   or a permission mode lets through without a prompt. The page does not say whether it fires when auto mode's classifier decides
-  a call without a prompt; the owner's check in Increment H finds out, and until then a shadow in auto mode may see less than
-  every command.
+  a call without a prompt; the test of 2026-11-08 (below) found that in auto mode it fires for a call that prompts and not for one
+  that does not, so a shadow in auto mode sees the commands that prompt and no others.
 - **Input.** JSON on standard input with `session_id`, `transcript_path`, `cwd`, `permission_mode`, `hook_event_name`
   (`PermissionRequest`), `tool_name`, `tool_input` (for Bash `command` and `description`) and an optional
   `permission_suggestions` array. There is no `tool_use_id`.
@@ -550,6 +550,46 @@ run for this reading.
 - **Not run for** a sandboxed command's network request, and not for `EndConversation`.
 - **In a session that cannot prompt** (a background subagent in non-interactive mode) the hook still runs and, if no hook decides,
   the call is denied. That is the harness's rule, not an effect of the shadow hook, which decides nothing.
+
+**What the harness does, tested on a copy (2026-11-08, plan `2026-11-08-action-review-cutover-for-commit`, increment A).** Provenance: Claude
+Code 2.1.319, read by the agent from `claude --version`, on Darwin 25.6.0. A probe hook written for the purpose (kept in the agent's scratch
+directory, not in the repository; the agent ran its self-test, which passed, before the run) was registered for `PermissionRequest` on `Bash` in the `.claude/settings.local.json` of a scratch
+project outside any repository, with a timeout of 20 seconds, no `onFailure`, and `ask` rules for `touch`; a second, log-only `PreToolUse`
+hook in the same project wrote a line for every Bash call. The owner ran each case in the permission mode `auto` (the mode the log
+records), reported what was seen, and the agent read the probe's log and the files it made. The owner's timing is by eye; the log holds the
+hook's own times only. The README told the owner to run the mode switch in a separate terminal; the owner ran it through the Claude session
+instead (each such call has a `PreToolUse` line in the log), which does not touch the claims below. Results:
+
+| case | the hook | what the owner saw |
+|---|---|---|
+| a | waits 15 s, then answers nothing | the prompt appeared almost at once, while the hook was still running; the owner answered after about 15 s |
+| b | waits 15 s, then `allow` | a prompt was shown, **vanished by itself when the hook allowed, about 15 s later**, and the command ran without an answer (when the prompt appeared was not asked) |
+| c | `allow` at once | no prompt; the command ran |
+| d | exit 1 | prompted as normal |
+| e | prints text that is not JSON | prompted as normal |
+| f | never answers | prompted; the owner answered it after about 20 s. The probe sleeps for ten minutes; when the agent ran `ps` about a minute after the hook had started, no probe process was running, so the harness had ended it by then (when exactly was not observed; the log has no later event for it) |
+| g | exit 2 | prompted as normal: the command was not refused |
+| h | `allow` with `updatedInput` `{"command": "touch probe-rewritten.txt"}` | **the rewritten command ran** (`probe-rewritten.txt` was made and `probe-h.txt` was not); the agent's own account in its reply was that it had created `probe-h.txt`, so it was not aware that the command had changed (the transcript was not read, so whether the harness told it anything is not known) |
+
+Also seen. In auto mode the hook fires for a call that prompts. It did not fire for a call that did not: each mode-switch command that the
+agent ran through the session, which the mode let through without a prompt, has a `PreToolUse` line and no `PermissionRequest` call in the
+log, and so does the one `touch` command of a first scratch project whose `ask` rule did not match it (the owner reported no prompt; that
+log is the only record). This is shown for auto mode only. The input held `cwd`,
+`effort`, `hook_event_name`, `permission_mode`, `prompt_id`, `scratchpad_dir`, `session_id`, `tool_input`, `tool_name` and
+`transcript_path`, and no `permission_suggestions` in these calls. The accepted answer is
+`{"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": {"behavior": "allow"}}}`, with an optional `updatedInput` in
+`decision`. **What follows for a hook that decides, read from cases a and b and the others, in this one session:** the owner's prompt is
+shown alongside the hook, so the owner does not wait on it (the "alongside" of decision 2 of
+`2026-11-03-delegated-for-an-action-key-and-named-risk-profiles` holds in auto mode), and an `allow` ended the prompt although the hook was
+slow. A failure, a bad answer and a hook that never answers all left the prompt, which is the fail-closed behaviour that the plan relies
+on; case f cannot tell whether the timeout ended a hold on the prompt or the prompt was never held, since the prompt is shown alongside.
+And an `allow` can change the command that runs, and in the one case seen the agent was not aware of it, so a hook that decides must never
+send `updatedInput`, and a digest that binds an approval to the state it reviewed must be put in the command by the agent that runs `describe`,
+not by the hook: a hook that rewrote the command would make "the reviewed command is the command that runs" false. **Not tested:**
+`onFailure` set to `block` (the design never sets it, and the spec already records that a failure then denies); a permission mode other
+than `auto`; whether a project's `settings.json` `env` reaches a hook process; the deny spellings; a hook that takes its real time (the
+probe waited 15 s and timed out at 20 s; the hook's limit in use is 30 s). **Limits:** one session, one mode, one machine, and the prompt's
+timing is the owner's observation.
 
 **The engine's collect lines (decided by the owner on 2026-10-29; Increment B builds them).** With `--collect` the engine prints,
 on standard error after the `log-row:` line, a `facts:` line holding the canonical JSON of the `describe` object when `describe`
@@ -1243,8 +1283,8 @@ when you no longer want the data.
 **Not verified.** The hook has never run against the real `wb` launcher, a real bridge or Claude Code; the tests replay the real
 engine's own output bytes through a fake `wb`, and start the hook through a stub that patches the account database. Whether it fires in
 auto mode, on a project `ask` in an interactive session and on the two module commands is open until step 6. Whether Claude Code applies
-a project's `settings.json` `env` to hook processes, honours exit 2 on `PermissionRequest` or holds the prompt while the hook runs is
-unverified, and so is whether it accepts the deny spellings of step 3. The confined call with the reply schema has not been run against a
+a project's `settings.json` `env` to hook processes is unverified, and so is whether it accepts the deny spellings of step 3; the test
+of 2026-11-08 found that it does not honour exit 2 on `PermissionRequest` and does not hold the prompt while the hook runs. The confined call with the reply schema has not been run against a
 real Codex (step 8). The engine has not been run under the system Python 3.9. No real model has been asked: the test-set evidence for the
 cutover does not exist yet.
 
