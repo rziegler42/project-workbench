@@ -186,9 +186,24 @@ class Skill(unittest.TestCase):
         text = " ".join(skill_text().split())
         for phrase in ("wb run review-engine record-paths <document>",
                        "in the commit that completes or closes the plan",
-                       "name every path it prints",
                        "a directory is not accepted"):
             self.assertIn(phrase, text, phrase)
+
+    def test_it_names_only_the_printed_paths_that_the_status_lists(self):
+        text = " ".join(skill_text().split())
+        for phrase in ("git status --short",
+                       "whatever the code",
+                       "just before the commit",
+                       "tracked and unchanged",
+                       "(untracked, modified, staged or added)",
+                       "the printed paths that the status lists",
+                       "that the status does not list is clean"):
+            self.assertIn(phrase, text, phrase)
+        self.assertNotIn("name every path it prints", text)
+
+    def test_its_closing_rule_allows_the_status_over_the_files_of_a_review(self):
+        text = " ".join(skill_text().split())
+        self.assertIn("and `git status --short` over the files of a review", text)
 
 
 class Helper(unittest.TestCase):

@@ -115,7 +115,7 @@ A round is one call to the bridge and, if the reply is valid, one recorded set o
 `state.json`, `ledger.md` and `schema.json`, then the file of each round the state names, each as a path from the project
 root and only where it is a regular file reached without following a link. The list comes from the state and not from the
 directory, so a file that the state does not name is never listed. A seal that does not hold does not stop the listing,
-because it names files and vouches for nothing. The command is read-only and agent-safe, and is not in the owner-run list.
+because it names files and vouches for nothing. The `peer-review` skill has the agent run `git status --short` over the printed paths just before the commit and name only those it lists, whatever the code, because the commit helper refuses a path with no change. The command is read-only and agent-safe, and is not in the owner-run list.
 
 ### Convergence
 
