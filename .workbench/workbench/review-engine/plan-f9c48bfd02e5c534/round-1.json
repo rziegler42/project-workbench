@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Completion criteria 1; Assumptions and constraints, “The facts”",
+      "problem": "The plan requires both new facts to be present on refused `describe` objects (with `state_digest` null as applicable), but criterion 1 also requires “the whole of a refusal's object” to remain unchanged. Those requirements cannot both be verified.",
+      "severity": "major",
+      "suggestion": "State that existing refusal fields and values remain unchanged while the two new facts are added, and update the refusal-object tests accordingly."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Assumptions and constraints, “Both sides compute it from git's own view”; Completion criterion 3",
+      "problem": "The prospective mode used by `describe` is not specified or tested for `core.fileMode=false`. The current safe-git spec records that this setting can make the work-tree mode differ from what `git add` stages. A digest derived from the work-tree executable mode can therefore differ from the staged digest even for a normal content change, causing an unnecessary refusal and failing the stated agreement guarantee.",
+      "severity": "major",
+      "suggestion": "Define how `describe` derives the exact mode `git add` would stage, including `core.fileMode`, or refuse digest-bearing commits under unsupported mode settings; add agreement tests for executable and content changes with `core.fileMode=false`."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "Two major specification gaps need resolution before the plan can reliably bind review state to the committed index state.",
+  "verdict": "changes_needed"
+}

@@ -1,0 +1,135 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-11-08T20:27:06Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "Criterion 1 required the new facts on a refused describe object and also that the whole refusal object be unchanged, which cannot both hold. It now says that every existing fact is unchanged, the two new ones are added after them, a refusal differs only by those two, and the whole-object tests are updated to that shape."
+    },
+    {
+      "at": "2026-11-08T20:27:06Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F2",
+      "reason": "The spec records that core.fileMode false makes describe differ from git add, and the plan did not say how the mode is derived. The digest now supports only core.fileMode true, where the mode is the work-tree executable bit; with it false describe prints null and commit refuses with its own code, and both settings are tested."
+    },
+    {
+      "at": "2026-11-08T20:30:02Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F1",
+      "reason": "The plan named a conflict with the approved cutover plan and left no owner for fixing it. A new increment E corrects the cutover plan sentences with the owner approval, a new criterion 9 keeps this plan open until the two agree, and the strict alternative is stated with its cost."
+    },
+    {
+      "at": "2026-11-08T20:30:55Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R3-F1",
+      "reason": "A stand-in for git commit acts after the second check, so it cannot show that the second check refuses. The criterion and the test step now inject the index change while the cached whitespace check runs between the two checks, and use the git commit stand-in only for the report after the fact."
+    }
+  ],
+  "format": 1,
+  "generation": 8,
+  "kind": "plan",
+  "path": "docs/plans/2026-11-08-safe-git-commit-state-digest.md",
+  "rounds": [
+    {
+      "at": "2026-11-08T20:26:31Z",
+      "bridge": "ask-codex",
+      "document_sha256": "569ff93f426cbc63891ddd157a34528a24497d1d29a725016b02a8905af7080c",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F2",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "profile": "standard",
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra",
+        "options": {}
+      },
+      "sha256": "720de27d97b7750269e3fc514eb4e55db97d76f28b5a8d2c039ea6c18f7a1f37",
+      "usage": {
+        "input_tokens": 382349,
+        "output_tokens": 4584,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-08T20:29:34Z",
+      "bridge": "ask-codex",
+      "document_sha256": "a8244d70a548bbef121c487a6a45ff0c63f37acc9e15e04f30aabd5a53671816",
+      "file": "round-2.json",
+      "findings": [
+        {
+          "id": "R2-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "profile": "standard",
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra",
+        "options": {}
+      },
+      "sha256": "d32247bc732f18793f6f78b2804993a942229741e55be65224964c800f849a3c",
+      "usage": {
+        "input_tokens": 454665,
+        "output_tokens": 5367,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-08T20:30:39Z",
+      "bridge": "ask-codex",
+      "document_sha256": "71f5aa147e8c00c6716d89d483a79872c7077ef484d85b4fd3cef15055e68c30",
+      "file": "round-3.json",
+      "findings": [
+        {
+          "id": "R3-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-6.1-sol",
+      "n": 3,
+      "profile": "second-opinion",
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "low",
+        "model": "gpt-6.1-sol",
+        "options": {}
+      },
+      "sha256": "9763b8374dabea3240ce2c07aa0add866aeb27b99613326b68bf4d303f1f12bc",
+      "usage": {
+        "input_tokens": 235318,
+        "output_tokens": 893,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    }
+  ],
+  "seal": "7d4ecb9201508ac204545b89086c2ddf98ca7314c3b65520da3e58a2c67e60b3",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

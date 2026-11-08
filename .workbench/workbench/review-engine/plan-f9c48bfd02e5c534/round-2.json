@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "Non-goals; Risks and sensitive actions, “There is no lock around the commit”",
+      "problem": "The plan intentionally makes `state_digest_matches` non-strict, but the cited cutover plan currently requires the engine rule to decline a commit with no digest. This plan only says that the other plan will be corrected and re-approved before its increment D; that correction is outside this plan’s scope, increments, completion criteria, and Result. The two proposed plans therefore retain incompatible prerequisite contracts.",
+      "severity": "major",
+      "suggestion": "Either make this check strict as the cited cutover plan requires, or add a defined, owner-approved prerequisite to revise and re-approve the cutover plan before this plan can be considered complete, including the corresponding hook/facts contract."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "The digest design aligns with the named roadmap candidate and specs, but its intentional non-strict engine behavior conflicts with the cited cutover plan without an owned resolution.",
+  "verdict": "changes_needed"
+}
