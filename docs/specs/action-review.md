@@ -1068,10 +1068,18 @@ was reviewed by the approver and declines under `describe` (`safe-git.md`).
   none of the 15 patterns names, a password in prose) passes `no_secret_lines`, as it does in `.workbench/manifest.json` and in a
   release record; the 15 patterns, an assignment form and a URL credential are still caught in all three. The backstops are the model's
   review, GitHub push protection and `safe-git push-check`. A narrower design, which skips only a 64-hex value on a line keyed `seal` or
-  a checksum word and not the whole entropy test, would shrink all three exemptions and is not built. **Not covered, and measured:** the scan also reads the path in each file's diff
-  header, and a review directory name can score as a random token by chance (a letter-and-digit path segment of at least 16 characters, here
-  `<kind>-<16 hex>`, with entropy of 3.8 or more), so a commit that holds a review's `ledger.md`, `round-<n>.json` or `schema.json` is still declined for such a
-  key: 13 of the 75 tracked review directories on 2026-11-08. That is a separate fix.
+  a checksum word and not the whole entropy test, would shrink all three exemptions and is not built. **The path of a review file.** The scan also reads the path in each
+  file's diff header, and a review directory name can score as a random token by chance (a letter-and-digit path segment of at least 16
+  characters, here `<kind>-<16 hex>`, with entropy of 3.8 or more), so a commit that held a review's `ledger.md`, `round-<n>.json` or
+  `schema.json` was declined for such a key: 13 of the 75 tracked review directories on 2026-11-08, 55 of the tracked review files, and
+  nothing else in them (plan `2026-11-08-secret-scan-skips-review-file-paths`). For a section whose path is exactly one of the four files
+  of a review (`state.json`, `ledger.md`, `schema.json` and `round-<n>.json` with `<n>` from 1 to 1000, which is the review engine's
+  `MAX_ROUNDS`, in `.workbench/workbench/review-engine/<plan|spec|roadmap|adr>-<16 lowercase hex>/`) the two header lines are now scanned
+  with the entropy test off and the 15 patterns on, and the content under the file's own options as before. This loosens little by
+  construction: the only free part of such a path is 16 hex characters and a number, so it cannot carry a secret worth catching, and a
+  look-alike path is scanned in full. Measured at commit `df724b4` with the same read-only approximation (Python 3.15.0): of the 397
+  tracked review files scanned with their content, 55 flagged before and none after; of the last 70 commits 5 before and 4 after, and the
+  four that remain hold the helper's table of pinned hashes and test files with deliberate fake credentials, not a review file.
 - A reply schema swapped after the helper checked it and before the bridge reads it is not covered, because the bridge reads
   the path itself; the reply is validated again against the rule, so only instruction text could reach the vendor. A fix
   needs a bridge that takes the schema's content.

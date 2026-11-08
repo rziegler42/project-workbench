@@ -7,9 +7,11 @@ repository. The secret scan is tested on text built at run time from pieces, so 
 file, and a test never asserts on, or prints, the text a pattern matched."""
 
 import copy
+import hashlib
 import io
 import json
 import os
+import re
 import subprocess
 import tempfile
 import time
@@ -267,6 +269,145 @@ class SecretScan(Base):
         spoof = ("--- HEAD/src/a.py\n+++ work/src/a.py\n@@ -1 +1,2 @@\n--- HEAD/%s\n+++ work/%s\n+%s\n"
                  % (self.state(), self.state(), HEX64))
         self.assertEqual("long_hex", self.helper.diff_secret_kind(spoof))
+
+    # The path of a review file (plan `2026-11-08-secret-scan-skips-review-file-paths`). A review directory is named `<kind>-<16 hex>`, and
+    # that name can read as a random token by chance, so the header of a diff section with such a path was reported. The tests need a key
+    # that does: it is found by the unchanged rule, so that no test passes on a key that was never a problem.
+    REVIEW_BASE = ".workbench/workbench/review-engine/"
+    REVIEW_NAMES = ("state.json", "ledger.md", "schema.json", "round-1.json", "round-2.json", "round-999.json", "round-1000.json")
+    _flagged_keys = {}
+
+    def review_path(self, kind="plan", key=None, name="ledger.md"):
+        return "%s%s-%s/%s" % (self.REVIEW_BASE, kind, key or self.flagged_key(kind), name)
+
+    def header_of(self, path):
+        return "--- HEAD/%s\n+++ work/%s\n" % (path, path)
+
+    def flagged_key(self, kind):
+        """A 16-hex key whose directory name makes the unchanged scan say high_entropy for the header of a review file."""
+        if kind not in self._flagged_keys:
+            for number in range(4000):
+                key = hashlib.sha256(b"review key %d" % number).hexdigest()[:16]
+                if self.helper.secret_kind(self.header_of(self.review_path(kind, key))) == "high_entropy":
+                    self._flagged_keys[kind] = key
+                    break
+            else:
+                self.fail("no key found")
+        return self._flagged_keys[kind]
+
+    def test_the_keys_of_the_tests_are_flagged_by_the_unchanged_rule_in_their_headers(self):
+        for kind in ("plan", "spec", "roadmap", "adr"):
+            with self.subTest(kind=kind):
+                path = self.review_path(kind)
+                self.assertEqual("high_entropy", self.helper.secret_kind(self.header_of(path)))
+                self.assertEqual("high_entropy", self.helper.secret_kind(self.header_of(path), **self.helper._scan_options(path)))
+
+    def test_the_header_of_a_review_file_does_not_fail_the_entropy_test(self):
+        for kind in ("plan", "spec", "roadmap", "adr"):
+            for name in self.REVIEW_NAMES:
+                path = self.review_path(kind, name=name)
+                with self.subTest(path=path):
+                    self.assertIsNone(self.helper.diff_secret_kind(section(path, "an ordinary line")))
+                    self.assertIsNone(self.helper.diff_secret_kind(section(path, "an ordinary line", "and another")))
+
+    def test_the_content_of_a_review_file_is_still_scanned(self):
+        for kind in ("plan", "adr"):
+            for name in ("ledger.md", "schema.json", "round-1.json", "round-1000.json"):
+                path = self.review_path(kind, name=name)
+                with self.subTest(path=path):
+                    self.assertEqual("high_entropy", self.helper.diff_secret_kind(section(path, RANDOM)))
+                    self.assertEqual("long_hex", self.helper.diff_secret_kind(section(path, "value " + HEX64)))
+                    self.assertEqual("pattern", self.helper.diff_secret_kind(section(path, AWS)))
+                    self.assertEqual("pattern", self.helper.diff_secret_kind(section(path, "fine", KEY)))
+                    self.assertIsNone(self.helper.diff_secret_kind(section(path, "checksum: " + HEX64)))
+
+    def test_the_state_file_keeps_what_the_review_state_exemption_gave_it(self):
+        path = self.review_path(name="state.json")
+        self.assertIsNone(self.helper.diff_secret_kind(section(path, '"seal": "%s",' % HEX64)))
+        self.assertIsNone(self.helper.diff_secret_kind(section(path, RANDOM)))
+        self.assertEqual("pattern", self.helper.diff_secret_kind(section(path, '"seal": "%s",' % HEX64, AWS)))
+
+    def test_the_options_of_a_review_file_are_those_of_any_other_file(self):
+        for name in ("ledger.md", "schema.json", "round-1.json"):
+            self.assertEqual({"entropy": True, "relaxed": False}, self.helper._scan_options(self.review_path(name=name)))
+
+    def test_the_patterns_still_run_on_the_header_of_a_review_file(self):
+        """No real header in this grammar can hold one of the 15 patterns (its only free part is 16 hex characters and a number), so a
+        pattern that matches this test's own key is added for the test only: the section is then reported, and without it, it is not."""
+        path = self.review_path(name="ledger.md")
+        diff = section(path, "an ordinary line")
+        self.assertIsNone(self.helper.diff_secret_kind(diff))
+        extra = re.compile(re.escape(self.flagged_key("plan")))
+        with unittest.mock.patch.object(self.helper, "SECRET_PATTERNS", self.helper.SECRET_PATTERNS + (extra,)):
+            self.assertEqual("pattern", self.helper.diff_secret_kind(diff))
+
+    def test_the_round_number_of_a_review_file_is_one_to_a_thousand_without_a_leading_zero(self):
+        for number in ("1", "2", "9", "10", "99", "100", "999", "1000"):
+            path = self.review_path(name="round-%s.json" % number)
+            with self.subTest(number=number):
+                self.assertIsNotNone(self.helper.REVIEW_FILE_PATH.fullmatch(path))
+                self.assertIsNone(self.helper.diff_secret_kind(section(path, "an ordinary line")))
+        for number in ("0", "00", "01", "001", "1001", "1010", "2000", "9999", "10000", "-1", "1.5", "x", ""):
+            path = self.review_path(name="round-%s.json" % number)
+            with self.subTest(number=number):
+                self.assertIsNone(self.helper.REVIEW_FILE_PATH.fullmatch(path))
+                self.assertEqual("high_entropy", self.helper.diff_secret_kind(section(path, "an ordinary line")))
+
+    def test_a_look_alike_of_a_review_file_path_is_scanned_as_before_header_included(self):
+        key, base = self.flagged_key("plan"), self.REVIEW_BASE
+        paths = (
+            self.review_path("note"), self.review_path("plans"), self.review_path("Plan"), self.review_path("default"),
+            self.review_path("plan", key[:15]), self.review_path("plan", key + "a"), self.review_path("plan", key.upper()),
+            self.review_path("plan", key[:15] + "g"), self.review_path("plan", key * 2),
+            self.review_path(name="ledger.mdx"), self.review_path(name="ledger.md.bak"), self.review_path(name="Ledger.md"),
+            self.review_path(name="ledger.txt"), self.review_path(name="schema.jsonx"), self.review_path(name="state.json.bak"),
+            self.review_path(name="round-.json"), self.review_path(name="round.json"), self.review_path(name="rounds-1.json"),
+            self.review_path(name="round-1.jsonx"), self.review_path(name="other.json"), self.review_path(name="notes.md"),
+            self.review_path(name="ledgerXmd"), self.review_path(name="schemaXjson"), self.review_path(name="stateXjson"),
+            self.review_path(name="round-1Xjson"), self.review_path(name="ledger_md"), self.review_path(name="ledger-md"),
+            self.review_path(name="sub/ledger.md"), self.review_path(name="x/y/round-1.json"),
+            "x/" + self.review_path(), "x" + self.review_path(), self.review_path()[1:],
+            ".workbench/review-engine/plan-%s/ledger.md" % key, "workbench/review-engine/plan-%s/ledger.md" % key,
+            base + "ledger.md", base + "plan/ledger.md", base + "plan-/ledger.md", base + "-%s/ledger.md" % key,
+            base + "plan%s/ledger.md" % key, base + "plan_%s/ledger.md" % key, base + "plan-%s-x/ledger.md" % key,
+            base + "x-plan-%s/ledger.md" % key,
+            ".workbench/workbench/review-engine-x/plan-%s/ledger.md" % key, ".workbench/workbench/other/plan-%s/ledger.md" % key,
+            ".workbench/workbenchx/review-engine/plan-%s/ledger.md" % key,
+            "docs/plans/plan-%s/ledger.md" % key, "plan-%s/ledger.md" % key, "ledger.md", "src/ledger.md",
+            self.review_path() + " ", self.review_path() + "\n", " " + self.review_path(),
+        )
+        flagged = 0
+        for path in paths:
+            with self.subTest(path=path):
+                self.assertIsNone(self.helper.REVIEW_FILE_PATH.fullmatch(path))
+                text = section(path, "an ordinary line")
+                expected = self.helper.secret_kind(text, **self.helper._scan_options(path))
+                self.assertEqual(expected, self.helper.diff_secret_kind(text))
+                flagged += expected is not None
+        self.assertGreaterEqual(flagged, 20)  # not vacuous: most of the look-alikes read as a random token in their header
+
+    def test_a_diff_of_an_unknown_shape_that_names_a_review_file_path_is_scanned_as_a_whole(self):
+        path = self.review_path()
+        diff = "--- HEAD/%s\n+++ work/other\n+an ordinary line\n" % path
+        self.assertEqual("high_entropy", self.helper.diff_secret_kind(diff))
+
+    def test_a_header_like_line_inside_a_hunk_does_not_claim_the_review_file_exemption(self):
+        path = self.review_path()
+        spoof = "--- HEAD/src/a.py\n+++ work/src/a.py\n@@ -1 +1,2 @@\n--- HEAD/%s\n+++ work/%s\n+an ordinary line\n" % (path, path)
+        self.assertEqual("high_entropy", self.helper.diff_secret_kind(spoof))
+
+    def test_an_exempt_header_hides_nothing_in_the_sections_around_it(self):
+        exempt = section(self.review_path(), "an ordinary line")
+        self.assertIsNone(self.helper.diff_secret_kind(exempt + section(".workbench/manifest.json", HEX64)))
+        self.assertEqual("long_hex", self.helper.diff_secret_kind(exempt + section("src/a.py", HEX64)))
+        self.assertEqual("long_hex", self.helper.diff_secret_kind(section("src/a.py", HEX64) + exempt))
+        self.assertEqual("high_entropy", self.helper.diff_secret_kind(exempt + section(self.review_path(name="ledger.mdx"), "x")))
+        self.assertEqual("pattern", self.helper.diff_secret_kind(exempt + section("src/a.py", AWS)))
+        self.assertEqual("high_entropy", self.helper.diff_secret_kind(section("src/a.py", "x") + section(self.review_path(name="ledger.mdx"), "x")))
+
+    def test_a_section_with_only_a_header_is_not_an_error(self):
+        path = self.review_path()
+        self.assertIsNone(self.helper.diff_secret_kind("--- HEAD/%s\n+++ work/%s\n" % (path, path)))
 
     def test_a_test_directory_relaxes_only_the_generic_assignment_patterns(self):
         self.assertIsNone(self.helper.diff_secret_kind(section("tests/fixture.py", LOGIN)))
@@ -645,6 +786,31 @@ class RealCommit(Base):
         os.makedirs(os.path.join(self.dir, directory))
         self.write(directory + "/state.json", '{\n  "format": 1,\n  "seal": "%s",\n  "reason": "%s"\n}\n' % (HEX64, AWS))
         self.assertEqual(("no_secret_lines",), self.checked(directory + "/state.json"))
+
+    def flagged_review_directory(self):
+        """A review directory, relative to the scratch repository, whose key makes the unchanged scan report its files' headers."""
+        for number in range(4000):
+            key = hashlib.sha256(b"review key %d" % number).hexdigest()[:16]
+            path = ".workbench/workbench/review-engine/plan-%s/ledger.md" % key
+            if self.helper.secret_kind("--- HEAD/%s\n+++ work/%s\n" % (path, path)) == "high_entropy":
+                os.makedirs(os.path.join(self.dir, os.path.dirname(path)))
+                return os.path.dirname(path)
+        self.fail("no key found")
+
+    def test_the_files_of_a_new_review_do_not_fail_the_secret_scan_for_the_name_of_their_directory(self):
+        directory = self.flagged_review_directory()
+        for name, content in (("ledger.md", "# Ledger\n\nRound 1 of 3.\n"), ("schema.json", '{\n  "format": 1\n}\n'),
+                              ("round-1.json", '{\n  "findings": []\n}\n'), ("state.json", '{\n  "format": 1,\n  "seal": "%s"\n}\n' % HEX64)):
+            with self.subTest(name=name):
+                self.write(directory + "/" + name, content)
+                self.assertEqual((), self.checked(directory + "/" + name))
+
+    def test_a_token_in_a_new_review_file_is_still_seen_whatever_the_name_of_its_directory(self):
+        directory = self.flagged_review_directory()
+        for name in ("ledger.md", "schema.json", "round-1.json"):
+            with self.subTest(name=name):
+                self.write(directory + "/" + name, "a line\n" + RANDOM + "\n")
+                self.assertEqual(("no_secret_lines",), self.checked(directory + "/" + name))
 
     def test_a_secret_in_the_subject(self):
         self.assertEqual(("no_secret_lines",), self.checked(subject="Add " + GITHUB))
