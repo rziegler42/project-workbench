@@ -1051,7 +1051,19 @@ was reviewed by the approver and declines under `describe` (`safe-git.md`).
   read-only approximation (the engine's scan section over `git diff -U3` of each of the last 40 commits of this repository) found 17
   that would be declined for that reason alone, and none after the change (plan `2026-11-06-secret-scan-skips-hash-records`). The
   15 patterns still run on both. The residual risk is a hex secret placed in one of those two kinds of file, which only the model,
-  GitHub push protection and `safe-git push-check` stand behind.
+  GitHub push protection and `safe-git push-check` stand behind. A review's state file
+  (`.workbench/workbench/review-engine/<plan|spec|roadmap|adr>-<16 lowercase hex>/state.json`, an exact shape; the files of a review
+  are committed since the decision `2026-11-07-review-records-are-committed-with-the-project`) skips the entropy test too, because
+  it holds the document hashes and the seal, a 64-hex value on a line that names no checksum (plan
+  `2026-11-08-secret-scan-skips-review-state`): on 2026-11-08, at commit `dc572c9`, Python 3.15.0, the same read-only approximation
+  over the last 70 commits found 10 declined before the change and 5 after (the plan's 9 was counted one commit earlier, at
+  `b4d5afe`, before the plan's own commit added a state file), and the 5 commits that are clear now were declined for a state file
+  and nothing else. The 15 patterns still
+  run on it, and the residual risk is the same, with one addition: the file also holds the `reason` of each decision, which the agent
+  writes, and each finding, which a model returns. **Not covered, and measured:** the scan also reads the path in each file's diff
+  header, and a review directory name can score as a random token by chance (a letter-and-digit path segment of at least 16 characters, here
+  `<kind>-<16 hex>`, with entropy of 3.8 or more), so a commit that holds a review's `ledger.md`, `round-<n>.json` or `schema.json` is still declined for such a
+  key: 13 of the 75 tracked review directories on 2026-11-08. That is a separate fix.
 - A reply schema swapped after the helper checked it and before the bridge reads it is not covered, because the bridge reads
   the path itself; the reply is validated again against the rule, so only instruction text could reach the vendor. A fix
   needs a bridge that takes the schema's content.

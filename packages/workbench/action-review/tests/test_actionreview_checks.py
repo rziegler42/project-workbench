@@ -194,6 +194,80 @@ class SecretScan(Base):
                          % (path, path, HEX64))
                 self.assertEqual("long_hex", self.helper.diff_secret_kind(spoof))
 
+    STATE_KEY = "ab12" * 4  # 16 lowercase hexadecimal characters: the form of a review's key (plan `2026-11-08-secret-scan-skips-review-state`)
+
+    def state(self, kind="plan", key=None, name="state.json"):
+        return ".workbench/workbench/review-engine/%s-%s/%s" % (kind, key or self.STATE_KEY, name)
+
+    def test_a_review_state_file_skips_only_the_entropy_check(self):
+        # The line that the scan flags in a real state file is the seal: a 64-hex value on a line that names no checksum.
+        seal = '"seal": "%s",' % HEX64
+        content = ('"format": 1,', seal, '"generation": 4')
+        for kind in ("plan", "spec", "roadmap", "adr"):
+            path = self.state(kind)
+            with self.subTest(path=path):
+                self.assertIsNone(self.helper.diff_secret_kind(section(path, *content)))
+                self.assertIsNone(self.helper.diff_secret_kind(section(path, seal)))
+                self.assertEqual("pattern", self.helper.diff_secret_kind(section(path, seal, AWS)))
+                self.assertEqual("pattern", self.helper.diff_secret_kind(section(path, seal, KEY)))
+                self.assertEqual("pattern", self.helper.diff_secret_kind(section(path, seal, GITHUB)))
+                self.assertEqual("pattern", self.helper.diff_secret_kind(section(path, seal, LOGIN)))
+
+    def test_a_look_alike_of_the_review_state_path_is_scanned_with_the_entropy_check(self):
+        base = ".workbench/workbench/review-engine/"
+        paths = (
+            self.state("note"), self.state("plans"), self.state("Plan"), self.state("default"), self.state("action-review"),
+            self.state("plan", "ab12" * 3 + "ab1"), self.state("plan", "ab12" * 4 + "a"), self.state("plan", "AB12" * 4),
+            self.state("plan", "ab12" * 3 + "ab1g"), self.state("plan", "ab" * 32),
+            self.state(name="state.jsonx"), self.state(name="state.json.bak"), self.state(name="State.json"),
+            self.state(name="round-1.json"), self.state(name="ledger.md"), self.state(name="schema.json"),
+            "x/" + self.state(), "x" + self.state(), base[1:] + "plan-%s/state.json" % self.STATE_KEY,
+            ".workbench/review-engine/plan-%s/state.json" % self.STATE_KEY,
+            "workbench/review-engine/plan-%s/state.json" % self.STATE_KEY,
+            base + "plan-%s/sub/state.json" % self.STATE_KEY, base + "plan-%s/x/y/state.json" % self.STATE_KEY,
+            base + "state.json", base + "plan/state.json", base + "plan-/state.json", base + "-%s/state.json" % self.STATE_KEY,
+            base + "plan%s/state.json" % self.STATE_KEY, base + "plan_%s/state.json" % self.STATE_KEY,
+            base + "plan-%s-x/state.json" % self.STATE_KEY, base + "x-plan-%s/state.json" % self.STATE_KEY,
+            ".workbench/workbench/review-engine-x/plan-%s/state.json" % self.STATE_KEY,
+            ".workbench/workbench/other/plan-%s/state.json" % self.STATE_KEY,
+            ".workbench/workbenchx/review-engine/plan-%s/state.json" % self.STATE_KEY,
+            "docs/plans/plan-%s/state.json" % self.STATE_KEY, "plan-%s/state.json" % self.STATE_KEY, "state.json",
+            "xworkbench/workbench/review-engine/plan-%s/state.json" % self.STATE_KEY,
+            ".workbench/workbench/review-engine/plan-%s/stateXjson" % self.STATE_KEY,
+            ".workbench/workbench/review-engine/plan-%s/state.json " % self.STATE_KEY,
+            ".workbench/workbench/review-engine/plan-%s/state.json\n" % self.STATE_KEY,
+        )
+        for path in paths:
+            with self.subTest(path=path):
+                # The options themselves, so that a path the diff parser would not carry (a trailing newline) is still tested
+                # against the pattern and not only through the fallback for a diff of unknown shape.
+                self.assertIsNone(self.helper.REVIEW_STATE_PATH.fullmatch(path))
+                self.assertTrue(self.helper._scan_options(path)["entropy"])
+                self.assertEqual("long_hex", self.helper.diff_secret_kind(section(path, '"seal": "%s",' % HEX64)))
+
+    def test_the_options_of_a_review_state_path_skip_only_the_entropy_check(self):
+        for kind in ("plan", "spec", "roadmap", "adr"):
+            with self.subTest(kind=kind):
+                self.assertEqual({"entropy": False, "relaxed": False}, self.helper._scan_options(self.state(kind)))
+
+    def test_a_review_state_file_hides_nothing_in_the_files_beside_it(self):
+        state = section(self.state(), '"seal": "%s",' % HEX64)
+        self.assertIsNone(self.helper.diff_secret_kind(state + section(self.state("adr", "cd34" * 4), HEX64)))
+        self.assertIsNone(self.helper.diff_secret_kind(state + section(".workbench/manifest.json", HEX64)))
+        self.assertEqual("long_hex", self.helper.diff_secret_kind(state + section("src/a.py", HEX64)))
+        self.assertEqual("long_hex", self.helper.diff_secret_kind(state + section(self.state(name="round-1.json"), HEX64)))
+        self.assertEqual("pattern", self.helper.diff_secret_kind(state + section("src/a.py", AWS)))
+        self.assertEqual("long_hex", self.helper.diff_secret_kind(section("src/a.py", HEX64) + state))
+
+    def test_a_diff_of_an_unknown_shape_that_names_a_review_state_path_is_scanned_as_a_whole(self):
+        diff = "--- HEAD/%s\n+++ work/other\n+%s\n" % (self.state(), HEX64)
+        self.assertEqual("long_hex", self.helper.diff_secret_kind(diff))
+
+    def test_a_header_like_line_inside_a_hunk_does_not_claim_the_review_state_exemption(self):
+        spoof = ("--- HEAD/src/a.py\n+++ work/src/a.py\n@@ -1 +1,2 @@\n--- HEAD/%s\n+++ work/%s\n+%s\n"
+                 % (self.state(), self.state(), HEX64))
+        self.assertEqual("long_hex", self.helper.diff_secret_kind(spoof))
+
     def test_a_test_directory_relaxes_only_the_generic_assignment_patterns(self):
         self.assertIsNone(self.helper.diff_secret_kind(section("tests/fixture.py", LOGIN)))
         self.assertEqual("pattern", self.helper.diff_secret_kind(section("tests/fixture.py", AWS)))
@@ -550,6 +624,27 @@ class RealCommit(Base):
         os.makedirs(os.path.join(self.dir, ".workbench"))
         self.write(".workbench/manifest.json", '{\n  "tree": "%s",\n  "note": "%s"\n}\n' % (HEX64, AWS))
         self.assertEqual(("no_secret_lines",), self.checked(".workbench/manifest.json"))
+
+    def test_the_hashes_of_a_new_review_state_file_do_not_fail_the_secret_scan(self):
+        content = '{\n  "format": 1,\n  "rounds": [\n    {"document_sha256": "%s"}\n  ],\n  "seal": "%s"\n}\n' % (HEX64, HEX64)
+        for kind in ("plan", "spec", "roadmap", "adr"):
+            path = ".workbench/workbench/review-engine/%s-%s/state.json" % (kind, "ab12" * 4)
+            with self.subTest(path=path):
+                os.makedirs(os.path.dirname(os.path.join(self.dir, path)), exist_ok=True)
+                self.write(path, content)
+                self.assertEqual((), self.checked(path))
+
+    def test_the_same_hashes_in_another_file_of_a_review_still_fail_the_secret_scan(self):
+        directory = ".workbench/workbench/review-engine/plan-%s" % ("ab12" * 4)
+        os.makedirs(os.path.join(self.dir, directory))
+        self.write(directory + "/round-1.json", '{\n  "format": 1,\n  "seal": "%s"\n}\n' % HEX64)
+        self.assertEqual(("no_secret_lines",), self.checked(directory + "/round-1.json"))
+
+    def test_a_key_in_a_new_review_state_file_is_still_seen_by_a_pattern(self):
+        directory = ".workbench/workbench/review-engine/plan-%s" % ("ab12" * 4)
+        os.makedirs(os.path.join(self.dir, directory))
+        self.write(directory + "/state.json", '{\n  "format": 1,\n  "seal": "%s",\n  "reason": "%s"\n}\n' % (HEX64, AWS))
+        self.assertEqual(("no_secret_lines",), self.checked(directory + "/state.json"))
 
     def test_a_secret_in_the_subject(self):
         self.assertEqual(("no_secret_lines",), self.checked(subject="Add " + GITHUB))
