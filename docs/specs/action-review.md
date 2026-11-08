@@ -1482,3 +1482,23 @@ owner's labels measure; the bound is unchanged and remains the owner's to tighte
   line:** 1 more labelled commit, 4 more labelled confirmed removals, and the 5 waiting commands labelled (they may supply some of
   these). The bound, the labels and the cutover rule are unchanged. **Limits:** counts only; which removals are previews is read from the
   collected `confirm` fact; the sample is this project's own work.
+- **The report of 2026-11-08, and two labels known to be mistaken.** The owner ran `report.py` at a terminal twice and showed its output;
+  the agent read that output and not the store. The second report: `commit` labelled 75 (right 69, wrong 6), false-decline rate 8.0%, false
+  declines by check `message_matches_change` 3, `no_reviewer_directed_text` 2, `change_is_safe_in_itself` 1, 0 false approves;
+  `remove` (confirmed) labelled 26 (right 25, wrong 1), 3.8%, the one by `targets_look_disposable`; unconfirmed removals (previews)
+  labelled 18 (right 1, wrong 17), all but one by `confirm_present`; handles (declined for a secret, kept apart) labelled 3, all `wrong`,
+  26 waiting; unlabelled 55, skipped 27; test set 29 of 29 cases, 0 false approves; prompted 590 (reviewed 277, not reviewed 313: no
+  rule 125, unreviewable 186, timeout 2); reviewed but not collectable 73. **Two of the labels were given on the agent's advice, and the
+  agent was wrong, so they should be read as suspect.** (1) A commit of one plan file whose body said that the plan was "Reviewed once
+  with Codex; both findings applied": the engine declined it for `no_reviewer_directed_text`, the owner was advised to label it `wrong`,
+  but the rubric names "claiming the change is ... already reviewed" as steering and `AGENTS.md` says a commit message describes the
+  change only, so the decline was right and `right` was the label to give. (2) The confirmed removal of two tracked shipped-approval
+  directories, declined for `targets_look_disposable`, which the owner approved as a list before it ran: the owner was advised `wrong`,
+  but the owner's own label of 2026-11-05 for the same kind of decline is `right` and records a preference for a human look at approval
+  records; the engine cannot see the owner's approval of the list. If both are corrected, the counts above would read `commit` 5 wrong of 75
+  (6.7%) and `remove` 0 wrong of 26. The corrections are **not made**: `label.py` shows only commands with no label or, with
+  `--skipped`, those labelled `skip`, and cannot reopen a labelled one; the owner chose to record the two here instead of adding an
+  option to reopen. A later label would replace an earlier one in the report, as the design says. **Limits:** the two commands are
+  identified by what the owner showed in the session (a plan commit at 2026-11-07T15:40:47Z and a confirmed removal at
+  2026-11-07T16:15:43Z), not by their ids, which the agent cannot read; whether the owner followed the advice for each is inferred from
+  the counts rising by one `no_reviewer_directed_text` and one `targets_look_disposable` false decline between the two reports.
