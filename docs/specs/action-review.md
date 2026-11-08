@@ -1059,8 +1059,16 @@ was reviewed by the approver and declines under `describe` (`safe-git.md`).
   over the last 70 commits found 10 declined before the change and 5 after (the plan's 9 was counted one commit earlier, at
   `b4d5afe`, before the plan's own commit added a state file), and the 5 commits that are clear now were declined for a state file
   and nothing else. The 15 patterns still
-  run on it, and the residual risk is the same, with one addition: the file also holds the `reason` of each decision, which the agent
-  writes, and each finding, which a model returns. **Not covered, and measured:** the scan also reads the path in each file's diff
+  run on it, and the residual risk is the same as for the other two, with one addition: the file also holds free text, the `reason` of
+  each decision (up to 2,000 characters, and up to 20 earlier ones per decision), which the agent writes and `decide` filters only
+  for length and control characters, and the `model` string of each round (up to 4,000 characters, checked to be a string); the text of
+  a finding is not in it (a finding there is an id and a severity; the text is in `round-<n>.json`, which stays fully scanned). A
+  security review (2026-11-08, on `5c42d1f`) found no bypass that the two existing exemptions did not already allow: anyone who can
+  put a file in a commit can create the exact path, and an unpatterned secret in it (a random base64 or hex token, a vendor key
+  none of the 15 patterns names, a password in prose) passes `no_secret_lines`, as it does in `.workbench/manifest.json` and in a
+  release record; the 15 patterns, an assignment form and a URL credential are still caught in all three. The backstops are the model's
+  review, GitHub push protection and `safe-git push-check`. A narrower design, which skips only a 64-hex value on a line keyed `seal` or
+  a checksum word and not the whole entropy test, would shrink all three exemptions and is not built. **Not covered, and measured:** the scan also reads the path in each file's diff
   header, and a review directory name can score as a random token by chance (a letter-and-digit path segment of at least 16 characters, here
   `<kind>-<16 hex>`, with entropy of 3.8 or more), so a commit that holds a review's `ledger.md`, `round-<n>.json` or `schema.json` is still declined for such a
   key: 13 of the 75 tracked review directories on 2026-11-08. That is a separate fix.
