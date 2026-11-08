@@ -217,7 +217,7 @@ The facts are the values the real command acts on: the paths are the ones it wou
 would write, and HEAD is the one it would compare. The helper does not duplicate the checks it shares with the real
 command; it calls them.
 
-### The state digest *(built by plan `2026-11-08-safe-git-commit-state-digest`, increment A)*
+### The state digest *(built by plan `2026-11-08-safe-git-commit-state-digest`: the digest by increment A, the engine's check of it by B in `action-review.md`, the skill that passes it by C, and the run below by D)*
 
 A digest ties an approval of a commit to the state it was given for. The command text carries the subject, the body, the trailers and
 the paths, and an approval of the command covers those; it does not cover what the files hold when the helper stages them.
@@ -232,7 +232,9 @@ the paths, and an approval of the command covers those; it does not cover what t
   (`git ls-files -s -z`), and from HEAD after the commit (`git ls-tree -r -z`).
 - **Where `commit` checks.** After staging and the check that the staged set is exactly the named paths, before the cached whitespace
   check; and again at the last point before `git commit`. A difference is a refusal that unstages the named paths, as the other
-  refusals do. After the commit it compares the committed blobs with the digest, and a difference is reported with the commit and
+  refusals do; its code is `state_changed`, a code of `commit` only (`describe` compares nothing, so the table of `describe` codes
+  has none), and the text the caller reads is "the staged state is not the one the state digest names", followed by "(checked after staging)" or
+  "(checked just before the commit)" for the check that found it, and by what was undone. After the commit it compares the committed blobs with the digest, and a difference is reported with the commit and
   "nothing was undone". `--state-digest` is refused with `--leave-other-staged`, because `git commit --only` takes the work tree's
   content at the moment it runs.
 - **When no digest is offered.** `state_digest` is null when a named file is over 262,144 bytes or is not a regular file; when the
@@ -247,10 +249,25 @@ the paths, and an approval of the command covers those; it does not cover what t
   git keeps a symlink's mode in the index for a path that the work tree holds as a regular file; and a SHA-256 repository under a git
   too old to answer `rev-parse --show-object-format`, which the helper takes for SHA-1.
 - **What it shows, and what it does not.** It shows that the state at the moment of the check is the state that `describe` described.
-  `commit` holds no lock of its own and relies on git's index lock, so the check is not atomic with the commit: a process with write
-  access to `.git` could change the index in the milliseconds between the last check and the moment `git commit` takes its lock, and
-  only the comparison afterwards would show it. The digest is supplied by the caller. Without the option nothing changes, and the engine's
+  `commit` holds no lock of its own and relies on git's index lock, so the check is not atomic with the commit. Two windows remain for a
+  process with write access to `.git`, and the comparison after the commit is what shows either. (1) A named path changed in the index in
+  the milliseconds between the second comparison and the moment `git commit` takes its lock. (2) A path outside the named set staged after
+  the check that the index holds exactly the named paths, which runs once, before the first comparison: `git commit` takes the whole
+  index, the second comparison covers only the named paths, and the stretch is several git runs long (the head check, the cached
+  whitespace check, the second head check and the second comparison). The commit then exists and `commit` reports "nothing was
+  undone". (2) was found by the security review of this change (2026-11-08, tested on a copy; it is older than the digest and the
+  digest does not close it); the smallest correction is to repeat the set check in the second comparison, and the full one is a private
+  index file or a held lock. The digest is supplied by the caller. Without the option nothing changes, and the engine's
   check treats an absent digest as a pass (`action-review.md`); what requires a digest is the hook that decides.
+- **Evidence of a real run.** Run on 2026-11-08 by the agent, increment D of the plan, through the installed launcher: `wb run safe-git`
+  started in a scratch project (a new git repository holding a copy of this project's installed `.workbench` tree, the helper of which
+  has the SHA-256 `47f920d5…`, the one the manifest pins), at project commit `84d9ff6`, workbench 0.1.0, git 2.54.0 (Apple Git-157),
+  Python 3.15.0, macOS. (1) `describe commit` on a changed `a.txt` printed the digest `380ed6e6…`; `a.txt` was then changed again; `commit`
+  with that digest refused with the text above and the named path unstaged: the scratch repository still held its one base commit, the
+  index was empty and the late change was still in the file. (2) `describe` again printed `9e4010ae…` and `commit` with it, with no change in
+  between, made the commit `5975764`. No run touched this project's own repository (its HEAD was `84d9ff6` before and after). The run shows the
+  two outcomes on one path with one change; it does not test the window described above, a mode change, a deletion, a new file or a
+  repository with other settings, which the module's tests cover (`test_safegit_digest.py`).
 
 ### Facts of `describe remove`
 
@@ -580,7 +597,10 @@ The module ships one neutral skill, `commit-changes`. It tells an agent to commi
 asked, to run the verification first, to name exact paths and the full HEAD hash, to describe the change
 only, to use `--trailer` when the project's process asks for one, to run `remove` as a preview and
 `--confirm` only after the owner approves, to stop and report a refusal rather than work around it, and
-never to push. It names no tool but the two commands. The push routine is not this module's skill: it is
+never to push. Since plan `2026-11-08-safe-git-commit-state-digest`, increment C, it also tells the agent to run `describe commit` with the
+arguments of the commit just before it, to read `facts.state_digest`, to stop when that is missing or null, to pass it to the commit as
+`--state-digest` exactly as printed, never to write one, and to run `describe` again before the next commit; on the refusal "the staged
+state is not the one the state digest names" it stops and reports. It names no tool but the three commands, `describe`, `commit` and `remove`. The push routine is not this module's skill: it is
 `code-work`'s `push-changes`, which composes `push-check` with `wb run code-work shared`.
 
 ## What was and was not taken from the superpowers skills
@@ -707,6 +727,6 @@ looked at here:
 - Installing `code-work` without `safe-git` stops with the hard-requirement message; installing both works.
 - The `code-work` helper contains no git code and starts no program.
 - A pin recorded for one command lets no other command run.
-- The skill is accepted by the neutral reader and names no tool beyond the two commands.
+- The skill is accepted by the neutral reader and names no tool beyond the three commands.
 - `push-check` prints the fields above, never contacts the remote, prints no matched text and refuses a
   repository that selects a program, a detached HEAD, an unborn branch and an unresolved base.

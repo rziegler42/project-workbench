@@ -293,8 +293,19 @@ helper gives before it reads HEAD, so `head_matches` fails with `state_digest_ma
 nothing: the decline is the same. `state_digest_matches` is last in the engine's list, so no list of failed checks that was
 possible before it gains a name unless a digest is given, and a command with no digest passes it: the presence of a digest is
 required where an allow is decided, by the hook that decides, which reads `given_state_digest` and `state_digest` in the `facts:`
-line and not the command. That line is written only with `--collect` and is left out when it would be over its cap; with no line the
-hook has nothing to read and allows nothing. The checks for a push are
+line and not the command. This is the lenient form of the check, chosen in the plan `2026-11-08-safe-git-commit-state-digest`, which the owner approved, and
+made explicit for the cutover plan by that plan's increment E: a strict check, one that failed every commit with no digest, would add
+`state_digest_matches` to the failed checks of every commit case in the reviewed test set that reaches a verdict, would turn the
+approved commit cases (the control, and the model cases that reach the bridge) into declines, and would make every labelled commit
+that carried no digest and was approved a false decline. Removals and the cases that are refused before any verdict are not affected. The two facts are `given_state_digest`, the digest
+the command carried or null, and `state_digest`, the one `describe` computed or null; the digest itself is defined in `safe-git.md`
+("The state digest"). The windows that stay (`safe-git.md`, "The state digest"): `commit` compares after staging and again just before `git commit`, a
+change to a named path after the last comparison and before git takes its index lock is shown only by the comparison after the
+commit, and so is a path outside the named set that is staged after the one check that the index holds exactly the named paths. A hook
+that reads the two facts must require both to be 64-character strings and equal: `state_digest` is null whenever no digest can be
+worked out, including when a writer of the work tree arranges it (a carriage return under a text attribute, a large file), and
+two nulls are equal. The `facts:` line is written
+only with `--collect` and is left out when it would be over its cap; with no line the hook has nothing to read and allows nothing. The checks for a push are
 deferred with the push rule (`outgoing_known` and the others in that table), because they need `describe push`, which
 exists, and a rule and checks that the follow-up plan writes; until that rule exists a command with no rule is refused
 (exit 1) and a push stays with the approver (since 2026-10-29 no approver runs, so a push is not reviewed at all).
