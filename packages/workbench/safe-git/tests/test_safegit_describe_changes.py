@@ -69,7 +69,7 @@ class Lists(Changes):
         self.assertEqual(["head", "expected_head", "leave_other_staged", "path_count", "subject", "trailers", "body",
                           "attribution_allowed", "program_findings", "staged_paths", "requested_paths", "paths",
                           "new_paths", "modified_paths", "deleted_paths", "unchanged_paths", "binary_paths",
-                          "not_regular_paths", "diff", "omitted"], list(self.facts("a.txt")))
+                          "not_regular_paths", "diff", "state_digest", "given_state_digest", "omitted"], list(self.facts("a.txt")))
 
     def test_a_list_keeps_the_order_the_paths_were_given_in(self):
         for name in ("z.txt", "b.txt", "m.txt"):

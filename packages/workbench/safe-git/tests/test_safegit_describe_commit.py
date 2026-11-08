@@ -311,7 +311,7 @@ class Facts(Describe):
         self.assertEqual(["head", "expected_head", "leave_other_staged", "path_count", "subject", "trailers", "body",
                           "attribution_allowed", "program_findings", "staged_paths", "requested_paths", "paths",
                           "new_paths", "modified_paths", "deleted_paths", "unchanged_paths", "binary_paths",
-                          "not_regular_paths", "diff", "omitted"], list(facts))
+                          "not_regular_paths", "diff", "state_digest", "given_state_digest", "omitted"], list(facts))
         self.assertEqual((["a.txt"], "--- HEAD/a.txt\n+++ work/a.txt\n@@ -1 +1 @@\n-one\n+two\n"),
                          (facts["modified_paths"], facts["diff"]))
         self.assertEqual(0, self.commit(*self.argv("Change a", "a.txt", body="Why.\n\nMore.",

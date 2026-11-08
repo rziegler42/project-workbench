@@ -46,7 +46,7 @@ message.
 - The agent commits through this helper and never by composing raw git commands. A commit is local and
   lists exact paths.
 - `commit` takes `--expected-head <full hash | none>`, `--subject`, optional `--body`, `--trailer 'Key:
-  value'` and `--leave-other-staged`, then `--` and exact repository-relative paths. It stages and commits
+  value'`, `--leave-other-staged` and `--state-digest <64 hex>` (the last two not together), then `--` and exact repository-relative paths. It stages and commits
   only those paths. It refuses when HEAD is not the expected commit (`none` is accepted only on a branch
   that has no commit yet), when anything else is staged (without `--leave-other-staged`), when a path is a
   directory, a glob, a link, in a nested repository or Git metadata, or when the repository selects a
@@ -54,6 +54,8 @@ message.
 - After the commit it checks the message, the parent and the changed paths, and says so when they differ.
   The expected-HEAD guarantee is detection and not atomicity: a writer that moves HEAD after the last check
   produces a commit the helper reports as failed.
+- With `--state-digest` it also checks that the staged state is the one the digest names, after staging, again just before the commit,
+  and in the commit afterwards ("The state digest").
 - On success it prints one JSON line (`committed`, `subject`, `paths`). On a refusal it writes `refused:
   <reason>` to standard error and exits 1.
 - A commit never authorizes a push.
@@ -146,10 +148,11 @@ One code for each refusal class of the real command. A `message` is the real ref
 
 | Action | Code | The real refusal |
 |---|---|---|
-| both | `usage` | an unknown option, an option given twice, an option without its value, a required option missing, no path after `--`, more than 2,000 paths |
+| both | `usage` | an unknown option, an option given twice, an option without its value, a required option missing, no path after `--`, more than 2,000 paths; a `--state-digest` that is not 64 lowercase hexadecimal characters, or given with `--leave-other-staged` |
 | both | `repository_unreadable` | no repository, a work tree that is not the repository holding its metadata, a working directory outside the repository root, a `.git` that is a link or not a directory, git not found or not runnable, git timed out or exited with an error, or the root cannot be opened safely |
 | both | `path_refused` | a path that is empty, too long, not printable, absolute, with a backslash or colon, an empty, `.` or `..` segment, or with a `.git` or `git~N` segment (the shared path check runs first, so these spellings of Git metadata give this code); a glob or an option-like path; a path that cannot be examined (commit); for remove, a path through a link or something that is not a directory |
 | both | `path_duplicate` | a path named twice, or two spellings of one file (commit); overlapping targets (remove) |
+| commit | `state_digest_unsupported` | a `--state-digest` in a repository that does not use SHA-1 object names or whose `core.fileMode` is not true ("The state digest") |
 | commit | `expected_head_invalid` | `--expected-head` that is neither the full 40-digit lower-case hash nor `none` |
 | commit | `head_mismatch` | HEAD is not the expected commit; `none` given where a commit exists |
 | commit | `head_unreadable` | HEAD names neither a commit nor a branch without commits |
@@ -206,11 +209,48 @@ in the order they are added to the object, which is the order that decides what 
 | `binary_paths` | array of strings | paths with a NUL byte or bytes that are not UTF-8 in the old or new content, whose diff is not given |
 | `not_regular_paths` | array of strings | paths that are not a regular file, or that lie under a linked directory |
 | `diff` | string | the unified diff of the text paths, `HEAD/<path>` against `work/<path>`, computed by the module without any filter, text conversion or external diff |
+| `state_digest` | string or null | the digest of the state the commit would record ("The state digest"); null when it cannot be worked out |
+| `given_state_digest` | string or null | the `--state-digest` as given when valid, else null |
 | `omitted` | array of strings | the names of facts left out at a cap; empty when `truncated` is false |
 
 The facts are the values the real command acts on: the paths are the ones it would stage, the message is the one it
 would write, and HEAD is the one it would compare. The helper does not duplicate the checks it shares with the real
 command; it calls them.
+
+### The state digest *(built by plan `2026-11-08-safe-git-commit-state-digest`, increment A)*
+
+A digest ties an approval of a commit to the state it was given for. The command text carries the subject, the body, the trailers and
+the paths, and an approval of the command covers those; it does not cover what the files hold when the helper stages them.
+
+- **What it is.** The SHA-256, as 64 lowercase hexadecimal characters, of the canonical JSON (keys sorted, no spaces, ASCII) of
+  `{"entries": [[path, mode, blob], ...], "format": 1, "head": <the 40-digit HEAD, or "none">}`: one entry for each named path, sorted
+  by the bytes of the path, holding the mode and the blob id that `git add` stages for it, or `null` and `null` for a path whose deletion
+  is staged. The message is not part of it.
+- **How each side works it out.** `describe commit` computes it from the work tree and stages nothing: the mode is `100755` when the
+  file has an executable bit and `100644` otherwise, and the blob id is the SHA-1 object id of the bytes it already read
+  (`blob <size>\0<bytes>`; nothing is written). `commit --state-digest <hex>` computes it from the index after `git add`
+  (`git ls-files -s -z`), and from HEAD after the commit (`git ls-tree -r -z`).
+- **Where `commit` checks.** After staging and the check that the staged set is exactly the named paths, before the cached whitespace
+  check; and again at the last point before `git commit`. A difference is a refusal that unstages the named paths, as the other
+  refusals do. After the commit it compares the committed blobs with the digest, and a difference is reported with the commit and
+  "nothing was undone". `--state-digest` is refused with `--leave-other-staged`, because `git commit --only` takes the work tree's
+  content at the moment it runs.
+- **When no digest is offered.** `state_digest` is null when a named file is over 262,144 bytes or is not a regular file; when the
+  repository does not use SHA-1 object names; when `core.fileMode` is not true, so that the mode `git add` stages is not the work
+  tree's; and when a named file holds a carriage return and `git add` could convert it (`core.autocrlf` on, or a `text`, `eol` or `crlf`
+  attribute set to a value), because the stored bytes would not be the ones read; when `--leave-other-staged` is given, which `commit`
+  refuses with a digest; and when a named path has nothing on either side (an intent-to-add path deleted from the work tree). The two
+  repository-wide cases are also refused when a digest is given (`state_digest_unsupported`, by `describe` as an error and by `commit`);
+  the file-level ones are not, since the digest the caller holds could not have come from `describe` and cannot match.
+- **Offered, and refused by `commit`.** Two cases are known where `describe` offers a digest that `commit` cannot match, and `commit`
+  refuses at its first check, which is the safe direction. Both are from a reading of git and were not run: `core.symlinks` false, where
+  git keeps a symlink's mode in the index for a path that the work tree holds as a regular file; and a SHA-256 repository under a git
+  too old to answer `rev-parse --show-object-format`, which the helper takes for SHA-1.
+- **What it shows, and what it does not.** It shows that the state at the moment of the check is the state that `describe` described.
+  `commit` holds no lock of its own and relies on git's index lock, so the check is not atomic with the commit: a process with write
+  access to `.git` could change the index in the milliseconds between the last check and the moment `git commit` takes its lock, and
+  only the comparison afterwards would show it. The digest is supplied by the caller. Without the option nothing changes, and the engine's
+  check treats an absent digest as a pass (`action-review.md`); what requires a digest is the hook that decides.
 
 ### Facts of `describe remove`
 
@@ -567,6 +607,9 @@ looked at here:
   committed to by hand.
 - Built, from plan `2026-10-23-push-checkpoint`: `push-check` and its git shapes, with an adversarial security
   pass whose findings were fixed and tested. See "Push check" for its limits.
+- Built, from plan `2026-11-08-safe-git-commit-state-digest`, increment A: the state digest ("The state digest"), the `--state-digest`
+  option, the two facts and the code `state_digest_unsupported` (the table has 33 codes now). It adds three git shapes, all read-only:
+  `ls-tree -r -z HEAD -- <paths>`, `rev-parse --show-object-format`, and `check-attr -z text eol crlf -- <paths>`.
 - Built, from plan `2026-10-25-safe-git-describe`: `describe commit` and `describe remove` as specified in "Describe",
   with the 32 error codes of the table (`path_converts_on_add` was added by the security pass), and the launcher rule for a declared
   action. The command declares `describes: ["remove", "commit", "push"]`, in that order. Where the helper differs from the
