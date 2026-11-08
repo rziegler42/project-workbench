@@ -291,6 +291,20 @@ a relaxed command is allowed. The rules that judge a command, as built by Increm
    times the word's length, because the expansion can strip them (`$(printf 'inst%s' all)`), and a command that holds a parameter
    operator (`${x/Q/}`) is also read by the earlier in-order rule, because a value that the tracker does not follow can carry padding
    that the operator removes. While a key with words is relaxed, a command with more than 64 `$'` strings is blocked.
+   *A python here-document is read for its words and not for gaps* (plan `2026-11-08-python-heredoc-gate`; decision
+   `2026-11-03-a-python-script-in-a-quoted-heredoc-is-not-read-for-gaps`). A command that is exactly one here-document fed to python,
+   matched in full on the raw text by `command_gate.python_heredoc`, is the shape: optionally `cd <plain token> && ` (the data
+   position's plain token), then `python3` or `python`, any of the separate flags `-B`, `-I`, `-E` and `-u`, `-`, and `<<` with a delimiter
+   written `'TAG'`, `"TAG"` or `\TAG`, single spaces throughout and nothing after the delimiter; the tag is `[A-Za-z_][A-Za-z0-9_]{0,31}`
+   (narrower than bash allows, so no quoting can make it differ from the line that ends the body; a valid tag outside it is not the shape).
+   The terminator is the first line after the first that is exactly the tag, as bash reads it, and it must be the last line, with at most
+   one final newline after it; lines are split on `\n` alone, so a line that only looks like the tag (a trailing space or `\r`, another
+   case, a leading tab, `\x0b`, `\x85`, `\u2028`) is body, and text after the terminator, a NUL byte or a missing terminator means the
+   text is not the shape. For the shape, the gap rule, its free-region test and the parameter-operator rule read only the first line,
+   which holds none of the characters that start them; the names test, the assignments and `$'` strings it reads, the 64-string limit and
+   the size limit read the whole text, body included, so a body that writes a relaxed command's words, or splices them with quotes, is
+   refused (`names`). `bash`, `sh`, `zsh`, `eval`, `xargs`, `cat`, `tee`, `git commit -F -`, a redirect, an unquoted delimiter, `<<-`,
+   `<<<`, two here-documents and any other first line are not the shape and are read whole, as before.
 
 The reason of a `names` or `gap` refusal ends with the command to run instead: ``wb run <command> <argument> ...`` for a module argument (which the rule `ask`
 matches in the `wb run` spelling), and ``wb <word> ...`` for any other key (plan `2026-11-06-notes-live-run-fixes`, increment B; the hint had dropped `run`,
@@ -1164,7 +1178,7 @@ clarification note) and are tested where a test can show them (`tests/test_comma
 - The gate reads text. A word whose letters are not in the text (base64, `rev`), a variable set by `read`, an array or an expansion and
   not by a simple assignment in the same text, an all-wildcard spelling with fewer than a third of the letters written out (`wb $a$b`
   with `a` and `b` set elsewhere), a script file or program that makes the call (`python3 x.py` ran with no prompt in the owner's
-  probe; a heredoc to `python3 -` is read for the names test, but code in it that builds the word is not seen), a function or alias
+  probe; a quoted heredoc to `python3 -` is read for the names test and not for gaps, and code in it that builds the word is not seen), a function or alias
   defined earlier, and a `*` standing for more than three letters are not seen. A glob or an alternation that a file in the working
   directory completes into the word (`wb approve-*`, in bash with `extglob` or in zsh `wb appr(ov|zz)e-plan`) is allowed too; it was
   found by the security review of Increment I, is not new, and is left for the owner to decide.
@@ -1174,11 +1188,16 @@ clarification note) and are tested where a test can show them (`tests/test_comma
   command whose first argument is a plain token other than the key's argument, for a `wb run <command> <argument>` key (see "The
   command gate"). A compound command (`echo start && grep -c 'release-approvals' file`) and a call of a differently named command that
   holds the words of such a key (`wb run safe-git commit --subject 'review-engine extend'`) stay blocked.
-- **A known false positive (found in the walk-through of Increment M, deferred):** the gap rule reads a pair of backticks as a command
-  substitution, so a heredoc to a script whose docstrings use double backticks (reStructuredText) can be refused for a word it never
-  names; a 3 KiB script of that kind was refused for `wb release-approvals`, and the same shape without backticks passes. Freeing the
-  body of a quoted heredoc (`<<'EOF'`, which bash does not expand) from the gap rule, and keeping the names test on it, would end it;
-  that changes the gate and needs its own record. The owner writes such a script with the editor tool.
+- **A false positive of the gap rule, ended for one shape (found in the walk-through of Increment M; plan
+  `2026-11-08-python-heredoc-gate`):** the gap rule reads a pair of backticks as a command substitution, so a heredoc to a script whose
+  docstrings use double backticks (reStructuredText) was refused for a word it never names; a 3 KiB script of that kind was refused for
+  `wb release-approvals`, and the same text without backticks passed. The gate no longer reads the body of a quoted python heredoc of
+  the exact shape in "The command gate" (rule 4) for gaps, and keeps the names test on it. The same script fed to `bash`, `sh` or
+  `zsh`, with an unquoted delimiter, or through any other consumer of a here-document (`cat`, `tee`, a redirect) is still read for gaps
+  and can still be refused; the owner writes such a script with the editor tool. A python body can still build a relaxed command's
+  name at run time (a variable, `chr`, `base64`) and run it, and it can write a letter as a python string escape (`appr\x6fve-plan`),
+  which the names test does not join and the gap rule, no longer reading that body, does not count as a wildcard, as a script file can:
+  that is the limit above, not a new one (tested: `test_a_python_escape_in_a_shaped_body_is_a_stated_limit`).
 - A hook is not a boundary. The `ask` rule and the gate are best-effort matches; the auto-mode classifier remained the barrier for the
   rest (it denied the script and base64 cases in the owner's probe, which the gate did not control), while auto mode was the owner's
   setting. The reset of 2026-10-29 ended that setting, so for those cases no barrier is claimed here under factory defaults, and

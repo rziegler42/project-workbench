@@ -76,8 +76,8 @@ class Shaped(unittest.TestCase):
             "EOF\x0b\n",
             "EOF\x0c\n",
             "EOF\x85\n",
-            "EOF \n",
-            "a EOF\n",
+            "EOF\u2028\n",
+            "a\u2028EOF\n",
             "a\x85EOF\n",
             "a\rEOF\n",
         )
@@ -87,7 +87,7 @@ class Shaped(unittest.TestCase):
 
     def test_a_body_with_line_separators_python_splits_on_is_still_one_body(self):
         """``str.splitlines`` would end the body at these; bash does not, and neither does the recogniser."""
-        for separator in ("\r", "\x0b", "\x0c", "\x1c", "\x1d", "\x1e", "\x85", " ", " "):
+        for separator in ("\r", "\x0b", "\x0c", "\x1c", "\x1d", "\x1e", "\x85", "\u2028", "\u2029"):
             body = "a" + separator + "EOF" + separator + "echo done\n"
             with self.subTest(separator=repr(separator)):
                 self.assertEqual("python3 - <<'EOF'", shaped(doc(body=body)))
@@ -104,7 +104,7 @@ class NotShaped(unittest.TestCase):
                 self.none(text)
 
     def test_a_line_that_only_looks_like_the_tag_does_not_end_the_text(self):
-        for tag in ("EOF ", "EOF\r", " EOF", "\tEOF", "eof", "Eof", "EOF\x0b", "EOF "):
+        for tag in ("EOF ", "EOF\r", " EOF", "\tEOF", "eof", "Eof", "EOF\x0b", "EOF\u2028"):
             with self.subTest(tag=repr(tag)):
                 self.none(doc(tag=tag))
 

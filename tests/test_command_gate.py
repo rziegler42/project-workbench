@@ -860,6 +860,128 @@ class VariablesSetInTheText(unittest.TestCase):
                 self.assertIsNone(command_gate.verdict(text, (APPROVE,), STORE_BIN))
 
 
+class PythonHeredoc(unittest.TestCase):
+    """A quoted python here-document is read for the words it holds and not for gaps (plan ``2026-11-08-python-heredoc-gate``,
+    increment B; decision ``2026-11-03-a-python-script-in-a-quoted-heredoc-is-not-read-for-gaps``). The shape itself is tested by
+    ``tests/test_gate_heredoc.py``; here is what ``verdict`` does with it."""
+
+    KEYS = (APPROVE, "wb release-approvals")
+    RST = ("def f(path):\n    \"\"\"Read ``path`` and return the ``rows`` of ``approvals`` for the ``plan``.\"\"\"\n    return None\n" * 12)
+    SPELLED = "wb appr$(true)ove-pl$(true)an x"
+
+    def verdict(self, command, keys=None):
+        return command_gate.verdict(command, keys or self.KEYS, STORE_BIN, {key: "ask" for key in (keys or self.KEYS)})
+
+    def rule(self, command, keys=None):
+        found = self.verdict(command, keys)
+        return found.rule if found else None
+
+    @staticmethod
+    def doc(body, head="python3 - <<'EOF'", tag="EOF"):
+        return head + "\n" + body + tag
+
+    def test_the_false_positive_passes_and_is_refused_without_the_shape(self):
+        self.assertIsNone(self.verdict(self.doc(self.RST)))
+        for head in ("bash <<'EOF'", "python3 - <<EOF", "python3 - <<-EOF", "python3 -S - <<'EOF'", "python3 - x <<'EOF'",
+                     "cat <<'EOF'", "X=$(true) python3 - <<'EOF'"):
+            with self.subTest(head=head):
+                self.assertEqual("gap", self.rule(self.doc(self.RST, head=head)))
+
+    def test_the_gap_rule_does_not_read_a_shaped_body(self):
+        for body in (self.SPELLED + "\n", "x = '%s'\n" % self.SPELLED, "`wb appr${X}ove-plan`\n", "wb ap$1pr$2ove-$3plan\n",
+                     "wb appro*-plan x\n", "wb ???rove-plan x\n", "wb a{p,q}p{r,s}ove-plan x\n", "${A#x} ${B/Q/} $'\\x61'\n",
+                     "wb $(printf 'appr%s' ove)-plan x\n", "\\x61\\x70\\x70 [a-z] {1,2} * ? ` $ (\n"):
+            with self.subTest(body=body):
+                self.assertIsNone(self.verdict(self.doc(body)))
+
+    def test_a_python_escape_in_a_shaped_body_is_a_stated_limit(self):
+        """Outside the shape a ``\\x6f`` is a wildcard and a pattern character in the text makes the gap rule read it; in a
+        shaped body python spells the letter, not the shell, and the gate no longer reads the body for gaps. The names test
+        does not join ``appr\\x6fve``, so the command passes: the same limit as a script file (decision 4 of the record)."""
+        body = 'import os\nos.system("wb appr\\x6fve-pl\\x61n x"); d = {}\n'
+        self.assertIsNone(self.verdict(self.doc(body), keys=(APPROVE,)))
+        self.assertEqual("gap", self.rule(body.rstrip("\n"), keys=(APPROVE,)))
+
+    def test_the_same_text_outside_the_shape_is_refused_by_the_gap_rule(self):
+        self.assertEqual("gap", self.rule(self.SPELLED))
+        self.assertEqual("gap", self.rule("x = '%s'" % self.SPELLED))
+        self.assertEqual("gap", self.rule(self.doc(self.SPELLED + "\n", head="cat <<'EOF'")))
+
+    def test_a_shaped_command_is_never_refused_by_the_gap_rule(self):
+        """Over many generated bodies, and with the gap rule switched off, the verdict does not change."""
+        import random
+        from unittest import mock
+        rng = random.Random(20261108)
+        alphabet = list("`$(){}[]*?\\'\"\n ") + list("wbapproveplanreleasevalsx-") + ["$(", "${", "$'", "\\x", "wb ", "approve-plan", "release-approvals"]
+        for _ in range(300):
+            body = "".join(rng.choice(alphabet) for _ in range(rng.randint(1, 80)))
+            if body.endswith("\n") is False:
+                body += "\n"
+            tag = "EOF"
+            text = self.doc("\n".join(line for line in body.split("\n") if line != tag) + "\n")
+            if command_gate.python_heredoc(text) is None:
+                continue
+            with self.subTest(body=body):
+                found = self.verdict(text)
+                self.assertNotEqual("gap", found.rule if found else None)
+                with mock.patch.object(command_gate, "_PATTERN_CHARS", ""):
+                    off = self.verdict(text)
+                self.assertEqual(off, found)
+
+    def test_the_names_test_still_reads_the_body(self):
+        for body in ("import os\nos.system('wb release-approvals')\n", "os.system('wb rel' 'ease-approvals')\n",
+                     "os.system(\"wb rel\" \"ease-approvals\")\n", "# wb release-approvals\n", "x = 'wb  release  approvals'\n",
+                     "os.system('wb release' + '-approvals')\n", "'wb' 'release' '-' 'approvals'\n"):
+            with self.subTest(body=body):
+                self.assertEqual("names", self.rule(self.doc(body)))
+        for body in ("os.system('wb approve-plan x')\n", "os.system('wb appr' 'ove-plan x')\n", "# approve-plan\n"):
+            with self.subTest(body=body):
+                self.assertEqual("names", self.rule(self.doc(body), keys=(APPROVE,)))
+
+    def test_the_names_test_reads_an_assignment_and_a_dollar_quote_in_the_body(self):
+        self.assertEqual("names", self.rule(self.doc("a=approve b=plan\nwb $a-$b x\n"), keys=(APPROVE,)))
+        self.assertEqual("names", self.rule(self.doc("wb $'\\x61pprove-plan' x\n"), keys=(APPROVE,)))
+
+    def test_the_dollar_quote_limit_and_the_size_limit_still_apply(self):
+        self.assertEqual("dollar-quote-limit", self.rule(self.doc("x = [" + ", ".join(["$'a'"] * 70) + "]\n")))
+        self.assertIsNone(self.verdict(self.doc("x = [" + ", ".join(["$'a'"] * 60) + "]\n")))
+
+    def test_the_first_line_is_read_by_every_rule(self):
+        for head in ("X=$(true) python3 - <<'EOF'", "cd $HOME && python3 - <<'EOF'", "python3 -I -B $(true) - <<'EOF'",
+                     "python3 - <<'EOF' > out", "python3 - <<'EOF'; ls", "ls\npython3 - <<'EOF'", "python3 - <<'EOF' $A"):
+            with self.subTest(head=head):
+                self.assertEqual("gap", self.rule(self.doc(self.RST, head=head)))
+        self.assertEqual("names", self.rule(self.doc("print(1)\n", head="cd approve-plan && python3 - <<'EOF'"), keys=(APPROVE,)))
+        self.assertEqual("names", self.rule(self.doc("print(1)\n", head="cd wb-release-approvals && python3 - <<'EOF'")))
+
+    def test_text_after_the_terminator_is_judged_as_before(self):
+        self.assertEqual("gap", self.rule("python3 - <<'EOF'\nprint(1)\nEOF\n" + self.SPELLED + "\n"))
+        self.assertEqual("gap", self.rule("python3 - <<'EOF'\nprint(1)\nEOF\nEOF\n" + self.SPELLED))
+        self.assertEqual("gap", self.rule(self.doc(self.RST, tag="EOF ")))
+        self.assertEqual("gap", self.rule(self.doc(self.RST, tag="EOF\r")))
+
+    def test_a_line_that_only_looks_like_the_tag_does_not_end_the_body_for_bash_or_for_the_gate(self):
+        """``EOF `` and ``EOF\\x0b`` are body to bash; the last line is the terminator, so the whole text is one body."""
+        for fake in ("EOF ", "EOF\x0b", "EOF\u2028", "eof", "\tEOF", "EOF\r"):
+            with self.subTest(fake=repr(fake)):
+                text = self.doc("print(1)\n" + fake + "\n" + self.SPELLED + "\n")
+                self.assertIsNotNone(command_gate.python_heredoc(text))
+                self.assertIsNone(self.verdict(text))
+
+    def test_the_exact_forms_the_gate_allowed_before_are_allowed_still(self):
+        for command in ("wb approve-plan docs/plans/a.md", "wb approve-plan docs/plans/a.md --digest " + DIGEST, "ls docs",
+                        "python3 -I -B scratch/script.py"):
+            with self.subTest(command=command):
+                self.assertIsNone(self.verdict(command))
+
+    def test_at_block_no_key_is_relaxed_and_the_shape_changes_nothing(self):
+        self.assertIsNone(command_gate.verdict(self.doc(self.RST), (), STORE_BIN))
+
+    def test_a_shaped_command_that_names_nothing_is_allowed_whatever_the_keys(self):
+        keys = self.KEYS + ("wb run review-engine extend", "wb run groundwork accept")
+        self.assertIsNone(self.verdict(self.doc(self.RST), keys=keys))
+
+
 class TheRuleIsNamed(unittest.TestCase):
     def verdict(self, command, **extra):
         return command_gate.verdict(command, (APPROVE,), STORE_BIN, **extra)

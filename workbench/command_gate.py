@@ -14,6 +14,11 @@ is decided by the harness's classifier in auto mode. This gate reads one Bash to
 * allows a command that is exactly the simple command the ``ask`` rule matches, on the raw text with single spaces and case
   kept (``wb approve-plan <path> [--digest <32 hex>]``, or the same through the guarded store's own ``bin/wb``), so the
   harness then prompts the owner;
+* reads a command that is exactly one quoted python here-document (``python_heredoc``: ``python3`` or ``python`` with only the flags
+  ``-B``, ``-I``, ``-E`` and ``-u``, then ``-``, a quoted or escaped delimiter, a body and a terminator line that is exactly the tag and
+  is the last line) for the words it holds, body included, and not for gaps: the gap rule, its free-region test and the parameter-operator
+  rule read only the first line (decision ``2026-11-03-a-python-script-in-a-quoted-heredoc-is-not-read-for-gaps``, 1 and 2; plan
+  ``2026-11-08-python-heredoc-gate``). Every other here-document, and every shell that runs one, is read whole;
 * blocks every other command that names such a word, in its folded text or in its *skeleton* (the folded text with every
   character that is not a letter or a digit removed, so quote splicing, a backslash or a punctuation mark does not hide the
   word), also after the static ``$'...'`` strings are decoded as bash decodes them, and every command whose letters, read with
@@ -592,11 +597,17 @@ def verdict(command, keys, store_bin, levels=None):
             folded = re.sub(r"(?<![a-z0-9-])preview %s(?![a-z0-9-])" % re.escape(_folded(action)), " ", folded)
         previewed.append((folded, _skeleton(folded)))
     # The in-order rule reads the text as written, the exempt command included: `${A#delegate-}` can make the word out of it.
-    pattern = any(char in text for char in _PATTERN_CHARS)
-    wilds = [_spelled(version) for version in (_folded(text), _collapse(_folded(text)))] if pattern else []
-    expands = any(mark in text for mark in ("$(", "${", "`"))
-    frees = [_free_text(_folded(spelled_out))] if pattern and expands else []
-    ordered = [_in_order_wilds(version) for version in (_folded(text), _collapse(_folded(text)))] if _OPERATOR.search(text) else []
+    # A python here-document of the exact shape (decision ``2026-11-03-a-python-script-in-a-quoted-heredoc-is-not-read-for-gaps``)
+    # is read above for its words, body included; the rules below, which look for a word spelled through wildcards, read only its
+    # first line, which holds none of the characters that start them. Any other text is read whole, as before.
+    head = python_heredoc(text)
+    scope = text if head is None else head
+    spelled_scope = spelled_out if head is None else substituted(head)
+    pattern = any(char in scope for char in _PATTERN_CHARS)
+    wilds = [_spelled(version) for version in (_folded(scope), _collapse(_folded(scope)))] if pattern else []
+    expands = any(mark in scope for mark in ("$(", "${", "`"))
+    frees = [_free_text(_folded(spelled_scope))] if pattern and expands else []
+    ordered = [_in_order_wilds(version) for version in (_folded(scope), _collapse(_folded(scope)))] if _OPERATOR.search(scope) else []
     for key in keys:
         # Only a key read as a launcher and a word has a preview that is not the call; a module's command may be named `preview`.
         # ``approve-plan`` is freed the same way by decision 4 of ``2026-11-02-command-gate-reads-gaps-and-data-positions``.

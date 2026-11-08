@@ -1003,6 +1003,246 @@
    "today": "refuse",
    "intended": "refuse",
    "rule": "gap"
+  },
+  {
+   "id": "heredoc-rst-docstrings",
+   "group": "false-positive",
+   "command": "python3 -B - <<'EOF'\ndef load_rows(path):\n    \"\"\"Read ``load_rows`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef read_approvals(path):\n    \"\"\"Read ``read_approvals`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef release_note(path):\n    \"\"\"Read ``release_note`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef plan_status(path):\n    \"\"\"Read ``plan_status`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\nprint('done')\nEOF",
+   "level": "ask",
+   "today": "pass",
+   "rule": null,
+   "intended": "pass",
+   "note": "the false positive of decision 2026-11-03: double backticks in docstrings were read as substitutions; refused by the gap rule before the shape was read"
+  },
+  {
+   "id": "none-heredoc-rst-docstrings",
+   "group": "none-side",
+   "command": "python3 -B - <<'EOF'\ndef load_rows(path):\n    \"\"\"Read ``load_rows`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef read_approvals(path):\n    \"\"\"Read ``read_approvals`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef release_note(path):\n    \"\"\"Read ``release_note`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef plan_status(path):\n    \"\"\"Read ``plan_status`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\nprint('done')\nEOF",
+   "level": "none",
+   "today": "pass",
+   "rule": null,
+   "intended": "pass",
+   "note": "the same at the level none"
+  },
+  {
+   "id": "heredoc-cd-prefix-and-flags",
+   "group": "false-positive",
+   "command": "cd docs && python3 -I -B -E -u - <<\"END\"\ndef load_rows(path):\n    \"\"\"Read ``load_rows`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef read_approvals(path):\n    \"\"\"Read ``read_approvals`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef release_note(path):\n    \"\"\"Read ``release_note`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef plan_status(path):\n    \"\"\"Read ``plan_status`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\nprint('done')\nEND",
+   "level": "ask",
+   "today": "pass",
+   "rule": null,
+   "intended": "pass",
+   "note": "a plain cd, all four flags and a double-quoted tag"
+  },
+  {
+   "id": "heredoc-escaped-tag-python",
+   "group": "false-positive",
+   "command": "python - <<\\PYEOF\ndef load_rows(path):\n    \"\"\"Read ``load_rows`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef read_approvals(path):\n    \"\"\"Read ``read_approvals`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef release_note(path):\n    \"\"\"Read ``release_note`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef plan_status(path):\n    \"\"\"Read ``plan_status`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\nprint('done')\nPYEOF",
+   "level": "ask",
+   "today": "pass",
+   "rule": null,
+   "intended": "pass",
+   "note": "an escaped tag, and python for python3"
+  },
+  {
+   "id": "heredoc-body-is-text-for-python",
+   "group": "false-positive",
+   "command": "python3 - <<'EOF'\nprint(\"wb rel$(true)ease-appr$(true)ovals\")\nEOF",
+   "level": "ask",
+   "today": "pass",
+   "rule": null,
+   "intended": "pass",
+   "note": "python does not expand the body; the gap rule is not read there, and the same text outside the shape is refused (heredoc-unshaped-spelled-word)"
+  },
+  {
+   "id": "heredoc-body-names-the-command",
+   "group": "attempt",
+   "command": "python3 - <<'EOF'\nimport os\nos.system('wb release-approvals')\nEOF",
+   "level": "ask",
+   "today": "refuse",
+   "rule": "names",
+   "intended": "refuse",
+   "note": "the names test reads the body"
+  },
+  {
+   "id": "heredoc-body-splices-the-command",
+   "group": "attempt",
+   "command": "python3 - <<'EOF'\nimport os\nos.system('wb rel' 'ease-approvals')\nEOF",
+   "level": "ask",
+   "today": "refuse",
+   "rule": "names",
+   "intended": "refuse",
+   "note": "the skeleton joins pieces spliced with quotes"
+  },
+  {
+   "id": "heredoc-body-dollar-quote-flood",
+   "group": "attempt",
+   "command": "python3 - <<'EOF'\nx = [$'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a', $'a']\nEOF",
+   "level": "ask",
+   "today": "refuse",
+   "rule": "dollar-quote-limit",
+   "intended": "refuse",
+   "note": "more than 64 dollar-quote strings are counted over the whole text"
+  },
+  {
+   "id": "heredoc-unshaped-spelled-word",
+   "group": "attempt",
+   "command": "cat <<'EOF'\nprint(\"wb rel$(true)ease-appr$(true)ovals\")\nEOF",
+   "level": "ask",
+   "today": "refuse",
+   "rule": "gap",
+   "intended": "refuse",
+   "note": "the same text under another consumer keeps the gap rule"
+  },
+  {
+   "id": "heredoc-rst-under-bash",
+   "group": "attempt",
+   "command": "bash <<'EOF'\ndef load_rows(path):\n    \"\"\"Read ``load_rows`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef read_approvals(path):\n    \"\"\"Read ``read_approvals`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef release_note(path):\n    \"\"\"Read ``release_note`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef plan_status(path):\n    \"\"\"Read ``plan_status`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\nprint('done')\nEOF",
+   "level": "ask",
+   "today": "refuse",
+   "rule": "gap",
+   "intended": "refuse",
+   "note": "a shell runs the body, so the gap rule reads it"
+  },
+  {
+   "id": "heredoc-rst-under-sh",
+   "group": "attempt",
+   "command": "sh <<'EOF'\ndef load_rows(path):\n    \"\"\"Read ``load_rows`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef read_approvals(path):\n    \"\"\"Read ``read_approvals`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef release_note(path):\n    \"\"\"Read ``release_note`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef plan_status(path):\n    \"\"\"Read ``plan_status`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\nprint('done')\nEOF",
+   "level": "ask",
+   "today": "refuse",
+   "rule": "gap",
+   "intended": "refuse",
+   "note": "a shell runs the body, so the gap rule reads it"
+  },
+  {
+   "id": "heredoc-rst-under-zsh",
+   "group": "attempt",
+   "command": "zsh <<'EOF'\ndef load_rows(path):\n    \"\"\"Read ``load_rows`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef read_approvals(path):\n    \"\"\"Read ``read_approvals`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef release_note(path):\n    \"\"\"Read ``release_note`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef plan_status(path):\n    \"\"\"Read ``plan_status`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\nprint('done')\nEOF",
+   "level": "ask",
+   "today": "refuse",
+   "rule": "gap",
+   "intended": "refuse",
+   "note": "a shell runs the body, so the gap rule reads it"
+  },
+  {
+   "id": "heredoc-rst-unquoted-delimiter",
+   "group": "attempt",
+   "command": "python3 - <<EOF\ndef load_rows(path):\n    \"\"\"Read ``load_rows`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef read_approvals(path):\n    \"\"\"Read ``read_approvals`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef release_note(path):\n    \"\"\"Read ``release_note`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef plan_status(path):\n    \"\"\"Read ``plan_status`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\nprint('done')\nEOF",
+   "level": "ask",
+   "today": "refuse",
+   "rule": "gap",
+   "intended": "refuse",
+   "note": "an unquoted delimiter: the shell expands the body"
+  },
+  {
+   "id": "heredoc-rst-dash-delimiter",
+   "group": "attempt",
+   "command": "python3 - <<-EOF\ndef load_rows(path):\n    \"\"\"Read ``load_rows`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef read_approvals(path):\n    \"\"\"Read ``read_approvals`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef release_note(path):\n    \"\"\"Read ``release_note`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef plan_status(path):\n    \"\"\"Read ``plan_status`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\nprint('done')\nEOF",
+   "level": "ask",
+   "today": "refuse",
+   "rule": "gap",
+   "intended": "refuse",
+   "note": "<<- is not the shape"
+  },
+  {
+   "id": "heredoc-rst-two-heredocs",
+   "group": "attempt",
+   "command": "python3 - <<'A' <<'B'\ndef load_rows(path):\n    \"\"\"Read ``load_rows`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef read_approvals(path):\n    \"\"\"Read ``read_approvals`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef release_note(path):\n    \"\"\"Read ``release_note`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef plan_status(path):\n    \"\"\"Read ``plan_status`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\nprint('done')\nA\ndef load_rows(path):\n    \"\"\"Read ``load_rows`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef read_approvals(path):\n    \"\"\"Read ``read_approvals`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef release_note(path):\n    \"\"\"Read ``release_note`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef plan_status(path):\n    \"\"\"Read ``plan_status`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\nprint('done')\nB",
+   "level": "ask",
+   "today": "refuse",
+   "rule": "gap",
+   "intended": "refuse",
+   "note": "two here-documents are not the shape"
+  },
+  {
+   "id": "heredoc-rst-expansion-before",
+   "group": "attempt",
+   "command": "X=$(true) python3 - <<'EOF'\ndef load_rows(path):\n    \"\"\"Read ``load_rows`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef read_approvals(path):\n    \"\"\"Read ``read_approvals`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef release_note(path):\n    \"\"\"Read ``release_note`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef plan_status(path):\n    \"\"\"Read ``plan_status`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\nprint('done')\nEOF",
+   "level": "ask",
+   "today": "refuse",
+   "rule": "gap",
+   "intended": "refuse",
+   "note": "the command line before the here-document is read"
+  },
+  {
+   "id": "heredoc-rst-cd-with-expansion",
+   "group": "attempt",
+   "command": "cd $HOME && python3 -I - <<'EOF'\ndef load_rows(path):\n    \"\"\"Read ``load_rows`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef read_approvals(path):\n    \"\"\"Read ``read_approvals`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef release_note(path):\n    \"\"\"Read ``release_note`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef plan_status(path):\n    \"\"\"Read ``plan_status`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\nprint('done')\nEOF",
+   "level": "ask",
+   "today": "refuse",
+   "rule": "gap",
+   "intended": "refuse",
+   "note": "a cd path that is not a plain token"
+  },
+  {
+   "id": "heredoc-rst-extra-argument",
+   "group": "attempt",
+   "command": "python3 - arg <<'EOF'\ndef load_rows(path):\n    \"\"\"Read ``load_rows`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef read_approvals(path):\n    \"\"\"Read ``read_approvals`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef release_note(path):\n    \"\"\"Read ``release_note`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef plan_status(path):\n    \"\"\"Read ``plan_status`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\nprint('done')\nEOF",
+   "level": "ask",
+   "today": "refuse",
+   "rule": "gap",
+   "intended": "refuse",
+   "note": "an argument after the dash"
+  },
+  {
+   "id": "heredoc-rst-other-flag",
+   "group": "attempt",
+   "command": "python3 -S - <<'EOF'\ndef load_rows(path):\n    \"\"\"Read ``load_rows`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef read_approvals(path):\n    \"\"\"Read ``read_approvals`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef release_note(path):\n    \"\"\"Read ``release_note`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef plan_status(path):\n    \"\"\"Read ``plan_status`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\nprint('done')\nEOF",
+   "level": "ask",
+   "today": "refuse",
+   "rule": "gap",
+   "intended": "refuse",
+   "note": "a flag outside -B -I -E -u"
+  },
+  {
+   "id": "heredoc-rst-tag-outside-the-alphabet",
+   "group": "attempt",
+   "command": "python3 - <<'E-F'\ndef load_rows(path):\n    \"\"\"Read ``load_rows`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef read_approvals(path):\n    \"\"\"Read ``read_approvals`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef release_note(path):\n    \"\"\"Read ``release_note`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef plan_status(path):\n    \"\"\"Read ``plan_status`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\nprint('done')\nE-F",
+   "level": "ask",
+   "today": "refuse",
+   "rule": "gap",
+   "intended": "refuse",
+   "note": "a valid bash tag outside the plan's alphabet is judged as before"
+  },
+  {
+   "id": "heredoc-rst-terminator-trailing-space",
+   "group": "attempt",
+   "command": "python3 - <<'EOF'\ndef load_rows(path):\n    \"\"\"Read ``load_rows`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef read_approvals(path):\n    \"\"\"Read ``read_approvals`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef release_note(path):\n    \"\"\"Read ``release_note`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef plan_status(path):\n    \"\"\"Read ``plan_status`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\nprint('done')\nEOF ",
+   "level": "ask",
+   "today": "refuse",
+   "rule": "gap",
+   "intended": "refuse",
+   "note": "a line that only looks like the tag is not the terminator"
+  },
+  {
+   "id": "heredoc-text-after-the-terminator",
+   "group": "attempt",
+   "command": "python3 - <<'EOF'\nprint(1)\nEOF\nwb rel$(true)ease-appr$(true)ovals\n",
+   "level": "ask",
+   "today": "refuse",
+   "rule": "gap",
+   "intended": "refuse",
+   "note": "a command after the terminator is a command, spelled with expansions"
+  },
+  {
+   "id": "heredoc-after-another-line",
+   "group": "attempt",
+   "command": "ls\npython3 - <<'EOF'\ndef load_rows(path):\n    \"\"\"Read ``load_rows`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef read_approvals(path):\n    \"\"\"Read ``read_approvals`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef release_note(path):\n    \"\"\"Read ``release_note`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef plan_status(path):\n    \"\"\"Read ``plan_status`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\nprint('done')\nEOF",
+   "level": "ask",
+   "today": "refuse",
+   "rule": "gap",
+   "intended": "refuse",
+   "note": "the here-document is not the first line"
+  },
+  {
+   "id": "heredoc-then-a-second-command",
+   "group": "attempt",
+   "command": "python3 - <<'EOF'\ndef load_rows(path):\n    \"\"\"Read ``load_rows`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef read_approvals(path):\n    \"\"\"Read ``read_approvals`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef release_note(path):\n    \"\"\"Read ``release_note`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\n\ndef plan_status(path):\n    \"\"\"Read ``plan_status`` from ``path`` and return the ``rows`` it holds.\n\n    The ``path`` is a ``str``; the result is a ``list`` of ``dict`` with the ``keys`` that ``schema`` names, and\n    ``None`` when the file is empty. Each ``row`` keeps the ``order`` of the ``source`` and is never ``sorted``.\n    \"\"\"\n    return None\nprint('done')\nEOF\nls\nEOF",
+   "level": "ask",
+   "today": "refuse",
+   "rule": "gap",
+   "intended": "refuse",
+   "note": "the tag line ends the body; the next line is a command, so the text is not the shape"
   }
  ]
 }
