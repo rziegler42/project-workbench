@@ -1,6 +1,6 @@
 # Build the action-review shadow hook, the labelled set and the report
 
-Status: In Progress
+Status: Completed
 Created: 2026-10-29
 Candidate: workbench-v1#action-review-engine
 Specs: action-review, safe-git, module-boundary, module-contract, harness-modules, command-permissions
@@ -707,3 +707,7 @@ then the plan is not complete and its `Status:` line reads `In Progress`.
 Not asked of the owner yet, as the plan's step 4 requires: whether to run a security review over the hook, the store and the engine's
 `--collect` flag (they touch a subprocess, the filesystem, untrusted command text and a network boundary). It runs only when the
 owner asks.
+
+### The plan as a whole (closed 2026-11-08)
+
+Increments A to H are committed (`d87de04`, `330a3bd`, `71aa728`, `b05b194`, `d775b38`, `97c2450`, `4a299d1`, `ebe931c`). The lines above that say criterion 9 "is not met" and that the plan "reads `In Progress`" were written on 2026-10-30. Since then the owner installed the hook and copied the report and labelling tool to `~/action-review-shadow`, the hook has recorded prompted commands, and the report has counted them (in sessions of 2026-11-06 and 2026-11-07 it counted 187 reviewed commands, 65 of them not collectable; the report's own output was shown to the owner at the time and is not kept in this repository). Security reviews of the hook followed: plan `2026-11-04-shadow-hook-security-review-fixes`, and the security review of 2026-11-07 of the handle code (`2026-11-07-label-declined-secrets`, `2026-11-07-handle-paths-are-shell-safe`). Criterion 9 is taken as met on that evidence, at the owner's word. This plan was marked completed on 2026-11-08 from the plan's own text, the git log and what the owner showed in earlier sessions; its tests were not run again for it, and the data directory was not read. Still open and outside this plan, as its Deferred work says: gathering labels until the report's bound is met, the revisit of timeouts and the object cap after about 30 reviews, and the cutover (plan 5), which needs the owner's direction.
