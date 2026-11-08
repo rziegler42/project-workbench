@@ -594,6 +594,12 @@ HASH_RECORD_PATH = re.compile(r"workbench/shipped_approvals/packages/[0-9a-f]{64
 # characters of the SHA-256 of its path, and which holds the document hashes and the seal (plan
 # `2026-11-08-secret-scan-skips-review-state`). Exact path, only `state.json`: the rounds and the ledger are scanned in full.
 REVIEW_STATE_PATH = re.compile(r"\.workbench/workbench/review-engine/(?:plan|spec|roadmap|adr)-[0-9a-f]{16}/state\.json")
+# Any of the four files the review engine keeps in a review directory (plan `2026-11-08-secret-scan-skips-review-file-paths`). The directory
+# name `<kind>-<16 hex>` can read as a random token, so the two header lines of a diff section with such a path are scanned with the entropy
+# test off (`diff_secret_kind`); the content of the file is scanned under its own options. `round-<n>.json` runs from 1 to the engine's
+# `MAX_ROUNDS`, 1000, without a leading zero. The only free part of the path is 16 hex characters and a number.
+REVIEW_FILE_PATH = re.compile(r"\.workbench/workbench/review-engine/(?:plan|spec|roadmap|adr)-[0-9a-f]{16}/"
+                              r"(?:state\.json|ledger\.md|schema\.json|round-(?:[1-9][0-9]{0,2}|1000)\.json)")
 PERCENT_RUN = re.compile(r"(?:%[0-9A-Fa-f]{2})+")
 HUNK = re.compile(r"@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
 NO_NEWLINE = "\\ No newline at end of file"
@@ -755,7 +761,15 @@ def diff_secret_kind(diff):
     if sections is None:
         return secret_kind(diff)
     for path, text in sections:
-        kind = secret_kind(text) if path is None else secret_kind(text, **_scan_options(path))
+        if path is None:
+            kind = secret_kind(text)
+        elif REVIEW_FILE_PATH.fullmatch(path):
+            # The first two lines of a section with a path are its header (`--- HEAD/<path>`, `+++ work/<path>`): the patterns read them,
+            # the entropy test does not, since the name of a review directory can read as a random token. The rest is the file's own.
+            first, second, rest = text.split("\n", 2)
+            kind = secret_kind(first + "\n" + second + "\n", entropy=False) or secret_kind(rest, **_scan_options(path))
+        else:
+            kind = secret_kind(text, **_scan_options(path))
         if kind:
             return kind
     return None
