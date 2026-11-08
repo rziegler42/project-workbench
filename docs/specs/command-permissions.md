@@ -1196,7 +1196,8 @@ clarification note) and are tested where a test can show them (`tests/test_comma
   `zsh`, with an unquoted delimiter, or through any other consumer of a here-document (`cat`, `tee`, a redirect) is still read for gaps
   and can still be refused; the owner writes such a script with the editor tool. A python body can still build a relaxed command's
   name at run time (a variable, `chr`, `base64`) and run it, and it can write a letter as a python string escape (`appr\x6fve-plan`),
-  which the names test does not join and the gap rule, no longer reading that body, does not count as a wildcard, as a script file can:
+  which the names test does not join and the gap rule, no longer reading that body, does not count as a wildcard, and without `-I` its
+  `import` reads the working directory first (the shape does not require `-I`), as a script file can:
   that is the limit above, not a new one (tested: `test_a_python_escape_in_a_shaped_body_is_a_stated_limit`).
 - A hook is not a boundary. The `ask` rule and the gate are best-effort matches; the auto-mode classifier remained the barrier for the
   rest (it denied the script and base64 cases in the owner's probe, which the gate did not control), while auto mode was the owner's
