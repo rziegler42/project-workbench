@@ -93,12 +93,19 @@ class Loading(Base):
         self.assertEqual(("head_matches", "facts_complete"), rule.checks)
         self.assertEqual(("commit", ("message_matches_change",)), (rule.rubric, rule.questions))
 
+    def test_the_shipped_commit_rule_has_the_digest_flag_and_the_digest_check_last(self):
+        shipped = json.loads(read_shipped("safe-git-commit.json"))
+        self.assertEqual({"type": "value"}, shipped["flags"]["--state-digest"])
+        self.assertEqual("state_digest_matches", shipped["checks"][-1])
+        self.assertEqual(1, shipped["checks"].count("state_digest_matches"))
+        self.assertNotIn("state_digest_matches", json.loads(read_shipped("safe-git-remove.json"))["checks"])
+
     def test_the_shipped_rules_load_with_the_flags_of_the_real_commands(self):
         loaded = self.loaded({n: read_shipped(n) for n in ("safe-git-commit.json", "safe-git-remove.json")})
         self.assertEqual([], loaded.errors)
         by_action = {r.action: r for r in loaded.rules}
         self.assertEqual(["commit", "remove"], sorted(by_action))
-        self.assertEqual({"--expected-head", "--subject", "--body", "--trailer", "--leave-other-staged"},
+        self.assertEqual({"--expected-head", "--subject", "--body", "--trailer", "--leave-other-staged", "--state-digest"},
                          set(by_action["commit"].flags))
         self.assertEqual({"--confirm", "--recursive"}, set(by_action["remove"].flags))
         for rule in by_action.values():
@@ -227,7 +234,8 @@ class Loading(Base):
     def test_every_check_the_spec_lists_is_known(self):
         names = ["head_matches", "repo_config_safe", "staging_state_ok", "paths_valid", "message_valid",
                  "paths_not_credentials", "paths_regular", "facts_complete", "no_secret_lines", "confirm_present",
-                 "removal_valid", "ignore_status_known", "preview_matches_arguments", "no_git_metadata"]
+                 "removal_valid", "ignore_status_known", "preview_matches_arguments", "no_git_metadata",
+                 "state_digest_matches"]
         self.assertEqual(sorted(names), sorted(self.helper.CHECKS))
         document = copy.deepcopy(COMMIT)
         document["checks"] = names
@@ -531,6 +539,13 @@ class Arguments(Base):
                                        + " --trailer 'C: d' --body 'long text'", "-- z a"))
         self.assertEqual(["--subject", "x", "--trailer", "A: b", "--leave-other-staged", "--expected-head", HEAD,
                           "--trailer", "C: d", "--body", "long text", "--", "z", "a"], args)
+
+    def test_a_state_digest_is_an_optional_single_valued_flag(self):
+        digest = "c" * 64
+        _, args = self.read(self.commit(self.HEAD_SUBJECT + " --state-digest " + digest))
+        self.assertEqual(["--expected-head", HEAD, "--subject", "x", "--state-digest", digest, "--", "a", "b"], args)
+        self.refused(self.commit(self.HEAD_SUBJECT + " --state-digest " + digest + " --state-digest " + digest), "more than once")
+        self.read(self.commit(self.HEAD_SUBJECT))
 
     def test_a_multi_flag_may_repeat_and_a_missing_one_is_fine(self):
         self.read(self.commit(self.HEAD_SUBJECT))

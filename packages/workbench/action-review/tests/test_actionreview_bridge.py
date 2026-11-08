@@ -33,7 +33,7 @@ def commit_doc(**facts):
             "trailers": [], "body": None, "attribution_allowed": False, "program_findings": [], "staged_paths": [],
             "requested_paths": ["a.txt"], "paths": ["a.txt"], "new_paths": ["a.txt"], "modified_paths": [],
             "deleted_paths": [], "unchanged_paths": [], "binary_paths": [], "not_regular_paths": [], "diff": DIFF,
-            "omitted": []}
+            "state_digest": None, "given_state_digest": None, "omitted": []}
     base.update(facts)
     return {"contract": 1, "action": "commit", "ok": True, "truncated": False, "errors": [], "facts": base}
 
@@ -733,7 +733,8 @@ class Judging(Base):
                  "paths_not_credentials": commit_doc(paths=["id_rsa"], requested_paths=["id_rsa"]),
                  "repo_config_safe": commit_doc(program_findings=["core.fsmonitor"]),
                  "staging_state_ok": commit_doc(staged_paths=["z"]), "paths_regular": commit_doc(not_regular_paths=["a"]),
-                 "facts_complete": commit_doc(binary_paths=["a.bin"])}
+                 "facts_complete": commit_doc(binary_paths=["a.bin"]),
+                 "state_digest_matches": commit_doc(state_digest="b" * 64, given_state_digest="a" * 64)}
         for name, document in cases.items():
             fake, got, _ = self.judge(document)
             self.assertEqual([], fake.calls, name)

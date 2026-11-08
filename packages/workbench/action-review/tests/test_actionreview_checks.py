@@ -27,10 +27,10 @@ FACTS = {
     "trailers": [], "body": None, "attribution_allowed": False, "program_findings": [], "staged_paths": [],
     "requested_paths": ["a.txt"], "paths": ["a.txt"], "new_paths": [], "modified_paths": ["a.txt"],
     "deleted_paths": [], "unchanged_paths": [], "binary_paths": [], "not_regular_paths": [], "diff": DIFF,
-    "omitted": [],
+    "state_digest": None, "given_state_digest": None, "omitted": [],
 }
 ALL = ("head_matches", "repo_config_safe", "staging_state_ok", "paths_valid", "message_valid",
-       "paths_not_credentials", "paths_regular", "facts_complete", "no_secret_lines")
+       "paths_not_credentials", "paths_regular", "facts_complete", "no_secret_lines", "state_digest_matches")
 NAMES = (".env", "id_rsa*", "*.pem", ".pem", "credentials", ".ssh/")
 
 # The error codes of `describe commit` and the check each one fails (spec, "The checks").
@@ -43,6 +43,7 @@ CODES = {
     "message_valid": ("subject_invalid", "body_invalid", "trailer_invalid", "message_character_refused",
                       "attribution_refused", "setting_invalid"),
     "facts_complete": ("repository_unreadable", "index_unreadable"),
+    "state_digest_matches": ("state_digest_unsupported",),
 }
 
 
@@ -448,6 +449,52 @@ class SecretScan(Base):
         self.assertIsNone(self.helper.diff_secret_kind(""))
 
 
+class StateDigest(Base):
+    """`state_digest_matches` (plan `2026-11-08-safe-git-commit-state-digest`, increment B): a digest given with the command must be the
+    one `describe` computed for the same arguments. No digest given is nothing to bind: the engine passes it and the hook that decides
+    is what requires one."""
+    GIVEN, OTHER = "a" * 64, "b" * 64
+
+    def failed(self, **facts):
+        return self.run_checks(doc(**facts))
+
+    def test_no_digest_given_is_nothing_to_bind(self):
+        for computed in (None, self.GIVEN):
+            self.assertEqual((), self.failed(state_digest=computed, given_state_digest=None), computed)
+
+    def test_a_given_digest_that_equals_the_computed_one_passes(self):
+        self.assertEqual((), self.failed(state_digest=self.GIVEN, given_state_digest=self.GIVEN))
+
+    def test_a_given_digest_that_is_not_64_lowercase_hex_fails_even_when_it_equals_the_computed_one(self):
+        """`describe` echoes only a valid digest, so the engine never sees this from the real helper; the check does not rely on that."""
+        for text in ("", "a" * 63, "a" * 65, "A" * 64, "g" * 64, "a" * 63 + "\n", " " + "a" * 63, "0x" + "a" * 62):
+            self.assertEqual(("state_digest_matches",), self.failed(state_digest=text, given_state_digest=text), repr(text))
+
+    def test_a_given_digest_that_differs_fails_only_this_check(self):
+        self.assertEqual(("state_digest_matches",), self.failed(state_digest=self.OTHER, given_state_digest=self.GIVEN))
+
+    def test_a_given_digest_when_none_could_be_computed_fails(self):
+        self.assertEqual(("state_digest_matches",), self.failed(state_digest=None, given_state_digest=self.GIVEN))
+
+    def test_a_missing_or_mistyped_fact_fails_the_check_and_facts_complete(self):
+        for name in ("state_digest", "given_state_digest"):
+            self.assertEqual(("facts_complete", "state_digest_matches"), self.run_checks(without_fact(doc(), name)), name)
+            for wrong in (5, True, ["x"], {"a": 1}):
+                self.assertEqual(("facts_complete", "state_digest_matches"), self.failed(**{name: wrong}), (name, wrong))
+
+    def test_it_runs_last_so_no_other_list_of_failed_checks_changes(self):
+        failed = self.run_checks(doc(ok=False, errors=("head_mismatch",), state_digest=self.OTHER, given_state_digest=self.GIVEN))
+        self.assertEqual(("head_matches", "state_digest_matches"), failed)
+
+    def test_the_unsupported_code_fails_this_check_and_nothing_else(self):
+        unsupported = doc(ok=False, errors=("state_digest_unsupported",))
+        self.assertEqual(("state_digest_matches",), self.run_checks(unsupported))
+        self.assertEqual(("facts_complete",), self.run_checks(unsupported, checks=("head_matches",)))
+
+    def test_a_rule_without_the_check_does_not_read_the_facts(self):
+        self.assertEqual((), self.run_checks(without_fact(doc(), "state_digest"), checks=("head_matches",)))
+
+
 class CredentialNames(Base):
     def hit(self, path, names=NAMES):
         return self.helper.credential_path(path, names)
@@ -622,6 +669,7 @@ class Checking(Base):
         "staging_state_ok": ("staged_paths", "leave_other_staged"), "paths_not_credentials": ("requested_paths", "paths"),
         "paths_regular": ("not_regular_paths",), "facts_complete": ("binary_paths",),
         "no_secret_lines": ("diff", "subject", "body", "trailers"),
+        "state_digest_matches": ("state_digest", "given_state_digest"),
     }
 
     def test_a_fact_that_a_check_reads_and_that_is_absent_fails_that_check_and_facts_complete(self):
@@ -634,7 +682,8 @@ class Checking(Base):
     def test_a_fact_of_the_wrong_type_fails_that_check_and_facts_complete(self):
         wrong = {"head": 5, "expected_head": ["x"], "program_findings": "none", "staged_paths": None,
                  "leave_other_staged": "no", "requested_paths": "a.txt", "paths": 3, "not_regular_paths": None,
-                 "binary_paths": "no", "diff": [], "subject": 5, "body": ["b"], "trailers": "Plan: x"}
+                 "binary_paths": "no", "diff": [], "subject": 5, "body": ["b"], "trailers": "Plan: x",
+                 "state_digest": 5, "given_state_digest": ["x"]}
         owner = {name: check for check, names in self.NEEDS.items() for name in names}
         for name, value in wrong.items():
             failed = self.run_checks(doc(**{name: value}))
@@ -737,6 +786,28 @@ class RealCommit(Base):
     def test_a_binary_path(self):
         self.write("blob.bin", b"\x00\x01\x02")
         self.assertEqual(("facts_complete",), self.checked("blob.bin"))
+
+    def described_digest(self, *paths):
+        out, err = io.StringIO(), io.StringIO()
+        args = ["describe", "commit", "--expected-head", self.head, "--subject", "Change a", "--"] + list(paths or ("a.txt",))
+        self.assertEqual(0, self.safe_git.main(args, out, err, self.dir), err.getvalue()[:200])
+        return json.loads(out.getvalue())["facts"]["state_digest"]
+
+    def test_the_digest_of_the_real_describe_passes_a_stale_one_and_a_wrong_one_do_not_and_none_is_nothing_to_bind(self):
+        digest = self.described_digest()
+        self.assertRegex(digest, r"\A[0-9a-f]{64}\Z")
+        self.assertEqual((), self.checked(extra=("--state-digest", digest)))
+        self.assertEqual(("state_digest_matches",), self.checked(extra=("--state-digest", "0" * 64)))
+        self.assertEqual((), self.checked())
+        self.write("a.txt", "three\n")
+        self.assertEqual(("state_digest_matches",), self.checked(extra=("--state-digest", digest)))
+
+    def test_a_digest_in_a_repository_that_cannot_give_one_fails_this_check(self):
+        self.git("config", "core.fileMode", "false")
+        # The helper refuses a digest here before it reads HEAD, so the object has no HEAD and `head_matches` fails with it, as it does
+        # for a repository that selects a program (spec, "The checks"). Either way the command is declined.
+        self.assertEqual(("head_matches", "state_digest_matches"), self.checked(extra=("--state-digest", "0" * 64)))
+        self.assertEqual((), self.checked())
 
     def test_a_secret_in_the_diff(self):
         self.write("a.txt", "two\n" + AWS + "\n")

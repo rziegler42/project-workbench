@@ -32,7 +32,8 @@ SETTING = support_profile.document("ask-codex", "m1", "low")
 def commit_doc(**facts):
     base = {"head": HEAD, "expected_head": HEAD, "leave_other_staged": False, "path_count": 1, "subject": "Add it",
             "trailers": [], "body": None, "program_findings": [], "staged_paths": [], "requested_paths": ["a.txt"],
-            "paths": ["a.txt"], "binary_paths": [], "not_regular_paths": [], "diff": DIFF, "omitted": []}
+            "paths": ["a.txt"], "binary_paths": [], "not_regular_paths": [], "diff": DIFF, "state_digest": None,
+            "given_state_digest": None, "omitted": []}
     base.update(facts)
     return {"contract": 1, "action": "commit", "ok": True, "truncated": False, "errors": [], "facts": base}
 

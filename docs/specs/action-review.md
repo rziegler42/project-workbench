@@ -207,10 +207,11 @@ Example, `rules/safe-git-commit.json` (the checks are those of "The checks", bel
 ```json
 {"format": 1, "spelling": ["wb", "run", "safe-git"], "subcommand": "commit", "module": "safe-git", "action": "commit",
  "flags": {"--expected-head": {"type": "value", "required": true}, "--subject": {"type": "value", "required": true},
-           "--body": {"type": "value"}, "--trailer": {"type": "multi"}, "--leave-other-staged": {"type": "boolean"}},
+           "--body": {"type": "value"}, "--trailer": {"type": "multi"}, "--leave-other-staged": {"type": "boolean"},
+           "--state-digest": {"type": "value"}},
  "positionals": {"name": "paths", "separator": true, "min": 1, "max": 61},
  "checks": ["head_matches", "repo_config_safe", "staging_state_ok", "paths_valid", "message_valid",
-            "paths_not_credentials", "paths_regular", "facts_complete", "no_secret_lines"],
+            "paths_not_credentials", "paths_regular", "facts_complete", "no_secret_lines", "state_digest_matches"],
  "rubric": "commit", "questions": ["message_matches_change", "scope_is_coherent", "change_is_safe_in_itself",
                                    "no_reviewer_directed_text"],
  "lists": {"credential_names": [".env", "id_rsa"], "reviewer_facing_paths": ["AGENTS.md", "CLAUDE.md"]}}
@@ -276,6 +277,7 @@ approver, and where it goes"):
 | `ignore_status_known` | remove | `ignore_unknown_targets` | it is not empty | none |
 | `preview_matches_arguments` | remove | `target_paths`, `requested_paths`, and the paths the command names | they differ from each other (same order and repeats) or from the command's own paths (added by Increment K: without them the check compares two lists that `describe` produced from one input) | none |
 | `no_git_metadata` | remove | `requested_paths`, and the paths the command names | any segment of either, folded, equals `.git` | `git_metadata_refused`, and `path_refused` where a segment folds to `.git` |
+| `state_digest_matches` | commit | `given_state_digest`, `state_digest` | a digest was given with the command and it differs from the one `describe` computed for the same arguments, none could be computed, or it is not 64 lowercase hexadecimal characters (built by plan `2026-11-08-safe-git-commit-state-digest`, increment B); a command with no digest passes | `state_digest_unsupported` |
 
 The rubric questions are not code checks and are never run by the engine: `message_matches_change`, `scope_is_coherent`,
 `change_is_safe_in_itself` and `no_reviewer_directed_text` for a commit, and `targets_look_disposable`,
@@ -286,8 +288,13 @@ the real refusals in `safe-git.md`; Increments F, G and J test it against the ob
 observed on the real command, every refusal of `describe remove` gives `ok: false`, `truncated: true` and an empty
 `target_paths`, so it also fails `facts_complete` and `preview_matches_arguments` besides the check its code names; a
 commit-only code on a removal is unmapped and fails `facts_complete`; `describe` reports no HEAD when the repository
-selects a program, so `head_matches` fails with `repo_config_safe`. The extra names in `failed_checks` change nothing: the
-decline is the same. The checks for a push are
+selects a program, so `head_matches` fails with `repo_config_safe`, and the same holds for `state_digest_unsupported`, which the
+helper gives before it reads HEAD, so `head_matches` fails with `state_digest_matches`. The extra names in `failed_checks` change
+nothing: the decline is the same. `state_digest_matches` is last in the engine's list, so no list of failed checks that was
+possible before it gains a name unless a digest is given, and a command with no digest passes it: the presence of a digest is
+required where an allow is decided, by the hook that decides, which reads `given_state_digest` and `state_digest` in the `facts:`
+line and not the command. That line is written only with `--collect` and is left out when it would be over its cap; with no line the
+hook has nothing to read and allows nothing. The checks for a push are
 deferred with the push rule (`outgoing_known` and the others in that table), because they need `describe push`, which
 exists, and a rule and checks that the follow-up plan writes; until that rule exists a command with no rule is refused
 (exit 1) and a push stays with the approver (since 2026-10-29 no approver runs, so a push is not reviewed at all).
@@ -1050,7 +1057,8 @@ bridge call, the verdict object, the exit table, the log row and the pins of the
 the engine was built:** the rule and checks for `push`, the owner's hook, the writer of the log, the labelled set, the report and the
 shadow period (plan 4), cutover and the removal of `claude-workflow` (plan 5), and the owner's personal setting, which the owner's profile file replaced (built by plan `2026-11-04-review-profiles`, increment F). Plan 4
 (`2026-10-29-action-review-shadow-hook`) has since built the shadow side ("The shadow hook"); the push rule, a hook that decides,
-and the cutover are still not built.
+and the cutover are still not built. Plan `2026-11-08-safe-git-commit-state-digest`, increment B, added a fifteenth code check,
+`state_digest_matches`, and the optional flag `--state-digest` to the commit rule; the rule file's pin changed with them.
 
 **Where the build departs from the text Increment A wrote.** Each is written into the sections above; the list is here so
 the owner can find them.
@@ -1078,9 +1086,13 @@ path and the engine matches that name as a directory above a file; and a commit 
 was reviewed by the approver and declines under `describe` (`safe-git.md`).
 
 **Open limits.** These are recorded, not fixed, and the owner places them:
-- Approval is not bound to the content that is committed: the facts are taken when `describe` runs, and a background
-  process could change a file before the commit. The fix is a digest that the real `safe-git commit` also checks, a change
-  to another module.
+- Approval is not bound to the content that is committed unless the command carries a state digest: the facts are taken when
+  `describe` runs, and a background process could change a file before the commit. Since plan
+  `2026-11-08-safe-git-commit-state-digest` the real `safe-git commit` takes `--state-digest` and checks it after staging and just
+  before the commit (`safe-git.md`, "The state digest"), and the check `state_digest_matches` fails a digest that differs from the
+  one `describe` computed. What stays open: a command with no digest passes that check (the hook that decides requires one); the
+  milliseconds between the last check and git's index lock; a repository whose configuration the digest does not support, where no
+  digest is offered.
 - The reviewer-facing exemption can be claimed by choosing a path name such as `skills/second-opinion/x.md`; only the model
   stands between text there and a pass.
 - The secret scan is best effort: lock files in any directory skip the entropy test, generic assignments are relaxed under
