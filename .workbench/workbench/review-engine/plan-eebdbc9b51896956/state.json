@@ -1,0 +1,87 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-11-08T19:42:17Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "The approval was bound to the command text and not to the state the commit would record, which the spec already lists as an open limit and the decision calls the same in-lock digest check as ask. The plan now requires a state digest from a prerequisite plan before the deciding hook or the trial."
+    },
+    {
+      "at": "2026-11-08T19:42:17Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F2",
+      "reason": "The trial could be started without checking the cutover bound the spec and the accepted decision set as a precondition. A new criterion makes the report line, the bound and the owner statement that the test set was reviewed a gate before the hook is built and again before the owner is asked to set the key."
+    }
+  ],
+  "format": 1,
+  "generation": 5,
+  "kind": "plan",
+  "path": "docs/plans/2026-11-08-action-review-cutover-for-commit.md",
+  "rounds": [
+    {
+      "at": "2026-11-08T19:41:09Z",
+      "bridge": "ask-codex",
+      "document_sha256": "5a941d3b1352fc609430427b96cf638107f9f334a405e76db5209c544659e7ba",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F2",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "profile": "standard",
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra",
+        "options": {}
+      },
+      "sha256": "73f698f65f067971f9bc9bd8a2f3b93d7a1e3f9b09eccf6bf60ac3432ce6cfa5",
+      "usage": {
+        "input_tokens": 308796,
+        "output_tokens": 2406,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-08T19:43:24Z",
+      "bridge": "ask-codex",
+      "document_sha256": "83675a03756c7bea16392fa566ec7e52c0c14e42c7e2ffe38e2889a660ec5acf",
+      "file": "round-2.json",
+      "findings": [],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "profile": "standard",
+      "reading": "no_meaningful_changes",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra",
+        "options": {}
+      },
+      "sha256": "2008c57a5a9988e6078deebb3675f1490607ec8e29e8e165af192a47ccf4060e",
+      "usage": {
+        "input_tokens": 383760,
+        "output_tokens": 1939,
+        "total_tokens": null
+      },
+      "verdict": "no_meaningful_changes"
+    }
+  ],
+  "seal": "c5189a10684a04f3ee2c36d9a0e6b6cab8901cf5a293d137eee8f6f678bb300f",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

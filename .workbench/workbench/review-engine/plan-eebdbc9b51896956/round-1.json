@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Completion criteria 4; Increment D steps 1–2; Increment F",
+      "problem": "The delegated path approves only the command line after the engine's `describe` output; it does not bind the approval to a digest of the state/action that `safe-git commit` verifies under its lock. The action-key decision in `command-permissions.md` requires delegated to provide the same preview/digest and in-lock digest check as `ask`. In particular, the worktree can change after review and before the helper stages the files, so a different diff can be committed under an approval for the earlier one.",
+      "severity": "major",
+      "suggestion": "Add an action preview/digest contract for `safe-git commit`, have the engine/hook approve that exact digest, and require the helper to recompute it inside its change lock before committing. Cover state changes between review and execution with tests."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Increment F steps 2–3; Completion criteria 7–8",
+      "problem": "The plan permits the owner to set `wb run safe-git commit` to `delegated` and treats that as a trial without requiring the cutover evidence. This drifts from `action-review.md` (“Accuracy and cutover”), which makes cutover conditional on zero false approvals on both the reviewed dangerous test set and labels, at most 10% false declines, and at least 10 labelled commits and 10 labelled confirmed removals. The plan's own non-goal says it does not change that bound.",
+      "severity": "major",
+      "suggestion": "Make the delegated trial conditional on the existing cutover bound and an owner-reviewed test set, or explicitly revise the governing spec/decision with owner approval before allowing a trial that falls short of it."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The plan has two material gaps against the action-key and cutover requirements: approvals are not digest-bound, and the proposed trial bypasses the specified evidence threshold.",
+  "verdict": "changes_needed"
+}
