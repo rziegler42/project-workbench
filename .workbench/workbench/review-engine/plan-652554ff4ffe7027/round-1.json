@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Goal; Increment A, steps 1–2",
+      "problem": "The plan identifies the affected key as `wb run safe-git commit`, but names the rendered rule `Bash(wb run safe-git remove *)`. A probe using the `remove` pattern would not establish that the `commit` rule—the rule the proposed gate exception relies on—prompts for a quoted commit subject.",
+      "severity": "major",
+      "suggestion": "Replace the `remove` pattern with the exact rendered `commit` pattern and require the probe command to match that pattern."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The central harness-probe target is inconsistent with the affected commit key.",
+  "verdict": "changes_needed"
+}

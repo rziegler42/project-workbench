@@ -1,0 +1,184 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-11-09T14:25:23Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "The probe now uses the commit key own rendered rule in a scratch copy where the key is set; the remove rule is named only as an example of the shape."
+    },
+    {
+      "at": "2026-11-09T14:27:49Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F1",
+      "reason": "The commit key offers delegated and not ask; the goal, criterion 2 and the probe now use delegated for the commit key and read the ask rule shape from a real key that offers ask."
+    },
+    {
+      "at": "2026-11-09T14:28:38Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R3-F1",
+      "reason": "The probe copy now replaces only the command-gate hook with a recording hook that allows the call, keeps the rest of the layout, and records the substitution in the evidence."
+    },
+    {
+      "at": "2026-11-09T14:31:16Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R4-F1",
+      "reason": "Checked in the gate: a literal run call is exempt for approve-plan, so the plan no longer requires that refusal; it uses the review-engine extend run key for the other-key test and states that the existing exemptions stay."
+    }
+  ],
+  "format": 1,
+  "generation": 12,
+  "kind": "plan",
+  "path": "docs/plans/2026-11-09-command-gate-quoted-arguments-for-a-run-key.md",
+  "rounds": [
+    {
+      "at": "2026-11-09T14:25:10Z",
+      "bridge": "ask-codex",
+      "document_sha256": "616809ceb0f2bcc7d2caafd1275d1b3a2f4e27fa25d901e1cd7013278ff9cf47",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "profile": "standard",
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra",
+        "options": {}
+      },
+      "sha256": "0396fcd6f716e9affb9ce33a4b8aa0b82c7dbf3dd6b4b6b5800d2a48237715a6",
+      "usage": {
+        "input_tokens": 282588,
+        "output_tokens": 2282,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-09T14:27:07Z",
+      "bridge": "ask-codex",
+      "document_sha256": "8aacb7e8c080a63bfdf45b05fc9e65b1dcb2f5567812e314978d2c0a73d00ede",
+      "file": "round-2.json",
+      "findings": [
+        {
+          "id": "R2-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "profile": "standard",
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra",
+        "options": {}
+      },
+      "sha256": "86a9352c7a484754aa9d48136837a60744ac0a1a34c0152fc4b55eb67e1eb82a",
+      "usage": {
+        "input_tokens": 258418,
+        "output_tokens": 2334,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-09T14:28:29Z",
+      "bridge": "ask-codex",
+      "document_sha256": "36215ad228854397c702278e9ec4c1439972850bb01b8f0400048e7d5549a126",
+      "file": "round-3.json",
+      "findings": [
+        {
+          "id": "R3-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-6.1-sol",
+      "n": 3,
+      "profile": "second-opinion",
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "low",
+        "model": "gpt-6.1-sol",
+        "options": {}
+      },
+      "sha256": "158d76639ec16255718ee24ef18af6546c0c376594a1d0175cc1de1e0628d7af",
+      "usage": {
+        "input_tokens": 112797,
+        "output_tokens": 623,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-09T14:30:29Z",
+      "bridge": "ask-codex",
+      "document_sha256": "1a3fa15bf41984e7d34ee35d92abe64b883dda56fc1b09e296e698c812d620c3",
+      "file": "round-4.json",
+      "findings": [
+        {
+          "id": "R4-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-6.1-sol",
+      "n": 4,
+      "profile": "second-opinion",
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "low",
+        "model": "gpt-6.1-sol",
+        "options": {}
+      },
+      "sha256": "a610a32aa344e127b9d87523455b362ea0f47af597a25febb5de4f7d74f9df4e",
+      "usage": {
+        "input_tokens": 165963,
+        "output_tokens": 590,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-09T14:33:53Z",
+      "bridge": "ask-codex",
+      "document_sha256": "285a47056edd31cc0dd7630c0e481df5607a35de49ca8b43bf4ef35bfd1e17d6",
+      "file": "round-5.json",
+      "findings": [],
+      "mismatch": false,
+      "model": "gpt-6.1-sol",
+      "n": 5,
+      "profile": "second-opinion",
+      "reading": "no_meaningful_changes",
+      "requested": {
+        "effort": "low",
+        "model": "gpt-6.1-sol",
+        "options": {}
+      },
+      "sha256": "4a28cb5a5a684dee024dd1231d37a059e33c69687a2798be31282af5f1239e5b",
+      "usage": {
+        "input_tokens": 166804,
+        "output_tokens": 426,
+        "total_tokens": null
+      },
+      "verdict": "no_meaningful_changes"
+    }
+  ],
+  "seal": "af8245deb0aa7d0385513631786222c7d045288d236b1e2179fe5e4b39189ff0",
+  "window": {
+    "bound": 5,
+    "first": 1
+  }
+}

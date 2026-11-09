@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R4-F1",
+      "location": "Assumptions and constraints, second bullet; Completion criterion 3; Increment C, step 1",
+      "problem": "The plan incorrectly says a literal commit whose subject contains `approve-plan docs` remains refused for the relaxed `approve-plan` key. The current spec explicitly exempts literal `wb run` calls for that key, and `verdict()` skips it when `literal_run()` succeeds. Requiring this refusal would change behavior outside the stated scope and contradict the governing spec.",
+      "severity": "major",
+      "suggestion": "Use another module action key, such as `wb run review-engine extend`, to test that another key's words remain refused. State that the existing exemptions for `approve-plan` and single-word keys remain intact, and narrow criterion 3 accordingly."
+    }
+  ],
+  "format": 1,
+  "round": 4,
+  "summary": "The probe revision addresses the earlier finding, but a required refusal contradicts the current specification and implementation.",
+  "verdict": "changes_needed"
+}

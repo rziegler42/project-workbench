@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "Goal; Increment A, steps 1–2",
+      "problem": "The plan treats `wb run safe-git commit` as though it can be set to `ask`. The governing spec says that this action key offers only `block`, `delegated`, and `none`; an `ask` table entry is invalid and reads `block`. Therefore the proposed scratch rendering cannot produce the commit key’s `ask` rule or perform the stated ask-mode probe.",
+      "severity": "major",
+      "suggestion": "Limit the commit-specific probe and goal language to `delegated`. If the change must also cover an `ask` module-argument key, name a real key that offers `ask` and add a separate probe/test for that key and its rendered rule."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "The plan has one blocking-to-execution mismatch: it relies on an unsupported `ask` level for the commit action key.",
+  "verdict": "changes_needed"
+}
