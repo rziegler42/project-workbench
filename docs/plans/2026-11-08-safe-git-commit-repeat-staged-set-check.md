@@ -1,6 +1,6 @@
 # Repeat the check of the staged set just before `safe-git commit` takes the index
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-08
 Candidate: workbench-v1#action-review-engine
 Specs: safe-git, action-review
