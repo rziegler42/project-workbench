@@ -1,6 +1,6 @@
 # graphify
 
-Status: Draft. Written 2026-11-09 for the roadmap candidate `workbench-v1#graphify-module`, which the owner chose to begin on that date. Nothing in it is built. The calls marked **(my call)** are the author's and are not the owner's until the owner approves this spec. The owner answered the six open questions of the first draft on the same day; "Decisions of the owner and what is still open" records each answer.
+Status: Current. Approved by the owner on 2026-11-09 ("approve the spec"), the day it was written, for the roadmap candidate `workbench-v1#graphify-module`, which the owner chose to begin on that date. Nothing in it is built, and the module is gated on the evaluation it describes: no file of the module is written until the owner has seen the evaluation's result and said to go on. The calls marked **(my call)** are the author's and stand approved with the spec, except the two decisions that "Decisions of the owner and what is still open" leaves open (where the graph is written, and the semantic layer). The spec was reviewed by Codex for four rounds with 13 findings, all applied; the fixes of the fourth round have not been read by a reviewer, and the plan runs one more round before any module file is written. The owner answered the six open questions of the first draft on the same day; "Decisions of the owner and what is still open" records each answer.
 
 Terms are defined in `terms.md`. The declaration it must satisfy is defined in `module-contract.md`; the launcher, the kit and module commands in `module-boundary.md`; the authority rules in `trust-and-approval.md`. Its place among the knowledge modules is in `knowledge-tools.md`; its sibling `mempalace` is specified in `mempalace.md` and is the model for the module's shape, not a dependency.
 
@@ -132,7 +132,7 @@ The owner was "never happy with how little graphify actually helped", and the ro
 
 ## Decisions of the owner and what is still open
 
-The owner answered the six questions of the first draft on 2026-11-09. Each answer is recorded as given; where the owner asked for the author's recommendation, the recommendation is stated and was taken at the owner's request. This spec stays a `Draft` until the owner approves it.
+The owner answered the six questions of the first draft on 2026-11-09. Each answer is recorded as given; where the owner asked for the author's recommendation, the recommendation is stated and was taken at the owner's request. The owner then approved the spec as it stands, with decisions 2 and 4 open.
 
 1. **The evaluation before building: yes (the owner).** The plan's first increment is the evaluation above and nothing else; no file of the module is written until the owner has said, from its result, that the module is worth building. If it is not, the candidate is closed with the evidence.
 2. **Where the graph lives (the owner asked whether it can live in `.workbench/local` or in `~/.local/share/project-workbench/`).** It can live in either; tested on 2026-11-09 with `GRAPHIFY_OUT` ("The vendor program" and "Evidence"). The draft takes `~/.local/share/project-workbench/graphify/<project id>/` (my call, reasons under "Assumptions and constraints"); `.workbench/local/graphify/` is the alternative if the owner prefers the graph to go with the clone. **Still open: the owner's choice between the two.**
