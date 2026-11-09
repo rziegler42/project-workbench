@@ -843,6 +843,17 @@ def _expect_head(root, expected, when, note=None):
                       code="head_mismatch")
 
 
+def _expect_staged_set(root, expected, when=None):
+    """Refuse unless the index holds exactly the paths expected: those already staged and the named ones. `git commit` takes the whole
+    index, and the digest covers only the named paths, so this is what keeps another staged path out of the commit. It is made after
+    staging and again as the last check before `git commit`."""
+    found = names(root, cached=True)
+    if found != expected:
+        missing, extra = sorted(expected - found), sorted(found - expected)
+        raise Refused("staging did not give exactly the named paths%s (no change: %s; extra: %s)"
+                      % (" " + when if when else "", shown(", ".join(missing), 120) or "none", shown(", ".join(extra), 120) or "none"))
+
+
 def _unstage(root, paths, expected):
     """Take the named paths out of the index again, but only while HEAD is still where it was expected."""
     try:
@@ -1086,12 +1097,7 @@ def command_commit(argv, cwd, out, err):
         _expect_head(root, request.expected, "before staging")
         run(["git", "add", "--"] + paths, root)
         _expect_head(root, request.expected, "while staging")
-        after_add = names(root, cached=True)
-        if after_add != staged | named:
-            missing = sorted((staged | named) - after_add)
-            extra = sorted(after_add - staged - named)
-            raise Refused("staging did not give exactly the named paths (no change: %s; extra: %s)"
-                          % (shown(", ".join(missing), 120) or "none", shown(", ".join(extra), 120) or "none"))
+        _expect_staged_set(root, staged | named)
         _expect_digest(root, request, "after staging")
         checked = run(["git", "diff", "--cached", "--check", "--no-ext-diff", "--no-textconv", "--"] + paths,
                       root, check=False)
@@ -1100,6 +1106,7 @@ def command_commit(argv, cwd, out, err):
                           % display.ascii_text(checked.stdout.strip())[:300])
         _expect_head(root, request.expected, "just before the commit")
         _expect_digest(root, request, "just before the commit")
+        _expect_staged_set(root, staged | named, "just before the commit")
         command = ["git", "commit", "--cleanup=whitespace"]
         for paragraph in message_paragraphs(request):
             command += ["-m", paragraph]
