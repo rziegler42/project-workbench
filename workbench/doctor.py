@@ -166,6 +166,19 @@ def relaxed_findings(keys, now):
     return found
 
 
+def delegated_findings(keys, now):
+    """A note for each action key set to ``delegated``: its approval is a bridge's, given through a hook that the doctor cannot see, and
+    the owner's prompt stays as the fall-back. `now` maps a key to its level. The plan approval at ``delegated`` has its own gate."""
+    found = []
+    for name, level in sorted(now.items()):
+        key = keys.get(name)
+        if key is None or not key.agent or key.kind != levels.ARGUMENT or level != levels.DELEGATED:
+            continue
+        found.append(Finding(NOTE, "note: %s is set to delegated: a bridge's approval, given through a hook that wb doctor cannot see, "
+                                   "decides it, and the owner's prompt is the fall-back" % _name(name)))
+    return found
+
+
 def minimum_findings(keys):
     """Every prompt a module declares as a minimum (``asks``): the level of its key does not change it."""
     return [Finding(NOTE, "note: %s carries a prompt that the project declares as a minimum; its level does not change it"
@@ -564,6 +577,7 @@ def examine(guarded, writer, root, distribution=None, which=None):
     if effective is not None:
         found += settings_findings(loaded, effective)
         found += relaxed_findings(keys, effective.levels)
+        found += delegated_findings(keys, effective.levels)
         found += profile_findings(loaded.profile, effective.profiled)
         found += _review_profiles(guarded, root)
         if isinstance(loaded.delegate_profiles, tuple):

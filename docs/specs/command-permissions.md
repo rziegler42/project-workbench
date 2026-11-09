@@ -142,8 +142,8 @@ separated by single spaces, at most 96 characters.
   pass at the moment of the run, and the run counts only while the table still reads `delegated`. And, since increment B of the plan
   `2026-11-08-action-review-cutover-for-commit`, the key of an agent-run argument that its command `describes` and whose declaration
   lists it in `levels` (today `wb run safe-git commit` and no other). Its gate is a bridge's approval through a hook, which is not
-  built; until the rendering knows the level (increment C of that plan) the key at `delegated` renders a `deny`, so the command is
-  blocked and not relaxed.
+  built. Since increment C of that plan the key at `delegated` renders the same `ask` rule as at `ask` ("Rendering"), so the owner's
+  prompt exists and is the fall-back, and it reads `delegated` only while the rendering record agrees.
 - `ask`: `approve-plan`, `accept-decision` (a checkpoint of a command that declares it), `wb release-approvals` (a digest of the preview of its release, "`wb release-approvals` at `ask`"), `wb install`, `wb adopt`, `wb upgrade` and `wb add` (the digest of `wb preview <command>`, taken over the plan with the seed and the time of its pins fixed; "The installer commands at `ask`"), `wb recover` and `acknowledge-first-tier` (the digest of `wb preview recover` and `wb preview acknowledge`, taken over the examination each shows; "`recover` and `acknowledge` at `ask`"), `wb approve` and `wb pin` (the digest of `wb preview approve` and `wb preview pin`, taken over the request or the pin; "`approve` and `pin` at `ask`"), `wb attach` (the digest of `wb preview attach`, taken over what it would write; "`attach` at `ask`"), and an owner-run argument of a module's command whose declaration names it in `levels` (below). `none`: `approve-plan`, `wb install`, `wb adopt` (built by Increment F), `wb upgrade` and `wb add` (built by Increment G), `wb approve` and `wb pin` (built by Increment H), `acknowledge-first-tier`, `acknowledge-second-tier`, `wb recover`, `wb attach` and `wb release-approvals` (built by Increment J), `accept-decision` (built by Increment K), every agent-safe action and
   every declared module argument that is not owner-run; the keys under "Not built" offer `block` only, and so does `wb rerender`. A key offers a level only
   from the version that builds it for that command.
@@ -179,8 +179,9 @@ every level, because the `ask` rule is rendered for the `wb run` spelling only.
 plans `2026-11-03-delegated-levels-and-risk-profiles` and `2026-11-08-action-review-cutover-for-commit`). Built by increment B of
 the second plan: the declaration (`verify` lifts its refusal for an agent-run argument that the command `describes`, with `delegated`
 and no other level) and the offer of the key (`wb run safe-git commit` offers `block`, `delegated` and `none`; `remove` and every other
-argument do not). Not built: what the level renders and what the settings say (increment C), and the hook that decides (increment D);
-the other lines of this paragraph describe that work. The decision is:
+argument do not), and by increment C: what the level renders (an `ask`, like `ask`), how it reads (`delegated` only while the
+rendering record agrees, `block` otherwise) and the `wb doctor` note. Not built: the hook that decides (increment D) and what shows
+what it allowed (increment E); the other lines of this paragraph describe that work. The decision is:
 
 - `delegated` for an action key offers what `ask` offers: the same read-only preview, the same digest, the same check of that
   digest inside the command's own lock. It changes only who may confirm: the owner at the prompt, or a bridge (`ask-codex`,
@@ -240,7 +241,18 @@ read the plan.
 ### Rendering
 
 At attach, a harness that provides `permissions` renders, for each key whose command it can match, a `deny` at `block` and at
-`delegated` (the delegated command is a different, agent-safe command), an `ask` at `ask`, and nothing at `none`. Only the `wb`
+`delegated` (the delegated command is a different, agent-safe command), an `ask` at `ask`, and nothing at `none`. The one exception
+is the key of an action that a module describes and whose declaration offers `delegated` (`wb run safe-git commit`; since increment C
+of the plan `2026-11-08-action-review-cutover-for-commit`): at `delegated` it renders the same `ask` as at `ask`, in the record as
+`ask`, so that the owner's prompt exists whether or not the owner's own rules ask, and the owner's prompt is the fall-back for a hook
+that decides nothing. `effective_level` reads `delegated`, like `ask`, only while the record, the table and the harness files agree;
+otherwise `block`. What `wb settings` and `wb doctor` print is the level the table gives, `delegated`, whatever the record says, and
+nothing enforces `block` for an agent action whose rendering is missing or stale: with no `ask` rule rendered the command is held only
+by the owner's own rules, as for any agent action at its default `none`. Whatever reads the level for a decision must read it through
+`effective_level`, not from the table.
+A `wb run` key at `delegated` that the table does not name as such an action (a hand-built table) renders a `deny` and reads `block`. The
+command gate counts the key as relaxed through the record's `ask`, as it does a key at `ask`. `wb doctor` prints one note for each such
+key at `delegated`, that a bridge's approval through a hook it cannot see decides it. The record's format does not change. Only the `wb`
 spellings of a relaxed key are asked or opened (`wb <command>` and the guarded store's own `bin/wb <command>`); the interpreter
 spellings (`python3 -m workbench …`) stay denied, because an `ask` for them would let a planted package run under the owner's yes.
 The floor's `ask` rules and the deny on the guarded store are unchanged. If the harness cannot render the command gate (it must
@@ -249,7 +261,7 @@ provide `hooks` and its layout must describe `hooks.command_gate`), no key is re
 An agent-safe key and a declared module argument that is not owner-run (Increment C) render a `deny`, in every spelling, bare and
 with arguments, only when the owner has set the key to `block`; at its default `none` it renders nothing. Such a key is in the
 rendered table, in the record's `keys` (as `deny`) and in the table digest only while it is not at its default, so the default table,
-its digest and the command gate (which counts only keys at `ask` and `none`) are what they were before these keys had a level, and a
+its digest and the command gate (which counts keys at `ask` and `none`, and an action key at `delegated` through its record's `ask`) are what they were before these keys had a level, and a
 clone attached earlier keeps its record. Setting an agent-safe key to `block` after attach changes the digest, so a relaxed key then
 reads `block` until the harness is attached again or re-rendered (`wb rerender`), as for any change to the table. The hook entry points `gate`, `agent-gate` and
 `gate-command` are not keys, so a `deny` for another key never stops a rendered hook.
@@ -260,8 +272,9 @@ JSON, format 2: `harness` (the module name), `permissions`, `gate`, `table_diges
 did not exist), and `keys` (every key of the registry: `deny`, `ask`, `none`, or `unruled` for a key with no command to match). A
 harness that provides no `permissions` renders nothing and leaves no record.
 
-A key reads as `ask` or `none` only while all of these hold when the command runs, and as `block` otherwise (`block` and
-`delegated` do not depend on the record): the record exists, is sound and is format 2; it says `permissions` and `gate`; it names
+A key reads as `ask` or `none`, and the key of an action at `delegated`, only while all of these hold when the command runs, and as
+`block` otherwise (`block`, and the plan approval's `delegated`, do not depend on the record; the record lists an action key at
+`delegated` as `ask`): the record exists, is sound and is format 2; it says `permissions` and `gate`; it names
 the attached harness (the local manifest's); its table digest equals the digest of the effective table now; it lists the key with
 the same rule; the permissions file hashes to `file_hash`; and the shared settings file hashes to `shared.hash` (a file created,
 changed or removed since attach, or one that cannot be read as a regular file, makes the keys read `block`). If the shared file
@@ -446,7 +459,9 @@ agent-safe key. It decides nothing and changes nothing. One line per finding, st
 
 The areas: `settings` (the problems the loader finds and the notes of the effective table: a level that reads other than set);
 `floor` (the personal copy of the compiled floor lacks a stop, or names one the floor does not hold; the compiled floor applies
-whatever the copy says); a `governs` key set looser than its shipped default; `package` (a package tree that differs from its
+whatever the copy says); a `governs` key set looser than its shipped default; an action key set to `delegated` (one note for each, since
+increment C of `2026-11-08-action-review-cutover-for-commit`: a bridge's approval, given through a hook the doctor cannot see, decides
+it, and the owner's prompt is the fall-back); `package` (a package tree that differs from its
 release, with the first place and the commands that clear it, from `harnesses.lock_cause`); `rendering` (the harness's permissions
 file differs from the record attach kept, or was rendered from another table than the settings give now, as `wb check` reports);
 `hook` (a hook that runs `wb` where `wb` does not resolve, or resolves to something other than the guarded store's launcher);

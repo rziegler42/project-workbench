@@ -2,9 +2,13 @@
 
 ``docs/specs/command-permissions.md``, "Rendering". At attach a harness that provides ``permissions`` gets, for each key
 whose command it can match, a ``deny`` at ``block`` and at ``delegated``, an ``ask`` at ``ask`` and nothing at ``none``.
+The one exception is the key of an action that a module describes and whose declaration offers ``delegated`` (``Table.actions``):
+at ``delegated`` it renders the same ``ask`` as at ``ask``, so that the owner's prompt exists whether or not the owner's own rules
+ask, and the owner's prompt is the fall-back for a hook that decides nothing (``2026-11-03-delegated-for-an-action-key-and-named-risk-profiles``).
 The floor's ``ask`` rules and the guarded store's deny are not touched. Attach writes, in the guarded store, a record
-of what it rendered; a key reads as ``ask`` or ``none`` only while that record, the table and the harness file all
-agree, and as ``block`` otherwise. ``delegated`` and ``block`` do not depend on the record.
+of what it rendered; a key reads as ``ask`` or ``none``, and an action key as ``delegated``, only while that record, the table and
+the harness file all agree, and as ``block`` otherwise. ``block`` does not depend on the record, nor does the plan approval's
+``delegated``, whose gate is another command.
 
 The record: ``{"format": 2, "harness": "<module name>", "permissions": true|false, "gate": true|false,
 "table_digest": <sha-256>, "file": "<path of the permissions file>" | null, "file_hash": <sha-256> | null,
@@ -38,11 +42,14 @@ Plan = collections.namedtuple("Plan", "keys ask open deny", defaults=((),))
 class Table(dict):
     """The effective table (key to level) with `command_of`: for a checkpoint that a command's owner-run argument is the
     command of (``levels.checkpoint_commands``), the key ``wb run <command> <argument>`` whose spellings the rules and the
-    command gate match. A plain ``dict`` is a table with no such checkpoint."""
+    command gate match. A plain ``dict`` is a table with no such checkpoint. `actions` are the keys of the actions that a module
+    describes and whose declaration offers ``delegated``: only those render an ``ask`` at ``delegated`` and read ``delegated``
+    (a plain ``dict`` has none, so a ``delegated`` it names renders a ``deny`` and reads ``block``)."""
 
-    def __init__(self, table=(), command_of=None):
+    def __init__(self, table=(), command_of=None, actions=()):
         super().__init__(table)
         self.command_of = dict(command_of or {})
+        self.actions = frozenset(actions)
 
 # The single-word agent-safe actions that have a key (``levels.agent_keys``), as the word after ``wb``.
 _AGENT_WORDS = frozenset(key[3:] for key in levels.agent_keys() if " " not in key[3:])
@@ -80,12 +87,13 @@ def plan(table, gated=True):
     cannot render the command gate, so no key is relaxed and every command renders a ``deny``."""
     keys, ask, opened, denied = {}, [], [], []
     command_of = getattr(table, "command_of", {})
+    actions = getattr(table, "actions", frozenset())
     for key in table:
         patterns = key_patterns(command_of.get(key, key))
         level = table[key]
         if not patterns:
             keys[key] = "unruled"
-        elif level == levels.ASK and gated:
+        elif (level == levels.ASK or (level == levels.DELEGATED and key in actions)) and gated:
             keys[key] = "ask"
             ask.extend(_wb_forms(patterns))
             opened.extend(_wb_forms(patterns))
@@ -118,8 +126,10 @@ def table_of(guarded, checkpoints, commands):
     level, and a key the owner sets to ``block`` is in it and renders a ``deny``."""
     keys = levels.registry(checkpoints, commands)
     table = settings.effective(settings.load(guarded), checkpoints, (), commands).levels
+    actions = {name for name, key in keys.items()
+               if key.agent and key.kind == levels.ARGUMENT and levels.DELEGATED in key.offers}
     return Table({name: level for name, level in table.items() if not (keys[name].agent and level == levels.NONE)},
-                 levels.checkpoint_commands(checkpoints, commands))
+                 levels.checkpoint_commands(checkpoints, commands), actions)
 
 
 def current_table(guarded, start):
@@ -233,19 +243,24 @@ def effective_level(guarded, project_id, root, table, key):
     while it is at its default ``none``, and a key missing from `table` reads as ``block`` here, so asking would read
     ``block`` for a command that is allowed.
 
-    The level of `key` now: its level in `table` unless that is ``ask`` or ``none``, which hold only while the
-    record exists and is sound, names the attached harness, says it provides permissions and rendered the command gate,
-    was rendered from this table, lists the key with the matching rule, and the harness file and the shared settings
-    file now hash to the record's hashes. Anything else, and a key or level that is not known, reads as ``block``."""
+    The level of `key` now: its level in `table` unless that is ``ask`` or ``none``, or ``delegated`` for the key of an action
+    (``Table.actions``), which hold only while the record exists and is sound, names the attached harness, says it provides
+    permissions and rendered the command gate, was rendered from this table, lists the key with the matching rule (``ask``
+    for ``delegated``), and the harness file and the shared settings file now hash to the record's hashes. Anything else, and a
+    key or level that is not known, reads as ``block``. A ``wb run`` key at ``delegated`` that the table does not name as an
+    action reads ``block``; any other key at ``delegated`` (the plan approval, whose gate is another command) reads as it is."""
     level = table.get(key) if isinstance(table, dict) else None
     if level not in levels.LEVELS:
         return levels.BLOCK
-    if level not in (levels.ASK, levels.NONE):
+    action = level == levels.DELEGATED and key in getattr(table, "actions", frozenset())
+    if level == levels.DELEGATED and not action:
+        return levels.BLOCK if levels.command_words(key)[:1] == ("run",) else level
+    if level not in (levels.ASK, levels.NONE) and not action:
         return level
     record = read(guarded, project_id)
     if record is None or not record["permissions"] or record["table_digest"] != digest(table):
         return levels.BLOCK
-    if record["keys"].get(key) != level or record["file"] is None or record["file_hash"] is None:
+    if record["keys"].get(key) != (levels.ASK if action else level) or record["file"] is None or record["file_hash"] is None:
         return levels.BLOCK
     if not record["gate"] or record["harness"] != _attached_harness(root):
         return levels.BLOCK
