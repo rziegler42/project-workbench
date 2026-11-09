@@ -1,0 +1,36 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "docs/plans/2026-11-09-graphify-evaluation.md:14,28,30,41",
+      "problem": "The plan permits an imprecise sample (“about 20” and a mix “not a promise”), including owner-dropped questions, while the governing graphify spec requires 20 questions. It can therefore meet this plan's completion criteria with fewer questions than the spec's gate requires.",
+      "severity": "major",
+      "suggestion": "Require exactly 20 owner-approved questions before measurement, with a deterministic replacement rule for dropped or ineligible candidates; otherwise amend the spec with owner approval."
+    },
+    {
+      "id": "R1-F2",
+      "location": "docs/plans/2026-11-09-graphify-evaluation.md:30,59,68",
+      "problem": "The scored ground truth includes every source file touched by the target commit, but each graph and grep run occurs at the parent commit. Files added by the target commit cannot be named or found at that revision, so they are guaranteed misses and can distort the hit/noise comparison used for the go/no-go decision.",
+      "severity": "major",
+      "suggestion": "Score only ground-truth files present at the parent revision, and record additions/deletions/renames separately as unscorable context (or define and report a separate post-change measurement)."
+    },
+    {
+      "id": "R1-F3",
+      "location": "docs/plans/2026-11-09-graphify-evaluation.md:79-87",
+      "problem": "The purported final review runs before its findings are applied. Any changes made while applying those findings, including a changed spec behavior based on evaluation results, are left unread by the required final reviewer before a later module plan may begin.",
+      "severity": "major",
+      "suggestion": "Require a final reviewer pass after all review findings and evaluation-driven spec amendments are applied, and make that clean pass a prerequisite for drafting or approving the module plan."
+    },
+    {
+      "id": "R1-F4",
+      "location": "docs/plans/2026-11-09-graphify-evaluation.md:96-97",
+      "problem": "The plan unilaterally declines a security review despite intentionally invoking an external program and its git subprocess on source trees, with filesystem and possible network effects. Project policy requires asking the owner whether to run the installed security-review module when such an exposed surface is identified.",
+      "severity": "major",
+      "suggestion": "Add a checkpoint that asks the owner whether to run a security review for the vendor-program/git execution surface, stating if no such module is installed; run it only if the owner requests it."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The evaluation gate has material validity and review-process gaps, plus a direct sample-size drift from the graphify specification.",
+  "verdict": "changes_needed"
+}

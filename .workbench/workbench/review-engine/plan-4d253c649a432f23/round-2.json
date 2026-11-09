@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "docs/plans/2026-11-09-graphify-evaluation.md: Scope; completion criteria 1–2; increments A–B",
+      "problem": "The plan creates two tracked files under `docs/references/` but never creates or updates `docs/references/index.json`. The governing groundwork spec requires every tracked reference there to have a canonical index entry; after either increment’s commit, the required document check will fail.",
+      "severity": "major",
+      "suggestion": "Include `docs/references/index.json` in the affected areas and add canonical, provenance-complete entries for both references in the applicable increments, with verification after they are tracked."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "The evaluation approach now matches the candidate and graphify spec, but the planned tracked references lack the required reference-index work.",
+  "verdict": "changes_needed"
+}
