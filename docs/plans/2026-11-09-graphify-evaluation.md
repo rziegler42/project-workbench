@@ -262,3 +262,7 @@ Q20 project-workbench release_approvals hard | 16804/39818 | rc 0 | named 23 (21
 ```
 
 No answer was cut (all under the output bound). "Lines" counts the relation tags printed in the answer; none was `contains`.
+
+### The decision (Increment C, step 1)
+
+The author's recommendation, 2026-11-09, on this evidence: no-go (the graph found 19% of the files a real change touched where `grep` found 54%; on the `hard` class its only contribution beyond `grep` was 2 files in one question; its answer was empty for 8 of 20 questions, among them the Verilog work it was wanted for; reopening is cheap because the question set and scripts are recorded here). The owner's word, 2026-11-09: **"no-go"**. The module is not built. Dropping the roadmap candidate `workbench-v1#graphify-module` is the `change-direction` checkpoint: the owner confirmed the exact edits to the roadmap candidate and to the spec's status line ("go with your recommendation"), and they are committed in `f07259b`. Left as they were, by the same recommendation: the old template repository text in the candidate (archiving it is the owner's separate decision), and the text of `knowledge-tools.md`, the `knowledge-base-package` dependency hint and the remaining-modules text, which still name the module as a candidate. Two draft notes (the evaluation outcome; the semantic layer dropped) were saved for the owner to file in the palace.
