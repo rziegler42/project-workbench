@@ -1,6 +1,6 @@
 # Let the labelling tool show only the commands the hook allowed, with their ids
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-09
 Candidate: workbench-v1#action-review-engine
 Specs: action-review
@@ -81,7 +81,9 @@ Empty until a review is asked for.
 
 ## Result
 
-**Increment A (2026-11-09), done in a scratch clone at commit `82fb997`; the spec is edited in the live tree; the two package files are not yet copied, released or committed.**
+**Increment A is committed as `73f0e8d`** (trailer `#A`; 8 paths: the plan, the spec, the tool and its tests, two new shipped records and two old ones removed with the owner's approval of the list), and its install state as `8a93862`. The plan is completed.
+
+**Increment A (2026-11-09), done in a scratch clone at commit `82fb997`; the spec is edited in the live tree; the two package files were then copied, released and committed as above.**
 
 - Built, in `packages/workbench/action-review/tools/label.py`: `--allowed` (each option once, in either order, any other word is the usage line `usage: label.py [--allowed] [--skipped]` and exit 2, checked before the terminal check and before any read); with it `verdicts.jsonl` is read (only then), the unlabelled queue is kept to the rows whose command hash is the hash of a verdict row with `answer == "allow"`, unreadable verdict lines join the count of unreadable lines, a store failure on the verdicts is exit 1 with the existing fixed note, the count line says "(the hook allowed each one)" and an empty queue says "Nothing the hook allowed is waiting to be labelled."; and every command, handles included, shows its id as `id <id>` at the end of its header line, through `visible(row["id"], 40)`. Without `--allowed` the files read, their order, the queue, the messages and the exit codes are as before.
 - Tests, written first (`tests/test_tools_label.py`, class `Allowed`; 76 tests in the file): 14 of the new tests failed on the unchanged tool for the right reason (no id, no option). They cover the id on both headers; only the allowed rows, in file order, with the count; rows not shown (approved but never answered, a decline, an allow with no collected row); labelled and skipped rows with both orders of the options; skipped alone unchanged; unreadable verdict lines; a store refusal on the verdicts (exit 1, ASCII note, nothing written); the default run never opening the verdicts; the usage errors with nothing read; no terminal with nothing read; one whole label row for the id shown; a handle with its id; the id through the cleaner; and the tool itself taking only the answer `allow`.
