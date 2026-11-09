@@ -827,9 +827,14 @@ collectable" count. When the hook has answered `allow` the report adds three lin
 (plan `2026-11-08-action-review-cutover-for-commit`, increment E; "The owner's runbook for the deciding hook"); an allowed command is counted
 as waiting like any collected row and in the labelled counts only once it is labelled.
 
-*As built (Increment E, `tools/label.py`).* `python3 -B label.py [--skipped]`, copied with `shadow_store.py` to a directory outside
+*As built (Increment E, `tools/label.py`).* `python3 -B label.py [--allowed] [--skipped]`, copied with `shadow_store.py` to a directory outside
 the project, runs only when standard input and output are both terminals (otherwise it prints one line to standard error and exits
-2). It shows the collected commands that have no label, oldest first: the command (a command cut for length shows how many
+2). **The options (plan `2026-11-09-label-allowed-commands`):** each may be given once, in either order, and any other word is the usage line
+and exit 2. `--allowed` keeps the rows whose command hash is the hash of a verdict row that says `answer: allow` (the store accepts that field
+only on a reviewed approve), reads `verdicts.jsonl` only then, counts its unreadable lines in the sentence about unreadable lines, ends with exit
+1 and a fixed ASCII note when the store refuses it, and names the hook in its count line and in its sentence for an empty queue. A hash can link
+to a collected row of an earlier review of the same text; the text of an allowed commit carries the state digest, so that is the same command
+again. Every command it shows, handles included, has its id on its header line, through the same cleaner as the time and the rule. It shows the collected commands that have no label, oldest first: the command (a command cut for length shows how many
 characters were left out, on the same line), the rule, the engine's verdict and failed checks, the reason, and the facts by name with
 a value only where it is a number, a boolean or null (text by its length, lists and objects by their size). **The reason is introduced
 as "the model's own words when a model was asked, which the commit's own text may have steered"** (security review of the shadow,
@@ -1115,12 +1120,13 @@ as labels of allowed commands come in: a false approve among them blocks the cut
 5. Make one commit through the helper (`describe`, then `commit` with the digest). The prompt that the harness raises is answered by the
    hook, or shown to you when the hook answers nothing; either way the verdict row is in the store.
 
-**See what it allowed.** Run the report: the three lines. To label what was allowed, run `python3 -B label.py`. **It cannot pick them
-out:** it walks every unlabelled collected row, oldest first, shows the time, the rule and the command and no id, and has no filter, so
-the allowed commands are at the end of the queue, behind every older unlabelled command (110 at the first reading of the bound), and the
-owner matches them by time. The ids in the report say how many allowed commands are still unlabelled and which collected rows they are;
-they cannot be typed into the tool. A tool that shows the id, or labels only the allowed ones, is a change that this plan does not make.
-A command that is labelled `wrong` after it was allowed is a false approve and closes the cutover line.
+**See what it allowed.** Run the report: the three lines. To label what was allowed, run `python3 -B label.py --allowed`: it shows only the
+unlabelled collected rows that belong to a command the hook allowed (a verdict row that says `answer: allow` with the same command hash),
+oldest first, so the 110 older unlabelled commands (the count at the first reading of the bound) are not in the way, and every command it
+shows carries its id on its header line, the id the report prints in its sample line. `--allowed --skipped` shows the skipped ones among
+them. Without `--allowed` the tool walks every unlabelled row, as before. A command that is labelled `wrong` after it was allowed is a
+false approve and closes the cutover line. (Built by the plan `2026-11-09-label-allowed-commands`; until the owner has copied the new
+`label.py` to their directory the old one has no such option.)
 
 **Turn it off.** Set the key back (remove the entry from `levels`, or give it `none` or `block`) and run `wb rerender`. The hook reads
 `wb settings` at each prompt, so the next prompt is not answered; nothing else needs to change. To stop the hook running at all, remove

@@ -3,13 +3,18 @@
 
 The owner copies this file and ``shadow_store.py`` out of the project to a directory of their own and runs it at a terminal:
 
-    python3 -B /path/to/label.py [--skipped]
+    python3 -B /path/to/label.py [--allowed] [--skipped]
 
 (``docs/specs/action-review.md``, "Labelling and the report"). It shows one collected command at a time with the engine's verdict
 and records ``right``, ``wrong`` or ``skip`` in ``labels.jsonl``, with an optional note: ``r``, ``w`` or ``s``, then a space and
 the note. ``f`` shows the facts in full, ``q`` stops. A command already labelled is not shown again; with ``--skipped`` the ones
 that were skipped are shown once more. ``right`` means the owner would have judged as the engine did, ``wrong`` that they
 would not.
+
+With ``--allowed`` only the commands the hook allowed are shown: those whose collected row has the command hash of a verdict row that
+says ``answer: allow`` (plan ``2026-11-09-label-allowed-commands``). The options may be combined, each once. Every command is shown with
+its id on the line that names its number, which is the id the report prints for the rows to sample. The verdicts are read only with
+``--allowed``.
 
 A command the engine declined for a secret is collected only as a handle (a row whose facts carry ``handle`` set to true, with
 paths and no text). It is shown as a handle: the rule, the failed checks, the time and the paths, and a line that says the owner may
@@ -31,7 +36,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 import shadow_store as store  # noqa: E402  the store beside this file
 
-USAGE = "usage: label.py [--skipped]"
+USAGE = "usage: label.py [--allowed] [--skipped]"
+OPTIONS = ("--allowed", "--skipped")
 PROMPT = "[r]ight  [w]rong  [s]kip  [f]acts  [q]uit > "
 # Printed with every command: a flipped reading of "right" for a decline would corrupt the counts the cutover rests on.
 MEANING = "right = you would have judged as the engine did; wrong = you would not"
@@ -166,7 +172,8 @@ def path_line(item):
 def show_handle(stdout, row, number, total):
     """A handle: the rule, the engine's verdict and failed checks, the time and the paths, and how to judge it. It has no command
     to show and its fixed reason is not printed. The line about the change never puts a path into a command line."""
-    stdout.write("\n%d of %d   %s   rule %s\n" % (number, total, visible(row["ts"], 24), visible(row["rule"], 64)))
+    stdout.write("\n%d of %d   %s   rule %s   id %s\n"
+                 % (number, total, visible(row["ts"], 24), visible(row["rule"], 64), visible(row["id"], 40)))
     stdout.write("handle: declined for a secret; the command and the change are not kept, only the paths below\n")
     checks = ", ".join(visible(name, 64) for name in row["failed_checks"]) or "none"
     stdout.write("the engine said: %s (failed checks: %s)\n" % (visible(row["verdict"], 16), checks))
@@ -192,7 +199,8 @@ def show(stdout, row, number, total):
     if is_handle(row):
         show_handle(stdout, row, number, total)
         return
-    stdout.write("\n%d of %d   %s   rule %s\n" % (number, total, visible(row["ts"], 24), visible(row["rule"], 64)))
+    stdout.write("\n%d of %d   %s   rule %s   id %s\n"
+                 % (number, total, visible(row["ts"], 24), visible(row["rule"], 64), visible(row["id"], 40)))
     stdout.write("command: %s\n" % visible(row["command"], MAX_COMMAND))
     checks = ", ".join(visible(name, 64) for name in row["failed_checks"]) or "none"
     stdout.write("the engine said: %s (failed checks: %s)\n" % (visible(row["verdict"], 16), checks))
@@ -229,29 +237,34 @@ def read_choice(line):
 
 
 def run(argv, stdin, stdout, stderr, home):
-    if argv not in ([], ["--skipped"]):
+    if any(word not in OPTIONS for word in argv) or len(set(argv)) != len(argv):
         stderr.write(USAGE + "\n")
         return 2
     if not (stdin.isatty() and stdout.isatty()):
         stderr.write("label.py records your judgment and runs only at a terminal\n")
         return 2
-    wanted = "skip" if argv else None
+    wanted = "skip" if "--skipped" in argv else None
     try:
         collected, unread_c = store.read("collected.jsonl", home)
         labels, unread_l = store.read("labels.jsonl", home)
+        verdicts, unread_v = store.read("verdicts.jsonl", home) if "--allowed" in argv else ([], 0)
     except store.StoreError as exc:
         stderr.write("the store cannot be read: %s\n" % visible(str(exc), 200))
         return 1
     latest = {row["id"]: row["label"] for row in labels}  # a later row for the same command replaces an earlier one
     queue = [row for row in collected if latest.get(row["id"]) == wanted]
-    unread = unread_c + unread_l
+    if "--allowed" in argv:  # the store accepts `answer` only on a reviewed approve, so a row that has one is an allow
+        allowed = {row["command_sha256"] for row in verdicts if row.get("answer") == "allow"}
+        queue = [row for row in queue if row["command_sha256"] in allowed]
+    unread = unread_c + unread_l + unread_v
     if unread:
         stdout.write("%d line%s of the files could not be read and %s not shown.\n"
                      % (unread, "" if unread == 1 else "s", "is" if unread == 1 else "are"))
     if not queue:
-        stdout.write("Nothing to label.\n")
+        stdout.write("Nothing the hook allowed is waiting to be labelled.\n" if "--allowed" in argv else "Nothing to label.\n")
         return 0
-    stdout.write("%d command%s to label.\n" % (len(queue), "" if len(queue) == 1 else "s"))
+    stdout.write("%d command%s to label%s.\n"
+                 % (len(queue), "" if len(queue) == 1 else "s", " (the hook allowed each one)" if "--allowed" in argv else ""))
     done = 0
     for number, row in enumerate(queue, 1):
         show(stdout, row, number, len(queue))

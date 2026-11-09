@@ -617,6 +617,179 @@ class Handles(Base):
         self.assertEqual({"is_handle"}, where.get("handle"))
 
 
+H1, H2, H3 = "1" * 64, "2" * 64, "3" * 64
+
+
+class Allowed(Base):
+    """Plan `2026-11-09-label-allowed-commands`, increment A. `--allowed` shows only the unlabelled collected rows whose command hash
+    is the hash of a verdict row that says `answer: allow`, and every command carries its id on its header line. Written before the
+    code."""
+
+    def verdict(self, sha, **changes):
+        row = {"ts": "2026-10-30T01:02:03Z", "command_sha256": sha, "outcome": "reviewed", "verdict": "approve", "failed_checks": [],
+               "reason": "ok", "reviewed": True, "no_review_reason": None, "answer": "allow"}
+        row.update(changes)
+        if row["answer"] is None:
+            del row["answer"]
+        self.store.append("verdicts.jsonl", row, self.home)
+
+    def label_row(self, number, label):
+        self.store.append("labels.jsonl", {"id": "%032x" % number, "label": label, "ts": "2026-10-30T02:00:00Z"}, self.home)
+
+    def shown(self, out):
+        return [line for line in out.splitlines() if " of " in line and "rule " in line]
+
+    def test_every_command_shows_its_id_on_its_header_line_and_a_handle_too(self):
+        self.add(collected(1), handle_row(2))
+        _, out, _ = self.run_tool("s", "s")
+        headers = self.shown(out)
+        self.assertEqual(2, len(headers), out)
+        self.assertTrue(headers[0].endswith("   id %032x" % 1), headers[0])
+        self.assertTrue(headers[1].endswith("   id %032x" % 2), headers[1])
+
+    def test_allowed_shows_only_the_commands_the_hook_allowed_in_file_order_with_their_count(self):
+        self.add(collected(1, command_sha256=H1), collected(2, command_sha256=H2), collected(3, command_sha256=H3),
+                 collected(4, command_sha256=H1))
+        self.verdict(H1)
+        self.verdict(H3)
+        code, out, err = self.run_tool("s", "s", "s", argv=["--allowed"])
+        self.assertEqual((0, ""), (code, err))
+        self.assertIn("3 commands to label", out)
+        headers = self.shown(out)
+        self.assertEqual(["%032x" % 1, "%032x" % 3, "%032x" % 4], [line.rsplit(" ", 1)[1] for line in headers])
+        self.assertIn("1 of 3", headers[0])
+        self.assertIn("the hook allowed", out)
+
+    def test_a_row_the_hook_did_not_allow_is_not_shown(self):
+        self.add(collected(1, command_sha256=H1), collected(2, command_sha256=H2), collected(3, command_sha256=H3))
+        self.verdict(H1, answer=None)                       # approved, never answered
+        self.verdict(H2, verdict="decline", failed_checks=["head_matches"], answer=None)
+        self.verdict("4" * 64)                                # allowed, with no collected row
+        code, out, _ = self.run_tool(argv=["--allowed"])
+        self.assertEqual(0, code)
+        self.assertEqual([], self.shown(out))
+        self.assertIn("nothing", out.lower())
+        self.assertIn("hook", out.lower())
+
+    def test_the_tool_itself_takes_only_the_answer_allow_though_the_store_refuses_the_rest(self):
+        self.add(collected(1, command_sha256=H1))
+        real = self.label.store.read
+        for answer in ("deny", True, "ALLOW", ["allow"], 1):
+            def reading(name, home=None, answer=answer):
+                if name == "verdicts.jsonl":
+                    return [{"command_sha256": H1, "answer": answer}], 0
+                return real(name, home)
+
+            with self.subTest(answer=answer), unittest.mock.patch.object(self.label.store, "read", reading):
+                _, out, _ = self.run_tool(argv=["--allowed"])
+                self.assertEqual([], self.shown(out))
+
+    def test_a_labelled_allowed_command_is_not_shown_again_and_skipped_ones_come_back_with_skipped(self):
+        self.add(collected(1, command_sha256=H1), collected(2, command_sha256=H1), collected(3, command_sha256=H1))
+        self.verdict(H1)
+        self.label_row(1, "right")
+        self.label_row(2, "skip")
+        _, out, _ = self.run_tool("s", argv=["--allowed"])
+        self.assertEqual(["%032x" % 3], [line.rsplit(" ", 1)[1] for line in self.shown(out)])
+        for argv in (["--allowed", "--skipped"], ["--skipped", "--allowed"]):
+            with self.subTest(argv=argv):
+                _, out, _ = self.run_tool("q", argv=argv)
+                self.assertEqual(["%032x" % 2], [line.rsplit(" ", 1)[1] for line in self.shown(out)])
+
+    def test_skipped_alone_is_unchanged_and_does_not_look_at_the_verdicts(self):
+        self.add(collected(1, command_sha256=H1), collected(2, command_sha256=H2))
+        self.verdict(H1)
+        self.label_row(1, "skip")
+        self.label_row(2, "skip")
+        _, out, _ = self.run_tool("q", argv=["--skipped"])
+        self.assertEqual(1, len(self.shown(out)))  # the first is shown and the owner quits
+        self.assertIn("2 commands to label", out)
+        self.assertNotIn("the hook allowed", out)
+
+    def test_unreadable_lines_of_the_verdicts_are_counted_with_the_others(self):
+        self.add(collected(1, command_sha256=H1))
+        self.verdict(H1)
+        with open(os.path.join(self.store.data_dir(self.home), "verdicts.jsonl"), "ab") as handle:
+            handle.write(b"not json\n")
+        _, out, _ = self.run_tool("s", argv=["--allowed"])
+        self.assertIn("1 line", out)
+
+    def test_a_verdict_file_the_store_refuses_ends_the_tool_with_1_and_a_fixed_note_and_writes_nothing(self):
+        self.add(collected(1, command_sha256=H1))
+        real = self.label.store.read
+
+        def refusing(name, home=None):
+            if name == "verdicts.jsonl":
+                raise self.store.StoreError("déjà \x1b[31m the verdicts are damaged")
+            return real(name, home)
+
+        with unittest.mock.patch.object(self.label.store, "read", refusing):
+            code, out, err = self.run_tool("r", argv=["--allowed"])
+        self.assertEqual(1, code)
+        self.assertEqual("", out)
+        self.assertIn("cannot be read", err)
+        for char in err:
+            self.assertTrue(char == "\n" or " " <= char <= "~", repr(char))
+        self.assertEqual([], self.labels())
+
+    def test_the_default_run_does_not_open_the_verdicts(self):
+        self.add(collected(1))
+        asked = []
+        real = self.label.store.read
+
+        def watching(name, home=None):
+            asked.append(name)
+            return real(name, home)
+
+        with unittest.mock.patch.object(self.label.store, "read", watching):
+            self.run_tool("s")
+            self.run_tool("q", argv=["--skipped"])
+        self.assertNotIn("verdicts.jsonl", asked)
+        self.assertEqual(["collected.jsonl", "labels.jsonl"] * 2, asked)
+
+    def test_only_the_known_options_each_once_are_accepted(self):
+        self.add(collected(1, command_sha256=H1))
+        self.verdict(H1)
+        for argv in (["--allowed", "--allowed"], ["--allowed", "x"], ["--allowed", "--other"], ["--skipped", "--allowed", "--skipped"]):
+            with self.subTest(argv=argv), unittest.mock.patch.object(self.label.store, "read", side_effect=AssertionError("read")) as read:
+                code, out, err = self.run_tool("r", argv=argv)
+                self.assertEqual((2, ""), (code, out))
+                self.assertIn("usage: label.py [--allowed] [--skipped]", err)
+                read.assert_not_called()
+        self.assertEqual([], self.labels())
+
+    def test_without_a_terminal_the_option_is_refused_too_and_reads_nothing(self):
+        self.add(collected(1, command_sha256=H1))
+        self.verdict(H1)
+        with unittest.mock.patch.object(self.label.store, "read", side_effect=AssertionError("read")) as read:
+            code, out, err = self.run_tool(stdin=io.StringIO("r\n"), stdout=io.StringIO(), argv=["--allowed"])
+        self.assertEqual(2, code)
+        self.assertIn("terminal", err)
+        read.assert_not_called()
+        self.assertEqual([], self.labels())
+
+    def test_labelling_a_command_shown_by_allowed_writes_one_whole_row_for_its_id(self):
+        self.add(collected(1, command_sha256=H1), collected(2, command_sha256=H2))
+        self.verdict(H2)
+        code, _, _ = self.run_tool("w too wide", argv=["--allowed"])
+        self.assertEqual(0, code)
+        rows = self.labels()
+        self.assertEqual([("%032x" % 2, "wrong", "too wide")], [(r["id"], r["label"], r["note"]) for r in rows])
+
+    def test_a_handle_is_shown_as_a_handle_with_its_id_when_its_hash_was_allowed(self):
+        self.add(handle_row(5, command_sha256=H1))
+        self.verdict(H1)
+        _, out, _ = self.run_tool("s", argv=["--allowed"])
+        self.assertIn("handle:", out)
+        self.assertTrue(self.shown(out)[0].endswith("   id %032x" % 5))
+
+    def test_the_id_goes_through_the_cleaner(self):
+        """The store only takes an id of 32 hexadecimal characters, but the tool does not rely on it: the header prints the id through
+        `visible`, as it prints the time and the rule."""
+        with open(LABEL, "rb") as handle:
+            text = handle.read().decode()
+        self.assertEqual(2, text.count('visible(row["id"], 40)'))  # the ordinary header and the handle's
+
 class Interrupting(Base):
     def test_an_interrupt_ends_the_tool_with_130_and_leaves_only_whole_rows(self):
         self.add(collected(1), collected(2))
