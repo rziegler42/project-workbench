@@ -1,6 +1,6 @@
 # Let the command gate pass a relaxed `wb run` key's own call when its arguments are plain or single-quoted
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-09
 Candidate: none (a correction that follows from a finding of the cutover trial, increment F of `2026-11-08-action-review-cutover-for-commit`)
 Specs: command-permissions
@@ -121,7 +121,7 @@ Codex, plan review, 5 rounds (the bound of 3, extended by 1 twice on the owner's
 - **Increment A is committed as `88a07cc`** (trailer `#A`).
 
 **Increment B (2026-11-09).** The record `docs/decisions/2026-11-09-command-gate-lets-a-run-keys-own-call-carry-quoted-arguments.md` was written as `Proposed` (context, the decision in three points, five alternatives, consequences good and bad, and the evidence of the refusal, the rendered rule and the probe) and `wb run code-work check` passed. The owner then accepted it at the `ask` level: the agent ran `wb run groundwork preview <record>` (record sha256 `cab4030c…`, digest `a903707211bafaa10c3bfc923c7e4c36`), showed it, and ran `wb run groundwork accept <record> --digest <digest>` when the owner said "accept the decision", and the owner confirmed the command; the record's status line now reads `Accepted by Robert Ziegler <25854477+rziegler42@users.noreply.github.com> on 2026-11-09`. One narrowing against this plan's wording, stated in the record and not hidden: a single-quoted string in the key's own call holds no newline, no carriage return and no quote (the plan said "as `literal_run` reads them", which allows a newline in quotes); the probe did not cover a newline. Increment C's tests follow the record. The decisions README has no index table, so no row was changed.
-- **Increment B is committed as `3aaf265`** (trailer `#B`).
+- **Increment B is committed as `3aaf265`** (trailer `#B`). **Increment C is committed as `693d66c`** (trailer `#C`; six paths: the gate, its two test files, the spec and the Results of this plan and of the cutover plan). The installer files are not part of a module package, so the owner's release made no shipped record and there was nothing to remove. The plan is completed.
 
 **Increment C (2026-11-09), done in a scratch clone at commit `3aaf265`; the spec is edited in the live tree; the three files are not yet copied, released or committed.**
 
