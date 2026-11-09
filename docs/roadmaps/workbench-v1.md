@@ -528,6 +528,8 @@ MCP rendering, and no installation or configuration of the program. Writes to th
 
 ### graphify-module — The `graphify` module
 
+**Dropped on 2026-11-09 by the owner ("no-go") after the evaluation in `docs/plans/2026-11-09-graphify-evaluation.md`:** on 20 real changes the structural graph found 19% of the files a change touched where `grep` found 54%, added 2 files on the `hard` questions, and answered nothing for 8 of 20 (among them the Verilog work). The spec `docs/specs/graphify.md` stays as the design and the evidence. Reopening is a new candidate, with the spec's triggers.
+
 **Outcome:** the optional module `graphify`, which provides `code-graph` for questions of structure and impact. It is
 designed afresh, with the owner's earlier `graphify` skill, helper and template module (held in the old template repository
 and, in part, the former user-level backup) as lessons learned and not as a source to port. It keeps the freshness status and the rule that an old graph is orientation only, written as neutral
