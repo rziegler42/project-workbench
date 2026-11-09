@@ -162,7 +162,10 @@ class Base(EngineBase):
 
 
 class Answer(Base):
-    """The hook decides nothing and says nothing, for every input."""
+    """The hook says nothing for every input here. The fake `wb` replays the same bytes for the installer's `settings`, which print no
+    `level` line for the key, so none of them is delegated; the cases in which the hook answers `allow`, and the rule that only `emit`
+    writes the answer (it replaces the earlier rule that no code path writes to standard output), are in `test_hook_decide.py`
+    (plan `2026-11-08-action-review-cutover-for-commit`, increment D)."""
 
     def cases(self):
         yield "approve", self.engine()
@@ -206,21 +209,6 @@ class Answer(Base):
                 code, err = self.run_hook()
             self.assertEqual(0, code, repr(exc))
             self.assertNotIn(COMMAND, err)
-
-    def test_no_code_path_writes_to_standard_output(self):
-        import ast
-        with open(HOOK, "rb") as handle:
-            text = handle.read().decode()
-        tree = ast.parse(text)
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-                self.assertNotEqual("print", node.func.id)
-            if isinstance(node, ast.Attribute):
-                self.assertNotIn(node.attr, ("stdout", "__stdout__", "fdopen", "dup2"))
-                if isinstance(node.value, ast.Name) and node.value.id == "os":
-                    self.assertNotIn(node.attr, ("write", "writev", "sendfile", "system", "popen", "exec", "execv", "execve"))
-        for word in ("hookSpecificOutput", "decision", "behavior", "\"allow\"", "'allow'", "\"deny\"", "updatedInput"):
-            self.assertNotIn(word, text, word)
 
     def test_the_hook_imports_only_the_standard_library_and_the_store_beside_it(self):
         import ast

@@ -531,18 +531,56 @@ It is a request and never an authorization. `.workbench/review.json` is read by 
   requires.
 - A missing or unreadable setting, or a bridge failure of any class, yields no approval.
 
-### The enforcement point (default; the form that decides is not built)
+### The enforcement point (the form that decides is built, and answers only where the owner has set the key)
 
-The owner's hook becomes a thin program: match the prompted command to a spelling, run `wb run action-review
-review`, and turn the verdict into the hook's answer. What the hook allows without the owner (`DELEGABLE`, the
-mode setting) stays a code constant there. The hook is the owner's to write and install; the agent prepares and
-tests it on a scratch copy, as it did for the patch of option 1a. Plan `2026-10-29-action-review-shadow-hook` builds the
-**shadow** form of it, which decides nothing ("The shadow hook" below). A hook that decides is for the plan after the shadow.
+The owner's hook is a thin program: match the prompted command to a spelling, run `wb run action-review
+review`, and turn the verdict into the hook's answer. What the hook allows without the owner is decided by the owner's levels
+table (the key of the action at `delegated`, decision 3 of `2026-11-03-delegated-for-an-action-key-and-named-risk-profiles`), not
+by a code constant. The hook is the owner's to install; the agent prepares and tests it on a scratch copy. Plan
+`2026-10-29-action-review-shadow-hook` built the **shadow** form of it, which decides nothing ("The shadow hook" below); plan
+`2026-11-08-action-review-cutover-for-commit`, increment D, added the **deciding** form to the same file, described next.
+
+**The deciding form (increment D of the cutover plan).** After the engine has run, the hook answers `allow`, once, only when every one of
+these holds, and answers nothing in every other case; it never answers a denial and never sends a rewritten command:
+
+1. the engine's outcome is `reviewed`, agrees with its exit code, and its verdict object is whole with `approve` and no failed
+   check (anything else, a decline, no rule, an unreviewable or refused command, a failure, a timeout, a malformed or extra-field
+   verdict, an exit code that disagrees, is no answer and the installer is not asked);
+2. the engine's `facts:` line (the describe object, printed with `--collect`) is `ok`, not truncated, with no error, and holds
+   `leave_other_staged` false and `given_state_digest` and `state_digest` that are the same 64 lowercase hexadecimal characters; two
+   nulls, a digest that differs, one of the wrong form, or a missing, oversized or unreadable `facts:` line are no answer. As a second line
+   of defence, three plain tests of the command's text (not a parse): it holds `--state-digest`, holds that digest, and holds no
+   `--leave-other-staged`;
+3. `wb settings`, run from the command's directory in the clean environment, exits 0 within three seconds, prints at most 2 MiB of ASCII
+   and exactly one line `level <key>: <level>` for the key of the action, and the level is exactly `delegated`. The key is
+   `wb run <command> <action>`, worked out from the rule's name (`<command>-<action>`) and the object's `action`, both reported by the
+   engine and not read from the command. A failure, a refusal (a directory that is no project), a second line, another level or the
+   word with anything added is no answer;
+4. at least one second of the hook's own 30 is left (`DECIDE_BEFORE`).
+
+The verdict row is written first and says `answer: allow` (an optional field of `verdicts.jsonl`, valid only on a reviewed approve); a
+row that cannot be written gives no answer (the store refuses, the home is unwritable, the file is full, the lock is not got): the
+engine's approve stands, as the log is a record and not a gate for it, but the hook does not skip the owner's prompt for a command it
+cannot record, so a delegated commit always has its row. A row's `allow` means that the hook decided to answer and the row was
+written, not that the answer was delivered: if the harness stops the hook after the row and before the answer (the writing of the
+rows is not bounded by the hook's own clock, and its lock can wait five seconds), or the answer stream is closed, the row says
+`allow` and the prompt stayed. The hook reads what a child prints up to a cap of 2 MiB for each stream and stops the child's process
+group when it is passed, so a child that never stops writing is not held in memory and gives no answer. The `facts:` line is believed only when it comes after the `log-row:` line, as the engine prints
+them. An older copy of the store reads a row with an `answer` as unreadable, so the files of the hook, the store and the report are
+copied together. The answer is the bytes of
+`{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}` and a newline, written by `emit` alone,
+the only function that touches standard output. Registration, the time limit of 30 seconds and the absence of `onFailure` are as for the
+shadow. **Which reader.** The hook reads the level that `wb settings` prints, which is the owner's table; it does not check the
+rendering record (`effective_level`), because the hook is run only for a command that raised a prompt, and an `allow` is bounded by
+the engine's exact parse of the command and by the digest; the doctor reports a rendering that has drifted. **Not tested:** the hook
+against Claude Code and a real bridge (increment F of the cutover plan); the two checks of the second line are plain substring tests
+that the engine's own approval of the same command makes redundant, kept because they cost nothing.
 
 ### The shadow hook (plan `2026-10-29-action-review-shadow-hook`; built and installed by the owner; labelling and the test set pending)
 
 During the shadow the hook runs the engine on each prompted command and records what the engine would have said. It answers
-nothing: the owner sees the normal prompt, and the owner's later label says whether the engine was right. This replaces the
+nothing (since increment D of the cutover plan it answers `allow` for a command that its deciding form accepts, which needs the key of
+the action at `delegated`; where the key is not, as in every project today, it still answers nothing): the owner sees the normal prompt, and the owner's later label says whether the engine was right. This replaces the
 earlier text of "Accuracy and cutover", whose shadow ran the engine beside the approver while the approver's answer still
 decided. The approver was removed when the user-level configuration was reset on 2026-10-29, so no program decides today.
 
@@ -658,8 +696,9 @@ fields, an approve with no failed check); otherwise the command is `failed`. Wit
 other status is `failed`. A command over 4,096 characters is `unreviewable` without starting the engine; malformed input is
 `malformed_input` and a tool other than `Bash` is `not_bash`, each with no command hash. A verdict row is written first, then the
 collected row (for a command declined for a secret or a credential-named path, a handle in its place: "Labelling a declined secret"),
-and a failed write is noted without changing anything else. Nothing the hook prints, writes or returns can be an
-answer to the harness: its source holds no answer object and no write to standard output, and the tests read both.
+and a failed write is noted and changes nothing else except that the hook does not answer `allow` without its verdict row. Nothing the hook prints, writes or returns is an answer to the
+harness except the one answer that its deciding form gives ("The enforcement point"): the source builds that answer once, one
+function (`emit`) writes standard output, no code path prints or rewrites a command, and the tests read all of it.
 
 **The data files.** The directory is `~/.config/project-workbench/action-review/`, a subdirectory of the guarded store found from
 the account's home directory; no option or file moves it, and the hook takes that directory from the account database, not from
@@ -1166,8 +1205,8 @@ was reviewed by the approver and declines under `describe` (`safe-git.md`).
 - The owner's profile file replaced the personal setting and is read by this engine (see "Settings and the bridge" and
   `review-profiles.md`).
 
-**The owner's steps.** The agent does not run these, and nothing below is done until the owner does it. The shadow hook records and
-allows nothing: the prompt stays the owner's, and removing its settings entry stops it. This is the one complete list (plan
+**The owner's steps.** The agent does not run these, and nothing below is done until the owner does it. The shadow hook records and,
+while no key is set to `delegated` (as in every project today), allows nothing: the prompt stays the owner's, and removing its settings entry stops it. This is the one complete list (plan
 `2026-11-04-shadow-hook-security-review-fixes`, increment D, after the second security review of 2026-11-04); a step that must wait for
 another comes after it, and the protections (step 3) come before the hook is registered (step 4). The module's files are those of the
 commit that holds this text. If you copied files for an earlier version of these steps, they are out of date: do step 2 again. Every
