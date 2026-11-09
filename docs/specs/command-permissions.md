@@ -13,7 +13,8 @@ the plan `2026-10-30-release-approvals-at-ask` (`ask` for `wb release-approvals`
 which made `levels.py` the one registry of keys and their facts, gave each checkpoint one setting, rewrote the gate's text rules (data
 positions and gaps, not letters in order), named and logged its refusals, explained the lock of a changed package tree, brought the
 skills and the policy block into line with the levels and built `wb doctor` (each is described where it is built, below).
-`approve-plan` alone offers `delegated`, and it, those
+`approve-plan` and the key of an action that a module describes and declares it for (`wb run safe-git commit`, since plan
+`2026-11-08-action-review-cutover-for-commit`, increment B) offer `delegated`, and `approve-plan`, those
 five, `accept-decision`, `wb release-approvals`, `wb install`, `wb adopt`, `wb upgrade` and `wb add` offer `ask`. The keys that still offer
 `block` only are listed under "Not built"; `wb rerender` offers it by design and is described in its own section. The design is `docs/decisions/2026-10-26-per-command-permission-levels.md`, as refined by
 `docs/decisions/2026-10-26-permission-levels-as-built.md` and `docs/decisions/2026-10-26-a-level-for-every-command.md` (all accepted),
@@ -137,8 +138,12 @@ separated by single spaces, at most 96 characters.
 ### Which levels a key offers
 
 - `block`: every key.
-- `delegated`: `approve-plan` only, whose gate is a converged, sealed review of the exact bytes (`delegation.py`). The gate must
-  pass at the moment of the run, and the run counts only while the table still reads `delegated`.
+- `delegated`: `approve-plan`, whose gate is a converged, sealed review of the exact bytes (`delegation.py`). The gate must
+  pass at the moment of the run, and the run counts only while the table still reads `delegated`. And, since increment B of the plan
+  `2026-11-08-action-review-cutover-for-commit`, the key of an agent-run argument that its command `describes` and whose declaration
+  lists it in `levels` (today `wb run safe-git commit` and no other). Its gate is a bridge's approval through a hook, which is not
+  built; until the rendering knows the level (increment C of that plan) the key at `delegated` renders a `deny`, so the command is
+  blocked and not relaxed.
 - `ask`: `approve-plan`, `accept-decision` (a checkpoint of a command that declares it), `wb release-approvals` (a digest of the preview of its release, "`wb release-approvals` at `ask`"), `wb install`, `wb adopt`, `wb upgrade` and `wb add` (the digest of `wb preview <command>`, taken over the plan with the seed and the time of its pins fixed; "The installer commands at `ask`"), `wb recover` and `acknowledge-first-tier` (the digest of `wb preview recover` and `wb preview acknowledge`, taken over the examination each shows; "`recover` and `acknowledge` at `ask`"), `wb approve` and `wb pin` (the digest of `wb preview approve` and `wb preview pin`, taken over the request or the pin; "`approve` and `pin` at `ask`"), `wb attach` (the digest of `wb preview attach`, taken over what it would write; "`attach` at `ask`"), and an owner-run argument of a module's command whose declaration names it in `levels` (below). `none`: `approve-plan`, `wb install`, `wb adopt` (built by Increment F), `wb upgrade` and `wb add` (built by Increment G), `wb approve` and `wb pin` (built by Increment H), `acknowledge-first-tier`, `acknowledge-second-tier`, `wb recover`, `wb attach` and `wb release-approvals` (built by Increment J), `accept-decision` (built by Increment K), every agent-safe action and
   every declared module argument that is not owner-run; the keys under "Not built" offer `block` only, and so does `wb rerender`. A key offers a level only
   from the version that builds it for that command.
@@ -147,8 +152,12 @@ separated by single spaces, at most 96 characters.
 declaration and the key are built by Increment C of the plan `2026-10-27-levels-for-the-review-workflow`, the launcher by its
 Increment D). A command's declaration may give `levels`, an object that maps an `owner` argument to a non-empty list of different
 levels from `ask` and `none`; the key `wb run <command> <argument>` then offers `block` and those levels, in the order `block`,
-`ask`, `none`, and its default stays `block`. `delegated` is refused by `verify`, as are a key that is not an `owner` argument of
-that command and an unknown level. A command that offers `ask` also gives `preview`, the name of a declared argument that is
+`ask`, `none`, and its default stays `block`. `delegated` is refused by `verify` for an owner-run argument, as are an unknown level
+and a key that is neither an `owner` argument of that command nor an agent-run argument it `describes`. That second kind of argument
+(declared, listed in `describes`, not `describe`, not in `asks`) may be named with exactly `["delegated"]` and no other level, offers
+`block`, `delegated` and `none` in that order, and keeps the default `none`; it cannot be mapped to a checkpoint. The installer cannot
+see whether the engine has a rule for the action (a rule belongs to another module), so the declaration says only that the command can
+describe it; with no rule the hook decides nothing and the owner's prompt stays. A command that offers `ask` also gives `preview`, the name of a declared argument that is
 neither owner-run nor `describe`; `verify` refuses `ask` without it and `preview` without `ask`. The preview argument is an
 ordinary declared argument, so its key defaults to `none`. A command without these fields offers `block` only, as before, and
 its declaration hashes as before. **The review engine declares it for its five owner-run arguments (`amend`, `archive`, `extend`, `prune`, `reset`, each `ask` and `none`, with `preview` as the preview argument; `review-engine.md`, "Owner-run commands"). `mempalace` declares it for `mine` and `sync`, with `ask` and no `none`, and `preview` as the preview argument (`mempalace.md`, "`mine` at the level `ask`" and "`sync`"; plan `2026-11-05-mempalace-per-clone-use`, increments D and E), and its second command `mempalace-notes` for `keep`, with `ask` and no `none`, and `review` as the preview argument (`mempalace-notes.md`; plan `2026-11-06-mempalace-notes`, increment C). No other first-party module does, so the owner-run argument of `remote-runner` offers `block` only.**
@@ -165,11 +174,13 @@ with the exit code. If the attempt cannot be written the helper is not started; 
 the exit code is 3 (a helper that itself exits 3 gives the same code; the line on standard error tells them apart). A run at a terminal reads no level and writes no entry. `wb launch` stays terminal-only for an owner-run argument at
 every level, because the `ask` rule is rendered for the `wb run` spelling only.
 
-**Decided, not built: `delegated` for an action key** (accepted decision
+**Decided, and built only in part: `delegated` for an action key** (accepted decision
 [2026-11-03-delegated-for-an-action-key-and-named-risk-profiles](../decisions/2026-11-03-delegated-for-an-action-key-and-named-risk-profiles.md);
-plan `2026-11-03-delegated-levels-and-risk-profiles`). Nothing in this paragraph is built, and every line of this spec that says that
-`approve-plan` alone offers `delegated`, or that `verify` refuses `delegated` in a module's `levels`, describes what is built now.
-The decision is:
+plans `2026-11-03-delegated-levels-and-risk-profiles` and `2026-11-08-action-review-cutover-for-commit`). Built by increment B of
+the second plan: the declaration (`verify` lifts its refusal for an agent-run argument that the command `describes`, with `delegated`
+and no other level) and the offer of the key (`wb run safe-git commit` offers `block`, `delegated` and `none`; `remove` and every other
+argument do not). Not built: what the level renders and what the settings say (increment C), and the hook that decides (increment D);
+the other lines of this paragraph describe that work. The decision is:
 
 - `delegated` for an action key offers what `ask` offers: the same read-only preview, the same digest, the same check of that
   digest inside the command's own lock. It changes only who may confirm: the owner at the prompt, or a bridge (`ask-codex`,
@@ -181,7 +192,9 @@ The decision is:
 - Every key whose declaration offers `delegated` and whose action has a bridge rule (a `describe` and a rule) offers it, digest-bound
   keys included. Today the engine has rules for `safe-git commit` and `remove` only. The floor and the compiled hard stops are never
   offered. When built, "`approve-plan` only" above becomes "the keys whose declaration offers it", and `verify` stops refusing
-  `delegated` for a command that gives a `describe` and a rule.
+  `delegated` for a command that gives a `describe` and a rule. As built by increment B of the plan
+  `2026-11-08-action-review-cutover-for-commit`, `verify` checks the `describe` (the argument is in `describes`) and not the rule: a
+  rule belongs to another module, which the installer does not name. An action offered with no rule gets no decision from the hook.
 - A plan is delegable only with exactly one Risks section that lists no hard-stop action, whoever confirms.
 - The `action-review` plan builds all of this after its shadow period. The profiles are built and are described under "The table"
   ("Named risk profiles"): a profile never sets `delegated` for a `governs` key, and sets it for a `project` key only where offered,
@@ -487,7 +500,7 @@ default of `block`. `approve-plan` stays `block`; the default is not raised to `
 attached clone"), and the owner-run arguments of module commands (`wb run <command>
 <argument>` where the argument is owner-run), which offer `block` only unless the command's declaration gives `levels` (built by
 Increment C of the plan `2026-10-27-levels-for-the-review-workflow`; "Which levels a key offers"; only the review engine declares it).
-`delegated` stays `approve-plan` only, and `ask` is offered by a key once
+`delegated` stays `approve-plan` and the key of a module's described action that its declaration lists (`wb run safe-git commit`), and `ask` is offered by a key once
 that key has a preview digest of its own, built as `approve-plan`'s is (for an owner-run argument of a module's command, once its
 declaration names a `preview` argument; `verify` checks the name, and the digest the argument prints is the module's to build). Every key built by the plan offers `none`; the keys that still offer `block` only are listed under "Not built". Besides `approve-plan`, `ask` is offered by the review engine's five owner-run arguments (built by Increments E and F of the plan `2026-10-27-levels-for-the-review-workflow`), by `accept-decision` through the command `groundwork accept` (the plan `2026-10-29-accept-decision-at-ask`) by `wb release-approvals`, whose preview `wb preview release-approvals` prints its digest (the plan `2026-10-30-release-approvals-at-ask`), and by `wb install`, `wb adopt`, `wb upgrade` and `wb add`, whose previews print the digest ("The installer commands at `ask`"). At `none` an owner-run command runs without a terminal
 and without a harness `deny`; the command's own checks of its input and its log entry apply, and the terminal prompt does not.
@@ -743,7 +756,7 @@ The decision `2026-10-29-accept-decision-offers-the-ask-level` (accepted on 2026
 on 2026-10-29 and 2026-10-30); a run through the real launcher and the harness prompt for the `ask` rule are the owner's checks, and
 are recorded in that plan's Result. `delegated` for `accept-decision` is not built by that plan:
 the accepted record leaves a delegated review's subject for a decision undecided, so `delegated` reads `block` here, as it does for
-every key but `approve-plan`.
+every key that does not offer it (`approve-plan` and, since increment B of `2026-11-08-action-review-cutover-for-commit`, the commit action of `safe-git` do).
 
 **The command.** The `groundwork` module ships one helper with two arguments, run with `wb run`. The installer names neither the
 module nor the helper.
@@ -1136,7 +1149,8 @@ approval command is reached at all; a project, a plan or a review cannot supply 
 
 ## Not built
 
-- `delegated` for `accept-decision` and for the other seven keys that do not offer it (every key but `approve-plan`). The plan
+- `delegated` for `accept-decision` and for the other seven keys that do not offer it (every key but `approve-plan` and, since
+  increment B of `2026-11-08-action-review-cutover-for-commit`, the commit action of `safe-git`). The plan
   `2026-10-29-accept-decision-at-ask` built `ask` for `accept-decision` and left `delegated` reading `block`: the accepted record leaves
   undecided what a delegated review's subject is for a decision, and the roadmap candidate `checkpoint-levels-beyond-block` stays open.
 - `ask` and `none` for the owner-run arguments of the other module commands (`wb run remote-runner fetch-overwrite`, and `none`

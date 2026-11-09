@@ -306,8 +306,10 @@ the directory name and `name` in `module.json` must be equal. No list holds a du
 - `commands[].levels` and `commands[].preview` *(built by plan `2026-10-27-levels-for-the-review-workflow`, Increment C; decision
   `2026-10-27-owner-run-arguments-take-a-level`)*: both optional. `levels` is an object that maps an argument listed in `owner` to a
   non-empty list of different levels from `ask` and `none`, the levels that argument offers beyond `block` (`command-permissions.md`,
-  "Which levels a key offers"). `delegated`, `block`, any other level, a key that is not an `owner` argument and an empty list are
-  refused. `preview` names one of the command's `arguments` that is neither in `owner` nor `describe`; it is required exactly when some
+  "Which levels a key offers"). For an `owner` argument `delegated`, `block`, any other level and an empty list are refused. `levels`
+  may also name an agent-run argument that the command lists in `describes` (declared, not `describe`, not in `asks`, not mapped by
+  `checkpoint_of`) with exactly `["delegated"]` *(built by plan `2026-11-08-action-review-cutover-for-commit`, increment B)*; the key
+  then offers `block`, `delegated` and `none`. Any other key, and any other level for such an argument, is refused. `preview` names one of the command's `arguments` that is neither in `owner` nor `describe`; it is required exactly when some
   argument offers `ask`, and the argument it names is the read-only preview whose last line is `digest: <32 lowercase hex>`. Both are
   covered by the declaration hash as written, so a declaration without them hashes as before. A workbench that predates them refuses a
   package that has them, because it refuses an unknown field. The launcher (`wb run`, Increment D) reads the level of the key

@@ -34,7 +34,10 @@ commands    an object of at most ``MAX_COMMANDS`` entries, each a command name i
             list of at most ``MAX_DESCRIBES`` actions, each in the form of an argument; it needs
             ``describe`` among the arguments, and ``describe`` is never owner-run. ``levels`` is an
             object that maps an ``owner`` argument to the non-empty list of levels, from ``ask`` and
-            ``none``, that it offers beyond ``block``; ``preview`` names the declared argument, neither
+            ``none``, that it offers beyond ``block``, or an agent-run argument that the command also ``describes`` (it is one of
+            its ``arguments`` and is neither ``describe`` nor in ``asks``) to ``["delegated"]``, the only level an agent-run
+            argument may name (``2026-11-03-delegated-for-an-action-key-and-named-risk-profiles``; the installer cannot see the
+            rule of a bridge, which is the hook's concern); ``preview`` names the declared argument, neither
             owner-run nor ``describe``, that previews them, and goes exactly with a command that
             offers ``ask`` (``2026-10-27-owner-run-arguments-take-a-level``). ``asks`` is a non-empty
             list of that command's ``arguments``, none of them owner-run, before which a harness that
@@ -371,16 +374,16 @@ def _commands(check, value, ships):
             check.fail("commands", "command %s: 'describe' may not be owner-run" % name)
         if describes and "describe" not in arguments:
             check.fail("commands", "command %s: 'describes' needs 'describe' among its 'arguments'" % name)
-        offered, preview = _argument_levels(check, name, entry, arguments, owner)
+        offered, preview = _argument_levels(check, name, entry, arguments, owner, describes)
         asks = _asks(check, name, entry, arguments, owner)
-        mapped = _checkpoint_of(check, name, entry, offered)
+        mapped = _checkpoint_of(check, name, entry, offered, owner)
         review = _review_options(check, name, entry)
         commands.append(Command(name, helper, runtime, kit, tuple(arguments), tuple(owner), tuple(describes), offered,
                                 preview, asks, mapped, review))
     return tuple(commands)
 
 
-def _checkpoint_of(check, name, entry, offered):
+def _checkpoint_of(check, name, entry, offered, owner):
     """The ``checkpoint_of`` field of a command entry as ``((argument, checkpoint), ...)`` in the order written. Each key is an
     owner-run argument that offers a level (it is a key of `offered`), each value has the form of a checkpoint name, and no two
     arguments claim one name. Whether a process module declares the checkpoint cannot be known from one declaration, so only the
@@ -391,7 +394,7 @@ def _checkpoint_of(check, name, entry, offered):
     given = entry["checkpoint_of"]
     if not isinstance(given, dict):
         check.fail("commands", "command %s: 'checkpoint_of' must be an object of owner-run arguments" % name)
-    leveled = {argument for argument, _ in offered}
+    leveled = {argument for argument, _ in offered if argument in owner}
     mapped = []
     for argument, checkpoint in given.items():
         if argument not in leveled:
@@ -491,19 +494,29 @@ def _ask_reads(check, value):
     return tuple(value)
 
 
-def _argument_levels(check, name, entry, arguments, owner):
+def _argument_levels(check, name, entry, arguments, owner, describes=()):
     """``(levels, preview)`` of a command entry: the ``levels`` field as ``((argument, (level, ...)), ...)`` in the order
     written, and the ``preview`` argument or ``None``. Each key is an owner-run argument and each value a non-empty list of
     different levels from ``ARGUMENT_LEVELS``; ``ask`` needs a ``preview``, a declared argument that is neither owner-run
-    nor ``describe``, and a ``preview`` needs ``ask`` (``2026-10-27-owner-run-arguments-take-a-level``)."""
+    nor ``describe``, and a ``preview`` needs ``ask`` (``2026-10-27-owner-run-arguments-take-a-level``). An agent-run argument
+    that the command also `describes` (a declared argument, not ``describe``, not in ``asks``) may be named too, with exactly
+    ``["delegated"]``."""
     given = entry.get("levels", {})
     if not isinstance(given, dict):
         check.fail("commands", "command %s: 'levels' must be an object of owner-run arguments" % name)
+    asked = entry.get("asks")
+    asked = [item for item in asked if isinstance(item, str)] if isinstance(asked, list) else []
     offered = []
     for argument, wanted in given.items():
         if argument not in owner:
-            check.fail("commands", "command %s: 'levels' names %s, which is not one of its 'owner' arguments"
-                       % (name, _shown(argument)))
+            if argument in describes and argument in arguments and argument != "describe" and argument not in asked:
+                if wanted != ["delegated"]:
+                    check.fail("commands", "command %s: the levels of %s, an argument that the command describes, must be "
+                                           "[\"delegated\"], the only level an agent-run argument may name" % (name, _shown(argument)))
+                offered.append((argument, ("delegated",)))
+                continue
+            check.fail("commands", "command %s: 'levels' names %s, which is not one of its 'owner' arguments or an argument it "
+                                   "describes (and not 'describe' or one of its 'asks')" % (name, _shown(argument)))
         if not isinstance(wanted, list) or not wanted:
             check.fail("commands", "command %s: the levels of %s must be a non-empty list" % (name, _shown(argument)))
         for level in wanted:

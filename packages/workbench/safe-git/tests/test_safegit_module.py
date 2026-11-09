@@ -14,7 +14,7 @@ import tempfile
 import unittest
 
 from tests import support_install
-from workbench import commands, declarations, firstparty, harnessplan, neutral, pins, verify
+from workbench import commands, declarations, firstparty, harnessplan, levels, neutral, pins, verify
 from workbench.wbkit import project
 
 import support_git
@@ -98,6 +98,21 @@ class Declaration(unittest.TestCase):
         declared = [c for m in loaded.modules if m.name == "safe-git" for c in m.commands][0]
         self.assertEqual(("remove", "commit", "push"), declared.describes)
         self.assertEqual((), declared.owner)
+
+    def test_commit_offers_delegated_and_nothing_else_does(self):
+        """Plan `2026-11-08-action-review-cutover-for-commit`, increment B: the commit is an action the module describes, so its key
+        may be set to `delegated`; the removal stays at `block` and `none`, and so does every other argument."""
+        with open(os.path.join(MODULE, "module.json"), encoding="utf-8") as handle:
+            command = json.load(handle)["commands"]["safe-git"]
+        self.assertEqual({"commit": ["delegated"]}, command["levels"])
+        loaded = declarations.load_package(PACKAGE, first_party=True)
+        declared = [c for m in loaded.modules if m.name == "safe-git" for c in m.commands][0]
+        self.assertEqual((("commit", ("delegated",)),), declared.levels)
+        keys = levels.registry(commands=[levels.command_entry(declared)])
+        self.assertEqual((levels.BLOCK, levels.DELEGATED, levels.NONE), keys["wb run safe-git commit"].offers)
+        self.assertEqual(levels.NONE, keys["wb run safe-git commit"].default)
+        for argument in ("remove", "push-check", "describe"):
+            self.assertEqual((levels.BLOCK, levels.NONE), keys["wb run safe-git %s" % argument].offers, argument)
 
     def test_every_file_is_the_declaration_the_helper_or_the_skill(self):
         found = []

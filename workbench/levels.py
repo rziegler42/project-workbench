@@ -29,7 +29,9 @@ the other owner-run installer commands, ``accept-decision`` and the second ackno
 offers ``ask`` unless an installed command's declaration gives its owner-run argument ``levels``
 (``declarations.ARGUMENT_LEVELS``) and ``checkpoint_of`` maps that argument to a checkpoint (then the checkpoint offers the
 levels the argument does; ``checkpoint_commands``). An agent-safe key and a declared argument that is not owner-run offer
-``none`` and default to it; every other default is ``block``. ``_DEFAULTS`` is empty and exists so that a test can patch a
+``none`` and default to it, and a declared argument that the command also describes offers ``delegated`` between ``block`` and
+``none`` when the declaration lists it (``declarations`` allows that level for such an argument and no other; the default stays
+``none``); every other default is ``block``. ``_DEFAULTS`` is empty and exists so that a test can patch a
 default: the shipped default of ``approve-plan`` becomes ``ask`` only after the probe the decision
 ``2026-10-26-ask-level-spelling-limit`` requires is recorded.
 """
@@ -204,7 +206,7 @@ def _build(name, kind, agent, declared, arguments, carried):
     arguments (``_arguments``); `carried` the key of the command that carries a checkpoint out, by checkpoint."""
     spec = INSTALLER_KEYS.get(name)
     if agent:
-        offers, default = (BLOCK,) + _AGENT_OFFERS, NONE
+        offers, default = (BLOCK,) + ((DELEGATED,) if DELEGATED in declared else ()) + _AGENT_OFFERS, NONE
     else:
         fixed = _OFFERS.get(name, ())
         extra = tuple(level for level in (ASK, NONE) if level in declared and level not in fixed)
@@ -300,9 +302,13 @@ def registry(checkpoints=(), commands=(), agent=True):
         declared.extend(("wb run %s %s" % (command, argument), ARGUMENT, False) for argument in owner
                         if "wb run %s %s" % (command, argument) not in own)
         for argument, wanted in (entry[3] if len(entry) > 3 else ()):
+            key = "wb run %s %s" % (command, argument)
             if argument in owner:
-                key = "wb run %s %s" % (command, argument)
                 declared_offers[own.get(key, key)] = tuple(wanted)
+            elif argument in arguments and isinstance(wanted, (list, tuple)) and DELEGATED in tuple(wanted):
+                # An agent-run argument that a declaration lists with ``delegated`` (``declarations`` allows it only for an
+                # argument the command describes); nothing else a hand-built entry names for it is read.
+                declared_offers[key] = (DELEGATED,)
         if agent:
             declared.extend(("wb run %s %s" % (command, argument), ARGUMENT, True) for argument in arguments
                             if argument not in owner)
