@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R3-F1",
+      "location": "docs/specs/graphify.md:57,71,118,127",
+      "problem": "The foreign-layer check only makes a graph foreign when a node has a non-`ast` origin, although the spec says edges also carry provenance. A graph containing non-structural edges but only structural nodes could therefore be queried as structural and mix semantic relationships into answers.",
+      "severity": "major",
+      "suggestion": "Define foreign detection over both nodes and edges, and add acceptance coverage for a non-structural edge with otherwise structural nodes."
+    },
+    {
+      "id": "R3-F2",
+      "location": "docs/specs/graphify.md:58,68,118",
+      "problem": "Freshness depends on the helper's bounded walk and the vendor manifest applying `.graphifyignore` and `.gitignore` with the same semantics, but the spec only says these are read as “simple patterns” and leaves the grammar, anchoring, recursion, negation, precedence, and error behavior undefined. Different interpretations can make a graph appear current while source files are omitted from the helper's inventory.",
+      "severity": "major",
+      "suggestion": "Specify the exact pattern grammar and evaluation rules, or avoid reimplementing them by deriving the inventory from a bounded, validated vendor manifest plus an independently defined check that detects files excluded by the helper but indexed by the vendor."
+    }
+  ],
+  "format": 1,
+  "round": 3,
+  "summary": "Two remaining major specification gaps affect structural-layer isolation and the correctness of freshness detection.",
+  "verdict": "changes_needed"
+}

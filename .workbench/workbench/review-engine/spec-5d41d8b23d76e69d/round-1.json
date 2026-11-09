@@ -1,0 +1,43 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "docs/specs/graphify.md:19-20,44,113,116",
+      "problem": "The proposed graph is written outside the project, but the governing module contract requires all module writes to stay inside the project and forbids `writes` paths outside it. The spec also leaves the owner’s choice of storage location open while its acceptance criteria hard-code the external path.",
+      "severity": "major",
+      "suggestion": "Resolve the storage decision before approval, then reconcile it with the module contract by defining an approved mechanism for external runtime data or choosing an allowed project-local location; make the declaration and acceptance criteria consistent."
+    },
+    {
+      "id": "R1-F2",
+      "location": "docs/specs/graphify.md:19,113,118",
+      "problem": "The declaration claims fills for a `.gitignore` entry and a seeded `.graphifyignore`, but the referenced module contract defines `fills` as slot/source pairs and the current specifications define no `.gitignore` slot. As written, the declaration cannot pass the stated verifier contract.",
+      "severity": "major",
+      "suggestion": "Define and approve explicit slots or describe these as declared `writes` with valid source files and ownership semantics; specify how seeding and non-overwriting are implemented within the repository boundary."
+    },
+    {
+      "id": "R1-F3",
+      "location": "docs/specs/graphify.md:62-70,114",
+      "problem": "`status` is required to report the vendor program’s version while also being defined as making no program run and reading only the graph, manifest, and git refs. The behavior for a missing graph or manifest is therefore undefined, so the promised version line cannot reliably be produced.",
+      "severity": "minor",
+      "suggestion": "Specify the authoritative source and fallback for the version (for example, a validated manifest version or an explicit `unknown`), and align the status behavior and tests with that rule."
+    },
+    {
+      "id": "R1-F4",
+      "location": "docs/specs/graphify.md:64-66,114",
+      "problem": "Freshness only checks the current commit and files already indexed by the graph. Adding an untracked source file, or changing the set of source files without modifying an indexed file, can leave `state: current` even though the graph cannot represent the current project.",
+      "severity": "major",
+      "suggestion": "Define freshness over the complete source-file inventory, including untracked and deleted files, or report a separate incomplete/unknown state whenever the project inventory differs from the graph manifest; add tests for new and deleted source files."
+    },
+    {
+      "id": "R1-F5",
+      "location": "docs/specs/graphify.md:18,42,76,116",
+      "problem": "The vendor executable is selected from `PATH` and is only checked against a version floor. An agent or project environment can cause a different executable named `graphify` to run with the helper’s privileges, contrary to the claim that the vendor is the owner’s trusted installed tool.",
+      "severity": "major",
+      "suggestion": "Resolve the executable from an owner-controlled absolute location or verify its trusted identity/hash before use; define how PATH is sanitized and test that an injected executable is refused."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The draft has contract-level inconsistencies around external writes and fills, plus gaps in freshness and executable trust that must be resolved before implementation can rely on it.",
+  "verdict": "changes_needed"
+}

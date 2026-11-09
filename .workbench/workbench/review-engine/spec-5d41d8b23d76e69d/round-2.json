@@ -1,0 +1,29 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "docs/specs/graphify.md:64-72,145-146",
+      "problem": "`status` reads the vendor-generated manifest and uses it for freshness, but the validation requirements only cover `graph.json`. A malformed, oversized, or otherwise hostile manifest can make status fail or consume unbounded resources.",
+      "severity": "major",
+      "suggestion": "Specify bounded parsing and schema validation for `manifest.json`, with malformed or oversized manifests producing `unreadable` and no unchecked fields influencing paths, counts, or freshness."
+    },
+    {
+      "id": "R2-F2",
+      "location": "docs/specs/graphify.md:55-56,70,79,145-146",
+      "problem": "The spec does not define what `update` does when an existing graph contains semantic/non-structural nodes, and does not say whether queries include or exclude those nodes. The module claims to provide a structural graph while explicitly acknowledging such layers, so stale semantic data could affect answers despite not affecting freshness.",
+      "severity": "major",
+      "suggestion": "Define and test one behavior: either remove/replace non-structural nodes during update, or explicitly filter them from every query and report that filtering in status/output."
+    },
+    {
+      "id": "R2-F3",
+      "location": "docs/specs/graphify.md:42,72,79,117,123,134",
+      "problem": "The owner decision says versions below 0.9.103 are refused, but the command behavior only specifies a warning below the floor; no command states where or how the refusal occurs. A below-floor executable could therefore run despite the compatibility guarantee.",
+      "severity": "major",
+      "suggestion": "Make update and any other vendor invocation refuse before execution when the resolved version is below the floor, and add an acceptance test covering the refusal and its diagnostic."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "The revision resolves the prior findings, but manifest validation, semantic-layer handling during updates and queries, and enforcement of the declared version floor remain underspecified or contradictory.",
+  "verdict": "changes_needed"
+}

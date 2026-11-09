@@ -1,0 +1,29 @@
+{
+  "findings": [
+    {
+      "id": "R4-F1",
+      "location": "docs/specs/graphify.md:63,76,80,119",
+      "problem": "The output cap is specified for the update subprocess, but not for query, path, explain, affected, or god-nodes subprocess stdout/stderr. A vendor command that ignores the token budget or emits large diagnostics could exhaust memory or bypass the module's bounded-output guarantee.",
+      "severity": "major",
+      "suggestion": "Specify bounded capture for every vendor invocation, including separate stdout/stderr limits, timeout behavior, truncation markers, and the failure state when a limit is exceeded; add tests for oversized query output."
+    },
+    {
+      "id": "R4-F2",
+      "location": "docs/specs/graphify.md:68,118,128",
+      "problem": "`inventory.json` is read by status and is stored in the helper output directory, but unlike graph.json, manifest.json, and build state it has no explicit size cap, schema, duplicate-key handling, or malformed-input behavior. A corrupted or hostile inventory can therefore make status fail or consume unbounded resources.",
+      "severity": "major",
+      "suggestion": "Define inventory.json as untrusted input with an explicit size, depth, entry, and key/path schema cap, and specify that invalid data yields `unreadable` without opening or statting paths from it; add corresponding acceptance tests."
+    },
+    {
+      "id": "R4-F3",
+      "location": "docs/specs/graphify.md:57,71,118,127",
+      "problem": "The provenance format is internally inconsistent: line 57 describes `_origin` values as `EXTRACTED`, `INFERRED`, or `AMBIGUOUS`, while the foreign-layer rule treats `_origin == ast` as the structural value. It is not defined whether these are different fields, normalized values, or alternate spellings, so the central structural/foreign classification cannot be implemented unambiguously.",
+      "severity": "major",
+      "suggestion": "Specify the exact graph schema for node and edge provenance, including the structural value and handling of missing or unknown values, and align the behavior, tests, and acceptance criteria with that schema."
+    }
+  ],
+  "format": 1,
+  "round": 4,
+  "summary": "Three major specification gaps remain around subprocess output bounds, validation of the helper-owned inventory, and the provenance schema used to classify graphs.",
+  "verdict": "changes_needed"
+}
