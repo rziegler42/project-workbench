@@ -823,7 +823,9 @@ unlabelled and skipped counts of the report include them, and so does the "still
 blocks the cutover. `python3 -B report.py --fold-handles` counts them in the entry of their action instead, a removal handle never being a
 preview, and the line then says "folded into the counts above"; folding is the owner's choice, made on each run. The line is absent when
 the store holds no handle. A handle's paths are not printed. A handle is a collected row, so it removes its command from the "reviewed but not
-collectable" count.
+collectable" count. When the hook has answered `allow` the report adds three lines about those commands, after the unreadable lines
+(plan `2026-11-08-action-review-cutover-for-commit`, increment E; "The owner's runbook for the deciding hook"); an allowed command is counted
+as waiting like any collected row and in the labelled counts only once it is labelled.
 
 *As built (Increment E, `tools/label.py`).* `python3 -B label.py [--skipped]`, copied with `shadow_store.py` to a directory outside
 the project, runs only when standard input and output are both terminals (otherwise it prints one line to standard error and exits
@@ -1079,6 +1081,69 @@ made do not change, and the report classifies a command by its `confirm` fact. T
 What the hook does with a preview at cutover is decided in the plan for the hook, not here. Built in plan
 `2026-11-05-shadow-report-counts-previews-apart`, increment A: the report classifies a removal as a preview by the `confirm` fact
 of its collected row, and a fact that is missing or not a boolean leaves the removal counted with the confirmed ones.
+
+### The owner's runbook for the deciding hook (increment E of the plan `2026-11-08-action-review-cutover-for-commit`)
+
+The hook answers `allow` only where the key `wb run safe-git commit` reads `delegated` in the owner's table, and nothing is switched on
+until the owner sets it. These are the owner's steps; the agent does none of them.
+
+**What the report adds.** When at least one verdict row says `answer: allow`, three lines follow the line of unreadable lines (and none
+when no row does): `hook allowed: N (commit N)`; `hook allowed by day: <day> N, ...`, oldest day first; and `hook allowed, to sample
+(newest first): <id>, ...; unlabelled U; with no collected row C`, which lists the ids of the collected rows of those commands (at most
+ten, then "and N more"). The ids are matched through the command's hash, so a command reviewed more than once offers every collected row
+of that hash, so a row from a review before the allow may be among them. An allowed command is not a labelled one: its collected row is
+counted as waiting like any other, and it enters the labelled counts, the rate and the minimum of ten only when the owner labels it. A verdict row whose
+`answer` is anything but `allow`, or is on a row that is not a reviewed approve, is an unreadable line and never an allow.
+
+**What the cutover line means once the hook can decide.** "The bound is met on the labels and the test set; the cutover is the owner's
+decision" is a reading of the past: among the commands the owner labelled, no false approve and at most 10% false declines, with at least
+ten labelled commits and ten labelled removals, and none of the 29 test cases approved wrongly in any run. It does not say that the hook is
+on (only the key does), that the commands the hook allows will be right (only the owner's labels of them say so, and the report's allowed
+lines say how many are still unlabelled), or that the commands that nobody labelled were. After the key is set, the same line is read again
+as labels of allowed commands come in: a false approve among them blocks the cutover line as any other, and the owner turns the key back.
+
+**Turn it on.**
+1. Run `python3 -B report.py` and read the cutover line. If it does not say the bound is met, stop.
+2. Copy `hook/shadow_hook.py`, `hook/shadow_store.py` (from the installed module) and `tools/report.py` (from a checkout at the approved
+   commit) to your directory together, as for the shadow. An older store reads a row with an `answer` as unreadable. The registered entry
+   is unchanged. Until the copy, the hook answers nothing.
+3. In the personal settings (`~/.config/project-workbench/settings`, version 2, 3 or 4; a new file is seeded at 3) add `"levels": {"wb run safe-git commit":
+   "delegated"}` to the object `levels`. **The table is the account's, not a project's:** every project of the account in which the module
+   `safe-git` is installed reads the key as `delegated`, and a project in which it is not installed has no such key and gets no answer.
+4. Run `wb rerender` in each attached clone that has `safe-git`, then `wb settings` and `wb doctor`: the first must print
+   `level wb run safe-git commit: delegated`, and the second says that the bridge's approval depends on a hook it cannot see.
+5. Make one commit through the helper (`describe`, then `commit` with the digest). The prompt that the harness raises is answered by the
+   hook, or shown to you when the hook answers nothing; either way the verdict row is in the store.
+
+**See what it allowed.** Run the report: the three lines. To label what was allowed, run `python3 -B label.py`. **It cannot pick them
+out:** it walks every unlabelled collected row, oldest first, shows the time, the rule and the command and no id, and has no filter, so
+the allowed commands are at the end of the queue, behind every older unlabelled command (110 at the first reading of the bound), and the
+owner matches them by time. The ids in the report say how many allowed commands are still unlabelled and which collected rows they are;
+they cannot be typed into the tool. A tool that shows the id, or labels only the allowed ones, is a change that this plan does not make.
+A command that is labelled `wrong` after it was allowed is a false approve and closes the cutover line.
+
+**Turn it off.** Set the key back (remove the entry from `levels`, or give it `none` or `block`) and run `wb rerender`. The hook reads
+`wb settings` at each prompt, so the next prompt is not answered; nothing else needs to change. To stop the hook running at all, remove
+its entry from your user-level harness settings.
+
+**What the bound does not cover.**
+- *The coverage gap.* The engine has rules for `commit` and `remove` only. Of 687 prompts at the first reading of the bound, 355 were
+  never reviewed (no rule 142, unreviewable 202, refused 9, timeout 2); a pushed branch, a remote job and every other action keep the
+  owner's prompt. `remove` is not offered `delegated`.
+- *The thin sample.* Ten labelled commits are a floor and not a proof. 10% false declines is provisional, and a false approve that is rare
+  can be missed by a sample this size. The labels are one person's, and the 29 test cases are the author's, reviewed by the owner.
+  The labels were given before the commit command carried `--state-digest`, so the engine's decisions on the shape the hook sees are
+  largely unlabelled (inferred from the dates, not read from the store).
+- *The previews.* Unconfirmed removals are outside the measure by the decision of 2026-11-05, and `remove` is not delegated.
+- *The reviewer reads what the commit holds.* The digest binds the bytes that were reviewed and not what they mean: a file that steers
+  the model that reviews it (the rubric has a check against text addressed to the reviewer) can win an approve, and under `delegated`
+  that approve is no longer shown to the owner. The security review of increment D rated this a hunch, untested.
+- *The digest's own blind spots.* A gitlink staged by a writer of the index can be absent from the listing the repeated check reads
+  (`safe-git.md`, the digest paragraph), and the milliseconds between the last comparison and git's index lock are not closed.
+- *Reviewed but not collectable.* 73 reviewed commands at the first reading could not be collected for labelling, so whether their
+  declines were right is not measured.
+- *The hook itself.* It has been tested on copies with a fake `wb`; it has not run against Claude Code and a real bridge until the
+  owner's trial (increment F). Its time budget can pass the harness's 30 seconds, which only loses an allow.
 
 ### What moves, and what does not
 

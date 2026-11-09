@@ -180,8 +180,10 @@ plans `2026-11-03-delegated-levels-and-risk-profiles` and `2026-11-08-action-rev
 the second plan: the declaration (`verify` lifts its refusal for an agent-run argument that the command `describes`, with `delegated`
 and no other level) and the offer of the key (`wb run safe-git commit` offers `block`, `delegated` and `none`; `remove` and every other
 argument do not), and by increment C: what the level renders (an `ask`, like `ask`), how it reads (`delegated` only while the
-rendering record agrees, `block` otherwise) and the `wb doctor` note. Not built: the hook that decides (increment D) and what shows
-what it allowed (increment E); the other lines of this paragraph describe that work. The decision is:
+rendering record agrees, `block` otherwise) and the `wb doctor` note; by increment D, the hook that decides (`action-review.md`, "The
+enforcement point"), which reads the level from `wb settings` and not from the record; by increment E, the lines of the report that show what
+it allowed and the owner's runbook (`action-review.md`, "The owner's runbook for the deciding hook"). Not built: the owner's trial
+(increment F); the other lines of this paragraph describe the decision. The decision is:
 
 - `delegated` for an action key offers what `ask` offers: the same read-only preview, the same digest, the same check of that
   digest inside the command's own lock. It changes only who may confirm: the owner at the prompt, or a bridge (`ask-codex`,

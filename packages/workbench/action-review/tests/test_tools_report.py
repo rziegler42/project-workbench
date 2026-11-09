@@ -889,6 +889,206 @@ class Handles(Base):
         self.assertIn("waiting 1, skipped 1", handles)
 
 
+class Allowed(Base):
+    """Plan `2026-11-08-action-review-cutover-for-commit`, increment E: what the hook allowed. A verdict row whose field `answer` is
+    `allow` is a command the hook answered. The report counts them by action and by day and gives the ids of their collected rows to
+    sample; it prints nothing new when no row records an allow; an allowed command is not a labelled one."""
+    COUNT = "hook allowed: "
+    DAYS = "hook allowed by day: "
+    SAMPLE = "hook allowed, to sample (newest first): "
+
+    def allow(self, number, rule="safe-git-commit", day="2026-11-10", collect=True, label=None, with_rule=True):
+        """One command the hook allowed: a reviewed approve whose verdict row says `allow`, with its own command hash, and (unless
+        `collect` is false) its collected row. Returns the id of the collected row, or None."""
+        digest = "%064x" % (1000 + number)
+        row = {"ts": day + "T01:02:03Z", "command_sha256": digest, "outcome": "reviewed", "verdict": "approve", "failed_checks": [],
+               "reason": MARK, "reviewed": True, "no_review_reason": None, "answer": "allow"}
+        if with_rule:
+            row["rule"] = rule
+        self.store.append("verdicts.jsonl", row, self.home)
+        if not collect:
+            return None
+        self.count += 1
+        ident = "%032x" % (5000 + self.count)
+        self.store.append("collected.jsonl", {
+            "id": ident, "ts": day + "T01:02:03Z", "rule": rule, "command_sha256": digest, "command": "wb run " + MARK,
+            "facts": {"diff": MARK, "facts": {"subject": MARK}}, "verdict": "approve", "failed_checks": [], "reason": MARK},
+            self.home)
+        if label:
+            self.label(ident, label)
+        return ident
+
+    def lines_with(self, out, start):
+        return [line for line in out.splitlines() if line.startswith(start)]
+
+    def test_no_allowed_row_prints_no_line_about_the_hook(self):
+        self.labelled("safe-git-commit", 4)
+        self.verdict_row("reviewed", "approve")
+        self.assertNotIn("hook allowed", self.text())
+
+    def test_the_allowed_commands_are_counted_by_action(self):
+        for number in range(3):
+            self.allow(number)
+        self.allow(10, rule="safe-git-remove")
+        self.assertEqual(self.COUNT + "4 (commit 3, remove 1)", self.line(self.text(), self.COUNT))
+
+    def test_the_actions_are_ranked_by_count_then_name(self):
+        self.allow(1, rule="safe-git-remove")
+        self.allow(2, rule="safe-git-commit")
+        self.assertEqual(self.COUNT + "2 (commit 1, remove 1)", self.line(self.text(), self.COUNT))
+
+    def test_the_allowed_commands_are_counted_by_day_oldest_first(self):
+        for number, day in enumerate(("2026-11-11", "2026-11-10", "2026-11-11", "2026-11-12", "2026-11-11")):
+            self.allow(number, day=day)
+        self.assertEqual(self.DAYS + "2026-11-10 1, 2026-11-11 3, 2026-11-12 1", self.line(self.text(), self.DAYS))
+
+    def test_the_ids_to_sample_are_those_of_the_collected_rows_newest_first(self):
+        first, second, third = (self.allow(number) for number in range(3))
+        sample = self.line(self.text(), self.SAMPLE)
+        self.assertEqual(self.SAMPLE + ", ".join([third, second, first]) + "; unlabelled 3; with no collected row 0", sample)
+
+    def test_at_most_ten_ids_are_listed_and_the_rest_are_counted(self):
+        ids = [self.allow(number) for number in range(13)]
+        sample = self.line(self.text(), self.SAMPLE)
+        self.assertEqual(10, sum(1 for ident in ids if ident in sample))
+        for ident in ids[3:]:
+            self.assertIn(ident, sample)
+        for ident in ids[:3]:
+            self.assertNotIn(ident, sample)
+        self.assertIn("and 3 more", sample)
+
+    def test_an_allowed_command_is_not_a_labelled_one(self):
+        for number in range(5):
+            self.allow(number)
+        out = self.text()
+        self.assertIn("commit: labelled 0 ", out)
+        self.assertIn("not enough labels", self.line(out, "cutover:"))
+
+    def test_an_allowed_command_the_owner_labelled_is_labelled_as_any_other_and_is_no_longer_unlabelled(self):
+        self.allow(1, label="right")
+        self.allow(2)
+        out = self.text()
+        self.assertIn("commit: labelled 1 (right 1, wrong 0)", out)
+        self.assertIn("; unlabelled 1;", self.line(out, self.SAMPLE))
+
+    def test_a_skipped_allowed_command_is_not_unlabelled(self):
+        self.allow(1, label="skip")
+        self.assertIn("; unlabelled 0;", self.line(self.text(), self.SAMPLE))
+
+    def test_an_allowed_command_with_no_collected_row_is_counted_and_said_so(self):
+        self.allow(1)
+        self.allow(2, collect=False)
+        out = self.text()
+        self.assertEqual(self.COUNT + "2 (commit 2)", self.line(out, self.COUNT))
+        self.assertTrue(self.line(out, self.SAMPLE).endswith("; with no collected row 1"))
+
+    def test_a_command_allowed_twice_is_counted_twice_and_its_row_is_listed_once(self):
+        ident = self.allow(1)
+        row = {"ts": "2026-11-11T01:02:03Z", "command_sha256": "%064x" % 1001, "outcome": "reviewed", "verdict": "approve",
+               "failed_checks": [], "reason": MARK, "reviewed": True, "no_review_reason": None, "answer": "allow",
+               "rule": "safe-git-commit"}
+        self.store.append("verdicts.jsonl", row, self.home)
+        out = self.text()
+        self.assertEqual(self.COUNT + "2 (commit 2)", self.line(out, self.COUNT))
+        self.assertEqual(1, self.line(out, self.SAMPLE).count(ident))
+
+    def test_a_verdict_row_without_a_rule_takes_its_action_from_the_collected_row_and_else_is_unknown(self):
+        self.allow(1, rule="safe-git-remove", with_rule=False)
+        self.allow(2, collect=False, with_rule=False)
+        self.assertEqual(self.COUNT + "2 (remove 1, unknown 1)", self.line(self.text(), self.COUNT))
+
+    def test_a_row_that_was_not_an_allow_is_never_counted_as_one(self):
+        self.labelled("safe-git-commit", 2)
+        self.verdict_row("reviewed", "approve")
+        self.verdict_row("reviewed", "decline", ["head_matches"], digest="b" * 64)
+        self.verdict_row("timeout")
+        self.assertNotIn("hook allowed", self.text())
+
+    def test_a_malformed_answer_is_an_unreadable_line_and_never_an_allow(self):
+        self.allow(1)
+        directory = self.store.data_dir(self.home)
+        good = {"ts": "2026-11-10T01:02:03Z", "command_sha256": "%064x" % 7, "outcome": "reviewed", "verdict": "approve",
+                "failed_checks": [], "reason": None, "reviewed": True, "no_review_reason": None}
+        bad_rows = [dict(good, answer="deny"), dict(good, answer=True), dict(good, answer=["allow"]), dict(good, answer="ALLOW"),
+                    dict(good, answer="allow", verdict="decline", failed_checks=["head_matches"]),
+                    dict(good, answer="allow", outcome="timeout", reviewed=False, verdict=None, no_review_reason="timeout")]
+        with open(os.path.join(directory, "verdicts.jsonl"), "ab") as handle:
+            for row in bad_rows:
+                handle.write((json.dumps(row) + "\n").encode("ascii"))
+        out = self.text()
+        self.assertEqual(self.COUNT + "1 (commit 1)", self.line(out, self.COUNT))
+        self.assertIn("verdicts %d" % len(bad_rows), self.line(out, "unreadable lines:"))
+
+    def test_the_function_itself_counts_only_the_answer_allow(self):
+        """The store already refuses any other answer; the function does not rely on it."""
+        good = {"ts": "2026-11-10T01:02:03Z", "command_sha256": "%064x" % 7, "outcome": "reviewed", "verdict": "approve",
+                "failed_checks": [], "reason": None, "reviewed": True, "no_review_reason": None}
+        for answer in ("deny", True, 1, "ALLOW", ["allow"]):
+            self.assertEqual([], self.report.allowed_lines([dict(good, answer=answer)], [], []), answer)
+        self.assertEqual(3, len(self.report.allowed_lines([dict(good, answer="allow")], [], [])))
+
+    def test_only_the_collected_rows_of_the_allowed_commands_are_sampled(self):
+        wanted = self.allow(1)
+        self.command("safe-git-commit", "approve", (), None)  # collected under the shared test hash, never allowed
+        self.command("safe-git-remove", "decline", ["head_matches"], "wrong")
+        sample = self.line(self.text(), self.SAMPLE)
+        self.assertEqual(self.SAMPLE + wanted + "; unlabelled 1; with no collected row 0", sample)
+
+    def test_a_collected_row_written_twice_is_listed_once(self):
+        ident = self.allow(1)
+        directory = self.store.data_dir(self.home)
+        with open(os.path.join(directory, "collected.jsonl"), "rb") as handle:
+            line = handle.read().splitlines()[-1]
+        with open(os.path.join(directory, "collected.jsonl"), "ab") as handle:
+            handle.write(line + b"\n")
+        sample = self.line(self.text(), self.SAMPLE)
+        self.assertEqual(1, sample.count(ident))
+        self.assertEqual(self.SAMPLE + ident + "; unlabelled 1; with no collected row 0", sample)
+
+    SIDE = ("hook allowed", "waiting:", "prompted:", "not reviewed:", "reviewed but not collectable", "  by failed check (a row", "cutover:")
+
+    def test_unlabelled_allowed_commands_move_no_labelled_count_and_only_the_waiting_ones(self):
+        """An allowed command is counted as waiting like any collected row, and as prompted and reviewed; nothing about the labels, the
+        rates, the test set or the met-or-not reading of the cutover line changes until the owner labels it."""
+        self.labelled("safe-git-commit", 10)
+        self.labelled("safe-git-remove", 10)
+        self.full_test_set()
+        before = self.text()
+        for number in range(4):
+            self.allow(number)
+        after = self.text()
+        keep = [line for line in after.splitlines() if not line.startswith(self.SIDE)]
+        self.assertEqual([line for line in before.splitlines() if not line.startswith(self.SIDE)], keep)
+        self.assertEqual(self.line(before, "cutover:"), self.line(after, "cutover:").split("; still waiting")[0])
+        self.assertIn("waiting: unlabelled 4,", self.line(after, "waiting:"))
+
+    def test_a_labelled_allowed_command_enters_the_labelled_counts_like_any_other(self):
+        self.labelled("safe-git-commit", 2)
+        before = self.line(self.text(), "commit:")
+        self.allow(1, label="right")
+        self.allow(2, label="wrong")
+        after = self.line(self.text(), "commit:")
+        self.assertIn("labelled 2 (right 2, wrong 0)", before)
+        self.assertIn("labelled 4 (right 3, wrong 1)", after)
+
+    def test_the_lines_print_no_hash_command_fact_reason_or_note_and_only_printable_ascii(self):
+        self.allow(1)
+        self.allow(2, collect=False)
+        out = self.text()
+        self.assertNotIn(MARK, out)
+        self.assertNotIn("wb run", out)
+        self.assertNotIn("%064x" % 1001, out)
+        for char in out:
+            self.assertTrue(char == "\n" or " " <= char <= "~", repr(char))
+
+    def test_the_lines_come_before_the_cutover_line_and_after_the_unreadable_line(self):
+        self.allow(1)
+        lines = self.text().splitlines()
+        positions = [next(at for at, line in enumerate(lines) if line.startswith(start))
+                     for start in ("unreadable lines:", self.COUNT, self.DAYS, self.SAMPLE, "cutover:")]
+        self.assertEqual(sorted(positions), positions)
+
+
 class Output(Base):
     def test_no_command_fact_reason_or_note_is_ever_printed(self):
         self.labelled("safe-git-commit", 6, wrong_declines=2, wrong_approves=1)

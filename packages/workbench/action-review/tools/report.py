@@ -28,6 +28,12 @@ paths and no text. The owner judges it from a path and a time, which is less tha
 counted on a line of their own, ``handles: apart from the counts above``, and are not in the rate, the minimum or the cutover line.
 ``python3 -B report.py --fold-handles`` counts them in the entry of their action instead, and the line then says ``folded into the
 counts above``. This is the other fact of a collected row that the report reads, and it prints none of the paths.
+
+A verdict row that says ``answer: allow`` is a command the hook answered (plan ``2026-11-08-action-review-cutover-for-commit``). When
+there is one, three lines follow the unreadable-lines line: how many, by action; how many by day; and the ids of the collected rows of
+those commands to sample, newest first (at most ten, then a count), with how many of them are still unlabelled and how many allowed
+commands have no collected row. With none, nothing is printed. An allowed command is not a labelled one: its collected row is counted as
+waiting like any other, and it enters the labelled counts only when the owner labels it.
 """
 
 import os
@@ -233,8 +239,51 @@ def handle_line(entry, fold):
         entry["labelled"] - entry["agreements"], entry["false_declines"], entry["false_approves"], entry["waiting"], entry["skipped"])
 
 
+SAMPLE_IDS = 10
+
+
+def allowed_lines(verdicts, collected, labels):
+    """The lines about the commands the hook answered `allow` (``docs/specs/action-review.md``, "The enforcement point"), or none when no
+    verdict row says so: how many, by action and by day, and the ids of their collected rows to sample, newest first, at most
+    `SAMPLE_IDS`. A verdict row says ``answer: allow`` only when the store accepted it as a reviewed approve, so a malformed field is
+    an unreadable line and never an allow. The action is the last word of the row's rule, else of the collected row with the same
+    command hash, else ``unknown``. The link to the collected rows is the hash of the command text, so a command reviewed more than
+    once offers every collected row of that hash. It reads no fact and prints no hash, command, reason or note. An allowed command is
+    not a labelled one: only the owner's labels count in the rest of the report."""
+    allows = [row for row in verdicts if row.get("answer") == "allow"]
+    if not allows:
+        return []
+    kept = {}
+    for row in collected:
+        kept[row["command_sha256"]] = kept.get(row["command_sha256"], []) + [row]
+    actions, days, without = {}, {}, 0
+    for row in allows:
+        rule = row.get("rule")
+        if not isinstance(rule, str) and row["command_sha256"] in kept:
+            rule = kept[row["command_sha256"]][-1]["rule"]
+        name = action_of(rule) if isinstance(rule, str) else "unknown"
+        actions[name] = actions.get(name, 0) + 1
+        days[row["ts"][:10]] = days.get(row["ts"][:10], 0) + 1
+        if row["command_sha256"] not in kept:
+            without += 1
+    wanted = {row["command_sha256"] for row in allows}
+    ids = []
+    for row in collected:
+        if row["command_sha256"] in wanted and row["id"] not in ids:
+            ids += [row["id"]]
+    ids.reverse()
+    latest = {row["id"]: row["label"] for row in labels}
+    unlabelled = sum(1 for ident in ids if latest.get(ident) is None)
+    shown = ", ".join(ids[:SAMPLE_IDS]) or "none"
+    if len(ids) > SAMPLE_IDS:
+        shown += " and %d more" % (len(ids) - SAMPLE_IDS)
+    return ["hook allowed: %d (%s)" % (len(allows), ranked(actions)),
+            "hook allowed by day: " + ", ".join("%s %d" % (day, days[day]) for day in sorted(days)),
+            "hook allowed, to sample (newest first): %s; unlabelled %d; with no collected row %d" % (shown, unlabelled, without)]
+
+
 def report(files, fold=False):
-    verdicts, collected, labels, tests = (files[name][0] for name in ("verdicts", "collected", "labels", "testset"))
+    verdicts, collected, labels, tests =(files[name][0] for name in ("verdicts", "collected", "labels", "testset"))
     actions, previews, handles, unlabelled, skipped, unknown = tally(collected, labels, fold)
     for name in REQUIRED_ACTIONS:
         actions.setdefault(name, new_entry())
@@ -290,6 +339,7 @@ def report(files, fold=False):
         lines += ["  by failed check (a row counts under each check it failed): " + ranked(not_collectable_by_check(gaps))]
     lines += ["unreadable lines: verdicts %d, collected %d, labels %d, testset %d" % tuple(
         files[name][1] for name in ("verdicts", "collected", "labels", "testset"))]
+    lines += allowed_lines(verdicts, collected, labels)
     reasons = []
     for action in REQUIRED_ACTIONS:
         entry = actions[action]
