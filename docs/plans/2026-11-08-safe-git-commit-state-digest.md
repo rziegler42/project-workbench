@@ -1,6 +1,6 @@
 # Bind an approval of a commit to the state it reviewed: a state digest for `safe-git commit`
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-08
 Candidate: workbench-v1#action-review-engine
 Specs: safe-git, action-review
