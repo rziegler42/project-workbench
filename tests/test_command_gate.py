@@ -438,7 +438,11 @@ class LiteralRunCommands(unittest.TestCase):
         # `wb run <command> <argument>` keys and approve-plan read their own words, as they did.
         key = "wb run vault init"
         self.assertIsNone(self.judge("wb run vault init x", keys=(key,)))
-        self.assertIsNotNone(self.judge("wb run vault init 'x'", keys=(key,)))
+        # Changed by plan 2026-11-09-command-gate-quoted-arguments-for-a-run-key, increment C (decision
+        # 2026-11-09-command-gate-lets-a-run-keys-own-call-carry-quoted-arguments): the key's own call with a single-quoted
+        # argument is now the exact form the ask rule matches; a double-quoted one is still not.
+        self.assertIsNone(self.judge("wb run vault init 'x'", keys=(key,)))
+        self.assertIsNotNone(self.judge('wb run vault init "x"', keys=(key,)))
         self.assertIsNotNone(self.judge("wb run helper commit --subject 'vault init'", keys=(key,)))
         # approve-plan is freed too (decision 4 of 2026-11-02-command-gate-reads-gaps-and-data-positions): see ApprovePlanRun.
         self.assertIsNone(self.judge("wb run x 'approve-plan'", keys=("approve-plan",)))
@@ -608,7 +612,11 @@ class ModuleArgumentIsData(unittest.TestCase):
         # `reset` is the first argument and the second key's own argument: not freed for that key, though freed for the first.
         command = "%s reset %s 'x'" % (self.RE, self.DOC)
         self.assertIsNone(self.judge(command, "extend"))
-        self.assertIsNotNone(self.judge(command, "extend", also=(self.key("reset"),)))
+        # Changed by plan 2026-11-09-command-gate-quoted-arguments-for-a-run-key, increment C: with a single-quoted last argument
+        # the call is now the exact form of the `reset` key too; a double-quoted one is not, and keeps the old result.
+        self.assertIsNone(self.judge(command, "extend", also=(self.key("reset"),)))
+        double = '%s reset %s "x"' % (self.RE, self.DOC)
+        self.assertIsNotNone(self.judge(double, "extend", also=(self.key("reset"),)))
         self.assertIsNone(self.judge("%s reset %s 4" % (self.RE, self.DOC), "extend", also=(self.key("reset"),)))
         self.assertIsNone(self.judge("%s preview reset %s" % (self.RE, self.DOC), "extend"))
         self.assertIsNone(self.judge("%s preview reset %s" % (self.RE, self.DOC), "reset", also=(self.key("extend"),)))
@@ -1176,6 +1184,143 @@ class AgentSafeCommandsTest(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertIsNone(command_gate.judge(command, ("wb pin",), STORE_BIN))
                 self.assertIsNone(command_gate.judge(command, (APPROVE,), STORE_BIN))
+
+
+class OwnCallOfARunKey(unittest.TestCase):
+    """Plan ``2026-11-09-command-gate-quoted-arguments-for-a-run-key``, increment C (decision
+    ``2026-11-09-command-gate-lets-a-run-keys-own-call-carry-quoted-arguments``). For a relaxed key ``wb run <command> <argument>``,
+    the key's own call is the exact form the ``ask`` rule matches when every argument after the key is a plain token or one
+    single-quoted string with no quote, newline or carriage return inside; every other form is judged as it was. Written before the
+    code."""
+
+    COMMIT = "wb run safe-git commit"
+    HEAD = "0123456789abcdef0123456789abcdef01234567"
+    FULL = ("%s --expected-head " + HEAD + " --state-digest " + "c" * 64 + " --subject 'Add the thing, with spaces' "
+            "--trailer 'Plan: stem#C' -- docs/plans/a.md")
+    OTHER = "wb run review-engine extend"
+
+    def judge(self, command, *also):
+        return command_gate.judge(command, (self.COMMIT,) + also, STORE_BIN)
+
+    def test_the_commit_that_was_refused_on_2026_11_09_passes(self):
+        self.assertIsNone(self.judge(self.FULL % self.COMMIT))
+        self.assertIsNone(self.judge(self.FULL % (STORE_BIN + " run safe-git commit")))
+
+    def test_plain_tokens_alone_still_pass_and_so_does_the_bare_key(self):
+        for command in ("wb run safe-git commit", "wb run safe-git commit --expected-head " + self.HEAD + " -- a.txt",
+                        "wb run safe-git commit --subject Add-it -- docs/plans/a.md"):
+            with self.subTest(command=command):
+                self.assertIsNone(self.judge(command))
+
+    def test_a_single_quoted_argument_may_hold_spaces_a_hash_and_other_characters_bash_reads_literally(self):
+        for text in ("A probe subject with spaces", "Plan: probe-stem#F", "", "a;b", "a && b", "a | b", "a > b", "a$b",
+                     "a`b`", "a(b)", "a*b", "a\\b", 'a"b', "approve-plan docs"):
+            with self.subTest(text=text):
+                self.assertIsNone(self.judge("wb run safe-git commit --subject '%s' -- a.txt" % text))
+
+    def test_a_quoted_argument_may_stand_before_a_plain_one_and_two_may_follow_each_other(self):
+        self.assertIsNone(self.judge("wb run safe-git commit 'a b' c 'd e' -- f"))
+
+    def test_a_double_quote_a_backslash_or_an_expansion_outside_quotes_is_refused(self):
+        for command in ('wb run safe-git commit --subject "Add it" -- a.txt',
+                        "wb run safe-git commit --subject Add" + BS + " it -- a.txt",
+                        "wb run safe-git commit --subject $X -- a.txt", "wb run safe-git commit --subject ${X} -- a.txt",
+                        "wb run safe-git commit --subject $(echo x) -- a.txt", "wb run safe-git commit --subject `echo x` -- a.txt",
+                        "wb run safe-git commit --subject $'a' -- a.txt", "wb run safe-git commit --subject a*b -- a.txt",
+                        "wb run safe-git commit --subject a?b -- a.txt", "wb run safe-git commit --subject {a,b} -- a.txt",
+                        "wb run safe-git commit --subject ~ -- a.txt"):
+            with self.subTest(command=command):
+                self.assertIsNotNone(self.judge(command))
+
+    def test_a_compound_command_or_a_redirection_is_refused(self):
+        for command in ("wb run safe-git commit --subject 'a' -- a.txt; wb check", "wb run safe-git commit --subject 'a' && ls",
+                        "wb run safe-git commit --subject 'a' || ls", "wb run safe-git commit --subject 'a' | cat",
+                        "wb run safe-git commit --subject 'a' > out", "wb run safe-git commit --subject 'a' 2>&1",
+                        "wb run safe-git commit --subject 'a' &", "cd x && wb run safe-git commit --subject 'a'",
+                        "echo 'x'; wb run safe-git commit --subject 'a'", "(wb run safe-git commit --subject 'a')"):
+            with self.subTest(command=command):
+                self.assertIsNotNone(self.judge(command))
+
+    def test_a_newline_a_carriage_return_or_an_unclosed_quote_is_refused(self):
+        for command in ("wb run safe-git commit --subject 'a\nb' -- a.txt", "wb run safe-git commit --subject 'a\rb' -- a.txt",
+                        "wb run safe-git commit --subject 'a' -- a.txt\n", "wb run safe-git commit --subject 'a' -- a.txt\nls",
+                        "wb run safe-git commit\n--subject 'a'", "wb run safe-git commit --subject 'a -- a.txt",
+                        "wb run safe-git commit --subject a' -- a.txt", "wb run safe-git commit --subject 'a''b' -- a.txt",
+                        "wb run safe-git commit --subject 'a' ", " wb run safe-git commit --subject 'a'",
+                        "wb run safe-git commit  --subject 'a'", "wb run safe-git commit --subject 'a\0b'"):
+            with self.subTest(command=command):
+                self.assertIsNotNone(self.judge(command))
+
+    def test_every_line_separator_python_knows_is_refused_inside_quotes_too(self):
+        """The review of increment C: the harness's own matcher may split on a character that bash reads literally in quotes, so the
+        margin of the newline is kept for each one `str.splitlines` splits on."""
+        for char in ("\x0b", "\x0c", "\x1c", "\x1d", "\x1e", "\x85", " ", " "):
+            with self.subTest(char=hex(ord(char))):
+                self.assertIsNotNone(self.judge("wb run safe-git commit --subject 'a%sb' -- a.txt" % char))
+
+    def test_a_quote_stuck_to_a_token_or_after_an_equals_sign_is_not_the_form(self):
+        for command in ("wb run safe-git commit --subject='a b' -- a.txt", "wb run safe-git commit --subject 'a b'x -- a.txt",
+                        "wb run safe-git commit --subject x'a b' -- a.txt", "wb run safe-git commit 'a b''c'"):
+            with self.subTest(command=command):
+                self.assertIsNotNone(self.judge(command))
+
+    def test_another_launcher_spelling_a_lookalike_or_the_provides_form_is_not_the_form(self):
+        for command in ("/usr/local/bin/wb run safe-git commit --subject 'a'", "./wb run safe-git commit --subject 'a'",
+                        "ｗb run safe-git commit --subject 'a'", "wb run --provides cap safe-git commit --subject 'a'",
+                        "python3 -m workbench run safe-git commit --subject 'a'", "env wb run safe-git commit --subject 'a'",
+                        "bash -c 'wb run safe-git commit --subject a'", "A=1 wb run safe-git commit --subject 'a'",
+                        "WB run safe-git commit --subject 'a'", "wb  run safe-git commit --subject 'a'",
+                        "wb run safe-git-x commit --subject 'a'"):
+            with self.subTest(command=command):
+                self.assertIsNotNone(self.judge(command))
+
+    def test_the_words_of_another_run_key_inside_a_quoted_argument_are_refused_before_and_after(self):
+        text = "wb run safe-git commit --subject 'say review-engine extend' -- a.txt"
+        self.assertIsNone(self.judge(text))  # that key is not relaxed
+        self.assertIsNotNone(self.judge(text, self.OTHER))  # it is: judged on its own, not freed by the commit key's form
+        self.assertIsNotNone(self.judge(text.replace("say ", ""), self.OTHER))
+
+    def test_the_words_of_approve_plan_inside_a_quoted_argument_pass_as_the_existing_exemption_gives(self):
+        text = "wb run safe-git commit --subject 'approve-plan docs' -- a.txt"
+        self.assertIsNone(self.judge(text))
+        self.assertIsNone(self.judge(text, APPROVE))
+
+    def test_the_words_of_a_single_word_key_inside_a_quoted_argument_pass_as_the_existing_exemption_gives(self):
+        self.assertIsNone(self.judge("wb run safe-git commit --subject 'install the thing' -- a.txt", "wb install"))
+
+    def test_the_form_of_a_key_that_is_not_a_run_key_is_unchanged(self):
+        self.assertIsNotNone(command_gate.judge("wb install 'x y'", ("wb install",), STORE_BIN))
+        self.assertIsNone(command_gate.judge("wb install --dir x", ("wb install",), STORE_BIN))
+        self.assertIsNotNone(command_gate.judge("wb approve-plan 'docs/plans/a.md'", (APPROVE,), STORE_BIN))
+
+    def test_the_own_call_of_a_key_with_a_different_command_is_not_freed_by_the_commit_keys_form(self):
+        self.assertIsNotNone(self.judge("wb run helper commit --subject 'safe-git commit'"))
+        self.assertIsNotNone(self.judge("wb run helper commit --subject 'safe-git commit'", "wb install"))
+
+    def test_the_other_rules_still_refuse_what_they_refused(self):
+        payload = {"cwd": "/tmp", "tool_name": "Bash", "tool_input": {"command": "wb run safe-git commit --subject 'a\0b'"}}
+        code, _ = run(payload, lambda cwd: ("Bash", "command", {self.COMMIT: "ask"}, STORE_BIN))
+        self.assertEqual(2, code)  # `run` refuses a NUL byte before any form is read
+        self.assertIsNotNone(self.judge("wb run safe-git comm\"\"it --subject 'a'"))
+        self.assertIsNotNone(self.judge("wb run safe-git comm${X}it --subject 'a'"))
+
+    def test_the_forms_are_the_run_form_with_the_own_argument_for_a_run_key_and_the_old_token_for_the_rest(self):
+        patterns = [form.pattern for form in command_gate.forms(self.COMMIT, STORE_BIN)]
+        self.assertEqual(2, len(patterns))
+        for pattern in patterns:
+            self.assertTrue(pattern.endswith("(?: %s)*" % command_gate._OWN_ARGUMENT), pattern)
+        self.assertEqual(["wb install(?: %s)*" % command_gate._TOKEN, "%s install(?: %s)*" % (
+            __import__("re").escape(STORE_BIN), command_gate._TOKEN)], [form.pattern for form in command_gate.forms("wb install", STORE_BIN)])
+
+    def test_the_own_argument_is_a_plain_token_or_a_single_quoted_string_with_no_newline_return_or_quote(self):
+        import re
+        own = re.compile(command_gate._OWN_ARGUMENT)
+        for word in ("a", "--", "docs/plans/a.md", "a@b,c+d", "'a b'", "''", "'a#b;c'", "'" + "x" * 2000 + "'"):
+            with self.subTest(word=word):
+                self.assertIsNotNone(own.fullmatch(word))
+        for word in ("", " ", "'a\nb'", "'a\rb'", "'a'b'", "a b", '"a"', "a\\b", "$a", "'a", "a'", "a\nb"):
+            with self.subTest(word=word):
+                self.assertIsNone(own.fullmatch(word))
 
 
 if __name__ == "__main__":

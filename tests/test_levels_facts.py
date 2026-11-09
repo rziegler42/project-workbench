@@ -281,7 +281,15 @@ def old_forms(key, store_bin):
         return []
     tail = " ".join(re.escape(word) for word in found)
     middle = " run " if key.startswith("wb run ") else " "
-    return ["%s%s%s(?: %s)*" % (head, middle, tail, command_gate._TOKEN) for head in heads]
+    # Changed by plan 2026-11-09-command-gate-quoted-arguments-for-a-run-key, increment C (decision
+    # 2026-11-09-command-gate-lets-a-run-keys-own-call-carry-quoted-arguments): the arguments after the words of a key
+    # `wb run <command> <argument>` are `_OWN_ARGUMENT` (a plain token or one single-quoted string), no longer `_TOKEN`; every
+    # other key keeps `_TOKEN`, which is what this frozen copy still pins for them.
+    # The text of the pattern is frozen here, not read from the gate: the security review of increment C found that reading
+    # `_OWN_ARGUMENT` made this comparison blind to a change of that regex. A later change of the pattern changes this copy too.
+    own = r"(?:[A-Za-z0-9._/:=@,+-]+|'[^'\n\r\0\x0b\x0c\x1c\x1d\x1e\x85\u2028\u2029]*')"
+    argument = own if key.startswith("wb run ") else command_gate._TOKEN
+    return ["%s%s%s(?: %s)*" % (head, middle, tail, argument) for head in heads]
 
 
 def old_reads_argument_as_data(text, key, store_bin):

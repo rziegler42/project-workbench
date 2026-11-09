@@ -13,7 +13,9 @@ is decided by the harness's classifier in auto mode. This gate reads one Bash to
 * allows a command that names no word of a relaxed command;
 * allows a command that is exactly the simple command the ``ask`` rule matches, on the raw text with single spaces and case
   kept (``wb approve-plan <path> [--digest <32 hex>]``, or the same through the guarded store's own ``bin/wb``), so the
-  harness then prompts the owner;
+  harness then prompts the owner; for a key ``wb run <command> <argument>`` that form is ``wb run <command> <argument>`` followed by
+  plain tokens or single-quoted strings (``_OWN_ARGUMENT``; decision
+  ``2026-11-09-command-gate-lets-a-run-keys-own-call-carry-quoted-arguments``);
 * reads a command that is exactly one quoted python here-document (``python_heredoc``: ``python3`` or ``python`` with only the flags
   ``-B``, ``-I``, ``-E`` and ``-u``, then ``-``, a quoted or escaped delimiter, a body and a terminator line that is exactly the tag and
   is the last line) for the words it holds, body included, and not for gaps: the gap rule, its free-region test and the parameter-operator
@@ -81,6 +83,14 @@ _TOKEN = r"[A-Za-z0-9._/:=-]+"
 _RUN_NAME = r"[A-Za-z0-9][A-Za-z0-9._+-]{0,63}"
 _RUN_PLAIN = r"[A-Za-z0-9._/:=@,+-]+"
 _RUN_ARGUMENT = r"(?:%s|'[^']*')" % _RUN_PLAIN
+# What may follow a module argument's own words in the exact form the ``ask`` rule matches (``forms`` of a key ``wb run <command>
+# <argument>``): a plain token, or one single-quoted string with no quote, newline or carriage return in it (decision
+# ``2026-11-09-command-gate-lets-a-run-keys-own-call-carry-quoted-arguments``; narrower than ``_RUN_ARGUMENT``, which allows a
+# newline in quotes, because the probe behind the decision did not cover one; a NUL byte is left out as well, which ``run`` refuses
+# before any form is looked at, and so is every other character that ``str.splitlines`` splits a line on (vertical tab, form feed,
+# the three separators ``\x1c`` to ``\x1e``, ``\x85``, U+2028 and U+2029), which bash reads literally in quotes but the harness's
+# own matcher may split on; the review of increment C asked for the same margin as for the newline).
+_OWN_ARGUMENT = r"(?:%s|'[^'\n\r\0\x0b\x0c\x1c\x1d\x1e\x85\u2028\u2029]*')" % _RUN_PLAIN
 # A name that is a launcher or a verb is never the module command of a literal call.
 RESERVED_NAMES = frozenset(rules.OWNER_RUN) | frozenset(rules.AGENT_SAFE) | frozenset(LAUNCHERS) | {"python", "python3"}
 _PATH = r"[A-Za-z0-9._/][A-Za-z0-9._/-]*"
@@ -219,7 +229,8 @@ def reads_as_data(text):
 
 def forms(key, store_bin):
     """The compiled patterns of the exact simple commands the ``ask`` rule of `key` matches, through ``wb`` and through the
-    guarded store's own ``bin/wb`` (`store_bin`)."""
+    guarded store's own ``bin/wb`` (`store_bin`). The arguments after the key's words are plain tokens (``_TOKEN``), and for a key
+    ``wb run <command> <argument>`` plain tokens or single-quoted strings (``_OWN_ARGUMENT``)."""
     heads = ["wb", re.escape(store_bin)]
     if key == "approve-plan":
         return [re.compile("%s approve-plan %s( --digest %s)?" % (head, _PATH, _DIGEST)) for head in heads]
@@ -228,7 +239,8 @@ def forms(key, store_bin):
         return []
     tail = " ".join(re.escape(word) for word in found)
     middle = " run " if _run_key(key) else " "
-    return [re.compile("%s%s%s(?: %s)*" % (head, middle, tail, _TOKEN)) for head in heads]
+    argument = _OWN_ARGUMENT if _run_key(key) else _TOKEN
+    return [re.compile("%s%s%s(?: %s)*" % (head, middle, tail, argument)) for head in heads]
 
 
 def _folded(text):

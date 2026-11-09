@@ -306,6 +306,14 @@ a relaxed command is allowed. The rules that judge a command, as built by Increm
    word only as data and is allowed (`grep -c 'approve-plan' docs/plans/a.md | head -1`).
 2. *The exact simple command* the `ask` rule matches, on the raw text with single spaces and case kept
    (`wb approve-plan <path> [--digest <32 hex>]`, or the same through the store's `bin/wb`), is allowed, and the harness then prompts.
+   For a key `wb run <command> <argument>` it is `wb run <command> <argument>` (or the same through the store's `bin/wb`) followed by
+   arguments that are each a plain token (`[A-Za-z0-9._/:=@,+-]+`) or one single-quoted string with no quote, newline, carriage return,
+   NUL byte or other line separator (vertical tab, form feed, `\x1c` to `\x1e`, `\x85`, U+2028, U+2029) in it (plan `2026-11-09-command-gate-quoted-arguments-for-a-run-key`, increment C; decision
+   `2026-11-09-command-gate-lets-a-run-keys-own-call-carry-quoted-arguments`). Before it the arguments were plain tokens of
+   `[A-Za-z0-9._/:=-]+`, with no space and no quote, so a commit with a subject could not pass while `wb run safe-git commit` stood at
+   `delegated`. The rendered rule is a prefix with a wildcard (`Bash(wb run safe-git commit *)`), which fires on such a call in default
+   mode and in auto mode (the probe of the plan's increment A). The change is per key: the words of another key of that shape inside a
+   quoted argument are still read for that key, and the exemptions for `approve-plan` and the single-word keys are as they were.
 3. *The names test.* Every other command that names the word is blocked, however it is written: after case and Unicode folding; after
    removing every character that is not a letter or a digit (so quote splicing, backslashes and punctuation do not hide it); after
    decoding each static `$'…'` string as bash decodes it, tried at every position; and after the values of the variables that the text
