@@ -231,7 +231,9 @@ the paths, and an approval of the command covers those; it does not cover what t
   (`blob <size>\0<bytes>`; nothing is written). `commit --state-digest <hex>` computes it from the index after `git add`
   (`git ls-files -s -z`), and from HEAD after the commit (`git ls-tree -r -z`).
 - **Where `commit` checks.** After staging and the check that the staged set is exactly the named paths, before the cached whitespace
-  check; and again at the last point before `git commit`. A difference is a refusal that unstages the named paths, as the other
+  check; and again at the last point before `git commit`, where the digest is compared a second time and, last of all, the staged set is
+  checked a second time (a refusal of that check reads "staging did not give exactly the named paths just before the commit" and names
+  the extra and the missing paths). A difference in the digest is a refusal that unstages the named paths, as the other
   refusals do; its code is `state_changed`, a code of `commit` only (`describe` compares nothing, so the table of `describe` codes
   has none), and the text the caller reads is "the staged state is not the one the state digest names", followed by "(checked after staging)" or
   "(checked just before the commit)" for the check that found it, and by what was undone. After the commit it compares the committed blobs with the digest, and a difference is reported with the commit and
@@ -249,15 +251,21 @@ the paths, and an approval of the command covers those; it does not cover what t
   git keeps a symlink's mode in the index for a path that the work tree holds as a regular file; and a SHA-256 repository under a git
   too old to answer `rev-parse --show-object-format`, which the helper takes for SHA-1.
 - **What it shows, and what it does not.** It shows that the state at the moment of the check is the state that `describe` described.
-  `commit` holds no lock of its own and relies on git's index lock, so the check is not atomic with the commit. Two windows remain for a
-  process with write access to `.git`, and the comparison after the commit is what shows either. (1) A named path changed in the index in
-  the milliseconds between the second comparison and the moment `git commit` takes its lock. (2) A path outside the named set staged after
-  the check that the index holds exactly the named paths, which runs once, before the first comparison: `git commit` takes the whole
-  index, the second comparison covers only the named paths, and the stretch is several git runs long (the head check, the cached
-  whitespace check, the second head check and the second comparison). The commit then exists and `commit` reports "nothing was
-  undone". (2) was found by the security review of this change (2026-11-08, tested on a copy; it is older than the digest and the
-  digest does not close it); the smallest correction is to repeat the set check in the second comparison, and the full one is a private
-  index file or a held lock. The digest is supplied by the caller. Without the option nothing changes, and the engine's
+  `commit` holds no lock of its own and relies on git's index lock, so the check is not atomic with the commit. One window remains for a
+  process with write access to `.git`: the milliseconds between the last two checks (the second comparison of the digest and the repeated
+  check of the staged set, below) and the moment `git commit` takes its lock. A named path changed in the index then, or another path staged
+  then, is committed, and the comparison after the commit reports it ("nothing was undone"). Until plan
+  `2026-11-08-safe-git-commit-repeat-staged-set-check` the check that the index holds exactly the named paths ran once, before the first
+  comparison, and the window for a path outside the named set was the whole stretch up to `git commit` (the cached whitespace check and
+  the second head check among it), because the digest covers only the named paths and `git commit` takes the whole index; the security
+  review of the digest found it (2026-11-08, tested on a copy). The check now also runs as the last check before `git commit`, with or
+  without a digest and with or without `--leave-other-staged`. The full correction, a private index file or a held lock, is not built.
+  Two limits of that check were found by the second look at it (2026-11-08, tested on copies). The listing it reads, `git diff --cached
+  --name-only`, honours `diff.ignoreSubmodules` and an `ignore = all` of a `.gitmodules` in the work tree, so a gitlink staged by a writer
+  of the index can be absent from it, and `git commit` still commits the gitlink; the old check and the report after the commit
+  (`git diff-tree`) have the same blindness, and the payload is a gitlink and not file content. And the repeated check runs after the
+  second digest comparison, so a named path restaged during its own git run is committed and, with a digest, reported afterwards: the
+  window is the length of the last git run and not shorter. The digest is supplied by the caller. Without the option nothing changes, and the engine's
   check treats an absent digest as a pass (`action-review.md`); what requires a digest is the hook that decides.
 - **Evidence of a real run.** Run on 2026-11-08 by the agent, increment D of the plan, through the installed launcher: `wb run safe-git`
   started in a scratch project (a new git repository holding a copy of this project's installed `.workbench` tree, the helper of which

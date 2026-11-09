@@ -299,9 +299,9 @@ made explicit for the cutover plan by that plan's increment E: a strict check, o
 approved commit cases (the control, and the model cases that reach the bridge) into declines, and would make every labelled commit
 that carried no digest and was approved a false decline. Removals and the cases that are refused before any verdict are not affected. The two facts are `given_state_digest`, the digest
 the command carried or null, and `state_digest`, the one `describe` computed or null; the digest itself is defined in `safe-git.md`
-("The state digest"). The windows that stay (`safe-git.md`, "The state digest"): `commit` compares after staging and again just before `git commit`, a
-change to a named path after the last comparison and before git takes its index lock is shown only by the comparison after the
-commit, and so is a path outside the named set that is staged after the one check that the index holds exactly the named paths. A hook
+("The state digest"). The window that stays (`safe-git.md`, "The state digest"): `commit` compares after staging and again just before `git commit`, and
+checks the staged set after staging and again last of all, so a change to a named path, or another path staged, after those last checks
+and before git takes its index lock is shown only by the comparison after the commit. A hook
 that reads the two facts must require both to be 64-character strings and equal: `state_digest` is null whenever no digest can be
 worked out, including when a writer of the work tree arranges it (a carriage return under a text attribute, a large file), and
 two nulls are equal. The `facts:` line is written

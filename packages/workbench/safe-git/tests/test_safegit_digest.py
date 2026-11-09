@@ -432,5 +432,108 @@ class StandIn(Digest):
         self.assertNotEqual(self.first, self.head())
 
 
+class ExtraStaged(Digest):
+    """Plan `2026-11-08-safe-git-commit-repeat-staged-set-check`, increment A: a path outside the named set that is staged after the
+    check that the index holds exactly the named paths. A `git` that stages `extra.txt` once, at a chosen moment of the stretch between
+    that check and `git commit`; `commit` repeats the check last, so the extra path is refused, not committed."""
+
+    def stand_in(self, position):
+        """`position` is where the extra path is staged: ``whitespace`` (just before the cached whitespace check), ``head`` (the first
+        `rev-parse` after it, the second head check), ``digest`` (the first `ls-files` after it, the second digest comparison) or
+        ``commit`` (just before `git commit` itself) or ``add`` (just before `git add`, so before the first check of the staged set)."""
+        directory = os.path.join(self.scratch, "standin")
+        os.makedirs(directory, exist_ok=True)
+        seen, fired = os.path.join(self.scratch, "seen-cached-check"), os.path.join(self.scratch, "extra-staged")
+        for marker in (seen, fired):      # each use starts with neither moment reached
+            if os.path.exists(marker):
+                os.remove(marker)
+        script = os.path.join(directory, "git")
+        stage = "printf 'extra\\n' > '%s/extra.txt'\n  '%s' add -- extra.txt" % (self.repo, REAL_GIT)
+        with open(script, "w") as handle:
+            handle.write("#!/bin/sh\n"
+                         "fire() {\n  if [ ! -f '%(fired)s' ]; then\n  : > '%(fired)s'\n  %(stage)s\n  fi\n}\n"
+                         "if [ \"$1\" = diff ] && [ \"$2\" = --cached ] && [ \"$3\" = --check ]; then\n"
+                         "  : > '%(seen)s'\n  [ '%(position)s' = whitespace ] && fire\nfi\n"
+                         "[ '%(position)s' = add ] && [ \"$1\" = add ] && fire\n"
+                         "if [ -f '%(seen)s' ]; then\n"
+                         "  [ '%(position)s' = head ] && [ \"$1\" = rev-parse ] && fire\n"
+                         "  [ '%(position)s' = digest ] && [ \"$1\" = ls-files ] && fire\n"
+                         "  [ '%(position)s' = commit ] && [ \"$1\" = commit ] && fire\n"
+                         "fi\n"
+                         "exec '%(real)s' \"$@\"\n" % dict(fired=fired, seen=seen, stage=stage, position=position, real=REAL_GIT))
+        os.chmod(script, 0o755)
+        self.fired = fired
+        return directory + os.pathsep + C.STANDARD
+
+    def assertRefusedAndNothingCommitted(self, result):
+        code, out, err = result
+        self.assertRefused(result, "just before the commit")
+        self.assertIn("extra: extra.txt", err)
+        self.assertIn("unstaged", err)
+        self.assertTrue(os.path.exists(self.fired), "the stand-in never staged the extra path")
+        self.assertEqual(self.first, self.head())
+        self.assertEqual("extra.txt\n", git(self.repo, "diff", "--cached", "--name-only").stdout)
+
+    def test_an_extra_path_staged_in_each_position_of_the_stretch_is_refused_with_a_digest(self):
+        for position in ("whitespace", "head", "digest"):
+            with self.subTest(position=position):
+                self.write("a.txt", "two\n")
+                args = self.argv("S", "a.txt")
+                digest = self.digest("a.txt")
+                path = self.stand_in(position)
+                self.assertRefusedAndNothingCommitted(self.commit(*self.with_digest(args, digest), path=path))
+                git(self.repo, "reset", "-q")
+                os.remove(os.path.join(self.repo, "extra.txt"))
+
+    def test_an_extra_path_is_refused_with_no_digest_too(self):
+        for position in ("whitespace", "head"):
+            with self.subTest(position=position):
+                self.write("a.txt", "two\n")
+                path = self.stand_in(position)
+                self.assertRefusedAndNothingCommitted(self.commit(*self.argv("S", "a.txt"), path=path))
+                git(self.repo, "reset", "-q")
+                os.remove(os.path.join(self.repo, "extra.txt"))
+
+    def test_it_is_refused_with_leave_other_staged_too_where_git_would_have_left_the_extra_path_out(self):
+        self.write("a.txt", "two\n")
+        self.write("other.txt", "o\n")
+        git(self.repo, "add", "other.txt")
+        path = self.stand_in("whitespace")
+        code, out, err = self.commit(*self.argv("S", "a.txt", leave=True), path=path)
+        self.assertRefused((code, out, err), "just before the commit")
+        self.assertIn("extra: extra.txt", err)
+        self.assertEqual(self.first, self.head())
+
+    def test_a_path_staged_at_the_commit_itself_is_the_window_that_stays_and_is_reported_after_the_fact(self):
+        self.write("a.txt", "two\n")
+        path = self.stand_in("commit")
+        code, out, err = self.commit(*self.argv("S", "a.txt"), path=path)
+        self.assertEqual((1, ""), (code, out), err)
+        self.assertIn("extra.txt", err)
+        self.assertIn("nothing was undone", err)
+        self.assertNotEqual(self.first, self.head())
+        self.assertIn("extra.txt", git(self.repo, "show", "--name-only", "--format=", "HEAD").stdout)
+
+    def test_an_extra_path_staged_before_the_first_check_is_still_refused_there_in_the_old_words(self):
+        for given in (True, False):
+            with self.subTest(digest=given):
+                self.write("a.txt", "two\n")
+                args = self.argv("S", "a.txt")
+                args = self.with_digest(args, self.digest("a.txt")) if given else args
+                path = self.stand_in("add")
+                code, out, err = self.commit(*args, path=path)
+                self.assertRefused((code, out, err), "staging did not give exactly the named paths (no change: none; extra: extra.txt)")
+                self.assertNotIn("just before the commit", err)
+                self.assertNotIn("state digest", err)
+                self.assertEqual(self.first, self.head())
+                git(self.repo, "reset", "-q")
+                os.remove(os.path.join(self.repo, "extra.txt"))
+
+    def test_a_commit_with_nothing_extra_is_not_refused_by_the_repeated_check(self):
+        self.write("a.txt", "two\n")
+        code, out, err = self.commit(*self.argv("S", "a.txt"))
+        self.assertEqual((0, ""), (code, err), out)
+
+
 if __name__ == "__main__":
     unittest.main()
