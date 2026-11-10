@@ -55,7 +55,10 @@ from an agent session.
 The first-party modules are in `packages/workbench/`. Among them, `claude` places the harness
 files, `groundwork` adds specs, roadmaps, decisions and references, `code-work` adds plans and
 the increment loop, `safe-git` makes local commits of exactly the named files, and `mempalace`
-lets an agent search the owner's memory but never write to it.
+lets an agent search the owner's memory but never write to it. `security-review` adds a
+security-review skill and a confined agent that runs the experiments, `remote-runner` adds
+guarded remote job profiles, and `freecad` and `verilog` add advice for scripting FreeCAD from
+Python and for Verilog verification with Verilator and SymbiYosys.
 
 ### Independent reviews
 
