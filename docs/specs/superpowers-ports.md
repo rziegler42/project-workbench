@@ -203,6 +203,10 @@ Runs, in the owner's words and as the owner pasted them:
   folder that is not a project would not have the workbench's skills, so `brainstorm` would not be there to load (an inference; the
   owner did not report the folder's contents). It is one prompt, and it is the cost the decision of the plan's Increment C weighs: with
   no workbench, nothing sends the agent to a skill. The owner did not report what the agent did instead.
+- **2026-11-10, the owner's decision on the gap.** The owner chose not to force `brainstorm` for a request for new behaviour ("go
+  with recommendation", on the recommendation to accept the gap and add no rule to the policy block). The gap stands as accepted: in
+  an attached project the policy text routes new work to a plan first, and `brainstorm` loads when the request is about design. No
+  skill or policy block was changed.
 
 ## Where a skill goes when it belongs in more than one module
 

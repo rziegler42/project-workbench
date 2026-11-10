@@ -893,9 +893,10 @@ configuration that supply a global item: `architecture-decisions-merge`, `securi
 skills, hooks, `settings.json` and `CLAUDE.md` in the backup against the specs and modules, recording what was and was not inspected
 and a disposition for every item (move, redesign, drop, or keep global); the backup holds credential-bearing material, so the record
 names items by role and existence and never by value. Then the floor test above, then one item at a time from the backup, each
-re-adopted only on the owner's word. The superpowers dependencies are items to settle: the three agents' `skills:` lists that name plugin skills, the
-routing in the owner's `CLAUDE.md`, the session-start rule that tells an agent to look for a skill, and the gaps recorded
-in `superpowers-ports.md` (parallel agents, writing skills, a fresh implementer per increment). It also settles the open
+re-adopted only on the owner's word. The superpowers plugin is retired (plan `2026-10-30-close-the-superpowers-retirement`; routing outside
+the workbench is settled by the decision `2026-10-30-routing-outside-the-workbench`); what remains of it is the gap recorded in
+`superpowers-ports.md` for the session-start rule, and the ports accepted as gaps (parallel agents, writing skills, a fresh implementer
+per increment). It also settles the open
 question whether the settings file's own path is denied for edits (`harness-modules.md`, "As built, and its limits"). It
 does not move the owner's `allow` rules and does not change what the installer writes.
 **Promotion trigger:** `checkpoint-settings-and-caps`, `increment-loop-and-review-skills`, `push-checkpoint`,
