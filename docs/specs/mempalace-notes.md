@@ -1,9 +1,8 @@
 # mempalace notes
 
 Status: Draft. Written on 2026-11-06 from a conversation with the owner, reviewed in three rounds by the review engine (twelve findings, all applied), and
-**approved by the owner on 2026-11-06 as a design**. It is not built: it stays `Draft` because it does not yet describe what is true, and it changes nothing in
-`mempalace.md` until a plan builds it. The plan `2026-11-06-mempalace-notes` is building it; the points it settled with the owner on 2026-11-06 (the command
-shape, the levels, two confirmations, the way the remote is read) are marked in place, and the `[open]` items that remain are for the later increments.
+**approved by the owner on 2026-11-06 as a design**. It is built by the plan `2026-11-06-mempalace-notes` (Completed); it stays `Draft` because the owner has not approved it as a description of what is true. The points that plan settled with the owner on 2026-11-06 (the command
+shape, the levels, two confirmations, the way the remote is read) are marked in place, and the `[open]` items that remain were not settled by it.
 
 Each statement carries one of three marks, so that the owner can see what is theirs:
 

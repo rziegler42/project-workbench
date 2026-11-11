@@ -1,7 +1,7 @@
 # Roadmap: workbench-v1
 
 Status: Active
-Updated: 2026-11-07
+Updated: 2026-11-11
 
 This roadmap is direction only. It does not authorize implementation and does not
 change any plan. A candidate is referred to as `workbench-v1#<id>`. Candidates are
@@ -310,6 +310,8 @@ for the owner-run commands `wb install`, `upgrade`, `add`, `attach`, `acknowledg
 
 ### verify-opencode — Verify the installed opencode against the specification
 
+**Deferred on 2026-11-11 by the owner:** opencode work is not pursued; see Deferred.
+
 **Outcome:** a written, evidence-based answer to the open questions about opencode:
 the formats of its installed version, how a per-clone permission rendering can be done
 without editing a tracked file, whether a specific tool can be given to one agent, and
@@ -320,6 +322,8 @@ concrete.
 **Promotion trigger:** the owner chooses to proceed with opencode.
 
 ### opencode-harness — opencode harness module
+
+**Deferred on 2026-11-11 by the owner:** opencode work is not pursued; see Deferred.
 
 **Outcome:** an opencode harness module that attaches and checks as `claude-harness`
 does, with whatever `verify-opencode` showed to be possible.
@@ -546,6 +550,8 @@ first 12 hex digits of the SHA-256 of the sorted relative file names and content
 **Promotion trigger:** `mempalace-module` complete and the owner chooses to begin it.
 
 ### knowledge-base-package — The knowledge base as a package
+
+**Dropped on 2026-11-11 by the owner:** the knowledge base is implemented as an external module in another project, so it is not built from this repository. The candidate stays for its ID and for the candidates that cite it.
 
 **Outcome:** the knowledge base adopts the workbench's package declaration, gets its
 generic name, provides its own capability (`knowledge-base`), and is read through a read-only skill. It holds,
@@ -1092,6 +1098,7 @@ accepted record asks for a security review of the built change, because a mistak
 
 - A way of working for CAD and EDA (`cad-work`), until a project shows it is needed.
 - Codex as a harness.
+- opencode as a harness (`verify-opencode`, `opencode-harness`), by the owner's word of 2026-11-11.
 - Changing harness as an installer feature; the supported route is a new clone.
 - Three-way merge on upgrade.
 - Migration of projects made from the old template.
