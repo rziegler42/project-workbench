@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Increment E — The plan-close clause, Steps 1–2",
+      "problem": "The planned invocation is `wb run --provides todo todo add ...`, but the `todo-list` specification requires `wb run --provides todo groundwork todo add ...`. The launcher syntax requires a command name after `--provides`; `todo` is the capability, while `groundwork` is the declared command. The planned command therefore cannot run the helper and drifts from the spec.",
+      "severity": "major",
+      "suggestion": "Change the required invocation and its test to `wb run --provides todo groundwork todo add ...` (or explicitly change the specification and declaration design consistently)."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Increment C — drop and the drop log, Step 1",
+      "problem": "The plan places the drop log in the todo folder’s parent area, `.workbench/local/`. The `todo-list` specification says the helper reads and writes only inside `.workbench/local/todo/`; this location exceeds that boundary.",
+      "severity": "major",
+      "suggestion": "Place the log within `.workbench/local/todo/` and specify how `list` excludes its reserved name, or explicitly revise the specification’s runtime write boundary in the same planned change."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "Two implementation details drift from the todo-list specification and would leave the planned command unusable or broaden its permitted write area.",
+  "verdict": "changes_needed"
+}
