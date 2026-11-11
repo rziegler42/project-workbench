@@ -484,10 +484,11 @@ class Declaration(unittest.TestCase):
 
     def test_it_ships_the_helper_and_declares_accept_as_the_command_of_accept_decision(self):
         self.assertIn("helper/groundwork", self.document["ships"])
-        self.assertEqual({"groundwork": {
+        self.assertEqual({
             "helper": "helper/groundwork", "runtime": "python", "kit": 1,
             "arguments": ["preview", "accept"], "owner": ["accept"], "levels": {"accept": ["ask", "none"]},
-            "preview": "preview", "checkpoint_of": {"accept": "accept-decision"}}}, self.document["commands"])
+            "preview": "preview", "checkpoint_of": {"accept": "accept-decision"}}, self.document["commands"]["groundwork"])
+        self.assertEqual(["groundwork", "todo"], list(self.document["commands"]))
 
     def test_the_check_helpers_are_still_the_only_checks(self):
         self.assertEqual(["helper/doccheck", "helper/refcheck"], [c["helper"] for c in self.document["checks"]])

@@ -44,12 +44,12 @@ class Declaration(unittest.TestCase):
         self.assertTrue(result.accepted, [str(p) for p in result.problems])
         self.assertIn("groundwork", [m.name for m in result.modules])
 
-    def test_it_provides_the_four_capabilities_and_nothing_else_is_declared(self):
+    def test_it_provides_the_four_capabilities_and_todo_and_nothing_else_is_declared(self):
         document = declaration()
         self.assertEqual("module", document["type"])
-        self.assertEqual(list(AREAS), document["provides"])
+        self.assertEqual(list(AREAS) + ["todo"], document["provides"])
         self.assertEqual(sorted(READMES), document["writes"])
-        self.assertEqual(["helper/%s" % name for name in sorted(HELPERS + ("groundwork",))], document["ships"])
+        self.assertEqual(["helper/%s" % name for name in sorted(HELPERS + ("groundwork", "todo"))], document["ships"])
         self.assertEqual([{"helper": "helper/%s" % name, "kit": 1} for name in HELPERS], document["checks"])
         for field in ("helpers", "requires", "blocks", "slots", "layout"):
             self.assertNotIn(field, document)
@@ -64,7 +64,7 @@ class Declaration(unittest.TestCase):
                 self.assertEqual(0, os.stat(os.path.join(base, name)).st_mode & 0o111, name)
         skills = ["harness/neutral/skills/%s/%s" % (name, file) for name in SKILLS
                   for file in (("SKILL.md", "template.md") if name in TEMPLATED else ("SKILL.md",))]
-        self.assertEqual(sorted(["module.json", "helper/doccheck", "helper/groundwork", "helper/refcheck",
+        self.assertEqual(sorted(["module.json", "helper/doccheck", "helper/groundwork", "helper/refcheck", "helper/todo",
                                  "files/blocks/docs-index.md",
                                  "files/blocks/policy.md"] + skills
                                 + ["files/" + rel for rel in READMES]), sorted(found))
@@ -420,8 +420,9 @@ class LevelTexts(unittest.TestCase):
         self.assertNotIn("because this skill runs no other command", text)
 
     def test_the_skills_commands_are_the_arguments_the_module_declares_for_its_helper(self):
-        """`accept` and `preview` are the two arguments of the one command `groundwork`; the skill spells no other form."""
-        self.assertEqual(["groundwork"], list(declaration()["commands"]))
+        """`accept` and `preview` are the two arguments of the command `groundwork`, which is one of the module's two commands (the other,
+        `todo`, is tested in test_todo_add.py); the skill spells no other form."""
+        self.assertEqual(["groundwork", "todo"], list(declaration()["commands"]))
         command = declaration()["commands"]["groundwork"]
         self.assertEqual(["preview", "accept"], command["arguments"])
         self.assertEqual(["accept"], command["owner"])
