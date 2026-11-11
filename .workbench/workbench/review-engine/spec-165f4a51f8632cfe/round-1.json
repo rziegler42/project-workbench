@@ -1,0 +1,36 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Assumptions and constraints; Capture",
+      "problem": "The spec says `groundwork` provides a `todo` capability, but the current `groundwork.md` declaration provides only `specs`, `roadmaps`, `decisions`, and `references`. The proposed code-work integration therefore has no resolvable capability contract.",
+      "severity": "major",
+      "suggestion": "Update the governing groundwork declaration/specification and module declaration to define and provide `todo`, and specify how code-work detects and consumes it."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Assumptions and constraints; Commands; Acceptance criterion 4",
+      "problem": "Runtime writes to `.workbench/local/todo/` are not authorized by the current module contract or groundwork declaration. The contract permits module writes only to declared `writes` paths, slots, or the module namespace, while the declaration lists only documentation paths.",
+      "severity": "major",
+      "suggestion": "Define runtime per-clone local-state writes in the module contract and repository-boundary rules, or add an explicit declaration mechanism for this directory, including ownership and upgrade behavior."
+    },
+    {
+      "id": "R1-F3",
+      "location": "Safety; Acceptance criterion 5",
+      "problem": "“Existing secret patterns” and “credential-shaped string” are undefined. The spec does not identify the patterns, the fields covered, normalization/encoding rules, or how refusal avoids echoing sensitive text, so the safety criterion is not testable or reliable.",
+      "severity": "major",
+      "suggestion": "Name the authoritative detector and exact coverage, define matching and false-positive behavior for every entry field, and require redacted bounded errors plus tests for representative credentials and near misses."
+    },
+    {
+      "id": "R1-F4",
+      "location": "Capture; Acceptance criterion 7",
+      "problem": "The required code-work close-out clause is described but the current `code-work.md` contains no such clause, and “deferred items of the plan” is not defined mechanically. It is therefore unclear which plan content is captured, when it is captured, how duplicates are handled, or what happens if capture fails.",
+      "severity": "major",
+      "suggestion": "Specify the plan section/notation that identifies deferred items, capture timing and failure behavior, duplicate handling, and the exact code-work capability/declaration change needed."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The draft has unresolved contract and integration gaps: its capability and local-write claims conflict with governing specifications, and its credential scanning and plan-close behavior are not sufficiently defined to implement or verify safely.",
+  "verdict": "changes_needed"
+}

@@ -1,0 +1,29 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "Behavior — An item; Acceptance criterion 4",
+      "problem": "`source` and `step` have no length or character bounds, while `drop`, `show`, and `list` can print their contents. This leaves valid commands able to create or emit unbounded data, and the acceptance criteria test limits only for title and body.",
+      "severity": "major",
+      "suggestion": "Define bounded, single-line limits for every header field and the complete serialized item, and test refusals for oversized or invalid `source` and `step` values."
+    },
+    {
+      "id": "R2-F2",
+      "location": "Commands — `add` and `drop`; Capture — plan close",
+      "problem": "The specification does not define locking or atomic coordination for concurrent commands. Two `add` operations can select the same slug or both pass duplicate checks, and concurrent `drop` operations can lose or corrupt the drop-log append.",
+      "severity": "major",
+      "suggestion": "Require a per-list lock and atomic file creation/rename; serialize duplicate/slug checks and drop-log appends, with recovery behavior for interrupted operations."
+    },
+    {
+      "id": "R2-F3",
+      "location": "Commands — `drop` and `show`; Safety",
+      "problem": "These commands print an item's full text without requiring a credential scan or redaction. A manually created, legacy, or otherwise malformed item can therefore expose credential-shaped content to the agent conversation, despite the safety rule preventing credentials only during `add`.",
+      "severity": "major",
+      "suggestion": "Scan existing item content before full-text output and refuse or redact credential-shaped fields without echoing them; specify the behavior for malformed and legacy items."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "The spec still has material gaps around bounded input, concurrent updates, and preventing secret disclosure when reading existing items.",
+  "verdict": "changes_needed"
+}
