@@ -40,7 +40,7 @@ The commands are `wb enroll` and a read-only `wb preview enroll`. [call] They ar
 
 **Level.** The key `wb enroll` is class `governs` and offers `block` only, so there is no `ask` or `none` and no run without a terminal, as for `wb rerender`. [call]
 
-**Registration.** The key is added to the levels registry with `wb preview enroll` as its preview; the harness's deny rule for owner-run commands names it; the command gate's key words include it; and the command tables of `development.md`, `installer-interface.md` and `command-permissions.md` list it. [call]
+**Registration.** The key is added to the levels registry with `wb preview enroll` as its preview; the harness's deny rule for owner-run commands names it; the command gate's key words include it; and the command tables of `development.md`, `installer-interface.md` and `command-permissions.md` list it. [call] Those tables, and the usage text of the command line, spell every row in the long form `python3 -m workbench <command>`, as they do for the other commands; the launcher form is the one an owner or a script uses (`installer-interface.md`, the launcher rule). [call] Until the next increment of the plan builds the command, the command line routes `enroll` to a stub that refuses, writes nothing and names the preview. [call]
 
 **What it reads.** In the clone: the committed manifest, every file the manifest records, the names under `.workbench/` outside `local/` (to find a file the manifest does not record), and the top directory with its `.git` and manifest entries (for the target checks). In the guarded store: the project's `baselines` and `seen` entries. [call] It runs no git and fetches nothing. [agreed]
 

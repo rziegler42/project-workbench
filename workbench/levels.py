@@ -25,7 +25,8 @@ its preview) and ``none``; ``wb release-approvals`` offers ``ask`` (a digest of 
 ``2026-10-30-release-approvals-at-ask``) and ``none``; ``wb install``, ``wb adopt``, ``wb upgrade``, ``wb add``,
 ``wb attach``, ``wb recover``, ``wb approve``, ``wb pin`` and the first acknowledge tier offer ``ask`` (a digest of their preview) and
 ``none``;
-the other owner-run installer commands, ``accept-decision`` and the second acknowledge tier offer ``none``; ``wb rerender`` offers ``block`` only (``2026-10-27-rerender-is-terminal-only``). No other key
+the other owner-run installer commands, ``accept-decision`` and the second acknowledge tier offer ``none``; ``wb rerender`` offers ``block`` only (``2026-10-27-rerender-is-terminal-only``), and so does ``wb enroll``
+(``docs/specs/clone-enrollment.md``). No other key
 offers ``ask`` unless an installed command's declaration gives its owner-run argument ``levels``
 (``declarations.ARGUMENT_LEVELS``) and ``checkpoint_of`` maps that argument to a checkpoint (then the checkpoint offers the
 levels the argument does; ``checkpoint_commands``). An agent-safe key and a declared argument that is not owner-run offer
@@ -70,6 +71,7 @@ INSTALLER_KEYS = collections.OrderedDict([
     ("wb add", Spec(COMMAND, PROJECT, (ASK, NONE), "add", "wb add", "wb preview add", _DEVELOPMENT)),
     ("wb attach", Spec(COMMAND, PROJECT, (ASK, NONE), "attach", "wb attach", "wb preview attach", _DEVELOPMENT)),
     ("wb rerender", Spec(COMMAND, GOVERNS, (), "rerender", "wb rerender", "wb preview rerender", _DEVELOPMENT)),
+    ("wb enroll", Spec(COMMAND, GOVERNS, (), "enroll", "wb enroll", "wb preview enroll", _DEVELOPMENT)),
     ("acknowledge-first-tier", Spec(CHECKPOINT, GOVERNS, (ASK, NONE), "acknowledge", "wb acknowledge", "wb preview acknowledge",
                                     _PERMISSIONS)),
     ("acknowledge-second-tier", Spec(CHECKPOINT, GOVERNS, (NONE,), "", "", "", _PERMISSIONS)),

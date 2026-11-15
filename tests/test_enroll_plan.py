@@ -352,11 +352,11 @@ class Manifest(Enroll):
 class Unrecorded(Enroll):
     def test_a_regular_file_the_manifest_does_not_record_is_neither_refused_nor_baselined(self):
         self.new_machine()
-        self.put(".workbench/remote-runner.toml", b"profile = 'x'\n")
+        self.put(".workbench/profile.toml", b"profile = 'x'\n")
         plan = self.examine()
-        self.assertNotIn(".workbench/remote-runner.toml", plan.baselines)
+        self.assertNotIn(".workbench/profile.toml", plan.baselines)
         self.assertEqual(1, plan.unrecorded_total)
-        self.assertIn(".workbench/remote-runner.toml", enrollplan.render(plan, self.real))
+        self.assertIn(".workbench/profile.toml", enrollplan.render(plan, self.real))
 
     def test_the_summary_counts_a_module_directory_and_lists_it_only_when_it_holds_ten_or_fewer(self):
         self.new_machine()
@@ -377,12 +377,12 @@ class Unrecorded(Enroll):
         self.new_machine()
         for review in range(40):
             for name in ("state.json", "ledger.md", "round-1.json"):
-                self.put(".workbench/p/review-engine/plan-%02d/%s" % (review, name), b"x")
+                self.put(".workbench/p/records/plan-%02d/%s" % (review, name), b"x")
         plan = self.examine()
         self.assertEqual(120, plan.unrecorded_total)
-        self.assertEqual([".workbench/p/review-engine"], sorted(plan.unrecorded))
+        self.assertEqual([".workbench/p/records"], sorted(plan.unrecorded))
         text = enrollplan.render(plan, self.real)
-        self.assertIn(".workbench/p/review-engine: 120 files", text)
+        self.assertIn(".workbench/p/records: 120 files", text)
         self.assertNotIn("plan-07/state.json", text)
 
     def test_the_scratch_directory_is_not_counted(self):
@@ -420,8 +420,8 @@ class Unrecorded(Enroll):
 
 
 class ThisRepository(Enroll):
-    """A copy of this repository's own installed files, read as a clone on a new machine: the read must not refuse it, and must see what it holds
-    that the manifest does not record (``.workbench/remote-runner.toml`` and the review records of its plans and specs)."""
+    """A copy of this repository's own installed files, read as a clone on a new machine: the read must not refuse it, and must count exactly the
+    files it holds under ``.workbench/`` that its manifest does not record (a tracked profile and the review records of its plans and specs)."""
 
     def copy_in(self):
         with open(os.path.join(ROOT, MANIFEST), "rb") as handle:
@@ -445,10 +445,17 @@ class ThisRepository(Enroll):
     def test_it_is_not_refused_and_the_files_it_does_not_record_are_counted(self):
         self.copy_in()
         plan = self.examine()
+        recorded = {item["path"] for item in manifest.parse(self.read(MANIFEST))["files"]} | {MANIFEST}
+        held = set()
+        for base, dirs, files in os.walk(os.path.join(self.place, ".workbench")):
+            if os.path.relpath(base, self.place) == ".workbench":
+                dirs[:] = [name for name in dirs if name != "local"]
+            held.update(os.path.relpath(os.path.join(base, name), self.place).replace(os.sep, "/") for name in files)
+        counted = {path for paths in plan.unrecorded.values() for path in paths}
+        self.assertEqual(held - recorded, counted)
         self.assertGreaterEqual(plan.unrecorded_total, 1)
-        text = enrollplan.render(plan, plan.path)
-        self.assertIn(".workbench/remote-runner.toml", text)
-        self.assertIn(".workbench/workbench/review-engine", plan.unrecorded)
+        self.assertIn("files under .workbench/ that the manifest does not record: %d" % plan.unrecorded_total,
+                      enrollplan.render(plan, plan.path))
         with open(os.path.join(ROOT, MANIFEST), "rb") as handle:
             self.assertEqual(sha(handle.read()), plan.baselines[MANIFEST])
         self.assertTrue(all(path in plan.baselines for path in

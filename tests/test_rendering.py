@@ -100,7 +100,7 @@ class TableTest(Rendered):
         table = self.levels_now()
         # The keys of the table as it was before the agent-safe keys existed, written out so the test pins them.
         before = {name: "block" for name in (
-            "approve-plan", "wb install", "wb adopt", "wb upgrade", "wb add", "wb attach", "wb rerender", "wb recover",
+            "approve-plan", "wb install", "wb adopt", "wb upgrade", "wb add", "wb attach", "wb rerender", "wb enroll", "wb recover",
             "wb approve", "wb pin", "wb release-approvals")}
         self.assertEqual(rendering.digest(before), rendering.digest(table))
 

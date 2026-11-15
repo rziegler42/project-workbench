@@ -11,7 +11,7 @@ import re
 import stat
 import sys
 
-from . import (acknowledge, agent_gate, approvalcmd, approve, attach, check, command_gate, delegation, doctor, firstparty,
+from . import (acknowledge, agent_gate, approvalcmd, approve, attach, check, command_gate, delegation, doctor, enroll, firstparty,
                gate_hook, gatelog, harnesses, install, launch, levelrun, levels, pins, planapprovals, preview, recover,
                rendering, rerender, settings, settingscmd, sources, store, target, upgrade, verify)
 from . import commands as module_commands
@@ -47,6 +47,7 @@ USAGE = ("usage: python3 -m workbench verify [<package> | --dir <path>] "
          "       python3 -m workbench preview acknowledge [<target> | --dir <path>]   (read-only)\n"
          "       python3 -m workbench acknowledge [<target> | --dir <path>] [--digest <32 hex>]   (owner-run, terminal only;\n"
          "                                        at the level ask, without a terminal, with the digest of the preview)\n"
+         "       python3 -m workbench preview enroll [<target> | --dir <path>]   (read-only; a clone on a machine that does not know it)\n"
          "       python3 -m workbench preview recover [<target> | --dir <path>]   (read-only)\n"
          "       python3 -m workbench recover [<target> | --dir <path>] [--digest <32 hex>]   (owner-run, terminal only;\n"
          "                                        at the level ask, without a terminal, with the digest of the preview)\n"
@@ -415,9 +416,9 @@ def _preview_release(tokens, out, err, store_root, distribution):
 
 
 def _preview_examination(verb, tokens, out, err, store_root, distribution):
-    """``preview acknowledge`` and ``preview recover``: the examination of the project the command would act on, read-only."""
+    """``preview acknowledge``, ``preview recover`` and ``preview enroll``: the examination of the project the command would act on, read-only."""
     try:
-        spelling = (acknowledge if verb == "acknowledge" else recover).parse(tokens)
+        spelling = {"acknowledge": acknowledge, "recover": recover, "enroll": enroll}[verb].parse(tokens)
     except sources.UsageError as exc:
         err.write("%s\n%s" % (_clean(str(exc)), USAGE))
         return 2
@@ -429,6 +430,8 @@ def _preview_examination(verb, tokens, out, err, store_root, distribution):
         err.write("warning: %s\n" % _clean(note))
     if verb == "acknowledge":
         return acknowledge.run_preview(opened[0], spelling, out, err)
+    if verb == "enroll":
+        return enroll.run_preview(opened[0], spelling, out, err)
     return recover.run_preview(opened[0], spelling, out, err)
 
 
@@ -471,16 +474,16 @@ def _preview_trust(verb, tokens, out, err, store_root, distribution):
 
 
 def _preview(argv, out, err, store_root, distribution, home=None):
-    if len(argv) < 2 or argv[1] not in ("install", "adopt", "upgrade", "add", "attach", "rerender", "acknowledge", "recover",
-                                        "approve", "pin", "release-approvals"):
-        err.write("preview takes install, adopt, upgrade, add, attach, rerender, acknowledge, recover, approve, pin or "
+    if len(argv) < 2 or argv[1] not in ("install", "adopt", "upgrade", "add", "attach", "rerender", "enroll", "acknowledge",
+                                        "recover", "approve", "pin", "release-approvals"):
+        err.write("preview takes install, adopt, upgrade, add, attach, rerender, enroll, acknowledge, recover, approve, pin or "
                   "release-approvals\n%s" % USAGE)
         return 2
     if argv[1] == "attach":
         return _preview_attach(argv[2:], out, err, store_root, distribution, home)
     if argv[1] in ("approve", "pin"):
         return _preview_trust(argv[1], argv[2:], out, err, store_root, distribution)
-    if argv[1] in ("acknowledge", "recover"):
+    if argv[1] in ("acknowledge", "recover", "enroll"):
         return _preview_examination(argv[1], argv[2:], out, err, store_root, distribution)
     if argv[1] == "release-approvals":
         return _preview_release(argv[2:], out, err, store_root, distribution)
@@ -828,6 +831,8 @@ def main(argv, out=None, err=None, *, store_root=None, distribution=None, stdin=
         return _acknowledge(argv[1:], err, out, store_root, stdin)
     if argv and argv[0] == "recover":
         return _recover(argv[1:], err, out, store_root, stdin)
+    if argv and argv[0] == "enroll":
+        return enroll.run_not_built(argv[1:], err)
     if argv and argv[0] == "attach":
         return _attach(argv[1:], out, err, store_root, distribution, home, stdin)
     if argv and argv[0] == "check":
