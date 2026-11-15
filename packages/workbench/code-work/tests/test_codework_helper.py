@@ -419,10 +419,20 @@ class Hostile(Project):
         self.assertProblem("only the start was examined", self.problems())
 
     def test_more_than_the_total_bytes_leaves_the_rest_unexamined_and_says_so(self):
-        for index in range(6):
-            self.plan("2026-10-21-p%d.md" % index, text=plan() + "x" * (helper.MAX_DOCUMENT - 100))
+        for index in range(helper.MAX_BYTES // helper.MAX_DOCUMENT + 2):
+            self.plan("2026-10-21-p%03d.md" % index, text=plan() + "x" * (helper.MAX_DOCUMENT - 100))
         lines = self.problems()
         self.assertProblem("not looked at; more than", lines)
+
+    def test_the_total_bytes_read_from_the_plans_are_bounded_at_16_mib(self):
+        self.assertEqual(16 * 1024 * 1024, helper.MAX_BYTES)
+
+    def test_a_plan_after_more_than_4_mib_of_other_plans_is_still_read(self):
+        for index in range(5):
+            self.plan("2026-10-21-p%d.md" % index, text=plan() + "x" * (900 * 1024))
+        self.plan("2026-10-22-last.md")
+        code, out, err = self.check()
+        self.assertNotIn("not looked at", err)
 
     def test_more_than_the_file_count_leaves_the_rest_unexamined_and_says_so(self):
         for index in range(helper.MAX_FILES + 5):

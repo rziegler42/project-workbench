@@ -1,6 +1,6 @@
 # Raise the plan byte budget
 
-Status: Proposed
+Status: In Progress
 Created: 2026-11-15
 Candidate: none (a fix that follows from a finding: plans reached the 4 MiB budget)
 Specs: none
