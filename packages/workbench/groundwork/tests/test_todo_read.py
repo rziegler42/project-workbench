@@ -357,9 +357,6 @@ class Arguments(Base):
             with self.subTest(value=value):
                 self.assertIn("whole number of days", self.refused("list", "--older-than", value))
 
-    def test_drop_is_still_not_built(self):
-        self.assertIn("not built yet", self.refused("drop", "x"))
-
 
 class Parse(unittest.TestCase):
     def test_a_good_item_gives_its_fields_and_body(self):

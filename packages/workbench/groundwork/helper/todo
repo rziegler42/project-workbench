@@ -4,7 +4,7 @@
     todo add --title T [--source S] [--step S] [--size quick|sitting|session|large] [--owner] [--body B]
     todo list [--size quick|sitting|session|large] [--mechanical] [--older-than DAYS]
     todo show <id>
-    todo drop      declared, not built yet (plan 2026-11-11-todo-list, increment C)
+    todo drop <id>   removes an item, prints it in full, and appends one line to the drop log ``dropped.log`` in the list's folder
 
 It is a kit helper (kit API 1) started from the project. The list is the untracked folder ``.workbench/local/todo/``, one file
 ``<id>.md`` for each item, and the helper reads and writes only there. The rules are in ``docs/specs/todo-list.md``.
@@ -22,6 +22,13 @@ file; it then removes the temporary name. A repeated title is refused, and a tit
 other's ID named. Known limits: two adds of the same title at the same moment may both succeed (the owner can drop one); the
 close-title test is a word overlap, not a judgement; a run killed between the link and the removal of the temporary name leaves a complete item with
 two links, which the readers pass over (they accept one link only), so a later ``list`` shows it as unreadable and the owner drops it.
+
+``drop`` opens the drop log first (a link, a file that is not plain or has two links, or a log at its bound refuses the drop and keeps the item), removes
+the file, and then appends one line; the item's text is printed whether or not the line is written, and a failed write is reported on the error output.
+Known limits: a run killed between the removal and the write leaves no log line; the size check is not atomic across drops at the same moment, so the log
+may pass its bound by a few lines; the steps read, open the log and remove are separate, so an item replaced meanwhile may be printed from its old text
+while the new file is removed (every step uses the held folder, follows no link, and cannot leave it); a log at its bound refuses every drop until the
+owner trims it by hand.
 """
 
 import datetime
@@ -37,9 +44,11 @@ from wbkit import display, project
 USAGE = ("usage: todo add --title <title> [--source <text>] [--step <text>] [--size quick|sitting|session|large] [--owner] [--body <text>]\n"
          "       todo list [--size quick|sitting|session|large] [--mechanical] [--older-than <days>]\n"
          "       todo show <id>\n"
-         "       todo drop <id>   (not built yet)")
+         "       todo drop <id>")
 MAX_TITLE, MAX_SOURCE, MAX_STEP, MAX_BODY, MAX_ITEM, MAX_ITEMS = 120, 200, 200, 4096, 5120, 1000
-LIST_SHOWN = 200   # at most this many lines of a list are printed; the rest is counted
+LOG = "dropped.log"   # the drop log, in the list's folder; its name is reserved (an item file is ``<id>.md``)
+MAX_LOG = 262144   # bytes; a drop is refused while the log would pass this, and the owner trims the log by hand
+LIST_SHOWN = 200  # at most this many lines of a list are printed; the rest is counted
 HEADER_KEYS = ("title", "added", "source", "step", "size", "owner")
 SIZES = ("quick", "sitting", "session", "large")
 FOLDER = (".workbench", "local", "todo")
@@ -515,6 +524,12 @@ def show(args, out, cwd):
     if fields is None:
         raise Refused("the file %s cannot be read as an item; it is not shown" % named)
     out.write("id: %s\n" % identifier)
+    write_item(out, fields)
+    return 0
+
+
+def write_item(out, fields):
+    """The text of one item as `show` and `drop` print it; a field with credential-shaped text is named, not printed."""
     out.write("title: %s\n" % safe_text("title", fields["title"]))
     out.write("added: %s (%d days ago)\n" % (fields["added"], age_days(fields["added"])))
     for key in ("source", "step", "size", "owner"):
@@ -522,6 +537,76 @@ def show(args, out, cwd):
             out.write("%s: %s\n" % (key, safe_text(key, fields[key])))
     if fields["body"]:
         out.write("\n%s\n" % safe_text("body", fields["body"]).rstrip("\n"))
+
+
+def drop_name(argument):
+    """``(file name, printable form of the argument)``. The argument is an ID, or the file name of an unreadable file (it ends in ``.md``); it holds no
+    ``/``, no NUL and no leading dot, so it names a file in the folder and never the log, a temporary file or anything outside."""
+    named = display.ascii_text(argument)[:80]
+    if not argument or "/" in argument or "\0" in argument or argument.startswith(".") or len(argument.encode("utf-8", "surrogateescape")) > 200:
+        raise Refused("there is no item %s" % named)
+    return (argument if argument.endswith(".md") else argument + ".md"), named
+
+
+def open_log(folder):
+    """``(descriptor, size)`` of the drop log, opened for appending and made (mode 0600) when it is missing. A link, a file that is not a regular file and a
+    file with more than one link are refused."""
+    try:
+        descriptor = os.open(LOG, os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600, dir_fd=folder)
+    except OSError:
+        raise Refused("the drop log cannot be opened (it may be a link or not a file); nothing was dropped")
+    try:
+        info = os.fstat(descriptor)
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+            raise Refused("the drop log is not a plain file with one link; nothing was dropped")
+    except BaseException:
+        os.close(descriptor)
+        raise
+    return descriptor, info.st_size
+
+
+def drop(args, out, err, cwd):
+    if len(args) != 1:
+        raise Usage(USAGE)
+    name, named = drop_name(args[0])
+    folder = find_list(root_of(cwd))
+    if folder is None:
+        raise Refused("there is no item %s" % named)
+    log = None
+    try:
+        try:
+            info = os.lstat(name, dir_fd=folder)
+        except FileNotFoundError:
+            raise Refused("there is no item %s" % named)
+        if stat.S_ISDIR(info.st_mode):
+            raise Refused("%s is a directory, not an item; remove it by hand" % named)
+        identifier = shown(name[:-3])
+        data = read_item(folder, name)
+        fields = parse_item(data) if data is not None and identifier else None
+        title = safe_text("title", fields["title"]) if fields else "(not an item)"
+        line = ("%s\t%s\t%s\n" % (today().isoformat(), identifier or "(name not shown)", title)).encode("utf-8")
+        log, size = open_log(folder)
+        if size + len(line) > MAX_LOG:
+            raise Refused("the drop log holds %d KiB; trim it by hand before dropping more" % (MAX_LOG // 1024))
+        try:
+            os.unlink(name, dir_fd=folder)
+        except OSError:
+            raise Refused("the file %s cannot be removed" % named)
+        try:
+            problem = None if os.write(log, line) == len(line) else "a short write"
+        except OSError as exc:
+            problem = display.ascii_text(exc.strerror or "error")[:80]
+    finally:
+        if log is not None:
+            os.close(log)
+        os.close(folder)
+    if fields is None:
+        out.write("dropped: %s (not an item; its text is not shown)\n" % (identifier or "(name not shown)"))
+    else:
+        out.write("dropped: %s\n" % identifier)
+        write_item(out, fields)
+    if problem:
+        err.write("note: the item is removed and printed above, but the drop log could not be written (%s)\n" % problem)
     return 0
 
 
@@ -537,7 +622,7 @@ def main(argv, stdin, out, err, cwd, terminal=False):
         if argv[0] == "show":
             return show(argv[1:], out, cwd)
         if argv[0] == "drop":
-            raise Refused("drop is not built yet")
+            return drop(argv[1:], out, err, cwd)
         raise Usage(USAGE)
     except Usage as exc:
         err.write("%s\n" % exc)

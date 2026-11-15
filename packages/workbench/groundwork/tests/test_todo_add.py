@@ -303,11 +303,6 @@ class Paths(Base):
         self.assertEqual([".workbench/local/todo/one.md", ".workbench/manifest.json"], sorted(found))
 
 
-class NotYetBuilt(Base):
-    def test_drop_is_declared_and_refuses_until_its_increment(self):
-        self.assertIn("not built yet", self.refused("drop", "x"))
-
-
 class Creation(Base):
     def folder(self):
         os.makedirs(self.path(), exist_ok=True)
