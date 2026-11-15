@@ -14,7 +14,8 @@ harnesses described in the [harness modules specification](docs/specs/harness-mo
 ## Quick start
 
 Requirements: Python 3.11 or later (standard library only), git and a POSIX shell. There
-is nothing to install; the code runs from a checkout of this repository.
+is nothing to install; the code runs from a checkout of this repository. To set up a clone on
+a new machine, see [INSTALL.md](INSTALL.md) (a draft, not yet tested on a second machine).
 
 Run the commands from a directory you trust, such as this repository's root. A `workbench/`
 directory or a `json.py` in the current directory of an untrusted project would run instead
