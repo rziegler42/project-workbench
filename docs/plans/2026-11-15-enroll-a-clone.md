@@ -1,6 +1,6 @@
 # Enroll a clone of an installed project on a new machine
 
-Status: Proposed
+Status: In Progress
 Created: 2026-11-15
 Candidate: workbench-v1#enrol-a-clone
 Specs: clone-enrollment, installer-interface, trust-and-approval, command-permissions
@@ -148,7 +148,12 @@ Each increment's recorded verification stands unless a later one changed its inp
 
 ## Review record
 
-Empty until a review is asked for.
+**Plan review** (before approval): Codex through the review engine, 3 rounds of the bound of 3, model `gpt-5.6-terra` in rounds 1 and 2 and `gpt-6.1-sol` in round 3; round 3 reported no meaningful finding. Six findings, all applied: the trust spec's list of owner-run commands joined increment E; a declined security review stops the plan at F; increment H records the owner's run on the second machine and gates completion; increment A ends with the accepted record committed before B; increment D tests `wb check`, `wb doctor` and the preview of `acknowledge` on the enrolled clone; increment F requires an independent second look at the security fixes. The review's files are in the commit of the plan.
+
+**Increment A:** the `reviewer` agent, one exchange, read-only, no blocking finding and no security risk named beyond the one the record states.
+- Applied: the Decision's "pinned only if its module is approved" could be read as skipping an unapproved module, while the spec refuses the whole enrollment. Applied as a dated clarification note after the unchanged body, with the owner's approval; the Context's "write" means "create" for the baselines; `attach` calls the same check although the older record does not name it. The record was already `Accepted`, so its body was not edited.
+- Not applied: nothing was rejected. The reviewer's doubt that the review files are tracked was checked and is not a finding: `git ls-files` lists both review directories. Its note that the record does not list the tracked-pointer rule among its links is harmless and left as it is. Its note that the Decision omits the re-read after the typed digest, the missing seeded file and the atomic write is left to the spec, which carries them.
+- Left for the owner: nothing open on A.
 
 ## Deferred work
 
@@ -156,4 +161,10 @@ None identified.
 
 ## Result
 
-Empty until work starts.
+**Increment A** is committed with this entry (trailer `#A`; 2 paths): the decision record `docs/decisions/2026-11-15-enroll-makes-a-clone-known-on-the-manifest-hashes-and-the-owners-digest.md`, accepted, and this plan.
+
+- Written as `Proposed` from the template of the `draft-decision` skill, with the context, the decision, five rejected alternatives, the consequences (the seeded-file risk named plainly) and the evidence (what was run on 2026-11-15, with Python 3.15.0 on Darwin and the owner's output from the second machine). It cites the spec and this plan, and links four accepted records.
+- Accepted by the owner's act at the checkpoint, the level `accept-decision` being `ask`: I ran `wb run groundwork preview <record>`, showed the owner what it printed (digest `0d428e67…`, record hash `4657ccc4…`), and ran `wb run groundwork accept <record> --digest 0d428e67…` after the owner said "accept as written"; the command replaced the status line with `Status: Accepted by Robert Ziegler <…> on 2026-11-15`, which I read afterwards.
+- A dated clarification was then added after the unchanged body, with the owner's approval, for the three points the review raised (above).
+- Verification as run: `wb check` before acceptance, after it and after the clarification, each "check found no problems"; the status line read after acceptance; `git ls-files` for the two review directories. Not run: the document checks beyond `wb check`, and any test (no code changed).
+- The decisions README has no index of records, so there was no row to update.
