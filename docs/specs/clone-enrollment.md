@@ -1,6 +1,6 @@
 # Clone enrollment
 
-Status: Draft. Written on 2026-11-15 from a conversation with the owner, for the roadmap candidate `workbench-v1#enrol-a-clone`. It describes a command that is not built. It is `Current` only when the owner says so, after it is built.
+Status: Draft. Written on 2026-11-15 from a conversation with the owner, for the roadmap candidate `workbench-v1#enrol-a-clone`. The command is built (see "As built"). It is `Current` only when the owner says so, after the owner's run on a second machine.
 
 Each statement carries one of three marks, so that the owner can see what is theirs:
 
@@ -77,6 +77,21 @@ The commands are `wb enroll` and a read-only `wb preview enroll`. [call] They ar
 8. `wb settings` prints the key `wb enroll` with `offers=` empty, and the command refuses to run with the key changed to any other level.
 9. A security review of the built command finds no way for the files of a clone to be accepted without the owner's digest, no pin written or approval record read by `enroll`, and no write in the store outside `projects/<id>/`.
 10. `INSTALL.md` describes the command and the steps that follow it, and the owner has run them on a second machine.
+
+## As built
+
+Built by the plan `2026-11-15-enroll-a-clone` (increments B to F, committed 2026-11-15). The spec stays `Draft` until the owner says it reads `Current`, after the owner's run on a second machine (criterion 10).
+
+- **Commands.** `wb preview enroll` and the owner-run `wb enroll` (`workbench/enroll.py`, routed in `workbench/cli.py`); the read is `workbench/enrollplan.py` (`examine`, `render`, the plan and its digest). The key `wb enroll` (class governs, `block` only) and its derived preview key are in `workbench/levels.py`.
+- **Tests.** `tests/test_enroll_plan.py`, `tests/test_enroll_preview.py` and `tests/test_enroll.py` (101 tests), written first and mutation-tested (30 mutants of the read, 16 of the command, none surviving), and the lists in `test_levels`, `test_permissions`, `test_owner_run_arguments` and `test_rendering`. Criteria 1 to 9 are covered by them; criterion 5 (the pins follow from `upgrade` with the package) by two tests that install a project in a store that does not know it, enroll it, acknowledge it and run the preview of `upgrade`, one with a helper planted in the clone.
+- **A run on a real clone.** On 2026-11-15, on a fresh `git clone` of this repository at `7d70877` with a scratch `HOME`, driven in process with a fake terminal: the preview listed 73 baselines, 5 paths outside `.workbench/` resting on a declaration and 461 unrecorded files (one and 460 review records); `enroll` wrote the two entries; `acknowledge` listed 461 paths and recorded them; the preview of `upgrade` with `packages/workbench` listed 14 pins to create and `77 skip, 1 conflict; 0 file writes`; `upgrade` created them; `check` and `doctor` then reported no problems; the preview of `attach` listed 26 files. Not run: the same by hand at a real terminal on a second machine, and `attach` itself.
+- **Reviews.** The spec, in four rounds by a second model (nine findings applied); the plan, in three (six applied); a reviewer agent for each increment; and a security review with an independent second look at its fixes (no Critical, High or Medium finding in either: the first review had four Low and four informational findings, five fixed and three recorded in the plan's Result, and the second look had four Low findings, all fixed). The second round of fixes has no look of its own.
+- **Known limits.**
+  - `acknowledge` refuses a list of more than 500 paths (`MAX_LISTED`), and this repository is about 39 files below that bound with 461 unrecorded files, each review adding 6 to 13. It is a limit of `acknowledge`, filed on the owner's list.
+  - The two entries are staged together and put in place one after the other; a failure between the two leaves the baselines only, which the command names and refuses to enroll over until the owner removes it by hand.
+  - The typed answer is stripped of surrounding white space, and a pseudo-terminal passes the terminal test, as for `wb rerender`; the narrow race between the second read and the write is the same as `acknowledge`'s.
+  - The check that a path lies where its module may write reads the clone's own `module.json`, and `_same_as_judged` uses the private function `installed._entry`; a change to `installed.read` must be followed there.
+  - A clone with a file name that the path rules refuse under `.workbench/` cannot be enrolled, and a fork that shares the seed of a known project is refused as known.
 
 ## Governing decisions and references
 
