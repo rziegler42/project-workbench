@@ -1,6 +1,6 @@
 # Enroll a clone of an installed project on a new machine
 
-Status: In Progress
+Status: Completed
 Created: 2026-11-15
 Candidate: workbench-v1#enrol-a-clone
 Specs: clone-enrollment, installer-interface, trust-and-approval, command-permissions
@@ -206,6 +206,11 @@ Each increment's recorded verification stands unless a later one changed its inp
 None identified.
 
 ## Result
+
+**Increment H** is done: the owner's run of `INSTALL.md` on the second machine passed (committed with this entry, trailer `#H`; 4 paths: this plan, `INSTALL.md`, `README.md`, the spec).
+- Run by the owner on 2026-11-15 at a real terminal on a Linux machine (home `/home/<user>`), the clone at `2b1d9ee`, a store that had never seen the project. Quoted as run: `python3 -m workbench check` (harness none, 3 problems: `doccheck`, `refcheck`, `remote-runner-check` not pinned); `wb preview enroll` (project `72937f3f…`, 73 baselines, 5 declaration-only paths, 6 seeded files listed as differing from the manifest, 461 unrecorded files: one and 460 review records; digest `526a0019…`); `wb enroll` with the typed `526a00199f1b`: `enrolled 73 paths; the project was not touched; no helper is pinned`; `wb preview acknowledge` (461 added, no changed or removed) and `wb acknowledge` with the typed `4112888bf5c6`: `acknowledged 461 paths`; `wb upgrade --package packages/workbench` with the typed `cc327e422325`: `wrote 0 paths`, `README.md` left as a conflict and six seeded files skipped; `wb check`: no problems; `wb doctor`: no problems and 1 risk (`review-profiles.json` missing, the owner's per-machine file); `wb attach --harness workbench/claude --package packages/workbench`: 26 files written, `.workbench/local/harness.json` recorded, two lines added to `.git/info/exclude`.
+- Every step matched what the scratch-clone run showed; no step refused; no correction was needed to the command. `INSTALL.md` was corrected for what the run adds: the seeded files that differ are expected, the risk of a missing review-profiles file is expected on a new machine, and the run is now marked as by hand on a second machine. Plan status is set to `Completed`: the ten acceptance criteria of the spec hold, the last by this run.
+- Open for the owner: the spec stays `Draft` until the owner says it reads `Current`; increment D's wording says the command writes "the level log" and it does not (recorded in D's Result, and the spec states what is built); `acknowledge`'s bound of 500 paths (461 here) is on the todo list; the second round of the security fixes has no look of its own; eleven commits were pushed at `2b1d9ee`, and this one and any after are not.
 
 **Increment G** is done and not yet committed: `INSTALL.md` rewritten from the draft, one sentence of `README.md`, and the spec's "As built" section and header. Documents only; no code changed.
 - Run on 2026-11-15 on a fresh `git clone` at `7d70877`, scratch `HOME` and store, the clone's own code driven in process through `workbench.cli.main` with a fake terminal for the owner-run commands: first `check` (3 problems: unpinned helpers); `preview enroll` (123 lines, 73 baselines, 5 declaration-only paths, 461 unrecorded); `enroll` (exit 0, 73 paths); `check` (same 3 problems), `doctor` (no problems, 1 risk); `preview acknowledge` (461 added); `acknowledge` (461 paths); `preview upgrade --package packages/workbench` (14 pins, `77 skip, 1 conflict; 0 file writes`; the conflict is `README.md`); `upgrade` (exit 0); `check` (no problems), `doctor` (no problems, 1 risk); `preview attach` (26 files). Scripts: untracked, in the scratchpad.

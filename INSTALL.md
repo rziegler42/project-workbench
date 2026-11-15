@@ -3,10 +3,10 @@
 This page is for the owner who has cloned this repository to a machine that has never run it. The code is Python 3.11 or later (standard library only) and git;
 nothing is installed. What a clone needs beyond the tracked files is per machine and untracked, and is listed at the end.
 
-**What has been run.** Steps 2, 4 to 7 and 9 were run on 2026-11-15 on a fresh `git clone` of this repository at commit `7d70877`, with a scratch `HOME`, driving the clone's own
-code in process with a fake terminal for the owner-run commands, exactly as the tests do (the shell command `wb enroll` is owner-run and denied to an agent, so it was not typed).
-The results are quoted under each step. **Not yet run:** the whole page by hand at a real terminal on a second machine, which is the owner's run (the last increment of the
-plan `2026-11-15-enroll-a-clone`), and step 8's `attach` itself (only its preview). If a step fails, note the step and the message; this page is corrected from that.
+**What has been run.** On 2026-11-15 the owner ran steps 1, 2, 4, 5, 6, 7, 8 and 9 by hand at a real terminal on a second machine (Linux, home `/home/<user>`) at commit `2b1d9ee`;
+every one passed with the numbers quoted under the steps. Before that, the steps were run on a fresh `git clone` at `7d70877` with a scratch `HOME`, driving the clone's own code in
+process with a fake terminal. Step 3 (the `PATH`) was done on the second machine and not observed. Not run on either: a Mac as the second machine, and the action-review hook and
+memory palace set-ups. If a step fails, note the step and the message; this page is corrected from that.
 
 ## Before you start
 
@@ -32,7 +32,9 @@ plan `2026-11-15-enroll-a-clone`), and step 8's `attach` itself (only its previe
 
 4. **Preview the enrollment.** `wb preview enroll` is read-only. *Run.* For this repository it printed 123 lines: `baselines to record: 73 paths`; a heading "recorded outside
    `.workbench/` on the strength of a module's own declaration of what it writes", with 5 paths (read them: nothing else checks them); `files under .workbench/ that the manifest
-   does not record: 461` (one file and 460 review records, which are not baselined here); the first-seen path; and a `digest:` line. Read the list. A refusal names the file or the
+   does not record: 461` (one file and 460 review records, which are not baselined here); the first-seen path; and a `digest:` line. Read the list. Seeded files that you have
+   edited since the manifest was written (here `AGENTS.md`, `docs/README.md` and four of the `docs/*/README.md` files) are listed as "differs from the manifest (seeded, yours)"; that is
+   expected, they are baselined as they are, and only a module-owned file that differs refuses. A refusal names the file or the
    entry that failed and writes nothing.
 
 5. **Enroll.** `wb enroll`, in a terminal. It shows the same list and asks you to type the first 12 characters of the digest; anything else cancels. It reads the clone again, and if
@@ -51,11 +53,13 @@ plan `2026-11-15-enroll-a-clone`), and step 8's `attach` itself (only its previe
    approvals store was exercised only by that run; a module of another package needs `wb approve` first. Afterwards `wb check` reported no problems and `wb doctor` no problems and 1 risk.
 
 8. **Attach the harness.** `wb preview attach --harness workbench/claude --package packages/workbench`, read it, then `wb attach --harness workbench/claude --package packages/workbench`.
-   *The preview was run; it listed 26 files it would create, the first ones under `.claude/`. The attach itself was not run.* It renders the per-clone harness files, records the
+   *Run on the second machine:* it wrote 26 files (25 under `.claude/` and `CLAUDE.md`), recorded `.workbench/local/harness.json`, added `CLAUDE.md` and `.claude/` to
+   `.git/info/exclude`, and warned that `.claude/settings.local.json` changes what the agent may do; restart the Claude session to load it. It renders the per-clone harness files, records the
    rendering in the guarded store, writes the local manifest `.workbench/local/harness.json` and adds the files to `.git/info/exclude`; it is meant to write nothing that git
    tracks (not verified by a run).
 
-9. **Check.** `wb check` and `wb doctor`. *Run after step 7, before step 8:* no problems (doctor also named 1 risk, which is the owner's to read). Run them again after step 8.
+9. **Check.** `wb check` and `wb doctor`. *Run after step 7, before step 8:* `check` found no problems; `doctor` found no problems and 1 risk, that `review-profiles.json` is
+   missing (a review is refused until it exists; copy it from your other machine, see the table below), and three notes about commands whose prompt the project fixes. Run them again after step 8.
 
 ## Things that are per machine and not in git
 
