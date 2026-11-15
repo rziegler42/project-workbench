@@ -131,6 +131,12 @@ class Names(Base):
         self.assertTrue(os.path.exists(os.path.join(self.root, ".workbench", "local", "secret.md")))
         self.assertEqual([".tmp-abc", "a.md"], self.files())
 
+    def test_a_credential_shaped_argument_is_not_echoed_in_a_refusal(self):
+        err = self.refused("drop", GITHUB)
+        self.assertNotIn(GITHUB, err)
+        self.assertIn("there is no item (name not shown)", err)
+        self.assertNotIn("A" * 20, self.refused("drop", GITHUB + ".md"))
+
     def test_the_argument_in_a_refusal_is_printed_safely(self):
         self.assertNotIn("\x1b", self.refused("drop", "bad\x1b[31m"))
 
@@ -289,6 +295,50 @@ class TheLog(Base):
         self.assertEqual("", lines.pop())
         self.assertEqual(sorted("2026-11-11\ti%02d\tItem %02d" % (number, number) for number in range(20)), sorted(lines))
         self.assertEqual(["dropped.log"], self.files())
+
+
+class ClosedOutput(io.StringIO):
+    def write(self, text):
+        raise BrokenPipeError(32, "Broken pipe")
+
+
+class AsciiOutput(io.StringIO):
+    def write(self, text):
+        text.encode("ascii")
+        return super().write(text)
+
+
+class Output(Base):
+    def call_with(self, out, *argv):
+        err = io.StringIO()
+        code = todo.main(list(argv), io.StringIO(""), out, err, self.root, False)
+        return code, err.getvalue()
+
+    def test_an_output_that_cannot_be_written_after_the_removal_is_reported_and_the_drop_stands(self):
+        self.item("a", "Gone anyway")
+        code, err = self.call_with(ClosedOutput(), "drop", "a")
+        self.assertEqual(0, code)
+        self.assertIn("the item is removed, but its text could not be written to the output", err)
+        self.assertEqual(["dropped.log"], self.files())
+        self.assertEqual("2026-11-11\ta\tGone anyway\n", self.log())
+
+    def test_an_output_that_cannot_take_a_character_gets_the_escaped_text(self):
+        self.item("a", "Café ☃")
+        out = AsciiOutput()
+        code, err = self.call_with(out, "drop", "a")
+        self.assertEqual((0, ""), (code, err))
+        self.assertTrue(out.getvalue().isascii())
+        self.assertIn("dropped: a\ntitle: Caf", out.getvalue())
+        self.assertEqual(["dropped.log"], self.files())
+
+    def test_list_and_show_report_an_output_that_cannot_take_a_character_and_do_not_fail_with_a_traceback(self):
+        self.item("a", "Café")
+        for argv in (["list"], ["show", "a"]):
+            out = AsciiOutput()
+            code, err = self.call_with(out, *argv)
+            self.assertEqual(1, code)
+            self.assertTrue(err.startswith("refused: the output cannot be written in the encoding"), err)
+        self.assertEqual(["a.md"], self.files())
 
 
 if __name__ == "__main__":

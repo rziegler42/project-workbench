@@ -286,6 +286,11 @@ class Show(Base):
             self.assertIn("there is no item", err)
             self.assertNotIn("Outside the list", err)
 
+    def test_a_credential_shaped_argument_is_not_echoed_in_a_refusal(self):
+        err = self.refused("show", GITHUB)
+        self.assertNotIn(GITHUB, err)
+        self.assertIn("there is no item (name not shown)", err)
+
     def test_the_id_in_a_refusal_is_printed_safely(self):
         err = self.refused("show", "bad\x1b[31m")
         self.assertNotIn("\x1b", err)

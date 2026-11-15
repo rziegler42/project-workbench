@@ -24,6 +24,7 @@
   now, or when the owner mentions something to do later, even in passing. Record more rather than less: the owner drops what is noise.
   Run one simple command with the free text in single quotes, and no pipe, `&&`, `;`, redirect or variable:
   `wb run todo add --title '<title>' --source '<plan or spec>' --step '<first step>' --size <quick|sitting|session|large> --owner --body '<text>'`.
+  Put no single quote inside the quoted text, which ends the quote: reword it, and paraphrase text copied from a document.
   Only the title is required; `--owner` marks an item that needs the owner's decision before anyone can start it. When the owner asks what to
   do next, or has little time or energy, read the list with `wb run todo list`, which takes `--size <size>`, `--mechanical` and
   `--older-than <days>`, and `wb run todo show <id>`.

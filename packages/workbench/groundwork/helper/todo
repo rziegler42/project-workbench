@@ -24,7 +24,8 @@ close-title test is a word overlap, not a judgement; a run killed between the li
 two links, which the readers pass over (they accept one link only), so a later ``list`` shows it as unreadable and the owner drops it.
 
 ``drop`` opens the drop log first (a link, a file that is not plain or has two links, or a log at its bound refuses the drop and keeps the item), removes
-the file, and then appends one line; the item's text is printed whether or not the line is written, and a failed write is reported on the error output.
+the file, and then appends one line; the item's text is printed whether or not the line is written, and a failed write is reported on the error output. Text that the output cannot take is
+written escaped, and an output that cannot be written at all (a closed pipe) is reported on the error output with the command still done, since the item is gone.
 Known limits: a run killed between the removal and the write leaves no log line; the size check is not atomic across drops at the same moment, so the log
 may pass its bound by a few lines; the steps read, open the log and remove are separate, so an item replaced meanwhile may be printed from its old text
 while the new file is removed (every step uses the held folder, follows no link, and cannot leave it); a log at its bound refuses every drop until the
@@ -32,6 +33,7 @@ owner trims it by hand.
 """
 
 import datetime
+import io
 import os
 import re
 import secrets
@@ -505,7 +507,7 @@ def show(args, out, cwd):
     if len(args) != 1:
         raise Usage(USAGE)
     identifier = args[0]
-    named = display.ascii_text(identifier)[:80]
+    named = argument_name(identifier)
     if not identifier or "/" in identifier or "\0" in identifier or identifier.startswith(".") or not shown(identifier):
         raise Refused("there is no item %s" % named)
     folder = find_list(root_of(cwd))
@@ -542,7 +544,7 @@ def write_item(out, fields):
 def drop_name(argument):
     """``(file name, printable form of the argument)``. The argument is an ID, or the file name of an unreadable file (it ends in ``.md``); it holds no
     ``/``, no NUL and no leading dot, so it names a file in the folder and never the log, a temporary file or anything outside."""
-    named = display.ascii_text(argument)[:80]
+    named = argument_name(argument)
     if not argument or "/" in argument or "\0" in argument or argument.startswith(".") or len(argument.encode("utf-8", "surrogateescape")) > 200:
         raise Refused("there is no item %s" % named)
     return (argument if argument.endswith(".md") else argument + ".md"), named
@@ -563,6 +565,29 @@ def open_log(folder):
         os.close(descriptor)
         raise
     return descriptor, info.st_size
+
+
+def emit(out, err, text):
+    """Write `text` to `out` after a removal. A terminal that cannot show a character gets the escaped form; an output that cannot be written (a closed pipe)
+    is reported on the error output, since the item is already gone and the command has not failed."""
+    for attempt in (text, "\n".join(display.ascii_text(line) for line in text.split("\n"))):
+        try:
+            out.write(attempt)
+            return
+        except UnicodeError:
+            continue
+        except (OSError, ValueError):
+            break
+    try:
+        err.write("note: the item is removed, but its text could not be written to the output\n")
+    except (OSError, ValueError):
+        pass
+
+
+def argument_name(argument):
+    """`argument` as it may be printed in a refusal: escaped, cut to 80 characters, and not shown at all when it holds credential-shaped text."""
+    text = display.ascii_text(argument)[:80]
+    return "(name not shown)" if credential_hits(argument) or credential_hits(text) else text
 
 
 def drop(args, out, err, cwd):
@@ -600,11 +625,13 @@ def drop(args, out, err, cwd):
         if log is not None:
             os.close(log)
         os.close(folder)
+    text = io.StringIO()
     if fields is None:
-        out.write("dropped: %s (not an item; its text is not shown)\n" % (identifier or "(name not shown)"))
+        text.write("dropped: %s (not an item; its text is not shown)\n" % (identifier or "(name not shown)"))
     else:
-        out.write("dropped: %s\n" % identifier)
-        write_item(out, fields)
+        text.write("dropped: %s\n" % identifier)
+        write_item(text, fields)
+    emit(out, err, text.getvalue())
     if problem:
         err.write("note: the item is removed and printed above, but the drop log could not be written (%s)\n" % problem)
     return 0
@@ -629,6 +656,9 @@ def main(argv, stdin, out, err, cwd, terminal=False):
         return 2
     except Refused as exc:
         err.write("refused: %s\n" % exc)
+        return 1
+    except UnicodeError:
+        err.write("refused: the output cannot be written in the encoding of this terminal\n")
         return 1
     except OSError as exc:
         err.write("refused: the command could not be completed (%s)\n" % display.ascii_text(exc.strerror or "error")[:80])

@@ -36,6 +36,9 @@ class Triggers(unittest.TestCase):
                        "when the owner mentions something to do later, even in passing"):
             self.assertIn(clause, text)
 
+    def test_it_says_to_put_no_single_quote_inside_the_quoted_text(self):
+        self.assertIn("Put no single quote inside the quoted text, which ends the quote: reword it, and paraphrase text copied from a document", flat())
+
     def test_it_says_to_tell_the_owner_in_one_line_without_stopping_the_work(self):
         self.assertIn("tell the owner in one line what you added without stopping the work", flat())
 
