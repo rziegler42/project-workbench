@@ -1,0 +1,204 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-11-15T15:03:28Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "The fallback through the module flag is removed. The spec now says the commands run through the launcher, which an earlier setup step creates."
+    },
+    {
+      "at": "2026-11-15T15:03:29Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F2",
+      "reason": "The spec now says this is the one command that needs the project to be unknown, handles one entry or a malformed entry, and writes both entries only after every check has passed."
+    },
+    {
+      "at": "2026-11-15T15:03:29Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F3",
+      "reason": "The spec now covers slot blocks: how a block is found and compared, that a differing block is listed and not refused, and that its file gets one baseline of its whole bytes. Acceptance cases were added."
+    },
+    {
+      "at": "2026-11-15T15:03:29Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F4",
+      "reason": "The title was misspelled by my own respelling script and is fixed."
+    },
+    {
+      "at": "2026-11-15T15:05:06Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F1",
+      "reason": "The baselines written now include the manifest file itself, and the first acceptance case checks that the preview of the later command lists no difference for it."
+    },
+    {
+      "at": "2026-11-15T15:05:06Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F2",
+      "reason": "I read the installer code: the block hash covers both marker lines and the text, with line endings. The spec now says so and names the scanner."
+    },
+    {
+      "at": "2026-11-15T15:06:25Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R3-F1",
+      "reason": "Check 3 now requires the strict manifest reader and the path and ownership rules for every recorded entry, with a refusal before any store write, and the third acceptance case covers it."
+    },
+    {
+      "at": "2026-11-15T15:08:34Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R4-F1",
+      "reason": "The first acceptance case now says the first run of the workbench has already written the store and the launcher, and it asserts no write for the project beyond that."
+    }
+  ],
+  "format": 1,
+  "generation": 14,
+  "kind": "spec",
+  "path": "docs/specs/clone-enrollment.md",
+  "rounds": [
+    {
+      "at": "2026-11-15T15:02:39Z",
+      "bridge": "ask-codex",
+      "document_sha256": "4bc85fae5075acdf26f056ed682a2310fa40026f75f8f8a2d9dbca63578f7b7b",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F2",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F3",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F4",
+          "severity": "nit"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-luna",
+      "n": 1,
+      "profile": "measured",
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-luna",
+        "options": {}
+      },
+      "sha256": "b1e66d033d8ca29e4d7abeb5912f5a6770f54b7056c7712641331d458061d67e",
+      "usage": {
+        "input_tokens": 197048,
+        "output_tokens": 3016,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-15T15:04:47Z",
+      "bridge": "ask-codex",
+      "document_sha256": "c17875ecd67428992e996edd8fd7037ed218e343293c8a7f4c92ac3a4c0d574f",
+      "file": "round-2.json",
+      "findings": [
+        {
+          "id": "R2-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R2-F2",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-luna",
+      "n": 2,
+      "profile": "measured",
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-luna",
+        "options": {}
+      },
+      "sha256": "43ebef1878ca87b0b28c15e2e1ea84701498c6122641337068e04728012366b9",
+      "usage": {
+        "input_tokens": 415124,
+        "output_tokens": 3245,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-15T15:06:13Z",
+      "bridge": "ask-codex",
+      "document_sha256": "53d4371b6e5ff7a1b7dcfb5c4f3f768794509c93c5e283c7db75bb9b04e644b7",
+      "file": "round-3.json",
+      "findings": [
+        {
+          "id": "R3-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-luna",
+      "n": 3,
+      "profile": "measured",
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-luna",
+        "options": {}
+      },
+      "sha256": "e776a64d46c84ea56a91faa8177e6e4b7353e1fb19a06e6025535c00d3c39d1b",
+      "usage": {
+        "input_tokens": 96187,
+        "output_tokens": 3221,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-15T15:08:29Z",
+      "bridge": "ask-codex",
+      "document_sha256": "a86dec70bac68f746400704e210c2547e51476dbebeb0a7e7b0cf79ed18f07a9",
+      "file": "round-4.json",
+      "findings": [
+        {
+          "id": "R4-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-luna",
+      "n": 4,
+      "profile": "measured",
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-luna",
+        "options": {}
+      },
+      "sha256": "fbf296642555172321216a5cf31bafda7ee5a7c0f4786ee3f6638ae0b5d0eeab",
+      "usage": {
+        "input_tokens": 147851,
+        "output_tokens": 2927,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    }
+  ],
+  "seal": "b8325a8cca2ac959a4d52e710731faf265f772b9a03a590684af98201f9dcf42",
+  "window": {
+    "bound": 4,
+    "first": 1
+  }
+}

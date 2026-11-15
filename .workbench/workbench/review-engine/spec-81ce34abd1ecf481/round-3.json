@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R3-F1",
+      "location": "What it checks, items 3–8; What it writes",
+      "problem": "The spec does not require validating that manifest entries are permitted by the approved module declarations and repository-boundary rules. A malformed or hostile manifest could classify arbitrary paths (including living files or `.workbench/local/` content) as module-owned, causing enrollment to baseline them and establish them as trusted ownership.",
+      "severity": "major",
+      "suggestion": "Require the existing strict manifest and declaration/write-set validation, including path boundaries, owner class, module namespace, and slot declarations; refuse the enrollment before any store write when an entry is outside the approved declarations or otherwise conflicts with repository-boundary rules."
+    }
+  ],
+  "format": 1,
+  "round": 3,
+  "summary": "One major trust-boundary gap remains: enrollment accepts manifest ownership claims without explicitly validating them against approved declarations and path rules.",
+  "verdict": "changes_needed"
+}

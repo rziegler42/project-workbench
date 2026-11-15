@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R4-F1",
+      "location": "Acceptance criteria 1; Form; What it writes",
+      "problem": "The first acceptance case requires `preview enroll` to write nothing in the store on a fresh scratch HOME, but the governing installer rules say every command first initializes the guarded store and writes the launcher (and the preview command table otherwise defines this as the initialization exception). The criterion is therefore impossible for the stated setup and does not define whether those bootstrap writes are allowed.",
+      "severity": "major",
+      "suggestion": "State the required precondition that the guarded store and launcher are already initialized, or explicitly exempt the standard initialization writes from the no-write assertion and list them in the expected result."
+    }
+  ],
+  "format": 1,
+  "round": 4,
+  "summary": "One acceptance criterion contradicts the repository-wide store initialization behavior for a fresh HOME.",
+  "verdict": "changes_needed"
+}

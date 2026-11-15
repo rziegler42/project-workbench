@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "docs/specs/clone-enrollment.md:65, What it writes",
+      "problem": "The baselines written by enrollment omit `.workbench/manifest.json`, although the governing acknowledgement rules include the manifest in every comparison and `install` records its baseline. A newly enrolled clone would therefore immediately report the manifest as an added/unacknowledged file.",
+      "severity": "major",
+      "suggestion": "Require enrollment to hash and include `.workbench/manifest.json` in the baselines, and add an acceptance case proving the resulting clone has no manifest baseline difference."
+    },
+    {
+      "id": "R2-F2",
+      "location": "docs/specs/clone-enrollment.md:61, What it checks item 7",
+      "problem": "The slot-block hash input is not defined precisely enough and appears to say the text between the markers, while the manifest/install format hashes the complete block text including its BEGIN and END marker lines. Implementations could hash different bytes and reject every existing block.",
+      "severity": "major",
+      "suggestion": "State explicitly that enrollment hashes the exact serialized block bytes, including both marker lines and their line endings, using the same scanner/hash convention as install."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "Two major specification gaps remain: the manifest is not included in enrollment baselines, and slot-block hash bytes are ambiguous against the existing manifest format.",
+  "verdict": "changes_needed"
+}

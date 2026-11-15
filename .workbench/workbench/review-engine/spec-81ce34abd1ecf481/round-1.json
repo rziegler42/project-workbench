@@ -1,0 +1,36 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Scope, second paragraph",
+      "problem": "The fallback invocation `python3 -m workbench enroll` contradicts the governing installer rule that agents and scripts must use the isolated `wb` launcher; `-m` puts the target project's directory first on the module search path and can execute project-controlled code.",
+      "severity": "major",
+      "suggestion": "Define a safe bootstrap invocation that preserves the isolated launcher behavior, or explicitly specify how the launcher is installed and invoked before enrollment."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Assumptions and constraints, first bullet; What it checks, item 2",
+      "problem": "The spec says every project command requires existing baselines and a matching `seen` record, but enrollment is defined to run when both are absent and create them. Without an explicit exception, the command is self-contradictory and would refuse every fresh enrollment.",
+      "severity": "major",
+      "suggestion": "State that `enroll` is the sole exception: it requires neither record, refuses partial or malformed project records, and creates both only after all enrollment checks pass."
+    },
+    {
+      "id": "R1-F3",
+      "location": "What it checks, items 3–5; What it writes; The pins",
+      "problem": "The committed manifest records both files and slot blocks, but the enrollment checks and baseline-writing rules only define behavior for files. They do not say how a slot block is validated, how its containing file is hashed for the baseline, or how seeded files containing blocks are handled. A clone using a filled slot therefore has no defined enrollment result.",
+      "severity": "major",
+      "suggestion": "Specify slot-block validation and hashing, including the relationship between the manifest's block hash and the baseline hash of the containing file, and include corresponding preview and acceptance cases."
+    },
+    {
+      "id": "R1-F4",
+      "location": "Title",
+      "problem": "The document title spells “enrollment” as “enrolllment.”",
+      "severity": "nit",
+      "suggestion": "Correct the title spelling."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The spec has a prohibited and potentially unsafe bootstrap invocation, a direct contradiction about the records enrollment is meant to create, and an undefined path for manifest slot blocks.",
+  "verdict": "changes_needed"
+}
