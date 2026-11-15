@@ -1,6 +1,6 @@
 # Clone enrollment
 
-Status: Draft. Written on 2026-11-15 from a conversation with the owner, for the roadmap candidate `workbench-v1#enrol-a-clone`. The command is built (see "As built"). It is `Current` only when the owner says so, after the owner's run on a second machine.
+Status: Current. Written on 2026-11-15 from a conversation with the owner, for the roadmap candidate `workbench-v1#enrol-a-clone`. The command is built (see "As built"), and the owner ran the setup page on a second machine the same day. The owner set it to `Current` on 2026-11-15.
 
 Each statement carries one of three marks, so that the owner can see what is theirs:
 
@@ -80,7 +80,7 @@ The commands are `wb enroll` and a read-only `wb preview enroll`. [call] They ar
 
 ## As built
 
-Built by the plan `2026-11-15-enroll-a-clone` (increments B to F, committed 2026-11-15). The spec stays `Draft` until the owner says it reads `Current`, after the owner's run on a second machine (criterion 10).
+Built by the plan `2026-11-15-enroll-a-clone` (increments B to F, committed 2026-11-15). The owner ran the setup page on a second machine (criterion 10) and set the spec to `Current` on 2026-11-15.
 
 - **Commands.** `wb preview enroll` and the owner-run `wb enroll` (`workbench/enroll.py`, routed in `workbench/cli.py`); the read is `workbench/enrollplan.py` (`examine`, `render`, the plan and its digest). The key `wb enroll` (class governs, `block` only) and its derived preview key are in `workbench/levels.py`.
 - **Tests.** `tests/test_enroll_plan.py`, `tests/test_enroll_preview.py` and `tests/test_enroll.py` (101 tests), written first and mutation-tested (30 mutants of the read, 16 of the command, none surviving), and the lists in `test_levels`, `test_permissions`, `test_owner_run_arguments` and `test_rendering`. Criteria 1 to 9 are covered by them; criterion 5 (the pins follow from `upgrade` with the package) by two tests that install a project in a store that does not know it, enroll it, acknowledge it and run the preview of `upgrade`, one with a helper planted in the clone.
