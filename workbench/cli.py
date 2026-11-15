@@ -48,6 +48,7 @@ USAGE = ("usage: python3 -m workbench verify [<package> | --dir <path>] "
          "       python3 -m workbench acknowledge [<target> | --dir <path>] [--digest <32 hex>]   (owner-run, terminal only;\n"
          "                                        at the level ask, without a terminal, with the digest of the preview)\n"
          "       python3 -m workbench preview enroll [<target> | --dir <path>]   (read-only; a clone on a machine that does not know it)\n"
+         "       python3 -m workbench enroll [<target> | --dir <path>]   (owner-run, terminal only at every level)\n"
          "       python3 -m workbench preview recover [<target> | --dir <path>]   (read-only)\n"
          "       python3 -m workbench recover [<target> | --dir <path>] [--digest <32 hex>]   (owner-run, terminal only;\n"
          "                                        at the level ask, without a terminal, with the digest of the preview)\n"
@@ -548,6 +549,26 @@ def _acknowledge(tokens, err, out, store_root, stdin):
     return acknowledge.run(opened[0], spelling, stdin, out, err, log=log, digest=digest)
 
 
+def _enroll(tokens, out, err, store_root, stdin):
+    try:
+        spelling = enroll.parse(tokens)
+    except sources.UsageError as exc:
+        err.write("%s\n%s" % (_clean(str(exc)), USAGE))
+        return 2
+    stdin = stdin if stdin is not None else sys.stdin
+    # The key offers `block` only, so there is no level to read: without a terminal it refuses, and a refused run must not create the guarded store.
+    if not (approve.is_terminal(stdin) and approve.is_terminal(out)):
+        err.write("refused: %s\n" % _clean(enroll.TERMINAL_ONLY))
+        return 1
+    opened = _open_store(store_root, err)
+    if opened is None:
+        return 1
+    notes = opened[1] + launch.install_wrapper(opened[0], firstparty.default_distribution())
+    for note in notes:
+        err.write("warning: %s\n" % _clean(note))
+    return enroll.run(opened[0], spelling, stdin, out, err)
+
+
 def _recover(tokens, err, out, store_root, stdin):
     try:
         spelling, digest = recover.parse_args(tokens, digest_ok=True)
@@ -832,7 +853,7 @@ def main(argv, out=None, err=None, *, store_root=None, distribution=None, stdin=
     if argv and argv[0] == "recover":
         return _recover(argv[1:], err, out, store_root, stdin)
     if argv and argv[0] == "enroll":
-        return enroll.run_not_built(argv[1:], err)
+        return _enroll(argv[1:], out, err, store_root, stdin)
     if argv and argv[0] == "attach":
         return _attach(argv[1:], out, err, store_root, distribution, home, stdin)
     if argv and argv[0] == "check":

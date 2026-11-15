@@ -89,32 +89,12 @@ class Text(EnrollPreview):
         self.assertIn("command: enroll", out.getvalue())
 
 
-class NotBuilt(unittest.TestCase):
-    """``wb enroll`` itself is routed, and refuses until the increment that builds it."""
-
-    def run_command(self, *tokens):
-        out, err = io.StringIO(), io.StringIO()
-        code = cli.main(["enroll"] + list(tokens), out, err, store_root="/nonexistent-store-for-this-test")
-        return code, out.getvalue(), err.getvalue()
-
-    def test_the_command_refuses_and_points_to_the_preview(self):
-        code, out, err = self.run_command("somewhere")
-        self.assertEqual((1, ""), (code, out))
-        self.assertTrue(err.startswith("refused: "), err)
-        self.assertIn("wb preview enroll", err)
-
-    def test_a_bad_option_is_a_usage_error_and_still_refuses_nothing_else(self):
-        code, out, err = self.run_command("--digest", "x")
-        self.assertEqual((2, ""), (code, out))
-        self.assertIn("unknown option", err)
-
-    def test_it_is_a_routed_owner_run_command(self):
+class Keys(unittest.TestCase):
+    def test_enroll_is_a_routed_owner_run_command(self):
         from workbench import rules
         self.assertIn("enroll", rules.OWNER_RUN)
         self.assertEqual((), rules.NOT_YET_ROUTED)
 
-
-class Keys(unittest.TestCase):
     def test_enroll_is_an_owner_run_command_that_offers_block_only(self):
         key = levels.registry()["wb enroll"]
         self.assertEqual(("command", "governs"), (key.kind, key.klass))
