@@ -2,7 +2,9 @@
 """The groundwork todo helper: a personal list of things to do or fix, kept in this clone.
 
     todo add --title T [--source S] [--step S] [--size quick|sitting|session|large] [--owner] [--body B]
-    todo list | show | drop      declared, not built yet (plan 2026-11-11-todo-list, increments B and C)
+    todo list [--size quick|sitting|session|large] [--mechanical] [--older-than DAYS]
+    todo show <id>
+    todo drop      declared, not built yet (plan 2026-11-11-todo-list, increment C)
 
 It is a kit helper (kit API 1) started from the project. The list is the untracked folder ``.workbench/local/todo/``, one file
 ``<id>.md`` for each item, and the helper reads and writes only there. The rules are in ``docs/specs/todo-list.md``.
@@ -33,8 +35,12 @@ import unicodedata
 from wbkit import display, project
 
 USAGE = ("usage: todo add --title <title> [--source <text>] [--step <text>] [--size quick|sitting|session|large] [--owner] [--body <text>]\n"
-         "       todo list | show <id> | drop <id>   (not built yet)")
+         "       todo list [--size quick|sitting|session|large] [--mechanical] [--older-than <days>]\n"
+         "       todo show <id>\n"
+         "       todo drop <id>   (not built yet)")
 MAX_TITLE, MAX_SOURCE, MAX_STEP, MAX_BODY, MAX_ITEM, MAX_ITEMS = 120, 200, 200, 4096, 5120, 1000
+LIST_SHOWN = 200   # at most this many lines of a list are printed; the rest is counted
+HEADER_KEYS = ("title", "added", "source", "step", "size", "owner")
 SIZES = ("quick", "sitting", "session", "large")
 FOLDER = (".workbench", "local", "todo")
 ID_LENGTH = 60
@@ -241,6 +247,99 @@ def item_names(folder):
     return sorted(name for name in os.listdir(folder) if name.endswith(".md") and not name.startswith("."))
 
 
+# -- reading an item -------------------------------------------------------------------------------------------------------------------------
+def parse_item(data):
+    """The fields of an item file as a dict (``title``, ``added``, the optional ones that are given, and ``body``), or ``None`` when the bytes are not an item:
+    not UTF-8, no blank line after the header, a line that is not ``key: value``, an unknown or repeated key, a missing ``title`` or ``added``, or a value or body
+    outside the bounds that ``add`` keeps."""
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+    head, separator, body = text.partition("\n\n")
+    if not separator:
+        return None
+    fields = {}
+    for line in head.split("\n"):
+        key, colon, value = line.partition(": ")
+        if not colon or key not in HEADER_KEYS or key in fields:
+            return None
+        fields[key] = value
+    if "title" not in fields or "added" not in fields:
+        return None
+    try:
+        for name, limit in (("title", MAX_TITLE), ("source", MAX_SOURCE), ("step", MAX_STEP), ("added", 10), ("size", 7), ("owner", 3)):
+            if name in fields:
+                one_line(name, fields[name], limit)
+        if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", fields["added"]):
+            return None
+        datetime.date.fromisoformat(fields["added"])
+    except (Refused, ValueError):
+        return None
+    if fields.get("size", "quick") not in SIZES or fields.get("owner", "yes") != "yes":
+        return None
+    if len(body.encode("utf-8")) > MAX_BODY or any(char != "\n" and not char.isprintable() for char in body):
+        return None
+    fields["body"] = body
+    return fields
+
+
+def read_all(folder):
+    """``(items, unreadable, beyond)``: the ``(id, fields)`` of each readable item, the file names that are not readable as items, and how many file names
+    beyond the first ``MAX_ITEMS`` were not looked at."""
+    names = item_names(folder)
+    items, unreadable = [], []
+    for name in names[:MAX_ITEMS]:
+        data = read_item(folder, name)
+        fields = parse_item(data) if data is not None and shown(name[:-3]) else None   # an ID that does not print safely is not an item
+        if fields is None:
+            unreadable.append(name)
+        else:
+            items.append((name[:-3], fields))
+    return items, unreadable, max(0, len(names) - MAX_ITEMS)
+
+
+def age_days(added):
+    return max(0, (today() - datetime.date.fromisoformat(added)).days)
+
+
+def safe_text(name, value):
+    """`value`, or a note that names the field and the rules when it holds credential-shaped text. The text itself is never printed then."""
+    hits = credential_hits(value)
+    if hits:
+        return "[%s not shown: credential-shaped text (%s)]" % (name, ", ".join(sorted({rule for _, rule in hits})))
+    return value
+
+
+def find_list(root):
+    """The descriptor of the list's folder below `root`, or ``None`` when it is not there. Nothing is made, and a link is refused."""
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    current = os.open(root, os.O_RDONLY | os.O_DIRECTORY)
+    for name in FOLDER:
+        try:
+            following = os.open(name, flags, dir_fd=current)
+        except FileNotFoundError:
+            os.close(current)
+            return None
+        except OSError:
+            os.close(current)
+            raise Refused("%s is a link, or a file, or cannot be opened, where the list's folder belongs" % display.ascii_text(name)[:80])
+        os.close(current)
+        current = following
+    return current
+
+
+def root_of(cwd):
+    try:
+        return os.path.realpath(project.find_root(cwd))
+    except project.ProjectError as exc:
+        raise Refused(display.ascii_text(str(exc))[:200])
+
+
+def listed_name(name):
+    return shown(name[:-3]) if name.endswith(".md") else None
+
+
 # -- the folder ------------------------------------------------------------------------------------------------------------------------------
 def step_into(parent, name):
     """The descriptor of the folder `name` in `parent`, made (mode 0700) when it is missing. A link, or a file where the folder belongs, is refused."""
@@ -304,11 +403,7 @@ def add(args, out, cwd):
     body = checked_fields(fields, owner)
     no_credentials(fields, body)
     data = serialize(fields, owner, body)
-    try:
-        root = os.path.realpath(project.find_root(cwd))
-    except project.ProjectError as exc:
-        raise Refused(display.ascii_text(str(exc))[:200])
-    folder = open_list(root)
+    folder = open_list(root_of(cwd))
     try:
         names = item_names(folder)
         if len(names) >= MAX_ITEMS:
@@ -341,6 +436,95 @@ def add(args, out, cwd):
     return 0
 
 
+def list_arguments(args):
+    """``(size, mechanical, older)`` from the arguments after ``list``; an option is given at most once."""
+    size, mechanical, older, index = None, False, None, 0
+    while index < len(args):
+        flag = args[index]
+        if flag == "--mechanical" and not mechanical:
+            mechanical, index = True, index + 1
+        elif flag in ("--size", "--older-than") and index + 1 < len(args) and (size is None if flag == "--size" else older is None):
+            value = args[index + 1]
+            if flag == "--size":
+                if value not in SIZES:
+                    raise Refused("the size must be one of %s" % ", ".join(SIZES))
+                size = value
+            else:
+                if not re.fullmatch(r"[0-9]{1,6}", value):
+                    raise Refused("--older-than takes a whole number of days")
+                older = int(value)
+            index += 2
+        else:
+            raise Usage(USAGE)
+    return size, mechanical, older
+
+
+def list_items(args, out, cwd):
+    size, mechanical, older = list_arguments(args)
+    folder = find_list(root_of(cwd))
+    items, unreadable, beyond = ([], [], 0)
+    if folder is not None:
+        try:
+            items, unreadable, beyond = read_all(folder)
+        finally:
+            os.close(folder)
+    filtered = size is not None or mechanical or older is not None
+    rows = []
+    for identifier, fields in items:
+        age = age_days(fields["added"])
+        if (size is not None and fields.get("size") != size) or (mechanical and fields.get("owner") == "yes") or (older is not None and age <= older):
+            continue
+        rows.append((fields["added"], identifier, age, fields))
+    rows.sort(key=lambda row: (row[0], row[1]))
+    for _, identifier, age, fields in rows[:LIST_SHOWN]:
+        out.write("%5s  %-7s  %s  [%s]%s\n" % ("%dd" % age, fields.get("size", "-"), safe_text("title", fields["title"]),
+                                              identifier, " (owner)" if "owner" in fields else ""))
+    if len(rows) > LIST_SHOWN:
+        out.write("... %d more are not shown; narrow the list with --size, --mechanical or --older-than\n" % (len(rows) - LIST_SHOWN))
+    if not rows and not unreadable:
+        out.write("no item matches\n" if filtered and items else "the list is empty\n")
+    for name in unreadable[:LIST_SHOWN]:
+        out.write("unreadable: %s\n" % (listed_name(name) and name or "(a file whose name is not shown)"))
+    if len(unreadable) > LIST_SHOWN:
+        out.write("... %d more files are unreadable\n" % (len(unreadable) - LIST_SHOWN))
+    if beyond:
+        out.write("... %d more files in the folder were not read\n" % beyond)
+    return 0
+
+
+def show(args, out, cwd):
+    if len(args) != 1:
+        raise Usage(USAGE)
+    identifier = args[0]
+    named = display.ascii_text(identifier)[:80]
+    if not identifier or "/" in identifier or "\0" in identifier or identifier.startswith(".") or not shown(identifier):
+        raise Refused("there is no item %s" % named)
+    folder = find_list(root_of(cwd))
+    if folder is None:
+        raise Refused("there is no item %s" % named)
+    try:
+        name = identifier + ".md"
+        try:
+            os.lstat(name, dir_fd=folder)
+        except FileNotFoundError:
+            raise Refused("there is no item %s" % named)
+        data = read_item(folder, name)
+        fields = parse_item(data) if data is not None else None
+    finally:
+        os.close(folder)
+    if fields is None:
+        raise Refused("the file %s cannot be read as an item; it is not shown" % named)
+    out.write("id: %s\n" % identifier)
+    out.write("title: %s\n" % safe_text("title", fields["title"]))
+    out.write("added: %s (%d days ago)\n" % (fields["added"], age_days(fields["added"])))
+    for key in ("source", "step", "size", "owner"):
+        if key in fields:
+            out.write("%s: %s\n" % (key, safe_text(key, fields[key])))
+    if fields["body"]:
+        out.write("\n%s\n" % safe_text("body", fields["body"]).rstrip("\n"))
+    return 0
+
+
 def main(argv, stdin, out, err, cwd, terminal=False):
     """Run one command from `cwd`. Returns the exit code: 0 done, 1 refused with nothing written, 2 usage."""
     try:
@@ -348,8 +532,12 @@ def main(argv, stdin, out, err, cwd, terminal=False):
             raise Usage(USAGE)
         if argv[0] == "add":
             return add(argv[1:], out, cwd)
-        if argv[0] in ("list", "show", "drop"):
-            raise Refused("%s is not built yet" % argv[0])
+        if argv[0] == "list":
+            return list_items(argv[1:], out, cwd)
+        if argv[0] == "show":
+            return show(argv[1:], out, cwd)
+        if argv[0] == "drop":
+            raise Refused("drop is not built yet")
         raise Usage(USAGE)
     except Usage as exc:
         err.write("%s\n" % exc)

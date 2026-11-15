@@ -304,10 +304,8 @@ class Paths(Base):
 
 
 class NotYetBuilt(Base):
-    def test_list_show_and_drop_are_declared_and_refuse_until_their_increments(self):
-        for argv in (["list"], ["show", "x"], ["drop", "x"]):
-            err = self.refused(*argv)
-            self.assertIn("not built yet", err)
+    def test_drop_is_declared_and_refuses_until_its_increment(self):
+        self.assertIn("not built yet", self.refused("drop", "x"))
 
 
 class Creation(Base):
