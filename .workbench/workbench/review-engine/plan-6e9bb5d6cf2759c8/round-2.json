@@ -1,0 +1,29 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "docs/plans/2026-11-15-enroll-a-clone.md:14,44-56",
+      "problem": "Increment A is scoped and defined to leave the trust-basis decision `Proposed`, but increment B requires A to be accepted and completion criterion 3 requires an accepted record. The acceptance checkpoint is mentioned, but the increment does not state that it resumes only after acceptance and records the accepted status as its outcome.",
+      "severity": "major",
+      "suggestion": "Make A's completed outcome an accepted decision record, explicitly stop at Proposed for the owner, then resume, verify/record acceptance, and commit the accepted record before B may begin."
+    },
+    {
+      "id": "R2-F2",
+      "location": "docs/plans/2026-11-15-enroll-a-clone.md:82-98",
+      "problem": "The plan does not explicitly verify all post-enrollment behavior required by clone-enrollment acceptance criterion 2. D covers `preview acknowledge`, while E checks that `wb doctor` knows the command; neither requires `wb check` and `wb doctor` to run successfully on the newly enrolled clone without the “treated as new” refusal.",
+      "severity": "major",
+      "suggestion": "Add a D regression test, or an explicit fresh-clone verification in G, that enrolls the clone and then runs `wb check`, `wb doctor`, and `wb preview acknowledge`, asserting that none has the unknown-project refusal."
+    },
+    {
+      "id": "R2-F3",
+      "location": "docs/plans/2026-11-15-enroll-a-clone.md:101-110",
+      "problem": "F tests fixes made from the security review but does not require the independent second look after a security fix. The security-review specification requires both a regression test and an independent second look because the fix itself creates attack surface.",
+      "severity": "major",
+      "suggestion": "After applying any security finding, require a fresh independent security review of the fix (within the review cap), record its outcome, and do not complete F while that review has unresolved findings."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "The plan addresses the earlier findings, but its decision checkpoint, acceptance-criterion verification, and security-fix review loop still need clarification.",
+  "verdict": "changes_needed"
+}
