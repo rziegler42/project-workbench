@@ -7,17 +7,17 @@ Specs: clone-enrollment, installer-interface, trust-and-approval, command-permis
 
 ## Goal
 
-A clone of an already installed project, on a machine that has never held it, is made known there by one owner-run command, `wb enroll`, with a read-only `wb preview enroll`. Afterwards the checks, `attach`, `upgrade`, `add` and `acknowledge` work on the clone and its helpers are pinned. The design is `docs/specs/clone-enrollment.md` (Draft, reviewed in four rounds); this plan builds it. Where this plan makes a choice that the spec leaves open, the choice is marked **(my call)**, so that the owner can overrule it at review.
+A clone of an already installed project, on a machine that has never held it, is made known there by one owner-run command, `wb enroll`, with a read-only `wb preview enroll`. Afterwards the checks, `attach`, `upgrade`, `add` and `acknowledge` work on the clone; its helpers are pinned by the next step, `wb upgrade --package <directory>`, not by `enroll` (decision `2026-11-15-enroll-writes-no-pins-and-leaves-them-to-upgrade-from-a-package`, which supersedes the first record of the day). The design is `docs/specs/clone-enrollment.md` (Draft, reviewed in four rounds and then changed by that decision); this plan builds it. Where this plan makes a choice that the spec leaves open, the choice is marked **(my call)**, so that the owner can overrule it at review.
 
 ## Scope
 
-- A decision record for the trust basis, written `Proposed` (increment A).
+- A decision record for the trust basis (increment A) and the record that supersedes its pin and approval rule, with the spec's change to match (increment A-A).
 - A read-only plan of what an enrollment would write, with the checks of the spec (B), the preview command (C), the owner-run write (D), the registration and the tests and tables that list every key (E), a security review and its fixes (F), the setup page and the spec as built (G), and the record of the owner's run on the second machine (H).
 - Code in `workbench/` (the installer) and its tests in `tests/`.
 
 ## Non-goals
 
-- Anything the spec lists as a non-goal: moving a project between paths, a comparison with another machine, writing an approval, fetching a package, attaching a harness, copying settings.
+- Anything the spec lists as a non-goal: moving a project between paths, a comparison with another machine, writing an approval or a pin, reading an approval record, fetching a package, attaching a harness, copying settings.
 - Changing what a baseline, a pin or an approval record means, or the format of any store file.
 - A level other than `block` for `wb enroll` **(my call)**: the key offers `block` only, like `wb rerender`.
 - Running anything on the owner's second machine myself: the owner runs the setup page there and reports back, and increment H records it.
@@ -26,7 +26,8 @@ A clone of an already installed project, on a machine that has never held it, is
 
 - The installer in `workbench/` is imported by the harness hooks, so a half-written edit can refuse every tool call. Each code increment is therefore prepared in a scratch copy of the repository, tested there by importing it (the command line of a copy is never run, because it rewrites the shared launcher), and applied to the real tree in one scripted pass followed by the tests. This is the rule the owner's memory records for this repository.
 - The guarded store is under `HOME`. Every test uses a temporary `HOME` and a temporary project, as the existing tests do (`tests/support_install.py`).
-- The command is modelled on `acknowledge` (terminal-only, a digest the owner types back, a re-read after the answer, one atomic store write, the level log) and on `install` for what it writes (`installplan.py`, `pinplan.py`).
+- The command is modelled on `acknowledge` (terminal-only, a digest the owner types back, a re-read after the answer, one atomic store write, the level log) and on `install` for what it writes (`installplan.py`).
+- The helpers' pins are not this command's: `upgrade` with a package creates a pin for a helper that has none: at the baseline's bytes when the helper is left as it is and its baseline equals the manifest's hash, which `enroll` leaves true for every module-owned file, and at the package's bytes when the package differs from the manifest and the file is replaced (`upgradeplan._pins`); it also needs every selected module approved, which the shipped records give for this repository's own modules. Read at commit `4b92f4e`, and by the reviewer of A-A; the plan proves it by a test in D and a run in G, and stops if it does not hold.
 - An approved plan changes only in its status, its review record and its result. A change of design after approval goes back to the owner.
 - The plans directory is under the 16 MiB budget of the code-work helper since `2026-11-15-plan-byte-budget`.
 
@@ -34,7 +35,7 @@ A clone of an already installed project, on a machine that has never held it, is
 
 1. The ten acceptance criteria of `docs/specs/clone-enrollment.md` hold, the last of them by the owner's reported run on a second machine (increment H). The plan is not `Completed` before that run passes.
 2. `wb enroll` and `wb preview enroll` exist, the key `wb enroll` offers `block` only, and `wb settings`, `wb doctor` and the rendered deny rules name them.
-3. The accepted decision record exists, the spec reads `Current` where the owner says so, and `installer-interface.md`, `command-permissions.md`, `development.md` and `INSTALL.md` describe what is built.
+3. The two decision records are accepted (the second superseding the first), the spec reads `Current` where the owner says so, and `installer-interface.md`, `command-permissions.md`, `development.md` and `INSTALL.md` describe what is built.
 4. A security review of the built command was run, with its findings judged and its fixes tested.
 
 ## Increments
@@ -51,21 +52,33 @@ A clone of an already installed project, on a machine that has never held it, is
 **Verification:** `wb check` before and after acceptance, and the record's status read after it; no code changes.
 **Evidence:** one local commit of the accepted record, trailer `Plan: 2026-11-15-enroll-a-clone#A`.
 
+### Increment A-A — Supersede the pin and approval rule
+
+**Outcome:** a second decision record, accepted by the owner, supersedes the first: `enroll` writes only the baselines and the first-seen record, reads no approval and writes no pin, and the pins come from `upgrade` with a package. The first record reads `Superseded` and names it, and the spec says the same. This increment was added after the plan's approval, when reading the installer for B showed that the approval check did not bind the helper bytes; the owner chose the change, and the plan was approved again.
+**Dependencies:** A.
+**Affected areas:** `docs/decisions/` (one new record, and the status line of the first), `docs/specs/clone-enrollment.md`, this plan.
+**Steps:**
+1. Write the superseding record as `Proposed`, with the flaw, its evidence and the alternatives; accept it at the owner's word through the groundwork commands at the level `ask`.
+2. Change the status line of the first record to `Superseded` with the line naming the successor, and leave its text.
+3. Edit the spec to match (no approval check, no pin, a new acceptance criterion for the `upgrade` step) and run `wb check`.
+**Verification:** `wb check`; the second record's status read after acceptance.
+**Evidence:** one local commit, trailer `#A-A`, with the plan's revision.
+
 ### Increment B — The read side: what an enrollment would write
 
-**Outcome:** a module of the installer, given a project and a store, either refuses with the path or entry that failed or returns the baselines, the first-seen record and the pins an enrollment would write, together with the review fields and digest. It reads and writes nothing.
-**Dependencies:** A accepted.
-**Affected areas:** `workbench/enrollplan.py` (new), `tests/test_enroll_plan.py` (new), reuse of `installed`, `manifest`, `blocks`, `pinplan`, `acknowledgement`, `approvals`, `projectfs`, `target`.
+**Outcome:** a module of the installer, given a project and a store, either refuses with the path or entry that failed or returns the baselines and the first-seen record an enrollment would write, together with the review fields and digest. It reads and writes nothing, and reads no approval record.
+**Dependencies:** A-A.
+**Affected areas:** `workbench/enrollplan.py` (new), `tests/test_enroll_plan.py` (new), reuse of `installed`, `manifest`, `blocks`, `acknowledgement`, `declarations` (the clone's own `module.json`, for the `writes` and slot check, as a consistency check and not a trust anchor), `projectfs`, `target`.
 **Steps:**
-1. Write the tests first, in a scratch copy, and see them fail: each refusal and each case of the spec's checks 1 to 8 (target, known project, one entry only, manifest paths and classes, module-owned hash, seeded file that differs, unrecorded file, block that differs and block hashed with both marker lines, unapproved module) and the result for a good clone, including the manifest's own baseline and the pins for approved modules only.
-2. Write the module: the target and unknown-project checks, the strict manifest read, the path and ownership rules, the file and block comparisons, the approval check through the readers that `attach` uses, the pins through `pinplan.wanted` and `pinplan.changes`, and the digest through the same canonical form as `acknowledge`.
-3. Run the new tests and the nearest existing ones (`test_acknowledge`, `test_acknowledgement`, `test_installplan`, `test_pinplan`, `test_blocks`).
+1. Write the tests first, in a scratch copy, and see them fail: each refusal and each case of the spec's checks 1 to 7 (target, known project, one entry only, manifest paths and classes, module-owned hash, seeded file that differs, unrecorded file, block that differs and block hashed with both marker lines, a module-owned file outside `.workbench/`, and a `module.json` that is missing from the namespace copy) and the result for a good clone, including the manifest's own baseline; and that no approval record is read and no pin is made.
+2. Write the module: the target and unknown-project checks, the strict manifest read, the path and ownership rules, the file and block comparisons (reusing the states of `installed.read`), and the digest through the same canonical form as `acknowledge`.
+3. Run the new tests and the nearest existing ones (`test_acknowledge`, `test_acknowledgement`, `test_installed`, `test_installplan`, `test_blocks`).
 **Verification:** the new test file and the five named files, in the scratch copy and again in the real tree after the scripted pass.
 **Evidence:** one local commit, trailer `#B`.
 
 ### Increment C — `wb preview enroll`
 
-**Outcome:** the read-only preview prints the project id, the path to be recorded, each file with its hash and class, each seeded file or block that differs, each pin and the digest, and writes no entry for the project.
+**Outcome:** the read-only preview prints the project id, the path to be recorded, each file with its hash and class, each seeded file or block that differs and the digest, and writes no entry for the project.
 **Dependencies:** B.
 **Affected areas:** `workbench/cli.py`, `workbench/preview.py`, `workbench/levels.py` (the key `wb preview enroll`, class reads), `tests/test_enroll_preview.py` (new), `tests/test_levels.py` and the tests that list every key.
 **Steps:**
@@ -77,11 +90,11 @@ A clone of an already installed project, on a machine that has never held it, is
 
 ### Increment D — `wb enroll`
 
-**Outcome:** the owner-run command runs the same read, shows the list and the digest, takes the first 12 characters typed back from a terminal, reads the clone again, and writes the three store entries in one atomic step with the level log's attempt before and outcome after.
+**Outcome:** the owner-run command runs the same read, shows the list and the digest, takes the first 12 characters typed back from a terminal, reads the clone again, and writes the two store entries in one atomic step with the level log's attempt before and outcome after.
 **Dependencies:** C.
 **Affected areas:** `workbench/enroll.py` (new), `workbench/cli.py`, `workbench/levels.py` (the key `wb enroll`, class governs, offers `block` only), `tests/test_enroll.py` (new).
 **Steps:**
-1. Write the tests first, see them fail: no terminal, wrong or typed-ahead digest, a clone changed between the preview and the answer, a write that fails part-way leaves no entry, a good run writes exactly the baselines, the first-seen record and the pins and the log, and a second run refuses and names `acknowledge`; afterwards `wb check`, `wb doctor` and the preview of `acknowledge` run on the enrolled clone and none of them gives the "treated as new" refusal, and the preview of `acknowledge` lists no difference.
+1. Write the tests first, see them fail: no terminal, wrong or typed-ahead digest, a clone changed between the preview and the answer, a write that fails part-way leaves no entry, a good run writes exactly the baselines, the first-seen record and the log and no pin, and a second run refuses and names `acknowledge`; afterwards `wb check`, `wb doctor` and the preview of `acknowledge` run on the enrolled clone and none of them gives the "treated as new" refusal, and the preview of `acknowledge` lists no difference. The test that the pins follow: on a project installed in a temporary `HOME` and then given a second, empty `HOME`, after `enroll` the preview of `upgrade` with the package lists a pin to create for each helper of each module the package still declares, and applying it makes `wb check` report none as not pinned; the approvals the gate needs are arranged in the temporary store with the approval records the installer's own tests use, and a second case plants a changed helper in the clone with its manifest hash changed to match and shows that the preview of `upgrade` replaces it with the package's bytes. If it does not, the plan stops and goes back to the owner.
 2. Write the command from `acknowledge` and `install` as models, with the write through the store's atomic replacement.
 3. Run the new tests and `test_acknowledge`, `test_levelrun`, `test_levellog`, `test_install`, `test_cli`.
 **Verification:** as named; the scratch copy first. No command line of a copy is run.
@@ -117,7 +130,7 @@ A clone of an already installed project, on a machine that has never held it, is
 **Dependencies:** F.
 **Affected areas:** `INSTALL.md`, `README.md` (the draft note), `docs/specs/clone-enrollment.md`, `docs/plans/` (this plan's Result).
 **Steps:**
-1. Run the steps of the page on a fresh clone with a scratch `HOME`, as far as the owner-run steps allow, and record what was run. After `enroll`, run `wb check`, `wb doctor` and the preview of `acknowledge` on that clone and record that none gives the "treated as new" refusal.
+1. Run the steps of the page on a fresh clone with a scratch `HOME`, as far as the owner-run steps allow, and record what was run. After `enroll`, run `wb check`, `wb doctor` and the preview of `acknowledge` on that clone and record that none gives the "treated as new" refusal; then run the preview of `upgrade --package packages/workbench` and record the pins it lists.
 2. Correct `INSTALL.md` from what built and ran; remove the "draft" and "unverified" marks only for what ran.
 3. Tell the owner what to run on the second machine.
 **Verification:** `wb check`; the page's commands on the scratch clone.
@@ -129,7 +142,7 @@ A clone of an already installed project, on a machine that has never held it, is
 **Dependencies:** G.
 **Affected areas:** this plan's Result and status; `docs/specs/clone-enrollment.md` (its status, by the owner's word) and `INSTALL.md` (corrections from what the run shows).
 **Steps:**
-1. The owner runs the page on the second machine, with the new `wb enroll` after the first run of the workbench and the approval step, and pastes the output.
+1. The owner runs the page on the second machine, with the new `wb enroll` after the first run of the workbench, then `wb upgrade --package packages/workbench` to pin the helpers (the shipped records approve this repository's own modules; `approve` comes first for any other), then `attach`, and pastes the output.
 2. I record what was run and the result in the Result. A step that fails is a finding: I diagnose it, fix it as a new increment (`H-A`) if it is a defect, and the owner runs again.
 3. When it passes, I set the plan `Completed` and tell the owner the spec is ready for their word to read `Current`.
 **Verification:** the output of the owner's run, quoted as run; `wb check` in this repository.
@@ -141,14 +154,17 @@ Each increment's recorded verification stands unless a later one changed its inp
 
 ## Risks and sensitive actions
 
-- **This command writes trust state.** A mistake could mark a changed clone as trusted. The owner's typed digest, the strict manifest read, the approval check and the re-read after the answer bound it, and F reviews it.
+- **This command writes trust state.** A mistake could mark a changed clone as trusted. The owner's typed digest, the strict manifest read, the module-owned hash check and the re-read after the answer bound it, and F reviews it. The command writes no pin and reads no approval: helper trust is the package verification of `upgrade`.
+- **Helpers stay unpinned until the owner runs `upgrade`.** After `enroll`, `wb check` reports each helper as not pinned and no helper runs; that is the intended state, and the setup page says what to run next.
 - **The installer is imported by the hooks.** A half-applied edit can lock every tool; each code increment is applied in one scripted pass after tests in a scratch copy.
 - **Rendering changes the deny rules.** Until the owner runs `wb rerender` after E, the new command is not denied to the agent by the harness; the command itself refuses without two terminals.
 - **A package write is not needed.** Nothing under `packages/` changes, so the package lock does not apply.
 
 ## Review record
 
-**Plan review** (before approval): Codex through the review engine, 3 rounds of the bound of 3, model `gpt-5.6-terra` in rounds 1 and 2 and `gpt-6.1-sol` in round 3; round 3 reported no meaningful finding. Six findings, all applied: the trust spec's list of owner-run commands joined increment E; a declined security review stops the plan at F; increment H records the owner's run on the second machine and gates completion; increment A ends with the accepted record committed before B; increment D tests `wb check`, `wb doctor` and the preview of `acknowledge` on the enrolled clone; increment F requires an independent second look at the security fixes. The review's files are in the commit of the plan.
+**Plan review** (before approval): Codex through the review engine, 3 rounds of the bound of 3, model `gpt-5.6-terra` in rounds 1 and 2 and `gpt-6.1-sol` in round 3; round 3 reported no meaningful finding. Six findings, all applied: the trust spec's list of owner-run commands joined increment E; a declined security review stops the plan at F; increment H records the owner's run on the second machine and gates completion; increment A ends with the accepted record committed before B; increment D tests `wb check`, `wb doctor` and the preview of `acknowledge` on the enrolled clone; increment F requires an independent second look at the security fixes. The review's files are in the commit of the plan. That review, and the spec's, did not find the flaw that increment A-A removes (the approval check did not bind the helper bytes); the author found it while reading the installer for B, and the revised spec and plan have not been through the review engine again (the bounds of 4 and 3 rounds were reached).
+
+**Increment A-A** (a revision of the approved plan, at the owner's word "go with option 3", with the owner's new approval of the plan to follow): the superseding record was accepted by the owner at the level `ask` (digest `5e916b10…`, record hash `32b24328…`). Reviewed by the `reviewer` agent, one exchange, read-only, no blocking finding and no new security exposure named. Applied: `upgrade` also replaces a helper whose package bytes differ from the manifest and pins the package's bytes (a planted helper is overwritten), now in the spec and the plan; `upgrade` needs each selected module approved, now in the spec, the plan's order for the second machine and its Assumptions; the `writes` and slot check reads the clone's own `module.json` and is a consistency check, not a trust anchor, now in the spec and in B; a differing slot block shows as a conflict in `upgrade`, now in the spec; criterion 5 says "each module the package still declares"; D's test arranges the approvals in the temporary store and adds the planted-helper case; B's tests add a module-owned file outside `.workbench/` and a missing `module.json`. Not applied: the decision's sentence about pinning "only if its acknowledged bytes equal the manifest's hash" describes the skip case only. The record is accepted, so it is not edited; a dated note needs the owner's word and is offered. Left for the owner: whether `firstparty` and `approvals` refuse a tampered `packages/workbench`, which the reviewer did not read; increment F checks it.
 
 **Increment A:** the `reviewer` agent, one exchange, read-only, no blocking finding and no security risk named beyond the one the record states.
 - Applied: the Decision's "pinned only if its module is approved" could be read as skipping an unapproved module, while the spec refuses the whole enrollment. Applied as a dated clarification note after the unchanged body, with the owner's approval; the Context's "write" means "create" for the baselines; `attach` calls the same check although the older record does not name it. The record was already `Accepted`, so its body was not edited.
@@ -160,6 +176,8 @@ Each increment's recorded verification stands unless a later one changed its inp
 None identified.
 
 ## Result
+
+**Increment A-A** is committed with the plan's revision (trailer `#A-A`): reading the installer for B showed that the approval check of the first decision did not bind the helper bytes (an approval is looked up by the declaration and tree hashes that the clone's own manifest supplies, the tree hash is of a package source that the clone's `.workbench/` copy does not contain, and so a planted helper with an unchanged manifest entry for the module would pass). I stopped before writing code and put three options to the owner, who chose the third: `enroll` writes the baselines and the first-seen record only, reads no approval and writes no pin, and the helpers are pinned by `wb upgrade --package <directory>`, which verifies the package and the bytes. Done: the superseding record `2026-11-15-enroll-writes-no-pins-and-leaves-them-to-upgrade-from-a-package` (accepted by the owner at the level `ask`, digest `5e916b10…`), the first record set to `Superseded` naming it, the spec revised (no check 8, no pin, a new acceptance criterion 5 for the `upgrade` step), and this plan revised (A-A, B, C, D, G, H, the risks). `wb check` reports no problems. Not done: a run of `upgrade --package` on an enrolled clone, which needs `enroll` and is a test in D and a run in G; the plan stops if it does not hold.
 
 **Increment A** is committed with this entry (trailer `#A`; 2 paths): the decision record `docs/decisions/2026-11-15-enroll-makes-a-clone-known-on-the-manifest-hashes-and-the-owners-digest.md`, accepted, and this plan.
 

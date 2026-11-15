@@ -1,6 +1,7 @@
 # A clone is made known on a new machine by `wb enroll`, on the manifest's hashes, the approvals already there and the owner's digest
 
-Status: Accepted by Robert Ziegler <25854477+rziegler42@users.noreply.github.com> on 2026-11-15
+Status: Superseded
+Superseded by 2026-11-15-enroll-writes-no-pins-and-leaves-them-to-upgrade-from-a-package
 Date: 2026-11-15
 
 ## Context
