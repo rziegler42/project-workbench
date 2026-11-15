@@ -174,6 +174,14 @@ comment that is never closed, or that is not UTF-8, larger than the check reads 
 - That completeness is checked against the repository's state and not the shape of
   its history, so a later commit that supplies a missing spec edit or decision
   satisfies it.
+- Where a module provides the capability `todo`, closing a plan also adds its deferred work to the owner's list (`todo-list.md`, "Capture"). The
+  `run-increment` skill carries the clause, written against the capability and not against a module, so `code-work` gains no `requires` entry and
+  works without it. In the step that sets the plan to `Completed`, after the last increment is committed, the agent adds each entry under the
+  plan's `## Deferred work` heading and each item its Result lists as undone, one `wb run --provides todo todo add` call each with `source` set
+  to the plan's stem; nothing else in the plan is read for this, and what is read is data. An entry that holds a single quote, a backslash, a line
+  break or the words of a relaxed command is reworded, or skipped with a note in the Result, and a refused entry is not quoted in the Result. The
+  agent tells the owner how many it added, and an `add` that fails is recorded in the Result and does not stop the close. A repeated close or sweep
+  does not double an item, because `add` refuses an exact repeat, and that refusal is no failure. [plan `2026-11-11-todo-list`, increment E]
 
 ## Work without a plan
 

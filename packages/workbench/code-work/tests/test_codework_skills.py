@@ -19,7 +19,8 @@ PACKAGE = os.path.join(ROOT, "packages", "workbench")
 NEUTRAL = os.path.join(PACKAGE, "code-work", "harness", "neutral")
 SKILLS = ("run-increment", "request-review", "evaluate-findings")
 COMMIT = "wb run safe-git commit"
-ALLOWED = {"wb plan-status <plan>", "wb settings", "wb run code-work check", "wb run code-work plans", COMMIT}
+ALLOWED = {"wb plan-status <plan>", "wb settings", "wb run code-work check", "wb run code-work plans", COMMIT,
+           "wb run --provides todo todo add --title '<title>' --source '<plan stem>'"}
 
 PHRASES = {
     "run-increment": (

@@ -130,7 +130,7 @@ Read from the helper `packages/workbench/groundwork/helper/todo` and its tests a
 
 ## Changes to other specifications and declarations
 
-Building this changes the following; each is made by the plan, in the same increment as the change it describes. Increment D made the first, the third and the fourth; increment E makes the second. [call]
+Building this changes the following; each is made by the plan, in the same increment as the change it describes. Increment D made the first, the third and the fourth; increment E made the second. [call]
 
 - `groundwork.md` and its module declaration: `provides` gains `todo`; the helper table gains the agent-run `todo` command beside `doccheck` and `refcheck` (the line that says "no helper that an agent runs" is corrected at the same time); the policy block gains the capture bullet.
 - `code-work.md` and the `run-increment` skill: the plan-close clause above, written "where a module provides `todo`". `code-work` gains no `requires`.
