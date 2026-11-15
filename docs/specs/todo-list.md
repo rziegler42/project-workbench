@@ -1,6 +1,6 @@
 # todo list
 
-Status: Draft. **Approved by the owner on 2026-11-11 as a design.** It is built in part by the plan `2026-11-11-todo-list`: the command `todo` with `add`, `list`, `show` and `drop`, the `todo` capability and the policy block (increments A to D, "As built" below). The plan-close clause of `code-work` and the first use are not yet done. It stays `Draft` until they are, and becomes `Current` then. Reviewed by the review engine in two rounds (seven findings, all applied).
+Status: Current. **Approved by the owner on 2026-11-11 as a design; set `Current` by the owner's word on 2026-11-15.** It is built by the plan `2026-11-11-todo-list`: the command `todo` with `add`, `list`, `show` and `drop`, the `todo` capability, the policy block and the plan-close clause of `code-work` ("As built" below), and it has been run by hand in this repository, by the agent, with the output shown to the owner. What the owner reports after several weeks of use (acceptance criterion 8) decides whether the later pieces under "Non-goals" are built. Reviewed by the review engine in two rounds (seven findings, all applied).
 
 Written on 2026-11-11 from a conversation with the owner. Each statement carries one of three marks, so that the owner can see what is theirs:
 
