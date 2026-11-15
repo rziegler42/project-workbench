@@ -78,9 +78,11 @@ def _remains(left, project):
             "%s by hand, then run `enroll` again" % (left[0], where))
 
 
-def _write(guarded, plan, held_path, out, err):
-    """Write the two entries in one call that stages both before either is put in place, and read them back. Returns the exit code."""
+def _write(guarded, plan, held_path, out, err, state):
+    """Write the two entries in one call that stages both before either is put in place, and read them back. Returns the exit code. `state` is a list
+    that gets an item once the write has begun, so that an interrupt after that point is not reported as a cancellation."""
     entries = {"projects/%s/baselines" % plan.project: plan.baselines_bytes, "projects/%s/seen" % plan.project: plan.seen_bytes}
+    state.append("begun")
     try:
         safefs.write_tree(guarded.root, entries)
         baselines = acknowledgement.read_baselines(guarded, plan.project)
@@ -96,11 +98,15 @@ def _write(guarded, plan, held_path, out, err):
             left = None
         err.write("failed: %s\n%s\n" % (display.ascii_text(cause), _remains(left, plan.project)))
         return 3
-    out.write("enrolled %d paths; the project was not touched; no helper is pinned\n%s\n" % (len(plan.baselines), NEXT))
+    # The entries are written and read back: whatever happens to this line (a closed pipe, an interrupt), the command did what it was asked.
+    try:
+        out.write("enrolled %d paths; the project was not touched; no helper is pinned\n%s\n" % (len(plan.baselines), NEXT))
+    except (OSError, KeyboardInterrupt):
+        pass
     return 0
 
 
-def _run(guarded, spelling, stdin, out, err, version):
+def _run(guarded, spelling, stdin, out, err, version, state):
     try:
         with target.open_target(spelling, guarded.root) as held:
             plan = enrollplan.examine(guarded, held, version)
@@ -115,7 +121,7 @@ def _run(guarded, spelling, stdin, out, err, version):
             again = enrollplan.examine(guarded, held, version)
             if again.digest != plan.digest:
                 return _refuse(err, "the clone changed while the list was shown; nothing was written")
-            return _write(guarded, plan, held.path, out, err)
+            return _write(guarded, plan, held.path, out, err, state)
     except enrollplan.Refused as exc:
         return _report(exc, err)
     except target.TargetError as exc:
@@ -137,11 +143,15 @@ def run(guarded, spelling, stdin, out, err, version=None):
     interrupted."""
     if not require_terminal(stdin, out, err):
         return 1
+    state = []
     try:
-        return _run(guarded, spelling, stdin, out, err, version or __version__)
+        return _run(guarded, spelling, stdin, out, err, version or __version__, state)
     except KeyboardInterrupt:
         try:
-            out.write("\ncancelled: nothing was written\n")
+            if state:
+                out.write("\ninterrupted after the entries were written; `wb preview enroll` says whether the project is known now\n")
+            else:
+                out.write("\ncancelled: nothing was written\n")
         except OSError:
             pass
         return 130

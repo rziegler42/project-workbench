@@ -206,6 +206,67 @@ class Writing(Enroll):
         self.assertEqual(before, self.tree(self.store_root))
         self.assertEqual((None, None), self.entries())
 
+    def test_a_closed_pipe_while_the_last_line_is_printed_does_not_turn_a_written_enrollment_into_a_failure(self):
+        self.new_machine()
+        raised = []
+
+        class Breaks(io.StringIO):
+            def write(this, text):
+                if text.startswith("enrolled") and not raised:
+                    raised.append(1)
+                    raise BrokenPipeError
+                return io.StringIO.write(this, text)
+
+        out, err = Breaks(), io.StringIO()
+
+        class Ask(io.StringIO):
+            def readline(this, *a):
+                digest = [line for line in out.getvalue().splitlines() if line.startswith("digest: ")][-1]
+                return digest[len("digest: "):][:confirm.CONFIRM_CHARS] + "\n"
+
+        code = cli.main(["enroll", self.place], out, err, store_root=self.store_root, stdin=Ask(""))
+        self.assertEqual(0, code, (out.getvalue(), err.getvalue()))
+        self.assertNotIn("cancelled", out.getvalue() + err.getvalue())
+        self.assertNotEqual((None, None), self.entries())
+
+    def test_an_interrupt_while_the_last_line_is_printed_does_not_say_nothing_was_written(self):
+        self.new_machine()
+        raised = []
+
+        class Interrupts(io.StringIO):
+            def write(this, text):
+                if text.startswith("enrolled") and not raised:
+                    raised.append(1)
+                    raise KeyboardInterrupt
+                return io.StringIO.write(this, text)
+
+        out, err = Interrupts(), io.StringIO()
+
+        class Ask(io.StringIO):
+            def readline(this, *a):
+                digest = [line for line in out.getvalue().splitlines() if line.startswith("digest: ")][-1]
+                return digest[len("digest: "):][:confirm.CONFIRM_CHARS] + "\n"
+
+        code = cli.main(["enroll", self.place], out, err, store_root=self.store_root, stdin=Ask(""))
+        self.assertEqual(0, code, (out.getvalue(), err.getvalue()))
+        self.assertNotIn("nothing was written", out.getvalue() + err.getvalue())
+        self.assertNotEqual((None, None), self.entries())
+
+    def test_an_interrupt_after_the_entries_are_written_does_not_say_that_nothing_was_written(self):
+        self.new_machine()
+        real_exit = target.Target.__exit__
+
+        def exit_then_interrupt(this, *exc):
+            real_exit(this, *exc)
+            if exc[0] is None:
+                raise KeyboardInterrupt
+        with unittest.mock.patch.object(target.Target, "__exit__", exit_then_interrupt):
+            code, out, err = self.run_it()
+        self.assertEqual(130, code)
+        self.assertNotIn("nothing was written", out + err)
+        self.assertIn("interrupted after the entries were written", out + err)
+        self.assertNotEqual((None, None), self.entries())
+
     def test_a_failure_after_one_entry_is_named_and_says_what_remains(self):
         self.new_machine()
         real = safefs.write_tree

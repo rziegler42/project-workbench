@@ -24,15 +24,18 @@ records them.
 
 import collections
 
-from . import acknowledgement, base, declarations, hashing, installed, installplan, manifest, projectfs
+from . import acknowledgement, base, blocks, declarations, hashing, installed, installplan, manifest, projectfs
 from .wbkit import display, safefs
 
 MANIFEST = installed.MANIFEST
 WORKBENCH = ".workbench"
+STALE_ENTRIES = ("pins", "rendering", "plan-approvals")    # the other entries the installer makes in a project's folder of the store (a test lists them)
+MAX_SHOWN = 400        # baselines printed one by one; the digest covers all of them
 LIST_LIMIT = 10        # a group of unrecorded files that holds this many or fewer is listed path by path
 MAX_REFUSED = 20       # paths named in one refusal
 
 Differing = collections.namedtuple("Differing", "path recorded current")
+Outside = collections.namedtuple("Outside", "path owner_class")
 Block = collections.namedtuple("Block", "path block slot state")
 
 
@@ -47,7 +50,7 @@ class Refused(Exception):
 class Plan:
     """The result of ``examine``. ``baselines`` maps a path to its SHA-256; ``unrecorded`` maps a group of unrecorded files to their paths."""
 
-    def __init__(self, existing, project, path, identity, baselines, seeded_differ, seeded_missing, blocks_differ, unrecorded):
+    def __init__(self, existing, project, path, identity, baselines, seeded_differ, seeded_missing, blocks_differ, unrecorded, outside=()):
         self.existing = existing
         self.project = project
         self.path = path
@@ -57,6 +60,7 @@ class Plan:
         self.seeded_missing = seeded_missing
         self.blocks_differ = blocks_differ
         self.unrecorded = unrecorded
+        self.outside = list(outside)
         self.unrecorded_total = sum(len(paths) for paths in unrecorded.values())
         self.fields = {
             "command": "enroll",
@@ -69,6 +73,7 @@ class Plan:
             "seeded_differ": [[d.path, d.recorded, d.current] for d in seeded_differ],
             "seeded_missing": [item.path for item in seeded_missing],
             "blocks_differ": [[b.path, b.block, b.slot, b.state] for b in blocks_differ],
+            "outside": [[item.path, item.owner_class] for item in self.outside],
             "unrecorded": {group: (paths if len(paths) <= LIST_LIMIT else len(paths)) for group, paths in sorted(unrecorded.items())},
         }
         self.digest = installplan.digest_of(self.fields)
@@ -91,10 +96,6 @@ def _under_workbench(path):
     return folded == WORKBENCH or folded.startswith(WORKBENCH + "/")
 
 
-def _inside(path, prefix):
-    return path == prefix or path.startswith(prefix + "/")
-
-
 def group_of(path):
     """The group an unrecorded file is counted under: the module namespace ``.workbench/<package>/<module>`` for a path deeper than that, else its directory."""
     parts = path.split("/")
@@ -113,6 +114,13 @@ def _check_unknown(guarded, project):
         raise Refused(["this machine holds the baselines of the project but no first-seen record; nothing was written"])
     if seen is not None:
         raise Refused(["this machine holds a first-seen record of the project but no baselines; nothing was written"])
+    # Entries of an earlier project of the same identity: a pin binds a path and the hash of a helper, and the owner's earlier confirmation of it is not a
+    # confirmation of this clone, so the folder is removed by hand first (the spec's non-goal: no use of an earlier project's pins).
+    for name in STALE_ENTRIES:
+        if guarded.kind("projects/%s/%s" % (project, name)) is not None:
+            raise Refused(["this machine holds a %s entry of this project in the store, left from an earlier project of the same identity, "
+                           "and `enroll` does not keep or replace it: remove the folder projects/%s/ from the guarded store by hand and run "
+                           "this again; nothing was written" % (name, project)])
 
 
 def _states(existing):
@@ -172,17 +180,24 @@ def _modules(writer, existing):
     return found
 
 
+def covered(path, prefixes):
+    """Whether `path` is one of the `prefixes` or lies below one, matched by its parents (a set lookup per level, not a scan of every prefix)."""
+    parts = path.split("/")
+    return any("/".join(parts[:count]) in prefixes for count in range(1, len(parts) + 1))
+
+
 def _places(existing, modules):
-    """Refuse a recorded entry that lies where its owner may not write, or a block whose module does not declare its slot."""
-    namespaces = [".workbench/%s/%s" % key for key in modules]
-    writes = sorted({w for module in modules.values() for w in module.writes})
+    """Refuse a recorded entry that lies where its owner may not write, or a block whose module does not declare its slot. Returns the entries
+    outside ``.workbench/`` that the base does not supply, which rest only on a module's own declaration of what it writes."""
+    namespaces = {".workbench/%s/%s" % key for key in modules}
+    writes = {w for module in modules.values() for w in module.writes}
     fills = {"%s/%s" % key: {slot for slot, _ in module.fills} for key, module in modules.items()}
     try:
         supplied = set(base.load_base().files)
     except base.BaseError as exc:
         raise Refused(["the base of this workbench cannot be read: %s" % _shown(exc, 200)])
     seeded = {e.path for e in existing.entries if e.block is None and e.owner_class == "seeded"}
-    bad = []
+    bad, declared = [], []
     for entry in existing.entries:
         path = entry.path
         outside = not _under_workbench(path)
@@ -191,22 +206,46 @@ def _places(existing, modules):
                        % (_shown(path), _shown(entry.block, 80)))
             continue
         if entry.owner_class == "module-owned":
-            ok = (path == WORKBENCH + "/.gitignore" or any(_inside(path, ns) for ns in namespaces)
-                  or any(_inside(path, w) for w in writes))
+            ok = path == WORKBENCH + "/.gitignore" or covered(path, namespaces) or covered(path, writes)
         elif entry.owner_class == "seeded":
-            ok = outside and (path in supplied or any(_inside(path, w) for w in writes))
+            ok = outside and (path in supplied or covered(path, writes))
         else:
-            ok = (outside and (path in supplied or any(_inside(path, w) for w in writes))
+            ok = (outside and (path in supplied or covered(path, writes))
                   and ("slot:" + entry.slot) in fills.get(entry.block, ()))
         if not ok:
             bad.append("%s (%s%s)" % (_shown(path), entry.owner_class,
                                       " block %s slot %s" % (_shown(entry.block, 80), _shown(entry.slot, 40)) if entry.block else ""))
+        elif outside and entry.block is None and (entry.owner_class == "module-owned" or path not in supplied):
+            # A seeded file at a path the base supplies is the owner's; a module-owned file outside `.workbench/` is never the base's, and rests on a
+            # module's own declaration whatever its path is.
+            declared.append(Outside(path, entry.owner_class))
     if bad:
         lines = ["the manifest names places its owner may not write, or a slot its module does not declare:"]
         lines += ["  " + line for line in bad[:MAX_REFUSED]]
         if len(bad) > MAX_REFUSED:
             lines.append("  and %d more" % (len(bad) - MAX_REFUSED))
         raise Refused(lines)
+    return declared
+
+
+def _same_as_judged(entries, state):
+    """Whether the entries of one path, judged again on `state` (the second read of the file, or None when it is not there), come out as they did
+    on the first read of ``installed.read``: the same state and the same hash for each."""
+    if state is None:
+        return all(entry.state == installed.MISSING for entry in entries)
+    recorded = {(entry.block, entry.slot) for entry in entries if entry.block}
+    scan, problem = None, ""
+    if recorded:
+        try:
+            scan = blocks.scan(state.data)
+        except blocks.BlockError as exc:
+            problem = "the slot markers cannot be read: %s" % _shown(exc, 100)
+    for entry in entries:
+        item = {"class": entry.owner_class, "hash": entry.hash, "slot": entry.slot}
+        now = installed._entry(entry.path, item, entry.block, state, "", scan, problem, recorded)
+        if (now.state, now.current) != (entry.state, entry.current):
+            return False
+    return True
 
 
 def _unrecorded(writer, existing):
@@ -241,11 +280,18 @@ def examine(guarded, held, version):
         _check_unknown(guarded, project)
         differ, missing, blocks = _states(existing)
         modules = _modules(writer, existing)
-        _places(existing, modules)
+        outside = _places(existing, modules)
         unrecorded = _unrecorded(writer, existing)
         baselines, spent = {}, 0
-        for path in sorted({e.path for e in existing.entries}):
+        by_path = {}
+        for entry in existing.entries:
+            by_path.setdefault(entry.path, []).append(entry)
+        for path in sorted(by_path):
             state = writer.read_file(path)
+            # The states above come from one read of each file and the baseline from a second: every entry of the path is judged again on the bytes
+            # of the second read, so a file changed in between (a block of a seeded file, a module-owned file, a file removed or put back) is refused.
+            if not _same_as_judged(by_path[path], state):
+                raise Refused(["%s changed while it was read; nothing was written" % _shown(path)])
             if state is None:
                 continue
             spent += len(state.data)
@@ -253,10 +299,6 @@ def examine(guarded, held, version):
                 raise Refused(["the recorded files hold more than %d bytes; deal with the project by hand first"
                                % acknowledgement.MAX_READ_BYTES])
             baselines[path] = state.hash
-        # The states above come from one read of each file and the baselines from a second; a module-owned file must still be the recorded bytes.
-        for entry in existing.entries:
-            if entry.block is None and entry.owner_class == "module-owned" and baselines.get(entry.path) != entry.hash:
-                raise Refused(["%s changed while it was read; nothing was written" % _shown(entry.path)])
     except (installed.InstalledError, manifest.ManifestError, acknowledgement.AcknowledgementError, safefs.SafeFsError) as exc:
         raise Refused([_shown(exc, 300)])
     baselines[MANIFEST] = existing.manifest_hash
@@ -265,7 +307,7 @@ def examine(guarded, held, version):
         [Differing(e.path, e.hash, baselines[e.path]) for e in differ],
         missing,
         [Block(b.path, b.block, b.slot, b.state) for b in blocks],
-        unrecorded)
+        unrecorded, outside)
 
 
 def render(plan, target_path):
@@ -288,8 +330,18 @@ def render(plan, target_path):
     classes = {}
     for entry in plan.existing.entries:
         classes.setdefault(entry.path, entry.owner_class)
-    for path in sorted(plan.baselines):
+    shown = sorted(plan.baselines)
+    for path in shown[:MAX_SHOWN]:
         lines.append("  %s %s sha256 %s" % (display.ascii_text(path), classes.get(path, "manifest"), plan.baselines[path]))
+    if len(shown) > MAX_SHOWN:
+        lines.append("  and %d more (the digest covers all of them)" % (len(shown) - MAX_SHOWN))
+    if plan.outside:
+        lines.append("recorded outside .workbench/ on the strength of a module's own declaration of what it writes (a file of the clone, not checked "
+                     "against anything): %d" % len(plan.outside))
+        # Every one of them is listed: this heading is the owner's only notice of files that the clone alone vouches for, and it is as long as the
+        # manifest allows, no longer.
+        for item in plan.outside:
+            lines.append("  %s %s" % (display.ascii_text(item.path), item.owner_class))
     for item in plan.seeded_differ:
         lines.append("%s differs from the manifest (seeded, yours)" % display.ascii_text(item.path))
         lines.append("    recorded %s" % item.recorded)
@@ -303,10 +355,14 @@ def render(plan, target_path):
     if plan.unrecorded:
         lines.append("files under .workbench/ that the manifest does not record: %d (not baselined here; acknowledge lists them next)"
                      % plan.unrecorded_total)
-        for group, paths in sorted(plan.unrecorded.items()):
+        groups = sorted(plan.unrecorded.items())
+        for group, paths in groups[:MAX_SHOWN]:
             lines.append("  %s: %d file%s" % (display.ascii_text(group), len(paths), "" if len(paths) == 1 else "s"))
             if len(paths) <= LIST_LIMIT:
                 lines += ["    " + display.ascii_text(path) for path in paths]
+        if len(groups) > MAX_SHOWN:
+            lines.append("  and %d more directories, with %d files (not baselined)"
+                         % (len(groups) - MAX_SHOWN, sum(len(paths) for _, paths in groups[MAX_SHOWN:])))
     lines.append("first-seen path to record: %s" % display.ascii_text(plan.path))
     lines.append("enrolling writes the baselines and the first-seen record in the guarded store and nothing in the project; it pins no helper "
                  "(an upgrade with the package does)")

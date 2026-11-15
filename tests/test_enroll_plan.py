@@ -4,13 +4,15 @@ makes a pin. The fixture is the installer's own: ``install(path, store_writes=Fa
 with no entry for it, which is a clone on a new machine."""
 
 import hashlib
+import json
 import os
+import re
 import shutil
 import unittest
 import unittest.mock
 
 from tests import test_upgrade_preview as base_tests
-from workbench import (__version__, acknowledgement, approvals, enrollplan, firstparty, installplan, manifest,
+from workbench import (__version__, acknowledgement, approvals, enrollplan, firstparty, installplan, manifest, pins,
                        projectfs, target)
 
 MANIFEST = ".workbench/manifest.json"
@@ -417,6 +419,137 @@ class Unrecorded(Enroll):
             found = acknowledgement.differences(projectfs.Writer(held), baselines)
         self.assertEqual([(".workbench/p/review/a", "added"), (".workbench/p/review/b", "added")],
                          [(item.path, item.kind) for item in found])
+
+
+class Hardening(Enroll):
+    """What the security review of the command found (plan ``2026-11-15-enroll-a-clone``, increment F): each test failed before its fix."""
+
+    def change_between_the_reads(self, change):
+        """Run ``examine`` with `change` made to the clone after the first read of the files and before the second."""
+        real_walk = acknowledgement._walk
+        done = []
+
+        def walk_then_change(writer, rel, depth, found):
+            real_walk(writer, rel, depth, found)
+            if rel == ".workbench" and not done:    # the walk calls itself for each directory; the change is made once, after the whole walk
+                done.append(1)
+                change()
+        with unittest.mock.patch.object(acknowledgement, "_walk", walk_then_change):
+            with self.assertRaises(enrollplan.Refused) as caught:
+                self.examine()
+        return "\n".join(caught.exception.lines)
+
+    def test_a_seeded_file_holding_blocks_that_is_tampered_between_the_two_reads_is_refused(self):
+        self.new_machine()
+        text = self.change_between_the_reads(lambda: self.edit("AGENTS.md", lambda data: data.replace(b"Rule A", b"Rule X")))
+        self.assertIn("AGENTS.md", text)
+        self.assertIn("changed while", text)
+
+    def test_a_seeded_file_that_changes_between_the_two_reads_is_refused(self):
+        self.new_machine()
+        text = self.change_between_the_reads(lambda: self.edit("docs/notes.md", lambda data: data + b"mine\n"))
+        self.assertIn("docs/notes.md", text)
+
+    def test_a_recorded_file_that_is_removed_between_the_two_reads_is_refused(self):
+        self.new_machine()
+        text = self.change_between_the_reads(lambda: os.unlink(os.path.join(self.place, *SCRIPT.split("/"))))
+        self.assertIn(SCRIPT, text)
+
+    def test_a_recorded_file_that_appears_between_the_two_reads_is_refused(self):
+        self.new_machine()
+        os.unlink(os.path.join(self.place, "docs", "notes.md"))
+        text = self.change_between_the_reads(lambda: self.put("docs/notes.md", b"# Notes\n"))
+        self.assertIn("docs/notes.md", text)
+
+    def test_an_older_pins_entry_of_the_same_project_is_refused_and_the_folder_is_named(self):
+        self.new_machine()
+        self.guarded.write("projects/%s/pins" % self.project_id, pins.serialize({}))
+        text = self.refusal("pins")
+        self.assertIn("projects/%s/" % self.project_id, text)
+        self.assertIn("remove the folder", text)
+
+    def test_an_older_rendering_entry_of_the_same_project_is_refused(self):
+        self.new_machine()
+        self.guarded.write("projects/%s/rendering" % self.project_id, b"{}\n")
+        self.assertIn("rendering", self.refusal("rendering"))
+
+    def test_an_older_plan_approvals_entry_of_the_same_project_is_refused(self):
+        self.new_machine()
+        self.guarded.write("projects/%s/plan-approvals" % self.project_id, b"{}\n")
+        self.assertIn("plan-approvals", self.refusal("plan-approvals"))
+
+    def test_every_entry_the_installer_writes_in_a_project_folder_is_one_the_check_knows(self):
+        """A new kind of entry in the folder of a project must be weighed here: the two that `enroll` writes, and the ones it refuses to inherit."""
+        names = set()
+        folder = os.path.join(ROOT, "workbench")
+        for name in sorted(os.listdir(folder)):
+            if name.endswith(".py"):
+                with open(os.path.join(folder, name), encoding="utf-8") as handle:
+                    names.update(re.findall(r"projects/%s/([a-z][a-z-]*)", handle.read()))
+        self.assertTrue({"baselines", "seen"} <= names, names)
+        self.assertEqual(set(), names - {"baselines", "seen"} - set(enrollplan.STALE_ENTRIES), names)
+
+    def test_a_module_owned_file_at_a_path_the_base_supplies_is_listed_under_the_heading(self):
+        import types
+        from workbench import declarations, installed
+        data = json.dumps({"name": "m", "version": "1.0.0", "description": "d", "writes": ["AGENTS.md", "zz/new.txt"]}).encode()
+        module = declarations.parse_module(data, "p", "m", first_party=True)
+        entries = [installed.Entry("AGENTS.md", None, None, "module-owned", "0" * 64, installed.AS_INSTALLED, "0" * 64, ""),
+                   installed.Entry("zz/new.txt", None, None, "module-owned", "0" * 64, installed.AS_INSTALLED, "0" * 64, "")]
+        listed = enrollplan._places(types.SimpleNamespace(entries=entries), {("p", "m"): module})
+        self.assertEqual(["AGENTS.md", "zz/new.txt"], sorted(item.path for item in listed))
+
+    def test_the_heading_lists_every_path_even_when_the_baselines_are_cut(self):
+        self.new_machine()
+        plan = self.examine()
+        plan.outside = [enrollplan.Outside("x/f%d" % number, "seeded") for number in range(6)]
+        with unittest.mock.patch.object(enrollplan, "MAX_SHOWN", 3):
+            text = enrollplan.render(plan, self.real)
+        for number in range(6):
+            self.assertIn("x/f%d seeded" % number, text)
+
+    def test_the_groups_of_unrecorded_files_are_cut_and_counted(self):
+        self.new_machine()
+        plan = self.examine()
+        plan.unrecorded = {".workbench/g%d" % number: [".workbench/g%d/f" % number] for number in range(10)}
+        plan.unrecorded_total = 10
+        with unittest.mock.patch.object(enrollplan, "MAX_SHOWN", 3):
+            text = enrollplan.render(plan, self.real)
+        self.assertIn(".workbench/g0: 1 file", text)
+        self.assertNotIn(".workbench/g9: 1 file", text)
+        self.assertIn("and 7 more directories", text)
+
+    def test_covered_matches_a_path_its_parents_and_not_a_sibling_with_the_same_start(self):
+        self.assertTrue(enrollplan.covered("a/b/c", {"a/b"}))
+        self.assertTrue(enrollplan.covered("a/b", {"a/b"}))
+        self.assertTrue(enrollplan.covered("a/b/c/d", {"a"}))
+        self.assertFalse(enrollplan.covered("a/bc", {"a/b"}))
+        self.assertFalse(enrollplan.covered("a", {"a/b"}))
+        self.assertFalse(enrollplan.covered("x/y", set()))
+
+    def test_a_path_outside_the_workbench_directory_that_rests_on_a_declaration_is_listed_under_its_own_heading(self):
+        self.new_machine()
+        plan = self.examine()
+        self.assertEqual(["docs/notes.md"], [item.path for item in plan.outside])
+        text = enrollplan.render(plan, self.real)
+        self.assertIn("on the strength of a module's own declaration", text)
+        self.assertEqual(plan.fields["outside"], [["docs/notes.md", "seeded"]])
+
+    def test_the_files_the_base_supplies_are_not_listed_as_resting_on_a_declaration(self):
+        self.new_machine()
+        self.assertNotIn("AGENTS.md", [item.path for item in self.examine().outside])
+
+    def test_the_list_of_baselines_is_cut_and_counted_and_the_digest_still_covers_them_all(self):
+        self.new_machine()
+        whole = self.examine()
+        with unittest.mock.patch.object(enrollplan, "MAX_SHOWN", 3):
+            cut = self.examine()
+            text = enrollplan.render(cut, self.real)
+        self.assertEqual(whole.digest, cut.digest)
+        self.assertIn("and %d more (the digest covers all of them)" % (len(cut.baselines) - 3), text)
+        shown = [line for line in text.splitlines() if line.startswith("  ") and line.split()[0] in cut.baselines
+                 and line.endswith(cut.baselines[line.split()[0]])]
+        self.assertEqual(3, len(shown), shown)
 
 
 class ThisRepository(Enroll):
