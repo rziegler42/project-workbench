@@ -1,6 +1,7 @@
 # `wb enroll` writes the baselines and the first-seen record only, and the helper pins come from `upgrade` with a package
 
-Status: Accepted by Robert Ziegler <25854477+rziegler42@users.noreply.github.com> on 2026-11-15
+Status: Superseded
+Superseded by 2026-11-15-enroll-baselines-only-what-the-manifest-records
 Supersedes 2026-11-15-enroll-makes-a-clone-known-on-the-manifest-hashes-and-the-owners-digest
 Date: 2026-11-15
 
