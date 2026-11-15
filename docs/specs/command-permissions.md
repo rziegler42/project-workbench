@@ -16,7 +16,7 @@ skills and the policy block into line with the levels and built `wb doctor` (eac
 `approve-plan` and the key of an action that a module describes and declares it for (`wb run safe-git commit`, since plan
 `2026-11-08-action-review-cutover-for-commit`, increment B) offer `delegated`, and `approve-plan`, those
 five, `accept-decision`, `wb release-approvals`, `wb install`, `wb adopt`, `wb upgrade` and `wb add` offer `ask`. The keys that still offer
-`block` only are listed under "Not built"; `wb rerender` offers it by design and is described in its own section. The design is `docs/decisions/2026-10-26-per-command-permission-levels.md`, as refined by
+`block` only are listed under "Not built"; `wb rerender` offers it by design and is described in its own section, and `wb enroll` offers it by design, for its own reason (below). The design is `docs/decisions/2026-10-26-per-command-permission-levels.md`, as refined by
 `docs/decisions/2026-10-26-permission-levels-as-built.md` and `docs/decisions/2026-10-26-a-level-for-every-command.md` (all accepted),
 which state what stands, what changed and what was not built; where they differ on the defaults or the offered levels, this spec
 follows the later record.
@@ -113,7 +113,7 @@ the approver cannot lower them from the personal settings (`trust-and-approval.m
 `2026-10-29-policy-and-module-asks`, increment B). `wb settings` prints no line for them.
 
 A key is a process module's declared checkpoint name (`approve-plan`, `accept-decision` and the others), or the command in the `wb`
-spelling: `wb install`, `wb adopt`, `wb add`, `wb upgrade`, `wb attach`, `wb rerender`, `wb approve`, `wb pin`, `wb recover`,
+spelling: `wb install`, `wb adopt`, `wb add`, `wb upgrade`, `wb attach`, `wb rerender`, `wb enroll`, `wb approve`, `wb pin`, `wb recover`,
 `wb release-approvals`, and `wb run <command> <argument>` for each owner-run argument that an installed module declares. The key
 `approve-plan` is the checkpoint and the command; `wb acknowledge` is not a key, because the checkpoints
 `acknowledge-first-tier` and `acknowledge-second-tier` set it. The registry (`workbench/levels.py`) is built from what the
@@ -145,7 +145,7 @@ separated by single spaces, at most 96 characters.
   built. Since increment C of that plan the key at `delegated` renders the same `ask` rule as at `ask` ("Rendering"), so the owner's
   prompt exists and is the fall-back, and it reads `delegated` only while the rendering record agrees.
 - `ask`: `approve-plan`, `accept-decision` (a checkpoint of a command that declares it), `wb release-approvals` (a digest of the preview of its release, "`wb release-approvals` at `ask`"), `wb install`, `wb adopt`, `wb upgrade` and `wb add` (the digest of `wb preview <command>`, taken over the plan with the seed and the time of its pins fixed; "The installer commands at `ask`"), `wb recover` and `acknowledge-first-tier` (the digest of `wb preview recover` and `wb preview acknowledge`, taken over the examination each shows; "`recover` and `acknowledge` at `ask`"), `wb approve` and `wb pin` (the digest of `wb preview approve` and `wb preview pin`, taken over the request or the pin; "`approve` and `pin` at `ask`"), `wb attach` (the digest of `wb preview attach`, taken over what it would write; "`attach` at `ask`"), and an owner-run argument of a module's command whose declaration names it in `levels` (below). `none`: `approve-plan`, `wb install`, `wb adopt` (built by Increment F), `wb upgrade` and `wb add` (built by Increment G), `wb approve` and `wb pin` (built by Increment H), `acknowledge-first-tier`, `acknowledge-second-tier`, `wb recover`, `wb attach` and `wb release-approvals` (built by Increment J), `accept-decision` (built by Increment K), every agent-safe action and
-  every declared module argument that is not owner-run; the keys under "Not built" offer `block` only, and so does `wb rerender`. A key offers a level only
+  every declared module argument that is not owner-run; the keys under "Not built" offer `block` only, and so do `wb rerender` and `wb enroll` (`clone-enrollment.md`). A key offers a level only
   from the version that builds it for that command.
 
 **The levels an owner-run argument of a module's command offers** (decision `2026-10-27-owner-run-arguments-take-a-level`; the
@@ -522,7 +522,7 @@ checks its own pin, defaults to `none`. The owner-run commands, the checkpoints 
 default of `block`. `approve-plan` stays `block`; the default is not raised to `ask` (see "Shipped defaults").
 
 **Levels offered.** Every key offers `block` and `none` (and `wb release-approvals`, `accept-decision`, `wb install`, `wb adopt`, `wb upgrade` and `wb add` also offer `ask`, below), except `wb rerender`, which offers `block` only for good (see "Re-rendering an
-attached clone"), and the owner-run arguments of module commands (`wb run <command>
+attached clone"), and `wb enroll`, which offers `block` only for a reason of its own, not `wb rerender`'s (it writes the trust state that every other command relies on, the owner's typed digest is its only confirmation, and no level that let an agent run it would keep that confirmation; it has no rendering record to read and no level log to write; see "The key `wb enroll`" below and `clone-enrollment.md`), and the owner-run arguments of module commands (`wb run <command>
 <argument>` where the argument is owner-run), which offer `block` only unless the command's declaration gives `levels` (built by
 Increment C of the plan `2026-10-27-levels-for-the-review-workflow`; "Which levels a key offers"; only the review engine declares it).
 `delegated` stays `approve-plan` and the key of a module's described action that its declaration lists (`wb run safe-git commit`), and `ask` is offered by a key once
@@ -662,7 +662,7 @@ when any other has none.
 P2. With no settings, every agent-safe command reads `none` and every other key reads as it does today, `block`.
 P3. A table entry sets the level of its key in either direction, whatever the key's checkpoint says; a version 1 `stop` or
 `delegate` for a key the table does not mention reads as `block` or `delegated`, with a note.
-P4. Every key except `wb rerender` and the owner-run arguments of module commands accepts `block` and `none`, and a level a key
+P4. Every key except `wb rerender`, `wb enroll` and the owner-run arguments of module commands accepts `block` and `none`, and a level a key
 does not offer reads as `block` with a note.
 P5. With every such key set to `none`, no command refuses for want of a terminal or a harness `deny`, the floor still applies, and
 each run that changes something is logged.
@@ -673,7 +673,7 @@ registry, the settings and `wb settings` (Increments A and B); P4 is the offers 
 `test_approve_levels`; P5 is `tests/test_install_levels.py`, `test_upgrade_levels.py`, `test_approve_pin_levels.py`,
 `test_ack_recover_levels.py` and the command-gate tests, with the owner's trials in the plan's Result (Increments D to J); P6 is the
 offers test for the key and the draft-decision skill test of the groundwork module (Increment K). P5 holds for every key that offers
-`none`; it does not hold for the keys under "Not built" or for `wb rerender`, which offer `block` only. P6 is guidance, not enforcement: the test pins
+`none`; it does not hold for the keys under "Not built" or for `wb rerender` and `wb enroll`, which offer `block` only. P6 is guidance, not enforcement: the test pins
 what the skill says.
 
 ## Re-rendering an attached clone
@@ -698,6 +698,14 @@ and not a problem, because the stale state is already safe).
   the plan keeps any `allow` rule would remove that, at the price of a second mode, and a re-render is rare and cheap at a terminal.
 - **`wb preview rerender`** is the read-only plan and is its own agent-safe key, default `none`. So is **`wb preview release-approvals`**
   (the read-only preview of a release, built by Increment B of the plan `2026-10-30-release-approvals-at-ask`).
+- **The key `wb enroll`** is owner-run, defaults to `block` and offers `block` only: a third exception to decision 3 of
+  `2026-10-26-a-level-for-every-command`, beside `wb rerender` and the owner-run arguments of module commands, and for a reason of its
+  own. It writes the baselines and the first-seen record, which every other command reads to know a project, and the owner's typed digest
+  of the list it shows is its only confirmation; a level at which an agent could run it would drop that confirmation, and a clone's files
+  are untrusted until the owner says otherwise (`2026-11-15-enroll-baselines-only-what-the-manifest-records`). Unlike `wb rerender` it has
+  no rendering record to read, so that reason does not apply. It writes no level-log entry, because the log records runs without a
+  terminal at the levels `ask` and `none`, and it has neither. A level written for it other than `block` reads as `block` with a note. Its
+  read-only plan is **`wb preview enroll`**, its own agent-safe key, default `none`. The design is `clone-enrollment.md`.
 - **It runs only at a terminal**, on standard input and output, at every level; the owner types the first 12 characters of the
   preview's digest. Before the first write it rebuilds the plan and refuses unless the digest is the one confirmed.
 - **The plan lists** each key whose rule moves, the files it changes (the permissions file, the local manifest, the rendering

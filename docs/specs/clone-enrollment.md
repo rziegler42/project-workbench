@@ -38,7 +38,7 @@ The commands are `wb enroll` and a read-only `wb preview enroll`. [call] They ar
 
 **Form.** `wb preview enroll [<target> | --dir <path>]` shows what would be written and a digest, and writes nothing. [call] `wb enroll [<target> | --dir <path>]` is owner-run: standard input and output must be terminals, the whole list and the digest are shown, and the owner types the first 12 characters of the digest. [agreed] Typed-ahead input is discarded, and anything else writes nothing; the 12 characters and the discarding follow `acknowledge`. [call]
 
-**Level.** The key `wb enroll` is class `governs` and offers `block` only, so there is no `ask` or `none` and no run without a terminal, as for `wb rerender`. [call]
+**Level.** The key `wb enroll` is class `governs` and offers `block` only, so there is no `ask` or `none` and no run without a terminal, as for `wb rerender`. [call] The reason is its own, not `wb rerender`'s: the command writes the trust state that every other command relies on, the owner's typed digest is its only confirmation, and a level at which an agent could run it would drop that confirmation (`command-permissions.md`, "The key `wb enroll`"). [call]
 
 **Registration.** The key is added to the levels registry with `wb preview enroll` as its preview; the harness's deny rule for owner-run commands names it; the command gate's key words include it; and the command tables of `development.md`, `installer-interface.md` and `command-permissions.md` list it. [call] Those tables, and the usage text of the command line, spell every row in the long form `python3 -m workbench <command>`, as they do for the other commands; the launcher form is the one an owner or a script uses (`installer-interface.md`, the launcher rule). [call]
 

@@ -162,10 +162,11 @@ says so.
 | command | kind | takes | writes | terminal only | state |
 |---|---|---|---|---|---|
 | `install` | project | target, a module selection | committed content, manifest, the project's store directory, then per-clone harness files | yes, owner-run; the owner may set `wb install` to `ask` (with the digest of the preview) or `none` | built |
-| `preview` | project | `install`, `adopt`, `upgrade`, `add`, `rerender`, `acknowledge`, `recover` or `release-approvals` and their arguments (`release-approvals` takes none) | nothing; no network, it reads only the approved cache (`release-approvals` reads the packages and the shipped records and ends with a digest) | no | built |
+| `preview` | project | `install`, `adopt`, `upgrade`, `add`, `rerender`, `enroll`, `acknowledge`, `recover` or `release-approvals` and their arguments (`release-approvals` takes none) | nothing; no network, it reads only the approved cache (`release-approvals` reads the packages and the shipped records and ends with a digest) | no | built |
 | `adopt` | project | target, a module selection (as `install`) | committed content for the paths that are missing, manifest, the project's store directory; never an existing file and no harness file | yes, owner-run; the owner may set `wb adopt` to `ask` (with the digest of the preview) or `none` | built (`adopt-existing-repository`) |
 | `attach` | project | target, `--harness` (and `--digest` at `ask`) | per-clone harness files, `.git/info/exclude`, the local manifest | no, but owner-run (harness deny rule); the owner may set `wb attach` to `ask` (with the digest of `wb preview attach`) or `none` | built |
 | `rerender` | project | target, `--package` | the stale, new and missing rendered files, the harness's permissions file, the local manifest's hashes, then the rendering record in the guarded store | yes, owner-run at every level; the key offers `block` only | built (`rerender-attached-harness`, `refresh-rendered-harness`) |
+| `enroll` | project | target | the guarded store: the project's acknowledgement baselines and first-seen record, for a clone of an installed project on a machine that does not know it; no pin, no level log, nothing in the project (`clone-enrollment.md`) | yes, owner-run at every level; the key offers `block` only | built (`enroll-a-clone`) |
 | `check` | project | target | nothing | no | built |
 | `upgrade` | project | target | after an approved preview, new content, left uncommitted | yes, owner-run; the owner may set it to `ask` (with the digest of the preview) or `none` | built |
 | add a module | project | target, a module | the same as `upgrade`, new files and blocks only | yes, owner-run; the owner may set `wb add` to `ask` (with the digest of the preview) or `none` | built |
@@ -774,7 +775,7 @@ see its section). The split between a read-only
    standard input and standard output, checked on file descriptors as `approve` does, and
    refuse with `refused:` and exit 1 otherwise. They are denied to an agent by the harness,
    exactly as `approve`, `pin` and `attach` are. **rule:** the harness modules render a `deny`
-   for `wb install`, `wb adopt`, `wb upgrade`, `wb add`, `wb attach`, `wb rerender`, `wb acknowledge`, `wb approve`,
+   for `wb install`, `wb adopt`, `wb upgrade`, `wb add`, `wb attach`, `wb rerender`, `wb enroll`, `wb acknowledge`, `wb approve`,
    `wb pin` and `wb release-approvals` (at the default level `block`; at `ask` the launcher spelling is asked for and at `none` it is open,
    `command-permissions.md`), and the neutral rule list carries them (`harness-modules.md`,
    "Permissions"; `trust-and-approval.md`, "Rendering rules"). *(This requirement is not yet

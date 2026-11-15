@@ -415,7 +415,7 @@ review or in the security pass:
   attach fails, the install is complete, `install` prints `failed:` and names `wb attach`, and
   exits 3.
 - **The deny list** covers the guarded store and every owner-run command (`install`, `adopt`, `upgrade`,
-  `add`, `attach`, `rerender`, `acknowledge`, `recover`, `approve`, `pin`, `release-approvals`, `approve-plan`; `rules.OWNER_RUN`
+  `add`, `attach`, `rerender`, `enroll`, `acknowledge`, `recover`, `approve`, `pin`, `release-approvals`, `approve-plan`; `rules.OWNER_RUN`
   and the commands the owner has set to a level that lets an agent run them are in `command-permissions.md`) in five
   spellings: `wb` and the four interpreter forms of `-m workbench` (`rules.SPELLINGS`). `wb preview` is not denied. A Bash deny is not a security
   boundary; see "Verified rendering rules".

@@ -244,7 +244,7 @@ Rules:
 - A rule is rendered into local, uncommitted harness configuration only.
 - A harness that provides `permissions` renders a `deny` for each owner-run command, so an
   agent cannot run it (except a command the owner has set to `ask` or `none`, which renders as `command-permissions.md`
-  says): `wb install`, `wb adopt`, `wb upgrade`, `wb add`, `wb attach`, `wb rerender`, `wb acknowledge`,
+  says): `wb install`, `wb adopt`, `wb upgrade`, `wb add`, `wb attach`, `wb rerender`, `wb enroll`, `wb acknowledge`,
   `wb recover`, `wb approve`, `wb pin`, `wb release-approvals` and `wb approve-plan`, in the `wb` spelling and
   the four interpreter spellings of `-m workbench` (`rules.SPELLINGS`). The read-only `wb preview` is not denied. The commands
   are listed in `installer-interface.md`. A module command may also declare owner-run arguments
