@@ -118,7 +118,7 @@ namespace.
 - **Core names.** Unprefixed names are reserved for the core contract. The harness
   capabilities are `instructions`, `skills`, `agents`, `commands`, `hooks` and
   `permissions`. Other core names are defined by the specifications that need them
-  (for example `plans`, `specs`, `roadmaps`, `decisions`, `references`,
+  (for example `plans`, `specs`, `roadmaps`, `decisions`, `references`, `todo`,
   `peer-review`, `security-review`, `discovery`, `model-bridge`, `text-embedding`; the owner has confirmed `text-embedding` and has
   not yet confirmed `model-bridge`). This specification names only the six harness
   capabilities; the full list of core names is the union of the capabilities that

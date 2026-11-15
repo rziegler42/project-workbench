@@ -738,6 +738,7 @@ owner-run was run to build the table. A reading from the code or a spec is state
 | Change a spec's or roadmap's direction | the checkpoint `change-direction` | `change-direction`, `block` only | no | an agent checkpoint, not a terminal gate: the agent stops and asks the owner in the conversation, and no installer command is behind it (`code-work.md`, "Checkpoints") |
 | Brainstorm a design | the `brainstorm` skill: reads, asks, writes a spec | no key | no | nothing; the owner's approval of the design is their statement in the conversation |
 | Read the plans | `wb run code-work plans`, `report`, `active`, `region`, `delegable`, `shared`; `wb plan-status` | `none` | no | nothing |
+| Keep the todo list | `wb run todo add`, `list`, `show` and `drop` (the plan `2026-11-11-todo-list`; `todo-list.md`) | four keys, `wb run todo add`, `wb run todo list`, `wb run todo show` and `wb run todo drop`, each an agent-run argument of the module command `todo` (no `owner`, no `levels`, no `describes`): offers `block` and `none`, default `none`; `wb settings` prints class `reads` for each | no | nothing at `none`; at `block` the command gate refuses the call. That an agent drops only an item it implemented or the owner names is advice in the `groundwork` policy block, not a level |
 | Start a review | `wb run review-engine init`, `review-plan`, `review-spec`, `review-roadmap`, `review-adr` | `none` | no | the model bridge (`ask-codex`) must be installed, pinned and signed in on this machine, and the owner's `review-profiles.json` must exist in the guarded store with a ladder for the kind of document or a `default` one; the review spends one of the bound's rounds |
 | Read a review | `wb run review-engine status`, `convergence` | `none` | no | nothing |
 | Record what was done about a finding | `wb run review-engine decide` (once per finding) | `none` | no | a `blocker` or `major` finding with no decision refuses the next round |
@@ -783,7 +784,7 @@ are recorded in that plan's Result. `delegated` for `accept-decision` is not bui
 the accepted record leaves a delegated review's subject for a decision undecided, so `delegated` reads `block` here, as it does for
 every key that does not offer it (`approve-plan` and, since increment B of `2026-11-08-action-review-cutover-for-commit`, the commit action of `safe-git` do).
 
-**The command.** The `groundwork` module ships one helper with two arguments, run with `wb run`. The installer names neither the
+**The command.** The `groundwork` module ships one decision helper with two arguments, run with `wb run` (its other helper, `todo`, is the row "Keep the todo list" below). The installer names neither the
 module nor the helper.
 
 - `preview <record>` is agent-safe and read-only. It writes nothing and exits 0. `<record>` is a path relative to the project root that

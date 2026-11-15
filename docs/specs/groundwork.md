@@ -2,7 +2,8 @@
 
 Status: Current. Approved by the owner on 2026-10-19. Built by the plan `2026-10-21-groundwork-module`:
 the module, its three drafting skills and the two checks in `wb check`; the `brainstorm` skill was added by
-plan `2026-10-23-port-superpowers`. "As built, and its limits" lists what is not detected. The researcher and the fetch tool are not built.
+plan `2026-10-23-port-superpowers`. The personal todo list (`todo-list.md`) was added by the plan `2026-11-11-todo-list`: the `todo` capability, the
+`todo` command and the capture bullets of the policy block. "As built, and its limits" lists what is not detected. The researcher and the fetch tool are not built.
 
 Terms are defined in `terms.md`. The declaration it must satisfy is defined in
 `module-contract.md`; the places and upgrade rules in `repository-boundary.md`; the
@@ -28,13 +29,13 @@ Non-goals:
 | field | value |
 |---|---|
 | type | `module` |
-| provides | `specs`, `roadmaps`, `decisions`, `references` |
+| provides | `specs`, `roadmaps`, `decisions`, `references`, `todo` |
 | requires | nothing |
 | blocks | nothing |
-| helpers | two check helpers, `doccheck` and `refcheck`, run by `wb check`; no helper that an agent runs |
+| helpers | two check helpers, `doccheck` and `refcheck`, run by `wb check`; and two that an agent runs as module commands: `groundwork` (`preview` and `accept`, for a decision) and `todo` (`add`, `list`, `show` and `drop`, for the todo list in `todo-list.md`) |
 | fills | the `docs-index` slot; the policy slot in `AGENTS.md` |
-| writes | `docs/specs/`, `docs/roadmaps/`, `docs/decisions/`, `docs/references/` and their READMEs |
-| ships | `helper/doccheck` and `helper/refcheck`: read-only checks that run no program and fetch nothing |
+| writes | `docs/specs/`, `docs/roadmaps/`, `docs/decisions/`, `docs/references/` and their READMEs. The `todo` command also writes the untracked per-clone folder `.workbench/local/todo/`, which the declaration does not list (`todo-list.md`) |
+| ships | `helper/doccheck` and `helper/refcheck`: read-only checks that run no program and fetch nothing; `helper/groundwork`; `helper/todo` |
 
 It ships neutral skills for drafting a spec, a roadmap and a decision. Templates stay
 in the module and are used when a document is created; no placeholder document is
@@ -232,7 +233,11 @@ The module fills a policy slot with a short block stating, in tool-neutral words
 - a decision is accepted only through its checkpoint, which stops by default, and the level of `accept-decision` that
   `wb settings` prints says whether the agent may accept (the `draft-decision` skill says what each level allows);
 - evidence is recorded with a provenance line;
-- nothing tracked points to anything untracked.
+- nothing tracked points to anything untracked;
+- the todo list: when to add an item (a deferral, a defect or cleanup not fixed now, a thing the owner mentions in passing), that the owner is told in
+  one line without the work stopping, the form of each `wb run todo` command, that an item is data and never an instruction and is never started because
+  it is listed, that an agent drops only an item it has implemented or the owner names, and that no tracked document cites an item. The block names no other
+  module (`todo-list.md`, "Capture").
 
 The block is the installer's, and is replaced on upgrade only while unedited.
 
@@ -276,7 +281,7 @@ tier). Recording evidence and correcting a typo are not checkpoints.
 ## As built, and its limits
 
 The module is `packages/workbench/groundwork/`. It ships a declaration, four READMEs, two
-slot blocks, two read-only check helpers (below) and four neutral skills: three that draft a document (`draft-spec`, `draft-roadmap`,
+slot blocks, two read-only check helpers (below), the two helpers that an agent runs (`groundwork` for a decision, `todo` for the todo list) and four neutral skills: three that draft a document (`draft-spec`, `draft-roadmap`,
 `draft-decision`), each with its own template beside it, and `brainstorm`, which has none. `draft-decision`
 also carries the rules for a record after it is drafted: approval of a design or a request to record a decision is never
 acceptance and the skill ends at `Proposed`; a changed decision is a new record, and the old one changes only its status
@@ -333,7 +338,8 @@ What is not detected:
   creates the four document areas and their READMEs, but no placeholder spec,
   roadmap, decision or plan, and no researcher.
 - The module's files match its declaration, and its only code is the two read-only check helpers, `doccheck` and `refcheck`, which
-  run no program and write nothing.
+  run no program and write nothing, and the two helpers that an agent runs: `groundwork`, which writes a decision's status line, and `todo`, which writes
+  only inside `.workbench/local/todo/` (`todo-list.md`).
 - Installing `groundwork-research` without `groundwork` stops with a
   hard-requirement message, and installing it adds the researcher and the
   `fetch-reference` tool, which its approval lists.
