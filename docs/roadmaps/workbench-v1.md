@@ -1094,6 +1094,22 @@ word at run time.
 **Promotion trigger:** the owner chooses to begin. The reason to: the refusal recurs, and each one costs a second call to write the script as a file; the
 accepted record asks for a security review of the built change, because a mistake in where the body ends is a bypass.
 
+### enrol-a-clone — A clone of an installed project is made known on a new machine
+
+**Outcome:** a clone of a project that is already installed, on a machine that has never held it, can be made known there by one
+owner-run command, so that the checks, the harness step and the upgrade commands work on it and the helpers are pinned. Today
+none of these accepts such a clone (found 2026-11-15 on a second machine): the command that writes the first baselines
+refuses a target that is already a project, and the others refuse a project with no baselines here. The setup page `INSTALL.md`
+is corrected to match once the command exists.
+**Dependencies:** none. The install, adopt, attach and acknowledge commands it must fit alongside are built.
+**Boundary:** the owner's record on this machine only: the project's baselines, its first-seen record at this path, and the
+pins of the helpers the manifest declares. It changes no file of the project and fetches nothing. Not part of it: moving a
+project between two paths on one machine, changing harness, any network step, and any change to what a baseline or a pin means. It needs its own
+spec change and a security review: it decides which bytes this machine will trust, and the owner's digest is the only
+thing that says the clone is the one they meant.
+**Promotion trigger:** the owner chooses to begin. The reason to: a second machine cannot run the harness or the helpers at all
+until this exists.
+
 ## Deferred
 
 - A way of working for CAD and EDA (`cad-work`), until a project shows it is needed.
