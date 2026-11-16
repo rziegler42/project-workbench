@@ -58,3 +58,7 @@ What the review engine does with a record is relevant to what showing it buys. T
 - [2026-11-15-enroll-baselines-only-what-the-manifest-records](2026-11-15-enroll-baselines-only-what-the-manifest-records.md)
 - [2026-10-20-acknowledge-before-upgrade](2026-10-20-acknowledge-before-upgrade.md)
 - [2026-10-19-guarded-store](2026-10-19-guarded-store.md)
+
+## Note of 2026-11-16 (a clarification approved by the owner; the text above is unchanged)
+
+The second consequence above says the `action-review` helper "holds its own pattern of it and has no test that ties it". That stopped being true the same day. A test in `tests/test_reviewrecords.py` (class `ActionReviewSpellingIsTied`, plan `2026-11-16-tie-the-action-review-spelling-to-the-engine`, commits `ac5b8aa` and `673df4c`) now parses the review engine's helper and the `action-review` helper without running them, and fails when the kinds, the folder, the length of the key, the file names or the largest round number of the `action-review` patterns part company with the engine's or with the installer's rule. One difference between them is meant and pinned by that test: a round number from 1001 to 9999 is a record to the engine's own file-name pattern and to the installer's rule, and not to the `action-review` pattern, which stops at the engine's cap of 1000 rounds. The spelling still lives in three places, and the decision is not changed.
