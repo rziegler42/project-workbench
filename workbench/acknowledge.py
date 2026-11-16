@@ -18,6 +18,10 @@ command is the owner's way past that refusal. It is owner-run and terminal-only,
   A pin held at other bytes, for another path, or typed by the owner (it records no declaration) is
   not moved, and no module declaration is read: the differences may include the declarations themselves. Nothing in the project is written.
 
+An added file of the review engine's own folder and file names (``reviewrecords``) is shown as a count by kind and not one by
+one. It is in the digest and in the baselines like every other difference, and only the lines that are shown count against
+``MAX_LISTED``.
+
 A path that is a link, a directory or another kind of file where a file is expected has no hash to
 accept, so it cannot be acknowledged; the owner deals with it first. The typed text is friction,
 not authentication; what stops an agent is the deny rule a harness renders for this command and
@@ -30,14 +34,15 @@ be the one the level was read for. At ``ask`` it does the same with the digest `
 ``--digest``, which it compares with its own examination before it prints or writes anything (``run_preview``).
 """
 
+import collections
 import hashlib
 
 from . import (__version__, acknowledgement, approvals, approve, confirm, installed, installplan, levels, manifest,
-               pins, preview, projectfs, sources, target)
+               pins, preview, projectfs, reviewrecords, sources, target)
 from .wbkit import digest as kitdigest, display, safefs
 
 MANIFEST = acknowledgement.MANIFEST
-MAX_LISTED = 500          # a longer list cannot be reviewed; it is refused, not truncated
+MAX_LISTED = 500          # more lines than this cannot be reviewed; it is refused, not truncated. Review records are counted, not listed
 
 _STORE = "projects/%s/baselines"
 TERMINAL_ONLY = ("acknowledge is owner-run: standard input and output must both be terminals. Run this command yourself, "
@@ -99,6 +104,45 @@ def _sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
+def split(found):
+    """``(listed, records)``: the differences that are shown one by one, and the ``(kind, directory)`` of each added file of
+    the review engine's own spelling (``reviewrecords.record_of``), which is shown as a count. Both are in the digest and in
+    the baselines; this decides only what is printed."""
+    listed, records = [], []
+    for item in found:
+        record = reviewrecords.record_of(item)
+        if record is None:
+            listed.append(item)
+        else:
+            records.append(record)
+    return listed, records
+
+
+def _count(number, one, many):
+    return "%d %s" % (number, one if number == 1 else many)
+
+
+def summary_lines(records):
+    """The lines that stand for the summarised review records: how many files in how many directories, and for each kind of
+    document the same."""
+    if not records:
+        return []
+    files = collections.Counter(kind for kind, _ in records)
+    folders = collections.defaultdict(set)
+    for kind, directory in records:
+        folders[kind].add(directory)
+    lines = ["review records added: %s in %s" % (
+        _count(len(records), "file", "files"), _count(sum(len(names) for names in folders.values()), "directory",
+                                                      "directories"))]
+    for kind in reviewrecords.KINDS:
+        if files[kind]:
+            lines.append("  %s: %s in %s" % (kind, _count(files[kind], "file", "files"),
+                                             _count(len(folders[kind]), "directory", "directories")))
+    lines.append("  (each has exactly the folder and file name the review engine gives its files, so it is not listed one by "
+                 "one; the digest covers every one of them, and accepting records every one)")
+    return lines
+
+
 class Review:
     """What the owner is shown: the differences and the baselines that would result."""
 
@@ -107,6 +151,7 @@ class Review:
         self.existing = existing
         self.project = project
         self.found = found
+        self.listed, self.records = split(found)
         self.after = after
         self.store_hash = store_hash
         self.identity = identity
@@ -177,9 +222,10 @@ def examine(guarded, held, version, now=None):
     except (installed.InstalledError, acknowledgement.AcknowledgementError,
             manifest.ManifestError, safefs.SafeFsError, pins.PinError) as exc:
         raise Refused([str(exc)])
-    if len(found) > MAX_LISTED:
-        raise Refused(["%d paths differ, more than the %d that can be reviewed here; deal with "
-                       "the project by hand first" % (len(found), MAX_LISTED)])
+    shown = len(split(found)[0])
+    if shown > MAX_LISTED:
+        raise Refused(["%d paths other than review records differ, more than the %d that can be reviewed here; deal "
+                       "with the project by hand first" % (shown, MAX_LISTED)])
     stuck = [d for d in found if d.reason]
     if stuck:
         lines = ["these paths cannot be acknowledged, because they are not regular files or their "
@@ -228,10 +274,11 @@ def render(review, target_path):
             (" block %s slot %s" % (display.ascii_text(item["block"]), display.ascii_text(
                 item["slot"]))) if "block" in item else "", item["hash"]))
     lines.append("differences from what was last acknowledged: %d" % len(review.found))
-    for item in review.found:
+    for item in review.listed:
         lines.append("  %s %s" % (item.kind, display.ascii_text(item.path)))
         lines.append("    baseline %s" % (item.baseline or "(none)"))
         lines.append("    current  %s" % (item.current or "(none)"))
+    lines += summary_lines(review.records)
     for old, new in review.moved:
         lines.append("  moves the pin %s: %s from sha256 %s to sha256 %s" % (
             display.ascii_text(new.name), display.ascii_text(new.path), old.sha256[:12],

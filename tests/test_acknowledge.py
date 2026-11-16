@@ -405,6 +405,190 @@ class Declining(Acknowledge):
         self.assertEqual(was, self.baselines())
 
 
+FOLDER = ".workbench/workbench/review-engine"
+
+
+class ReviewRecords(Acknowledge):
+    """Added files of the review engine's own spelling are shown as a count; every other difference is a line."""
+
+    def record(self, kind, n, name):
+        return "%s/%s-%016x/%s" % (FOLDER, kind, n, name)
+
+    def add(self, rel, data=None):
+        full = os.path.join(self.place, *rel.split("/"))
+        os.makedirs(os.path.dirname(full), exist_ok=True)
+        with open(full, "wb") as handle:
+            handle.write(rel.encode() if data is None else data)
+
+    def preview_it(self):
+        out, err = io.StringIO(), io.StringIO()
+        code = cli.main(["preview", "acknowledge", self.place], out, err, store_root=self.store_root)
+        return code, out.getvalue(), err.getvalue()
+
+    def digests(self, text):
+        return [line for line in text.splitlines() if line.startswith("digest: ")]
+
+    def test_three_thousand_records_are_one_summary_and_every_path_is_covered(self):
+        self.installed_project()
+        paths = []
+        kinds = ("plan", "spec", "roadmap", "adr")
+        for n in range(752):
+            for name in ("state.json", "ledger.md", "schema.json", "round-1.json"):
+                paths.append(self.record(kinds[n % 4], n, name))
+        for path in paths:
+            self.add(path)
+        project = self.tree(self.place)
+        code, out, err = self.run_it()
+        self.assertEqual((0, ""), (code, err), out[-500:])
+        self.assertIn("review records added: 3008 files in 752 directories\n", out)
+        for kind in kinds:
+            self.assertIn("\n  %s: 752 files in 188 directories\n" % kind, out)
+        self.assertNotIn("added %s/" % FOLDER, out)
+        self.assertLess(len(out.splitlines()), 200)
+        self.assertIn("acknowledged 3008 paths; the project was not touched", out)
+        now = self.baselines()
+        self.assertTrue(set(paths) <= set(now))
+        self.assertEqual(project, self.tree(self.place))
+
+    def test_with_no_records_there_is_no_summary(self):
+        self.installed_project()
+        self.edit(SCRIPT, lambda data: data + b"# mine\n")
+        code, out, err = self.run_it()
+        self.assertEqual((0, ""), (code, err), out)
+        self.assertNotIn("review records", out)
+        code, out, err = self.preview_it()
+        self.assertNotIn("review records", out)
+
+    def test_the_summary_counts_files_and_distinct_directories_by_kind(self):
+        self.installed_project()
+        for path in (
+            self.record("plan", 1, "state.json"), self.record("plan", 1, "ledger.md"),
+            self.record("plan", 1, "round-1.json"), self.record("plan", 1, "round-2.json"),
+            self.record("plan", 2, "state.json"),
+            self.record("spec", 3, "ledger.md"), self.record("spec", 3, "schema.json"),
+            self.record("adr", 4, "state.json"),
+        ):
+            self.add(path)
+        code, out, err = self.run_it()
+        self.assertEqual((0, ""), (code, err), out)
+        self.assertIn("review records added: 8 files in 4 directories\n", out)
+        self.assertIn("\n  plan: 5 files in 2 directories\n", out)
+        self.assertIn("\n  spec: 2 files in 1 directory\n", out)
+        self.assertIn("\n  adr: 1 file in 1 directory\n", out)
+        self.assertNotIn("roadmap:", out)
+        self.assertIn("differences from what was last acknowledged: 8\n", out)
+
+    def test_whatever_is_not_exactly_a_record_is_a_line(self):
+        self.installed_project()
+        self.add(self.record("plan", 1, "state.json"))
+        odd = [
+            self.record("plan", 2, "State.json"), self.record("plan", 2, "state.json.bak"),
+            "%s/plan-%017x/state.json" % (FOLDER, 3),
+            ".workbench/other/plan-%016x/state.json" % 4,
+            ".workbench/remote-runner.toml",
+            "%s/spec-%016x/ledger.md/inner.txt" % (FOLDER, 5),
+        ]
+        for path in odd:
+            self.add(path)
+        os.makedirs(os.path.join(self.place, *(self.record("roadmap", 6, "round-1.json").split("/"))))
+        code, out, err = self.run_it()
+        self.assertEqual((0, ""), (code, err), out)
+        for path in odd:
+            self.assertIn("\n  added %s\n" % path, out, path)
+        self.assertNotIn("roadmap-", out)
+        self.assertIn("review records added: 1 file in 1 directory\n", out)
+        self.assertIn("differences from what was last acknowledged: 7\n", out)
+
+    def test_a_changed_or_removed_record_is_a_line_and_only_an_added_one_is_counted(self):
+        self.installed_project()
+        first, second, third = (self.record("plan", n, "state.json") for n in (1, 2, 3))
+        self.add(first)
+        self.add(second)
+        code, out, err = self.run_it()
+        self.assertEqual((0, ""), (code, err), out)
+        self.assertIn("review records added: 2 files in 2 directories\n", out)
+        self.add(first, b"changed\n")
+        os.unlink(os.path.join(self.place, *second.split("/")))
+        self.add(third)
+        code, out, err = self.run_it()
+        self.assertEqual((0, ""), (code, err), out)
+        self.assertIn("\n  changed %s\n" % first, out)
+        self.assertIn("\n  removed %s\n" % second, out)
+        self.assertNotIn("added %s" % third, out)
+        self.assertIn("review records added: 1 file in 1 directory\n", out)
+        self.assertIn("acknowledged 3 paths", out)
+
+    def test_a_link_with_a_records_name_is_refused(self):
+        self.installed_project()
+        link = self.record("plan", 1, "state.json")
+        os.makedirs(os.path.dirname(os.path.join(self.place, *link.split("/"))))
+        os.symlink(os.path.join(self.place, SCRIPT), os.path.join(self.place, *link.split("/")))
+        before = self.snapshot()
+        code, out, err = self.run_it()
+        self.assertEqual((1, ""), (code, out))
+        self.assertIn(link, err)
+        self.assertIn("a link", err)
+        self.assertEqual(before, self.snapshot())
+
+    def test_the_bound_counts_the_lines_that_are_shown_and_not_the_records(self):
+        self.installed_project()
+        for n in range(30):
+            self.add(self.record("plan", n, "state.json"))
+        self.edit(SCRIPT, lambda data: data + b"#\n")
+        self.edit(POLICY, lambda data: data + b"#\n")
+        with unittest.mock.patch.object(acknowledge, "MAX_LISTED", 2):
+            code, out, err = self.run_it()
+        self.assertEqual((0, ""), (code, err), out)
+        self.assertIn("review records added: 30 files in 30 directories\n", out)
+        self.assertIn("acknowledged 32 paths", out)
+
+    def test_one_line_over_the_bound_is_refused_whatever_the_records(self):
+        self.installed_project()
+        for n in range(30):
+            self.add(self.record("plan", n, "state.json"))
+        self.edit(SCRIPT, lambda data: data + b"#\n")
+        self.edit(POLICY, lambda data: data + b"#\n")
+        self.add(".workbench/extra.txt")
+        before = self.snapshot()
+        with unittest.mock.patch.object(acknowledge, "MAX_LISTED", 2):
+            code, out, err = self.run_it()
+        self.assertEqual((1, ""), (code, out))
+        self.assertIn("more than the 2 that can be reviewed", err)
+        self.assertEqual(before, self.snapshot())
+
+    def test_the_real_bound_is_five_hundred_lines_of_other_files(self):
+        self.installed_project()
+        self.assertEqual(500, acknowledge.MAX_LISTED)
+        for n in range(501):
+            self.add(".workbench/extra/f%d.txt" % n)
+        before = self.snapshot()
+        code, out, err = self.run_it()
+        self.assertEqual((1, ""), (code, out))
+        self.assertIn("501 paths other than review records differ, more than the 500 that can be reviewed", err)
+        self.assertEqual(before, self.snapshot())
+        os.unlink(os.path.join(self.place, ".workbench", "extra", "f500.txt"))
+        code, out, err = self.run_it()
+        self.assertEqual((0, ""), (code, err), out[-300:])
+        self.assertIn("acknowledged 500 paths", out)
+
+    def test_the_digest_covers_every_record_though_none_is_shown(self):
+        self.installed_project()
+        self.add(self.record("plan", 1, "state.json"))
+        self.add(self.record("plan", 2, "state.json"))
+        code, out, err = self.preview_it()
+        self.assertEqual((0, ""), (code, err), out)
+        self.assertIn("review records added: 2 files in 2 directories\n", out)
+        self.assertNotIn("added %s/" % FOLDER, out)
+        again = self.preview_it()[1]
+        self.assertEqual(self.digests(out), self.digests(again))
+        self.add(self.record("plan", 2, "state.json"), b"other bytes\n")
+        changed = self.preview_it()[1]
+        self.assertIn("review records added: 2 files in 2 directories\n", changed)
+        self.assertEqual(2, len(self.digests(changed)))
+        self.assertNotEqual(self.digests(out)[0], self.digests(changed)[0])
+        self.assertNotEqual(self.digests(out)[1], self.digests(changed)[1])
+
+
 class Usage(Acknowledge):
     def test_without_terminals_nothing_is_read_or_written(self):
         self.installed_project()
