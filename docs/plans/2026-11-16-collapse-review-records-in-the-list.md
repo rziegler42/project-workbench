@@ -1,6 +1,6 @@
 # Show review records as a summary in the list that the owner acknowledges
 
-Status: In Progress
+Status: Completed
 Created: 2026-11-16
 Candidate: none (the bound of 500 paths in the owner-run command that accepts changes surfaced while enrolling a second machine; it needs no roadmap direction)
 Specs: clone-enrollment, installer-interface
@@ -13,7 +13,7 @@ Specs: clone-enrollment, installer-interface
 
 - A rule, in installer code, that says which added paths are review-engine records: a regular file, added, with no baseline, at `.workbench/workbench/review-engine/<kind>-<16 hex>/<name>`, where `<kind>` is `plan`, `spec`, `roadmap` or `adr`, and `<name>` is `state.json`, `ledger.md`, `schema.json` or `round-<n>.json`. The spelling is the engine's own (`KINDS`, `FILE_NAME` and the key form in `packages/workbench/review-engine/helper/review-engine`).
 - `workbench/acknowledge.py`: the 500-path refusal applies to the lines that are shown, not to the summarised records. The summary names the count of files and of directories, by kind. The total work stays bounded by the existing `MAX_WALKED` (20000 entries) and `MAX_READ_BYTES` of `workbench/acknowledgement.py`.
-- The two specs and `INSTALL.md` that state the 500-path bound.
+- The two specs, `INSTALL.md` and `docs/development.md` that state the 500-path bound or describe the list.
 
 ## Non-goals
 
@@ -37,7 +37,7 @@ Specs: clone-enrollment, installer-interface
 3. A test shows that more than 500 listed lines is still refused, and that a summarised record that changes changes the digest.
 4. A test fails when the engine's kinds or file-name pattern differ from the rule's.
 5. A run on a fresh clone of this repository with a scratch `HOME` shows `wb preview acknowledge` compact, and the owner-run step is the owner's to type.
-6. The two specs and `INSTALL.md` state the new behaviour and no longer state a bound of 500 paths on the whole list; none cites the todo list.
+6. The two specs, `INSTALL.md` and `docs/development.md` state the new behaviour and no longer state a bound of 500 paths on the whole list, as a search of the living documents that ignores case confirms; none cites the todo list.
 
 ## Increments
 
@@ -72,11 +72,11 @@ Specs: clone-enrollment, installer-interface
 
 ### Increment C — The documents, and the run on a fresh clone
 
-**Outcome:** the two specs and `INSTALL.md` state what is built, and a fresh clone shows the compact list.
+**Outcome:** the two specs, `INSTALL.md` and `docs/development.md` state what is built, and a fresh clone shows the compact list.
 **Dependencies:** B.
-**Affected areas:** `docs/specs/clone-enrollment.md`, `docs/specs/installer-interface.md`, `INSTALL.md`, this plan's Result.
+**Affected areas:** `docs/specs/clone-enrollment.md`, `docs/specs/installer-interface.md`, `INSTALL.md`, `docs/development.md` (its `acknowledge` bullet only), this plan's Result.
 **Steps:**
-1. Replace the statements of a bound of 500 paths on the whole list with the new rule, name the engine-spelling coupling as a known limit, and remove the words that send the reader to the todo list from `INSTALL.md`.
+1. Replace the statements of a bound of 500 paths on the whole list with the new rule, name the engine-spelling coupling as a known limit, and remove the words that send the reader to the todo list from `INSTALL.md`. In `docs/development.md`, change only the `acknowledge` bullet: say that an added file of the review engine's own folder and file names is printed as a count by kind, and that the bound of 500 counts the other paths. Search the living documents for the old bound, ignoring case, and record the result.
 2. On a fresh `git clone` at the new commit with a scratch `HOME`, run `enroll` and the preview of `acknowledge` in process with a fake terminal and record the number of lines and the summary printed. The owner-run command stays the owner's.
 3. Run the document check and the plan check.
 4. Ask the `reviewer` agent to review the increment, and record the review under this plan's Result as in A.
@@ -133,3 +133,17 @@ Empty until a review is asked for.
 **Not run.** The whole suite (`tests/run_all.py`); `test_levels` and `test_enroll`, which mention the preview of this command (they do not read the list); a case-sensitive filesystem; a run in a real terminal.
 
 **Left for the owner.** Nothing for B; C follows.
+
+### Increment C
+
+**Built and committed (the commit that holds this record).** `docs/specs/clone-enrollment.md` (the sentence that the bound blocks a clone, criterion 2, a known limit rewritten, and a bullet that records the run), `docs/specs/installer-interface.md` (the "Lists" bullet and the "As built" sentence), `INSTALL.md` (the header, step 4's labels and step 6, which no longer sends the reader to the owner's todo list).
+
+**Step 2, the run.** On 2026-11-16, a scratch `git clone` of this repository at `6fcef2c` with a scratch `HOME`, the clone's own code driven in process with a fake terminal (Python 3.15); the owner-run commands were not run by hand. The clone tracked 468 files in the engine's folder, 3 of them module files the manifest records. `check` found the 3 unpinned helpers; `preview enroll` printed 123 lines, 73 baselines and 466 unrecorded files; `enroll` wrote 73 paths; `preview acknowledge` printed 110 lines, of which one was `.workbench/remote-runner.toml` and the rest a summary of 465 review records in 87 directories (plan 314 files in 59 directories, spec 67 in 11, roadmap 6 in 1, adr 78 in 16); `acknowledge` with the typed digest recorded 466 paths; the preview then said nothing to acknowledge; `upgrade --package packages/workbench` listed 14 pin lines (`77 skip, 1 conflict; 0 file writes; 2 store writes`) and created them; `check` found no problems; `doctor` found no problems and 1 risk (the missing `review-profiles.json`). The real `HOME` was not used. Step 3: `wb check` (which runs the document check) and `wb run code-work check` report no problems, before and after the edits that follow the review.
+
+**Step 4, review.** The `reviewer` agent found one blocking finding and five that did not block. Blocking: `docs/development.md` line 533 still says "More than 500 differences are refused." and its `acknowledge` bullet describes a list of every file; the file is outside this increment's affected areas and outside the plan's scope, and my search for the old bound had been case-sensitive and missed it. Adding the file to the plan's affected areas changed the plan beyond its status, review record and result, so I stopped and asked; the owner chose to amend the plan, and re-approved it at region `6e34b72c` (the plan's Scope, criterion 6 and Increment C name `docs/development.md`, its `acknowledge` bullet only). Applied then: the bullet now says an added file of the engine's own folder and file names is printed as a count by kind, still covered by the digest and recorded, and that more than 500 other paths are refused; and a search of `docs/development.md`, `docs/README.md`, `README.md`, `INSTALL.md`, `AGENTS.md`, `docs/specs`, `base` and `packages` for the old bound, ignoring case (`more than 500`, `500 paths`, `500 differences`, `500 lines`), now finds only the new wording, `safe-git.md` (a side of 500 differing lines in a diff) and the 500 removals of `recover`, which this plan leaves alone. Also applied from the review: the "Lists" bullet of `installer-interface.md` now names the exception; the bound is worded as "500 other paths", which is what the refusal says, in `clone-enrollment.md` and `INSTALL.md`, and the sentence in `installer-interface.md` was reworded; step 4 of `INSTALL.md` names the commit of each figure (123 lines at both, 461 and 466 unrecorded files); the stray "below" is gone; and the seal claim is stated as run against `decide`, `convergence` and `extend` and read, not run, for a review round, and as per machine ("a machine that has made no review has no key, and one that has rejects a record it did not seal"). Not applied: the row for the todo list in the per-machine table of `INSTALL.md` (it lists a per-machine, untracked location as such, was written in increment G, and `wb check` accepts it). The reviewer could not run anything, could not read `git diff`, and did not open `workbench/acknowledgement.py`.
+
+**Plan as a whole.** After the last edit, the tests of the area (`test_acknowledge`, `test_acknowledgement`, `test_reviewrecords`, `test_acknowledge_pins`, `test_ack_recover_ask`, `test_ack_recover_levels`) were rerun once: 201 tests, OK, 1 skipped, in the real tree with a scratch `HOME`; no code changed after increment B, so the fresh-clone run at `6fcef2c` stands. `wb check` (with the document check) and `wb run code-work check` report no problems. Criteria 1 to 4 are covered by the tests of A and B, 5 by the run above (the owner-run step is the owner's), and 6 by the edits and the search above.
+
+**Not run.** The owner's run of the changed list at a real terminal; `tests/run_all.py`; a case-sensitive filesystem; a review round (it calls a bridge).
+
+**Left for the owner.** (1) The accepted decision `2026-11-15-enroll-baselines-only-what-the-manifest-records` still states the old bound; an accepted record is not edited, and the spec carries the current statement. (2) The owner's own run of `wb preview acknowledge` and `wb acknowledge` on the second machine, at a real terminal, to see the summary. (3) The `action-review` helper holds a third copy of the record spelling that no test ties; whether to tie it is the owner's to decide.

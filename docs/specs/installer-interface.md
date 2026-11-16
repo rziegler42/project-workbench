@@ -573,7 +573,8 @@ plan made and the owner may still change.
   into) and each file added or removed under `.workbench/` outside `local/`, with the
   path, the baseline hash, the current hash and the reason, and a parsed summary of the manifest
   (packages, sources, refs, commits, module declaration hashes). The store keeps hashes and not
-  old bytes, so this is not a line diff. It also lists each pin it will move: a pin that records a
+  old bytes, so this is not a line diff. An added file of the review engine's own folder and file names is
+  printed as a count by kind and not one by one (see "As built"). It also lists each pin it will move: a pin that records a
   declaration, whose helper is a listed path and which holds the bytes last acknowledged, moves to the
   bytes now there. A pin the owner typed is not moved.
 - **Asks** for the first 12 characters of the digest of that list, with the same input rules as
@@ -584,7 +585,7 @@ plan made and the owner may still change.
 - **As built.** A link, a directory or another non-regular file where a file is expected, and a
   name under `.workbench/` that fails the path rules (control character, non-UTF-8, colon,
   backslash), cannot be acknowledged: it is listed as a difference with its reason, never
-  entered, and nothing is written. So are more than 500 differences refused. The comparison
+  entered, and nothing is written. More than 500 differences are refused, not counting an added file of the review engine's own folder and file names (`workbench/reviewrecords.py`), which is shown as a count by kind and not as a difference of its own, and which is in the digest and the baselines like every other (`clone-enrollment.md`). The comparison
   reads at most 256 MiB of file content and refuses beyond it. The digest covers the
   differences, the manifest hash, the baselines before and after and the target's identity;
   the project is read again after the answer and a different digest is refused. The summary

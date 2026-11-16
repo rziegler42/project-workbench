@@ -530,8 +530,12 @@ python3 -m workbench add             <the same arguments>                     (o
   project. A link, a directory or another non-regular file where a file is expected, and a name
   under `.workbench/` that fails the path rules (a control character, bytes that are not UTF-8,
   a colon or a backslash), cannot be acknowledged: it is listed with its reason and nothing is
-  written, and `upgrade` and `add` refuse with it listed. More than 500 differences are refused.
-  With none it prints `nothing to acknowledge`.
+  written, and `upgrade` and `add` refuse with it listed. An added file of the review engine's own
+  folder and file names (`.workbench/workbench/review-engine/<kind>-<hash>/state.json`, `ledger.md`,
+  `schema.json` or `round-<n>.json`, a regular file with no baseline) is printed as a count by kind,
+  "review records added: N files in M directories", and not one by one; it is still covered by the digest and
+  recorded in the baselines, and every other difference is a line of its own. More than 500 other paths
+  are refused. With none it prints `nothing to acknowledge`.
 - **Failure.** A failure after the marker was made prints `failed:` with the cause, the paths
   written and not written, and a hint naming `wb recover`, leaves the marker, and exits 3; the
   directory is then not an existing project until the marker is cleared. `wb recover` clears it
