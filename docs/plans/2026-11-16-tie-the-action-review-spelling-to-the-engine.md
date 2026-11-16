@@ -1,6 +1,6 @@
 # Tie the action-review path patterns to the review engine's spelling
 
-Status: In Progress
+Status: Completed
 Created: 2026-11-16
 Candidate: none (a gap that the review of the plan `2026-11-16-collapse-review-records-in-the-list` found in increment A and that needs no roadmap direction)
 Specs: clone-enrollment
@@ -97,3 +97,17 @@ Empty until a review is asked for.
 **Step 5, review.** The `reviewer` agent found no blocking finding and five that did not block, all applied: (1) kinds and names of the universe were read only from `REVIEW_FILE_PATH`, so a kind or a name added to `REVIEW_STATE_PATH` alone could pass; both patterns are now read, and a test compares each pattern's kinds, names and key length with the engine's directly; (2) the plain file names were read with a pattern that could not see a digit or a hyphen; the alternatives are now split at the top level and unescaped; (3) `re.compile(..., flags=...)` passed unseen; the call must now have no keywords and be `re.compile`; (4) `assert` is stripped by `python -O`; explicit `AssertionError` raises replace them; (5) nothing told an escaped dot from a bare one; decoys were added (a folder and names with a letter where a dot belongs). It checked as sound: the round bounds, the key length, the pinned difference (it cannot change silently), the `ast` parse (loud on a non-literal or a changed form) and the scope. It could not run anything. The fixes were not given a second look of their own; each is guarded by the mutants above.
 
 **Left for the owner.** Nothing for A (this plan has no review files of the review engine, so none are committed with it). Increment B follows.
+
+### Increment B
+
+**Built and committed (the commit that holds this record).** `docs/specs/clone-enrollment.md`, one sentence of the "Known limits" bullet about the review records of a clone: the clause that said the `action-review` helper holds a third copy "that no test ties" now says that a test in `tests/test_reviewrecords.py` ties that copy (`REVIEW_STATE_PATH` and `REVIEW_FILE_PATH`) to the engine's source and to the installer's rule, parsing both helpers without running them and failing when the kinds, the folder, the length of the key, the file names or the largest round number part company, and it names the one meant difference (a round number from 1001 to 9999 is a record to the engine's own file-name pattern and to the installer's rule and not to the `action-review` pattern, which stops at the engine's cap of 1000 rounds; no real review reaches it, a review being bounded at 5 rounds).
+
+**Step 2, the search** of `docs/`, `INSTALL.md`, `README.md` and `AGENTS.md`, ignoring case, for `third copy`, `no test ties`, `no test that ties` and `that no test`: the only living statement of the old claim was that sentence. The other hits are the Result of the completed plan `2026-11-16-collapse-review-records-in-the-list` (history, true when written), the accepted decision `2026-11-16-acknowledge-counts-added-review-engine-records` (an accepted record, not edited) and two older plans on another subject. The reviewer repeated the search, also over `docs/development.md` and `docs/specs`, and found nothing else.
+
+**Step 3.** `wb check` (with the document check) and `wb run code-work check` report no problems, before and after the review. After the edit `python3 -B -W default -m unittest tests.test_reviewrecords` was rerun once, as the plan says: 16 tests, OK, scratch `HOME`, Python 3.15. `git status` shows only the spec and this plan modified; nothing under `packages/` changed in either increment.
+
+**Step 4, review.** The `reviewer` agent found no blocking finding. It checked each statement of the sentence against the test, the two helpers and the engine's constants, and found it true; it found no overstatement (the checks are against a finite built universe plus a text-form check of the patterns, which "fails when ... part company" fairly describes); it found no other living document that still says the copy is untied, no contradiction in the spec, and no change outside the plan's affected areas. One note, not applied: the sentence is long. It read `CEILING = 5` and did not trace how the engine applies it, and could not run anything or read `git diff`.
+
+**Plan as a whole.** Criteria: 1 and 2 are A's mutation pass (38 mutants, all killed) and the test on the repository as it is; 3 is the `git status` above; 4 is B's sentence. The completion of the plan leaves one thing for the owner.
+
+**Left for the owner.** The accepted decision `2026-11-16-acknowledge-counts-added-review-engine-records` still says in its consequences that the `action-review` copy "has no test that ties it". That is now out of date. An accepted record is not edited; a dated clarification note after its body needs the owner's approval, and a changed decision is a new record. Whether to add either is the owner's.
