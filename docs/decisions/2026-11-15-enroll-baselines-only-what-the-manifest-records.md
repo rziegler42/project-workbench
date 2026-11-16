@@ -1,6 +1,7 @@
 # `wb enroll` baselines only what the manifest records; unrecorded files under `.workbench/` are left for `acknowledge`
 
-Status: Accepted by Robert Ziegler <25854477+rziegler42@users.noreply.github.com> on 2026-11-15
+Status: Superseded
+Superseded by 2026-11-16-acknowledge-counts-added-review-engine-records
 Supersedes 2026-11-15-enroll-writes-no-pins-and-leaves-them-to-upgrade-from-a-package
 Date: 2026-11-15
 

@@ -702,7 +702,7 @@ and not a problem, because the stale state is already safe).
   `2026-10-26-a-level-for-every-command`, beside `wb rerender` and the owner-run arguments of module commands, and for a reason of its
   own. It writes the baselines and the first-seen record, which every other command reads to know a project, and the owner's typed digest
   of the list it shows is its only confirmation; a level at which an agent could run it would drop that confirmation, and a clone's files
-  are untrusted until the owner says otherwise (`2026-11-15-enroll-baselines-only-what-the-manifest-records`). Unlike `wb rerender` it has
+  are untrusted until the owner says otherwise (`2026-11-16-acknowledge-counts-added-review-engine-records`, which restates `2026-11-15-enroll-baselines-only-what-the-manifest-records`). Unlike `wb rerender` it has
   no rendering record to read, so that reason does not apply. It writes no level-log entry, because the log records runs without a
   terminal at the levels `ask` and `none`, and it has neither. A level written for it other than `block` reads as `block` with a note. Its
   read-only plan is **`wb preview enroll`**, its own agent-safe key, default `none`. The design is `clone-enrollment.md`.
