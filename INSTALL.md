@@ -6,7 +6,7 @@ nothing is installed. What a clone needs beyond the tracked files is per machine
 **What has been run.** On 2026-11-15 the owner ran steps 1, 2, 4, 5, 6, 7, 8 and 9 by hand at a real terminal on a second machine (Linux, home `/home/<user>`) at commit `2b1d9ee`;
 every one passed with the numbers quoted under the steps. Before that, the steps were run on a fresh `git clone` at `7d70877` with a scratch `HOME`, driving the clone's own code in
 process with a fake terminal. Step 3 (the `PATH`) was done on the second machine and not observed. On 2026-11-16, after the list of `acknowledge` was changed to summarise review records (step 6), steps 2, 4, 5, 6, 7 and 9 were run again on a fresh
-`git clone` at `6fcef2c` with a scratch `HOME`, in process with a fake terminal; the owner has not rerun them by hand since. Not run on either: a Mac as the second machine, and the action-review hook and
+`git clone` at `6fcef2c` with a scratch `HOME`, in process with a fake terminal. The same day the owner ran step 6 again by hand at a real terminal on the second machine at `aca027e` and saw the summary (below). Not run on either: a Mac as the second machine, and the action-review hook and
 memory palace set-ups. If a step fails, note the step and the message; this page is corrected from that.
 
 ## Before you start
@@ -49,7 +49,9 @@ memory palace set-ups. If a step fails, note the step and the message; this page
    count by kind ("review records added: N files in M directories") and not one by one, and every one of them is still covered by the digest and recorded. Any other unrecorded file is a line of its
    own (here `.workbench/remote-runner.toml`). Run `wb preview acknowledge` first on your machine, and read the lines and the count: the numbers depend on the commit you cloned. It refuses more than 500 other paths; if you
    meet "more than 500", stop and tell the maintainer. *Run, with a fake terminal, at `6fcef2c`:* the preview printed 110 lines (the line of `.workbench/remote-runner.toml` and a summary of 465 review records in 87
-   directories), and it acknowledged 466 paths. *Run by hand on the second machine at `2b1d9ee`, before the summary existed:* it listed 461 paths one by one and acknowledged them.
+   directories), and it acknowledged 466 paths. *Run by hand on the second machine at `2b1d9ee`, before the summary existed:* it listed 461 paths one by one and acknowledged them. *Run by hand at a real terminal on the second
+   machine (Linux) at `aca027e` on 2026-11-16, after a `git pull`:* its baselines held the earlier 461, so the list was the 5 review files of one plan, printed as "review records added: 5 files in 1 directory" with
+   one line for the kind (`plan: 5 files in 1 directory`); the typed digest was accepted and it acknowledged 5 paths. A run with hundreds of unrecorded records and older baselines has been done only in process with a fake terminal.
 
 7. **Pin the helpers.** `wb preview upgrade --package packages/workbench`, read it, then `wb upgrade --package packages/workbench` and type the digest. *Run.* The preview listed
    14 pins to create and `77 skip, 1 conflict; 0 file writes` (the conflict is `README.md`, which the manifest never recorded, and it is left as it is); the upgrade, with a fake
