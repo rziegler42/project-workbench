@@ -49,6 +49,18 @@ _SECONDS = r"[0-9]{1,4}"
 _SERVER = r"[a-z0-9][a-z0-9_-]{0,31}"
 _KEPT = ("HOME", "XDG_CONFIG_HOME", "USER", "LOGNAME", "LANG", "TZ", "TERM", "TMPDIR")
 
+# What the program's own words are taken to mean (docs/specs/ask-claude.md, "Errors"). Text is read only for a failure, and
+# the first row that matches wins: a sign-in, a limit, a model, an effort, a schema; anything else is `bad_exit`. Only the
+# class reaches the caller, never the text. The limit and effort rows are built from wording and are unconfirmed.
+_SIGN_IN = r"not logged in|/login"
+_QUOTA = r"usage limit|rate.?limit|quota|credits"
+_NO_MODEL = r"model.{0,80}(not exist|not access)"
+_EFFORT = (r"(effort|thinking).{0,80}(not support|unsupported|invalid)"
+           r"|(not support|unsupported|invalid).{0,80}(effort|thinking)")
+_SCHEMA = (r"is not a valid json schema|schema.{0,80}(invalid|unsupported|rejected)"
+           r"|(invalid|unsupported|rejected).{0,40}schema")
+_WORDS = 2000  # the bytes of standard error that are read when standard output is no object
+
 
 class Refused(Exception):
     """Nothing was run; the message says why."""
@@ -356,10 +368,37 @@ def model_of(document, requested):
     return requested
 
 
+def classify(document, stderr):
+    """``(error, detail)`` for a failed call: the words are the ``result`` of the object when standard output was one, else
+    the last bytes of standard error. A status or a type of the object chooses a row as well as its words."""
+    if document is not None:
+        words = document["result"] if isinstance(document.get("result"), str) else ""
+        status, kind = document.get("api_error_status"), document.get("api_error_type")
+    else:
+        words, status, kind = stderr[-_WORDS:].decode("utf-8", "replace"), None, None
+    words = words.lower()
+    if re.search(_SIGN_IN, words):
+        return "not_signed_in", None
+    if (type(status) is int and status == 429) or re.search(_QUOTA, words):
+        return "vendor_error", "usage_limit"
+    if (type(status) is int and status == 404) or kind == "not_found_error" or re.search(_NO_MODEL, words):
+        return "model_unavailable", None
+    if re.search(_EFFORT, words):
+        return "effort_unsupported", None
+    if re.search(_SCHEMA, words):
+        return "vendor_error", "bad_schema"
+    return "vendor_error", "bad_exit"
+
+
 MESSAGES = {
     "vendor_unreachable": "claude was not found in a trusted PATH entry",
     "not_started": "claude was found but could not be started",
     "timeout": "claude did not finish in time",
+    "not_signed_in": "claude is not signed in",
+    "model_unavailable": "the model is not available to this account",
+    "effort_unsupported": "the model does not support this effort",
+    "usage_limit": "claude refused the call because a usage limit was reached",
+    "bad_schema": "claude rejected the schema",
     "unusable_reply": "claude returned no usable reply",
     "reply_too_large": "claude returned more than the bridge accepts",
     "bad_exit": "claude stopped with an error",
@@ -380,7 +419,7 @@ def outcome(code, stdout, stderr, over, timed_out, requested, schema):
         return failure("vendor_error", "reply_too_large")
     document = json_object(stdout)
     if code != 0 or (document is not None and document.get("is_error") is True):
-        return failure("vendor_error", "bad_exit")
+        return failure(*classify(document, stderr))
     if document is None or not isinstance(document.get("result"), str):
         return failure("vendor_error", "unusable_reply")
     reply = plain(document["result"], "\n\t")
@@ -395,7 +434,8 @@ def outcome(code, stdout, stderr, over, timed_out, requested, schema):
 def emit(out, document):
     text = json.dumps(document) + "\n"
     if len(text) > MAX_OBJECT:
-        text = json.dumps(failure("vendor_error", "reply_too_large")) + "\n"
+        document = failure("vendor_error", "reply_too_large")
+        text = json.dumps(document) + "\n"
     out.write(text)
     return 0 if document["ok"] else 1
 

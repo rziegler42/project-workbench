@@ -73,8 +73,7 @@ class Environment(support_claude.Bridge):
         self.assertEqual(os.path.join(self.base, "home"), env["HOME"])
         self.assertEqual(self.outside, env["PATH"])
         self.assertTrue({"LC_ALL", "LC_TIME", "LANG", "TERM", "TZ", "XDG_CONFIG_HOME", "TMPDIR"} <= set(env))
-        allowed = {"HOME", "XDG_CONFIG_HOME", "USER", "LOGNAME", "LANG", "TZ", "TERM", "TMPDIR", "PATH", "LC_ALL",
-                   "LC_TIME", "PWD", "SHLVL", "_", "__CF_USER_TEXT_ENCODING", "LC_CTYPE"}
+        allowed = set(self.helper._KEPT) | {"PATH", "__CF_USER_TEXT_ENCODING", "LC_ALL", "LC_TIME", "LC_CTYPE"}
         self.assertLessEqual(set(env), allowed)
 
 

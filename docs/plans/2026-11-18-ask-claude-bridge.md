@@ -283,4 +283,32 @@ Empty until a review is asked for.
   swapped for a `reply_too_large` failure would exit 0 (it cannot happen at the reply bound; also inherited from `ask-codex`); the
   maximal-reply test should use an astral character, which has the largest escape ratio; (2) the environment test's allowed set
   includes `PWD`, `SHLVL` and similar, so a helper that started passing one would not fail; compare against the helper's own
-  `environment()` keys. Not changed: a `--timeout` of `0001` is accepted as 1, as in `ask-codex`.
+  `environment()` keys. Not changed: a `--timeout` of `0001` is accepted as 1, as in `ask-codex`. (Increment B was committed as
+  `ce4edfc`.)
+
+### Increment C
+
+- Added the classifier to `helper/ask-claude`: a failure (exit code not zero, or an object with `is_error` true) is read for its
+  words, from `result` when standard output is one object and else from the last 2,000 bytes of standard error, and a status of 429
+  or 404 or a type `not_found_error` of the object chooses a row as well as the words. Order: sign-in, limit, model, effort, schema,
+  `bad_exit`. A successful object is never classified by its text. Fixed messages for each row. Also the two items deferred from B:
+  `emit` returns the exit code of the document it wrote, and the environment test compares with the helper's own `_KEPT`. New
+  `tests/test_askclaude_errors.py`: the program found or not (item 6), each class from samples on both sources (items 9 and 10),
+  the order, the status rows, text read only for a failure, the timeout with the children gone (item 11), `emit` and an astral
+  maximal reply.
+- Verification run: the module's 60 tests OK (42 before); `claude` module tests 34 OK (12 skipped), also after the owner's release;
+  `wb run code-work check` no problems; `wb verify packages/workbench` lists the module at its new tree. Red run in a scratch copy of
+  `HEAD`: 9 of the new tests failed against the old helper. Four deliberate breaks of the new helper (two rows swapped, status
+  loosened to any truthy value, the standard error window widened, `emit` keeping the old exit code) each failed a test. Not run:
+  the full suite, the other modules' tests (nothing outside this module changed), a real `claude`.
+- Owner release: done; two new records (the package and `ask-claude`). The records of increment B for the same two subjects are now
+  stale and are left for the owner to remove by hand.
+- Review: one `reviewer` round, no blocking finding. Deferred to increment D, which edits the same files and releases again:
+  (1) tests for the 2,000-byte window at 1,999 and 2,001, for a failing object with `/login` only on standard error (not read),
+  and for a failing object whose `result` is missing or not a string; (2) mark every constructed sample in the error tests, not
+  only the two the spec names, and correct the unclear comment above `SAMPLES`; (3) `_NO_MODEL` matches "model" with "not exist" or
+  "not access" in the spec's either order and without the 80-character window (the probed case is caught by its 404 status);
+  (4) one sentence in the spec's Errors section that the words of a failure may be text the model wrote, so that a caller that
+  retries on `retryable` knows a failure whose `result` mentions a limit becomes the retryable `usage_limit`, and that the
+  patterns' windows make a row narrower than "holds X with Y"; (5) a comment in the environment test that the explicit list of names
+  that must be absent is its guard when `_KEPT` changes. None of these is a behaviour the spec contradicts today.
