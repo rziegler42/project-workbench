@@ -1,0 +1,22 @@
+{
+  "name": "ask-claude",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A model bridge for the Claude Code command line program: one read-only question, one JSON answer.",
+  "provides": [
+    "model-bridge"
+  ],
+  "ships": [
+    "helper/ask-claude"
+  ],
+  "commands": {
+    "ask-claude": {
+      "helper": "helper/ask-claude",
+      "runtime": "python",
+      "kit": 1,
+      "arguments": [
+        "ask"
+      ]
+    }
+  }
+}
