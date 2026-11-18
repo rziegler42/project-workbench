@@ -54,7 +54,7 @@ _KEPT = ("HOME", "XDG_CONFIG_HOME", "USER", "LOGNAME", "LANG", "TZ", "TERM", "TM
 # class reaches the caller, never the text. The limit and effort rows are built from wording and are unconfirmed.
 _SIGN_IN = r"not logged in|/login"
 _QUOTA = r"usage limit|rate.?limit|quota|credits"
-_NO_MODEL = r"model.{0,80}(not exist|not access)"
+_NO_MODEL = r"(?s)model.{0,200}(not exist|not access)|(not exist|not access).{0,200}model"
 _EFFORT = (r"(effort|thinking).{0,80}(not support|unsupported|invalid)"
            r"|(not support|unsupported|invalid).{0,80}(effort|thinking)")
 _SCHEMA = (r"is not a valid json schema|schema.{0,80}(invalid|unsupported|rejected)"

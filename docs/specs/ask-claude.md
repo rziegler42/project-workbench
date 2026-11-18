@@ -40,7 +40,7 @@ of each printed object. One row below can hold two probes that the spec reads to
 | probe | result |
 |---|---|
 | `claude -p --output-format json --no-session-persistence --tools "" --setting-sources "" --disable-slash-commands --strict-mcp-config --permission-mode dontAsk --model haiku`, prompt on standard input | exit 0, one JSON object: `result` (the reply text), `is_error` false, `subtype` `success`, `terminal_reason` `completed`, `usage`, `modelUsage` keyed by the model's full name (`claude-haiku-5-5`), `permission_denials` (empty), `total_cost_usd`, `api_error_status` null |
-| a model name the program does not know | exit 1, `is_error` true, `terminal_reason` `api_error`, `api_error_status` 404, `api_error_type` `not_found_error`, `result` a sentence saying the model may not exist or is not accessible; a diagnostic line on standard error too |
+| a model name the program does not know | exit 1, `is_error` true, `terminal_reason` `api_error`, `api_error_status` 404, `api_error_type` `not_found_error`, `result` "There's an issue with the selected model (nosuchmodel). It may not exist or you may not have access to it. Run --model to pick a different model."; a diagnostic line on standard error too |
 | `--json-schema '<inline json>'` | the object also holds `structured_output` (the parsed object) and `result` holds its text |
 | `--json-schema '{"type":"bogus"}'` | `Error: --json-schema is not a valid JSON Schema: ...` on standard error, non-zero exit, no JSON on standard output |
 | `--effort low`, `xhigh`, `max` | accepted; `--effort bogus` printed a warning on standard error, ignored it and ran |
@@ -140,9 +140,20 @@ failure whatever the exit code. **The text rows apply only to a failure**: an ex
 is true. A successful object (exit 0 and `is_error` not true) is never classified by its text, and a reply that mentions
 `/login` or a limit is returned as a string like any other. For a failure the words come from the object's `result` when standard
 output is one object, and from the last 2,000 bytes of standard error when it is not (a refused schema is one such case). The words
-match in lower case by substring, only to choose a row, and the rows are tried in this order, the first that matches winning:
+are matched in lower case by the patterns of the helper (a substring, or two words within a stated distance), only to choose a row, and the rows are tried in this order, the first that matches winning:
 `not_signed_in`, `usage_limit`, `model_unavailable`, `effort_unsupported`, `bad_schema`, `bad_exit`. A timeout, a program that could
 not start and a body over a bound are decided before any text is read.
+
+**The words are not always the program's.** For a failure, `result` is matched, and on a failure it may hold text that the model
+wrote and not the program's own sentence (every probed failure had the program's sentence; whether a failure can carry partial
+model text, on a turn limit for example, was not probed). A failure whose `result` mentions a limit becomes the retryable
+`usage_limit`, and one that mentions `/login` becomes `not_signed_in`. No text reaches the caller and nothing is done beyond
+choosing a class, but a caller that retries on `retryable` bounds its retries, as the contract says. The patterns bound the
+distance between their two words (80 characters for the effort row, 40 and 80 for the schema row, 200 in either order for the
+model row), so a row is a little narrower than "holds X with Y", and a text that does not match is `bad_exit`. "Not access" also
+matches inside "cannot access", so a failure that says the model "cannot access" something is read as `model_unavailable`, which
+is not retryable: a mislabel and not a leak. The patterns cost about 0.2 seconds on a worst-case failure text of one megabyte
+(measured on 2026-11-18, `model` repeated; the effort and schema rows have the same shape and were not timed).
 
 | situation | `error` | `detail` | `retryable` | `message` |
 |---|---|---|---|---|

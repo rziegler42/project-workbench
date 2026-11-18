@@ -312,3 +312,28 @@ Empty until a review is asked for.
   retries on `retryable` knows a failure whose `result` mentions a limit becomes the retryable `usage_limit`, and that the
   patterns' windows make a row narrower than "holds X with Y"; (5) a comment in the environment test that the explicit list of names
   that must be absent is its guard when `_KEPT` changes. None of these is a behaviour the spec contradicts today.
+  (Increment C was committed as `dcfc2d7`.)
+
+### Increment D
+
+- `--confine` was already built by B (`--tools ""` in place of `--tools "Read,Grep,Glob"`, nothing else); D added its remaining tests
+  (every other option in three positions with schema and root, a confined failure run once and never rerun unconfined, the default's
+  tool list for a failing call) and the five items deferred from C: the model pattern in either order without the 80-character window
+  (now 200, `(?s)`), the 2,000-byte window pinned at 1,999 and 2,001, standard error not read beside an object, a failing object
+  with no usable `result`, every constructed sample marked, and the environment test's comment. Docs: `model-bridge.md` has an
+  `ask-claude` paragraph in "Confinement" and item 18 reads "in place of its tool list" for it (the plan said one line; it is a short
+  paragraph); `ask-claude.md` has the paragraph on model-written words, the exact unknown-model sentence of the probe, the
+  `cannot access` mislabel and the measured cost of the patterns. The spec's release check already holds the three canaries with
+  their controls (written in A), so step 3 of the plan needed no new text.
+- Verification run: the module's 67 tests OK (60 before); `claude` module tests 34 OK (12 skipped) also after the owner's release;
+  `wb run code-work check` no problems; `wb verify packages/workbench` lists the module at its new tree. Red run in a scratch copy of
+  `HEAD`: 3 of the new tests failed against the old helper (those that need the new pattern); the others pin behaviour that B and C
+  built. Four deliberate breaks of the helper (the gap widened, the standard error window narrowed, the confinement dropped,
+  standard error also read beside an object) each failed a test. The pattern's cost on a worst-case megabyte was timed: about 0.2 s.
+  Not run: the full suite, a real `claude`, and the release check of the spec (the owner's, in increment E).
+- Review: one `reviewer` round, no blocking finding. Applied in docs: the "by substring" wording, the `cannot access` mislabel, the
+  measured cost. Not applied, on the owner's todo list because each needs a package edit and a release: a word boundary before
+  `not exist` and `not access` in `_NO_MODEL`, and tests of the gap at exactly 200 and 201 in both orders (the test named for the
+  200-character gap does not pin the edge; a widened pattern would pass it). The mislabel only picks a non-retryable class and
+  copies no text.
+- Release: the owner released; two new records (package and `ask-claude`) are committed with the increment.

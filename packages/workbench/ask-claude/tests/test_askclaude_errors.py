@@ -71,15 +71,18 @@ class Classes(support_claude.Bridge):
     """Each class from a sample of the program's own error: in `result` of an object that says it is an error, and on
     standard error when standard output is no object."""
 
-    # (error, detail, retryable): samples of the words. A sample of the program's own is marked by the first list.
+    # (error, detail, retryable): samples of the words. In each list the first sample is the program's own, as printed in the
+    # probes of 2026-11-18, where there is one; every other sample, and every sample of a row with no probe, is CONSTRUCTED
+    # from the wording of the spec (the usage-limit and effort rows have no probed sample at all: unconfirmed 1 and 2).
     SAMPLES = {
         ("not_signed_in", None, False): ["Not logged in · Please run /login", "please run /login to continue"],
         ("vendor_error", "usage_limit", True): ["You've hit your usage limit.", "Rate limit reached for this model",
-                                                "quota exceeded", "Your credits are exhausted"],  # constructed
+                                                "quota exceeded", "Your credits are exhausted"],
         ("model_unavailable", None, False): ["There's an issue with the selected model (nosuchmodel). It may not exist "
                                              "or you may not have access to it. Run --model to pick a different model.",
-                                             "the model does not exist"],
-        ("effort_unsupported", None, False): ["This model does not support the effort setting",  # constructed
+                                             "the model does not exist", "not exist: the model",
+                                             "model\nit may not access it"],
+        ("effort_unsupported", None, False): ["This model does not support the effort setting",
                                               "invalid thinking level for this model"],
         ("vendor_error", "bad_schema", False): ["Error: --json-schema is not a valid JSON Schema: data/type must be "
                                                 "equal to one of the allowed values",
@@ -183,6 +186,29 @@ class Classes(support_claude.Bridge):
         self.assertEqual(("vendor_error", "bad_schema", False), (document["error"], document["detail"],
                                                                   document["retryable"]))
         self.assertEqual(1, len(self.calls()))
+
+    def test_the_standard_error_window_is_exactly_the_last_2000_bytes(self):
+        self.check(("not_signed_in", None, False), stderr="/login" + "x" * 1994)
+        self.check(("vendor_error", "bad_exit", False), stderr="/login" + "x" * 1995)
+        self.check(("not_signed_in", None, False), stderr="y" * 5000 + "/login" + "x" * 1994)
+
+    def test_standard_error_is_not_read_when_standard_output_is_an_object(self):
+        self.check(("vendor_error", "bad_exit", False), result=result("boom", is_error=True), stderr="/login\n")
+        self.check(("vendor_error", "bad_exit", False), result=result("boom", is_error=True), stderr="usage limit\n")
+
+    def test_a_failing_object_with_no_usable_result_is_read_by_its_status_only(self):
+        for value in (3, None, ["a"], {"a": 1}, True):
+            self.check(("vendor_error", "bad_exit", False), result=result(value, is_error=True))
+            self.check(("vendor_error", "usage_limit", True), result=result(value, is_error=True, api_error_status=429))
+        self.check(("vendor_error", "bad_exit", False), result={"type": "result", "is_error": True})
+        self.check(("model_unavailable", None, False), result={"type": "result", "is_error": True,
+                                                                "api_error_status": 404})
+
+    def test_the_model_row_matches_either_order_and_a_gap_of_200_characters_but_not_more(self):
+        self.check(("model_unavailable", None, False), result=result("x" * 200 + " not exist model", is_error=True))
+        self.check(("model_unavailable", None, False), result=result("model " + "x" * 190 + " not exist", is_error=True))
+        self.check(("vendor_error", "bad_exit", False), result=result("model " + "x" * 300 + " not exist", is_error=True))
+        self.check(("vendor_error", "bad_exit", False), result=result("not exist " + "x" * 300 + " model", is_error=True))
 
 
 class Timeout(support_claude.Bridge):

@@ -54,6 +54,37 @@ class Arguments(support_claude.Bridge):
                          "--safe-mode", "--resume", "--continue"):
                 self.assertNotIn(flag, call["argv"])
 
+    def test_confine_works_with_every_other_option_wherever_it_is_given(self):
+        with open(os.path.join(self.root, "schema.json"), "w") as handle:
+            handle.write('{"type": "object"}')
+        os.makedirs(os.path.join(self.root, "sub"))
+        self.control(result=result('{"a": 1}'))
+        others = ["--model", "haiku", "--effort", "medium", "--timeout", "30", "--root", "sub", "--schema", "schema.json"]
+        for args in (["--confine", *others], [*others, "--confine"], [*others[:4], "--confine", *others[4:]]):
+            self.assertTrue(self.document(*args)["ok"], args)
+        for call in self.calls():
+            self.assertEqual(BASE + ["--tools", "", "--model", "haiku", "--effort", "medium", "--json-schema",
+                                     '{"type": "object"}'], call["argv"])
+            self.assertEqual(os.path.join(self.root, "sub"), os.path.realpath(call["cwd"]))
+
+    def test_a_confined_program_that_fails_is_a_failure_and_is_not_run_again_unconfined(self):
+        for control in ({"code": 1, "stderr": "boom\n"}, {"code": 1, "result": result("x", is_error=True)},
+                        {"code": 3, "stderr": "Not logged in\n"}):
+            self.control(**control)
+            document = self.document("--confine")
+            self.assertFalse(document["ok"])
+        calls = self.calls()
+        self.assertEqual(3, len(calls))
+        for call in calls:
+            self.assertEqual(BASE + ["--tools", ""], call["argv"])
+            self.assertNotIn("Read,Grep,Glob", call["argv"])
+
+    def test_without_confine_the_tools_are_the_file_readers_for_every_call(self):
+        self.control(code=1, stderr="boom\n")
+        self.document("--model", "haiku")
+        self.assertEqual(BASE + READ_ONLY + ["--model", "haiku"], self.calls()[0]["argv"])
+        self.assertNotIn("", self.calls()[0]["argv"][len(BASE) + 1:])
+
 
 class Environment(support_claude.Bridge):
     def test_the_program_gets_the_allow_list_and_the_trusted_path_only(self):
@@ -73,6 +104,7 @@ class Environment(support_claude.Bridge):
         self.assertEqual(os.path.join(self.base, "home"), env["HOME"])
         self.assertEqual(self.outside, env["PATH"])
         self.assertTrue({"LC_ALL", "LC_TIME", "LANG", "TERM", "TZ", "XDG_CONFIG_HOME", "TMPDIR"} <= set(env))
+        # The explicit list above of names that must be absent is the guard when `_KEPT` changes: this set follows `_KEPT`.
         allowed = set(self.helper._KEPT) | {"PATH", "__CF_USER_TEXT_ENCODING", "LC_ALL", "LC_TIME", "LC_CTYPE"}
         self.assertLessEqual(set(env), allowed)
 

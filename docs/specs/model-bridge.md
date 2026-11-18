@@ -236,6 +236,15 @@ the prompt's own contents, and text that must not reach a vendor goes to a bridg
 `codex-cli` 0.163.0 and can change, so a release is accepted for untrusted text only after the release check below passes for it.
 `codex-cli` 0.163.0 passed it on 2026-11-01 (run 1 below).
 
+**`ask-claude`.** Its default start gives the program three tools that only read files (`Read`, `Grep` and `Glob`), so the
+bridge's default is read-only and not blind, as for `ask-codex`. With `--confine` it replaces the argument `--tools
+"Read,Grep,Glob"` with `--tools ""`, in place of it and not in addition to it, and changes nothing else: the program then has no
+tool. Where a bridge's confinement is one replaced argument, item 18 of the checklist reads "in place of" for the arguments of item 4.
+It was measured once on 2026-11-18 with `claude` 2.1.327 (the probes in `ask-claude.md`: a file read, a shell command and a web
+fetch each failed for want of a tool, with a control for the shell and the web that succeeded), and the release check below is
+repeated by the owner for each release. Four built-in plugins and six built-in agents still load and are not switchable by the
+bridge's flags. The rest is in `ask-claude.md`, "`--confine`".
+
 ## Release check for untrusted text
 
 A bridge to a program is accepted for untrusted text, through `--confine`, only for a release of the program that passed this check,
@@ -445,7 +454,7 @@ and the store. The checklist of a bridge to a server is completed by its own spe
 17. `--server` given to a bridge to a program, with a name in its grammar, is refused with a `refused:` line, nothing run and
     nothing printed.
 18. With `--confine` the fake receives the confinement arguments of "Confinement" in that order, in addition to the arguments of
-    item 4, and nothing else differs; without it the argument list is exactly that of item 4; `--confine` works together with
+    item 4 (for `ask-claude`, in place of its tool list), and nothing else differs; without it the argument list is exactly that of item 4; `--confine` works together with
     every other option; a fake that exits non-zero when it is confined is reported as the failure it is, the fake is started once,
     and it is never run again without the confinement arguments.
 19. A bridge to a server, against a fake server: an invalid, missing, unreadable or substituted endpoint file or record is refused
