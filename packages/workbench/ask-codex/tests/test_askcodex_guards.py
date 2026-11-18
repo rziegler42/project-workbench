@@ -155,7 +155,7 @@ class Signals(support_codex.Bridge):
         process, child = self.start()
         process.send_signal(signal.SIGINT)
         process.wait(timeout=20)
-        self.assertNotEqual(0, process.returncode)
+        self.assertEqual(130, process.returncode)
         self.assertTrue(self.gone(child), "the program's child is still running")
         self.assertFalse(os.path.exists(self.calls()[0]["scratch"]), "the scratch directory is still there")
 

@@ -289,6 +289,7 @@ def run_program(argv, cwd, env, stdin, timeout):
     out, err = bytearray(), bytearray()
     over = timed_out = False
     pending = memoryview(stdin)
+    killed = False  # set as soon as the normal path has sent its kill
     try:
         os.set_blocking(process.stdin.fileno(), False)
         with selectors.DefaultSelector() as pipes:
@@ -328,6 +329,7 @@ def run_program(argv, cwd, env, stdin, timeout):
             except subprocess.TimeoutExpired:
                 timed_out = True
         kill(process)  # also what a program that has exited left running in its group
+        killed = True
         try:
             process.wait(timeout=5)
         except subprocess.TimeoutExpired:
@@ -335,7 +337,7 @@ def run_program(argv, cwd, env, stdin, timeout):
             process.wait()
         return process.returncode, bytes(out[:MAX_OUTPUT]), bytes(err[:MAX_OUTPUT]), over, timed_out
     finally:
-        if process.poll() is None:  # an interrupt: the program is in its own session, so it would run on
+        if not killed:  # an interrupt: the program is in its own session, so it and a child of it would run on
             kill(process)
             process.wait()
         for pipe in (process.stdin, process.stdout, process.stderr):
@@ -495,9 +497,19 @@ def main(argv, stdin, out, err, cwd):
         return 1
 
 
+STOP_SIGNALS = (signal.SIGTERM, signal.SIGHUP, signal.SIGINT)
+
+
+def stop(signum, _frame):
+    """The handler of a stop signal: it ignores the others, so that nothing interrupts the cleanup, and ends the helper with 128 plus
+    the number; the `finally` of `run_program` then kills the program's group."""
+    for number in STOP_SIGNALS:
+        signal.signal(number, signal.SIG_IGN)
+    sys.exit(128 + signum)
+
+
 if __name__ == "__main__":
-    stop = lambda signum, _frame: sys.exit(128 + signum)  # so the program is stopped and nothing is left running
-    signal.signal(signal.SIGTERM, stop)
-    if signal.getsignal(signal.SIGHUP) != signal.SIG_IGN:  # a hang-up that the caller ignores on purpose stays ignored
-        signal.signal(signal.SIGHUP, stop)
+    for number in STOP_SIGNALS:
+        if signal.getsignal(number) != signal.SIG_IGN:  # a signal that the caller ignores on purpose stays ignored
+            signal.signal(number, stop)
     sys.exit(main(sys.argv[1:], sys.stdin.buffer, sys.stdout, sys.stderr, os.getcwd()))

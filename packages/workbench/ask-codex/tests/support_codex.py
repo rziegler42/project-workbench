@@ -27,6 +27,10 @@ record = {{"argv": argv, "env": dict(os.environ), "cwd": os.getcwd(), "stdin": d
           "schema": open(schema, encoding="utf-8").read() if schema else None}}
 with open(os.path.join(here, "calls.jsonl"), "a") as handle:
     handle.write(json.dumps(record) + "\\n")
+if control.get("orphan"):
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(300)"])
+    open(os.path.join(here, "pids"), "w").write(str(child.pid))
+    sys.exit(0)
 if control.get("hang"):
     child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(300)"])
     open(os.path.join(here, "pids"), "w").write(str(child.pid))

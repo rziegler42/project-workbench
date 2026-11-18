@@ -151,7 +151,7 @@ class Signals(support_claude.Bridge):
         process, child = self.start()
         process.send_signal(signal.SIGINT)
         process.wait(timeout=20)
-        self.assertNotEqual(0, process.returncode)
+        self.assertEqual(130, process.returncode)
         self.assertTrue(self.gone(child), "the program's child is still running")
 
     def test_a_hang_up_that_the_caller_ignores_is_not_overridden(self):

@@ -411,3 +411,45 @@ Empty until a review is asked for.
 - Verification of this increment: it changes no code. `wb run code-work check` no problems. The `reviewer` read of this record
   (the plan's evidence step for D) found no blocking finding; it confirmed Low 1 by reading `run_program` and both fakes, and its notes
   are applied in this entry.
+- (Increment D was committed as `7d540f3`. The plan was then changed by increment D-A, reviewed once more by Codex (round 4, bound
+  extended by the owner to 4) and approved again.)
+
+### Increment D-A
+
+- `ask-claude` and `ask-codex`: in `run_program` a flag `killed`, set right after the normal path's first `kill(process)` and before
+  its waits; the `finally` kills the group and waits when the flag is unset and no longer calls `poll()`. A module-level
+  `STOP_SIGNALS` and handler `stop(signum, frame)`: it sets SIGTERM, SIGHUP and SIGINT to ignore and exits with 128 plus the number
+  (129, 143, 130); the `__main__` block installs it for each of the three unless the caller already ignores that one (so SIGTERM
+  and SIGINT are now left alone when ignored, which they were not for SIGTERM before). In `ask-codex`, `scratch = None` before the
+  `try`, `mkdtemp` inside it, and the removal only `if scratch is not None`. New fake control `orphan` in both fakes; new
+  `test_askclaude_cleanup.py` and `test_askcodex_cleanup.py` (the second also has the scratch directory checked after each stop, the
+  structural test of `ask`, and a test that a failing `mkdtemp` is a refusal and not a crash); the SIGINT test of the guards files now
+  expects 130.
+- Deviation from the plan's text: step 2(c) says a test makes "the first `process.wait`" raise; the first wait comes before the
+  normal path's kill, so it cannot show the ordering of the flag. The tests make the wait after the kill raise (the one that must
+  not kill again) and, separately, the first wait (which must kill once): both are in `Kills`.
+- Verification run on the real tree: the `ask-claude` tests 84 OK (75 before); the `ask-codex` tests 122 OK (111 before); the `claude`
+  module's tests 34 OK (12 skipped), also after the owner's release; `wb run code-work check` no problems; `wb verify
+  packages/workbench` lists both modules at their new trees. Red run in a scratch copy of `HEAD`: against the unchanged helpers the
+  three orphan-stop tests (SIGHUP, SIGTERM, SIGINT), the handler test, the ignored-SIGTERM test, the interrupt-before-the-kill test
+  (which confirms Low 1 from a second side: the old cleanup skips the kill once the main process has exited), the SIGINT-130 test
+  and, in `ask-codex`, the structural test failed; the successful-call kill count, the interrupt-during-the-waits count and the
+  timeout-with-an-orphan tests passed, as they pin behaviour that existed. Mutation checks, all caught: the flag set after the
+  waits, an unconditional kill, a handler that does not ignore, the `poll()` guard back, SIGINT left out of the handler set, and in
+  `ask-codex` `mkdtemp` outside the `try`, the removal unguarded (caught only after a test was added that a failing `mkdtemp` is a
+  refusal; the structural test alone did not catch it) and the removal dropped. Not run: a case-sensitive disk, the full suite, a
+  second `security-reviewer` run (recommended in the plan, at the owner's word).
+- The installed copies of `ask-claude` and `ask-codex` in this project are the versions before A, B and D-A until the owner runs
+  `wb upgrade`; `ask-ollama` too (increment C).
+- Review: one `reviewer` round, no blocking finding. **A residual the review found, which the plan's Risks text does not say:** the
+  normal path's first `wait()` reaps the program's main process and the flag is set only after the `kill` that follows it, so a stop
+  signal in those few bytecodes reaches the `finally` with the flag unset and a reaped leader, and sends `killpg` to that pid. The old
+  `poll()` guard avoided this. It needs the group to have no member left for the number to be reusable, it is not reachable from
+  input, and it is a window of bytecodes; setting the flag earlier would trade it for a window in which the kill is skipped, which is
+  worse. So the plan's sentence that the recycled-group risk "remains only where the leader is reaped by something other than this
+  helper's own waits" is incomplete: the first wait counts. It is recorded here as part of the accepted recycled-group residual, and
+  increment E says so in the contract text. Other notes, no action: a second signal that arrives before the handler has run can change
+  the exit code only; a signal that a background-job runner ignores stays ignored, by design; the read of the `pids` file in the
+  tests could in theory race with the fake writing it (a failure path only, as in the older tests); the tests couple to the helper's
+  wait call shapes, which breaks them loudly and cannot make them pass wrongly.
+- Release: the owner released; three new records (the package, `ask-claude` and `ask-codex`) are committed with the increment.
