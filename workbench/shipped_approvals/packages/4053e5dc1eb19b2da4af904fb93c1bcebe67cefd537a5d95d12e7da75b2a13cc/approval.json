@@ -1,0 +1,10 @@
+{
+  "approver": "workbench-release",
+  "declaration_hash": "e93b60169d09ab8030f7d375b5da925caadbb2c2686fbd9001f27f25610c988e",
+  "format": 1,
+  "kind": "module",
+  "subject": "workbench/ask-claude",
+  "time": "1970-01-01T00:00:00Z",
+  "tree_hash": "3b023338a5eaf5b3d81c536e3174e3f1126a24d7af1dbe18ca2051ec9e5e8e7e",
+  "workbench_version": "0.1.0"
+}

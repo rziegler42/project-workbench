@@ -5,6 +5,7 @@
   "modules": [
     "ask-codex",
     "ask-ollama",
+    "ask-claude",
     "claude",
     "code-work",
     "groundwork",

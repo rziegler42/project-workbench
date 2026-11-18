@@ -256,6 +256,31 @@ Empty until a review is asked for.
   applied as written: finding 9 (indexing). `docs/specs/README.md` holds no list of specs, so there is nothing to index and the
   plan's step 4 was not done; the plan's criterion 1 ("is indexed") rests on that wrong assumption and is recorded here and not
   changed. Finding 6 (plan says `structured_output` is "checked"): the spec says only `result` is read; the plan text stays.
+- (Increment A was committed as `e555d9f`.)
 - Owner decisions, 2026-11-18: the input-token sum is confirmed, and the `usage_limit` row may be built from the program's
   documented wording and marked unconfirmed (so increment C's step 0 is met by that word). Not done: the usage-limit sample itself,
   which is on the owner's todo list.
+
+### Increment B
+
+- Built `packages/workbench/ask-claude/` (`module.json`, `helper/ask-claude`, three test files), added it to `packages/workbench/package.json`
+  and extended the module lists that three other modules' tests assert (`code-work`, `groundwork`, `claude`), all in one scripted pass
+  because a write under `packages/` locks the tools until the owner releases. The plan named `tests/run_all.py` earlier and the first
+  review removed that; it is not touched. The helper already carries `--confine`, the timeout and the over-bound paths and a
+  generic `bad_exit`, so C and D have less to build than the plan's outcome text says.
+- Verification run, on the real tree: the module's 42 tests OK; `code-work` 369 OK (2 skipped); `groundwork` 399 OK (one failure
+  before the owner's release of the shipped approvals, gone after it); `claude` 34 OK (12 skipped); `wb run code-work check` no
+  problems; `wb verify packages/workbench` lists all 14 modules. Before that, in a scratch copy of `HEAD`: the tests failed with the
+  helper absent for that reason, and three deliberate breaks of the helper (tools widened, `USER` and `LOGNAME` dropped, text classified
+  on success) each failed tests. Not run: the full suite (`tests/run_all.py`) and a real `claude`.
+- `tests.test_boundary` has two failures that are identical on a clean export of `HEAD` and on this tree; they are not caused by this
+  increment and are on the owner's todo list.
+- The owner released the shipped approvals (preview digest `e377f7d4...`); five new records, for the package and the four changed
+  modules, are committed with this increment. They name the helper as it is now, and increment C or D will make them stale and need
+  another release.
+- Review: one `reviewer` round, no blocking finding. Not applied now, deferred to increment C, which edits the helper and so
+  releases again: (1) `emit` returns its exit code from the original document and not from the text it wrote, so an oversized object
+  swapped for a `reply_too_large` failure would exit 0 (it cannot happen at the reply bound; also inherited from `ask-codex`); the
+  maximal-reply test should use an astral character, which has the largest escape ratio; (2) the environment test's allowed set
+  includes `PWD`, `SHLVL` and similar, so a helper that started passing one would not fail; compare against the helper's own
+  `environment()` keys. Not changed: a `--timeout` of `0001` is accepted as 1, as in `ask-codex`.
