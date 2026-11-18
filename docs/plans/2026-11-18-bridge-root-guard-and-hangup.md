@@ -285,5 +285,54 @@ Empty until a review is asked for.
   too broad (the accepted cases) or too narrow (the matrix). Not changed: the case-variant test skips as a whole when any spelling does
   not resolve, as the plan says.
 - Release: the owner released; two new records (the package and `ask-ollama`) are committed with the increment.
+- (Increment C was committed as `0ff8b51`.)
 
-Empty until work starts.
+### Increment D
+
+- The owner said to run the second look. The `security-reviewer` agent worked on copies of the three helpers in its scratch directory
+  (Python 3.15.0, this Mac's case-insensitive APFS), with fake programs; no real `claude` or `codex`, no network. The tree was clean
+  before and after (`git status --short` printed nothing at `0ff8b51`). Its report, in short: no Critical, High or Medium finding; three
+  Low.
+- **Low 1, a flaw in what this plan set out to do.** The interrupt path of `run_program` (the `finally`, `if process.poll() is None`)
+  kills the program's process group only while the program's main process is still running. If the main process has exited and a
+  child of it still holds the output pipes, a SIGHUP, SIGTERM or SIGINT leaves that child running, in both `ask-claude` and `ask-codex`
+  (tested: the child was alive after exit 129 and after exit 143). SIGTERM always had this; the new SIGHUP handler routes the hang-up
+  into it. **So the plan's Goal bullet (a hang-up stops the program it started: the process group is killed and the helper exits) is
+  not true in that case, and criterion 2, which is worded around a fake program that hangs and its children, is true only for the fake
+  that the tests use, whose main process stays alive; the signal tests of increments A and B do not show the case for that reason.**
+  The non-goal about a child that keeps the pipes open after a valid reply is the normal path and does not cover this. The reviewer's
+  correction was an unconditional kill in the `finally`; that would also send a second `killpg` on every successful call, to a group
+  that the normal path has already killed and reaped, and a `killpg` of the pid of a reaped leader could reach an unrelated group that
+  took the number (the recycled process group id, a non-goal of this plan, which an interrupt would otherwise meet only when the
+  leader is gone). So the better correction is a flag set after the normal path's kill, with the `finally` killing when it is unset (an
+  interrupt that lands between the kill and the flag only gives a harmless second kill). This needs a plan change and the owner's
+  approval (a new increment `D-A`, and a criterion 2 that covers a program whose main process has exited).
+- **Low 2, three narrow windows**, shown on copies with a deliberate pause and measured, and not hit at normal timing: (2a) a signal
+  between `Popen` returning and the `try` (a fraction of a microsecond), and inside `Popen` after the fork (a fraction of a millisecond)
+  leaves the program's group running, in both helpers; (2b) a second signal while the first is being handled, before the kill in the
+  `finally` (tens of microseconds), leaves the group running, because the handler stays installed and has no re-entry guard; (2c) in
+  `ask-codex`, between `mkdtemp` and the `try`, leaves an empty `ask-codex-*` directory. Corrections named: (2b) the handler sets
+  SIGTERM and SIGHUP to ignore on its first call, which is cheap and also covers the whole `finally`; (2c) `scratch = None` before the
+  `try` and `mkdtemp` inside it; (2a) the first part by moving `Popen` inside the `try`, the fork-to-exec part not at all without signal
+  masking that the program might inherit (untested).
+- **Low 3, informational:** if `.git` or `.workbench` links to the project root or to an ancestor, the guard refuses every root,
+  which fails closed.
+- Tested and sound: the guard refuses every case spelling, descendant, link, worktree file and Unicode variant that resolves on this
+  disk (Kelvin-sign spellings included, caught by `samefile`), and accepts the project root, names that share only a prefix, a
+  project below a directory named `.git`, a worktree project and a dangling `.git`; the same results in all three bridges, whose three
+  `is_inside` and three guard bodies are identical; SIGHUP and SIGTERM kill the group (exit 129 and 143) for a program that ignores
+  SIGTERM and forks, one that closes its output and sleeps, and with a prompt still being written; an ignored or blocked SIGHUP is left
+  alone; `ask-codex` removes its scratch directory on both signals when the signal lands inside the `try`. Read only: `ask-ollama`
+  starts no program; a `.git` link whose target cannot be read (fails closed by reading); the `--schema` under `.git` allowance
+  (a non-goal). Limits: one disk and one Python; nothing on a case-sensitive disk; no real program; the repository's tests and the spec
+  text were not part of its review.
+- Limits of this record: the measured results (the surviving child after exit 129 and 143, the timing figures, the Kelvin-sign and
+  other Unicode cases, the clean tree before and after) are the security reviewer's, and the author did not rerun them; the author
+  confirmed by reading the code only the logic of Low 1 and of the three windows, and ran `git status --short` (empty) at `0ff8b51`.
+  Gaps in the corrections named: moving `Popen` inside the `try` also needs `process = None` before it and a guard in the `finally`; the
+  ignore-on-first-call handler (2b) does not cover a second SIGINT, which raises `KeyboardInterrupt`; moving `mkdtemp` inside the `try`
+  (2c) needs `if scratch` in the `finally` and still leaves a signal inside `mkdtemp` after its mkdir, before it returns (increment B's
+  review named it; no test can pin it).
+- Verification of this increment: it changes no code. `wb run code-work check` no problems. The `reviewer` read of this record
+  (the plan's evidence step for D) found no blocking finding; it confirmed Low 1 by reading `run_program` and both fakes, and its notes
+  are applied in this entry.
