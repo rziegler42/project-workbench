@@ -237,5 +237,30 @@ Empty until a review is asked for.
   tested). On the owner's todo list: skip the SIGINT test when the runner ignores SIGINT. Not changed: the case-variant test skips as
   a whole when any spelling does not resolve, which is what the plan says.
 - Release: the owner released; two new records (the package and `ask-claude`) are committed with the increment.
+- (Increment A was committed as `eb73eed`.)
+
+### Increment B
+
+- `ask-codex`: the same two changes as in A, line for line (the `__main__` block differs only in its comment): `working_root` also
+  refuses a root that `is_inside` finds to be the project's `.git` or `.workbench` or below one, and one handler, `sys.exit(128 +
+  signum)`, serves SIGTERM and, unless SIGHUP is already ignored, SIGHUP. New `tests/test_askcodex_guards.py`, generated from the
+  `ask-claude` one with the names swapped: the root matrix (48 cells: the 16 lower-case ones are retained in kind from
+  `test_a_root_inside_git_or_the_workbench_directory_is_refused`, which also has `docs/.git` and `docs/.git/x`; the 32 case-variant
+  cells are new), the two accepted cases, a nested `sub/.git`, and the signals (SIGTERM 143, SIGHUP 129, SIGINT, an ignored SIGHUP not
+  overridden), each also asserting that the scratch directory of the call is gone, which `ask-claude` does not have.
+- Verification run on the real tree: the module's 111 tests OK (79 before); the `claude` module's tests 34 OK (12 skipped), also after the
+  owner's release; `wb run code-work check` no problems; `wb verify packages/workbench` lists the module at its new tree. Red run in a
+  scratch copy of `HEAD`: the 32 case-variant cells and the SIGHUP test failed against the unchanged helper. Five deliberate breaks of the
+  fixed helper (guard loop disabled, handler not installed, handler installed though SIGHUP is ignored, exit code fixed at 143, guard
+  comparing with the project root) each failed tests. Not run: a case-sensitive disk, the full suite.
+- The installed copy of `ask-codex` in this project is the version before this increment until the owner runs `wb upgrade`.
+- Review: one `reviewer` round, no blocking finding. Deferred to increment D, the second look: in `ask`, `mkdtemp` comes before the
+  `try` that removes the scratch directory, so a signal that lands inside `mkdtemp` after its mkdir, or in the bytecodes before the `try`,
+  leaves an empty `ask-codex-*` directory in the temporary directory (SIGTERM already had this window and SIGHUP shares it; it
+  exposes nothing; a fix is `scratch = None` before the `try` with the `mkdtemp` inside it, and no test can pin it). Not changed: the
+  docstring of the new test file says it "replaces" the older SIGTERM test, which is still in `test_askcodex_run.py` (harmless overlap);
+  a failed signal assertion can leave the fake `codex` running its 300-second sleep, a leak on a failure path only; the SIGINT test
+  fails if the runner ignores SIGINT (already on the owner's todo list).
+- Release: the owner released; two new records (the package and `ask-codex`) are committed with the increment.
 
 Empty until work starts.
