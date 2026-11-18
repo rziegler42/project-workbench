@@ -242,4 +242,20 @@ Empty until a review is asked for.
 
 ## Result
 
-Empty until work starts.
+### Increment A (not yet committed)
+
+- Wrote `docs/specs/ask-claude.md`. Ran the default-start probe the plan named (three file tools: reads a file in the root, no
+  shell, no web), and three more probes the review's findings called for: a read outside the root (denied by the program under
+  `dontAsk`), a `CLAUDE.md` in the working directory (no auto-loading shown, with or without the isolating flags; unconfirmed), and
+  the confined start's init event (no tools, no MCP servers). `--safe-mode` was tried and not used (it left 55 slash commands, 19
+  skills and 5 agents).
+- Verification run: `wb run code-work check` (126 plans, no problems). No test exists for a spec.
+- Review: one `reviewer` round, 11 findings, two blocking (no trigger for `effort_unsupported`; no rule that text rows apply only to a
+  failure, and no order). Both applied, with the usage-sum null rule, the untagged statements, the `CLAUDE.md` and outside-root
+  unconfirmed items, the stderr bound and six-byte clause, `ask_reads` absent, the acceptance and references section. Not
+  applied as written: finding 9 (indexing). `docs/specs/README.md` holds no list of specs, so there is nothing to index and the
+  plan's step 4 was not done; the plan's criterion 1 ("is indexed") rests on that wrong assumption and is recorded here and not
+  changed. Finding 6 (plan says `structured_output` is "checked"): the spec says only `result` is read; the plan text stays.
+- Owner decisions, 2026-11-18: the input-token sum is confirmed, and the `usage_limit` row may be built from the program's
+  documented wording and marked unconfirmed (so increment C's step 0 is met by that word). Not done: the usage-limit sample itself,
+  which is on the owner's todo list.
