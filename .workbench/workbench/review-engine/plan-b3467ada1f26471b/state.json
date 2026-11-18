@@ -1,0 +1,157 @@
+{
+  "closed": null,
+  "decisions": [
+    {
+      "at": "2026-11-18T19:37:06Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F1",
+      "reason": "The contract fixes three effort levels; the plan now says the bridge refuses the others and treats the probe as vendor behaviour only."
+    },
+    {
+      "at": "2026-11-18T19:37:06Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F2",
+      "reason": "The runner finds module test directories itself, so the plan no longer edits it and checks discovery instead."
+    },
+    {
+      "at": "2026-11-18T19:37:07Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R1-F3",
+      "reason": "The package manifest lists modules and lacked the new one; increment B now adds it and verifies the declaration."
+    },
+    {
+      "at": "2026-11-18T19:39:35Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F1",
+      "reason": "Increment C now needs an owner-supplied usage-limit sample, or the ownerword to mark that row unconfirmed, and the plan does not claim that part of the checklist without one."
+    },
+    {
+      "at": "2026-11-18T19:39:35Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R2-F2",
+      "reason": "The web probe is now a prerequisite of increment D, with a path that adds a flag or refuses the confine option if a known tool cannot be switched off."
+    },
+    {
+      "at": "2026-11-18T19:41:31Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R3-F1",
+      "reason": "The default start now keeps the three file readers and the confine start has none, so the file control runs through the bridge; shell and web controls are direct runs and the plan states why and what acceptance needs."
+    }
+  ],
+  "format": 1,
+  "generation": 10,
+  "kind": "plan",
+  "path": "docs/plans/2026-11-18-ask-claude-bridge.md",
+  "rounds": [
+    {
+      "at": "2026-11-18T19:36:44Z",
+      "bridge": "ask-codex",
+      "document_sha256": "9f62e616da320e9e78ee134adce53a76a215679a25c07b5f9bf213130d40e30b",
+      "file": "round-1.json",
+      "findings": [
+        {
+          "id": "R1-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F2",
+          "severity": "major"
+        },
+        {
+          "id": "R1-F3",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 1,
+      "profile": "standard",
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra",
+        "options": {}
+      },
+      "sha256": "7e19fe325fced19167f0546f10f08713fc3e40f7920a831dc78520909b1df254",
+      "usage": {
+        "input_tokens": 205476,
+        "output_tokens": 3274,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-18T19:39:18Z",
+      "bridge": "ask-codex",
+      "document_sha256": "344ccbbf9ac428cac953ed6ca0fc060fafe7d46d9754f730d2e941a36ee75030",
+      "file": "round-2.json",
+      "findings": [
+        {
+          "id": "R2-F1",
+          "severity": "major"
+        },
+        {
+          "id": "R2-F2",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-5.6-terra",
+      "n": 2,
+      "profile": "standard",
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "medium",
+        "model": "gpt-5.6-terra",
+        "options": {}
+      },
+      "sha256": "f6b95131768d93884772ccfc44a92d27f7bbd934603087ef12e850b09b611248",
+      "usage": {
+        "input_tokens": 269232,
+        "output_tokens": 4167,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    },
+    {
+      "at": "2026-11-18T19:41:11Z",
+      "bridge": "ask-codex",
+      "document_sha256": "08bb108810cc8264ddbdde45d3833edb50da0b59b0f507b9316cb53d6e784b7c",
+      "file": "round-3.json",
+      "findings": [
+        {
+          "id": "R3-F1",
+          "severity": "major"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-6.1-sol",
+      "n": 3,
+      "profile": "second-opinion",
+      "reading": "changes_needed",
+      "requested": {
+        "effort": "low",
+        "model": "gpt-6.1-sol",
+        "options": {}
+      },
+      "sha256": "31211166d9dbb2e6168e8560c9ff61d1c0957e4423a553d5e2f719d51fa73a1d",
+      "usage": {
+        "input_tokens": 122842,
+        "output_tokens": 456,
+        "total_tokens": null
+      },
+      "verdict": "changes_needed"
+    }
+  ],
+  "seal": "c52364d05b5e8304080774736a8e48c56ee015f3dc26edb53d4aef592ba97f00",
+  "window": {
+    "bound": 3,
+    "first": 1
+  }
+}

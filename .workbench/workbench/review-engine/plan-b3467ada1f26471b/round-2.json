@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "id": "R2-F1",
+      "location": "Assumptions and constraints (lines 74-76); Increment A outcome (lines 95-97); Increment C step 1 (lines 142-144)",
+      "problem": "The plan permits the usage-limit error to remain unconfirmed, but later requires a recorded sample to implement and test `usage_limit`. This cannot meet the model-bridge conformance checklist, which requires vendor-error classes and codes to be tested from samples of the vendor's own errors.",
+      "severity": "major",
+      "suggestion": "Make obtaining an owner-authorized usage-limit sample a prerequisite for Increment C, or explicitly defer conformance and prevent the plan from claiming the complete model-bridge checklist until that sample is available."
+    },
+    {
+      "id": "R2-F2",
+      "location": "Goal (lines 16-18); Increment D (lines 159-165); Increment E (lines 176-179)",
+      "problem": "The plan treats the default `--tools \"\"` start as sufficient confinement even though the web-tool behavior is explicitly unmeasured. The contract requires `--confine` to disable every known file, command, and network tool it can disable, or to be refused if it cannot. A failing web canary has no implementation or refusal path: Increment E only corrects the spec and records unknowns.",
+      "severity": "major",
+      "suggestion": "Require an owner-authorized web probe before finalizing the confinement arguments, and state that a failed or un-disableable known tool causes `--confine` to be refused or the helper/spec/tests to be revised before release rather than merely documented."
+    }
+  ],
+  "format": 1,
+  "round": 2,
+  "summary": "The plan has two unresolved paths that prevent it from establishing the required model-bridge conformance.",
+  "verdict": "changes_needed"
+}

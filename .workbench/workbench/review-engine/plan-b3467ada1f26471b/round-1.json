@@ -1,0 +1,29 @@
+{
+  "findings": [
+    {
+      "id": "R1-F1",
+      "location": "Assumptions and constraints (second probe round); Increment A, step 3",
+      "problem": "The plan says `xhigh` and `max` were accepted and directs the new spec to decide effort levels beyond three. `model-bridge.md` fixes the contract input to exactly `low`, `medium`, and `high`; other levels must be refused before starting the program.",
+      "severity": "major",
+      "suggestion": "State that the bridge accepts only the contract's three levels and refuses `xhigh`, `max`, and every other value. Treat the probe result only as vendor behavior, not as a bridge-specific choice."
+    },
+    {
+      "id": "R1-F2",
+      "location": "Scope; Completion criterion 6; Increment B affected areas and step 5",
+      "problem": "The plan requires adding the module to `tests/run_all.py`, but that runner already discovers every `packages/*/*/tests` directory dynamically and contains no module list. The stated edit and completion condition cannot be fulfilled as written without an unnecessary, potentially harmful runner change.",
+      "severity": "major",
+      "suggestion": "Remove `tests/run_all.py` from the affected areas and replace the criterion with verification that the new module test directory is automatically discovered by the existing runner."
+    },
+    {
+      "id": "R1-F3",
+      "location": "Scope; Increment B affected areas and steps",
+      "problem": "The new module is not added to `packages/workbench/package.json`. The module contract requires the package declaration's module list, directory name, and `module.json` name to match; without this update, `ask-claude` is not a valid package module for installation or release.",
+      "severity": "major",
+      "suggestion": "Add `packages/workbench/package.json` to Increment B's affected areas and add a step to include `ask-claude` in its `modules` array, with a verification covering package declaration validation."
+    }
+  ],
+  "format": 1,
+  "round": 1,
+  "summary": "The plan has contract drift on effort values and omits the package-manifest update; it also relies on an obsolete manual test-root registration model.",
+  "verdict": "changes_needed"
+}
