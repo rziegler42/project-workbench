@@ -214,4 +214,28 @@ Empty until a review is asked for.
 
 ## Result
 
+### Increment A
+
+- `ask-claude`: `working_root` now also refuses a root that `is_inside` finds to be the project's `.git` or `.workbench` or below one
+  (when the entry exists), after the unchanged name check; the `__main__` block installs one handler, `sys.exit(128 + signum)`, for
+  SIGTERM and, unless SIGHUP is already ignored, for SIGHUP. New `tests/test_askclaude_guards.py`: the root matrix as `subTest` loops
+  (6 names x 4 forms x root and descendant = 48 cells: 16 lower-case, retained in kind from `test_askclaude_module.py`, which has the exact
+  `.git` and `.workbench` as a relative path, and 32 case-variant cells, new), the two accepted cases (the project root in four spellings,
+  and `.gitx`, `.workbench-old`, `.github`), a nested `sub/.git`, and the signals (SIGTERM gives 143, SIGHUP 129, SIGINT stops the
+  program, an ignored SIGHUP is not overridden).
+- Verification run on the real tree: the module's 75 tests OK (67 before); the `claude` module's tests 34 OK (12 skipped), also after
+  the owner's release; `wb run code-work check` no problems; `wb verify packages/workbench` lists the module at its new tree. Red run in a
+  scratch copy of `HEAD`: all 32 case-variant cells and the SIGHUP test failed against the unchanged helper (the rest passed, as
+  they pin existing behaviour). Five deliberate breaks of the fixed helper (guard loop disabled, hang-up handler not installed, handler
+  installed though SIGHUP is ignored, exit code fixed at 143, guard comparing with the project root) each failed tests. This Mac's disk
+  is case-insensitive, so the case-variant cells ran; they skip on a case-sensitive disk. Not run: a case-sensitive disk, the full suite.
+- The installed copy in this project (`.workbench/workbench/ask-claude/`) is the version before this increment until the owner runs
+  `wb upgrade`; that is the owner's step and is not part of the commit.
+- Review: one `reviewer` round, no blocking finding. Deferred to increment D, the second look: a SIGHUP or SIGTERM that lands between
+  `Popen` returning and the `try` that holds the cleanup in `run_program` (the group could be left running; SIGTERM already had this window
+  and SIGHUP now shares it), and a link into `.git`, a `.git` that is a file (a worktree) and a dangling `.git` (correct by reading, not
+  tested). On the owner's todo list: skip the SIGINT test when the runner ignores SIGINT. Not changed: the case-variant test skips as
+  a whole when any spelling does not resolve, which is what the plan says.
+- Release: the owner released; two new records (the package and `ask-claude`) are committed with the increment.
+
 Empty until work starts.
