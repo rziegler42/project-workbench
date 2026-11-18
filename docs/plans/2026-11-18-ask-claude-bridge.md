@@ -1,6 +1,6 @@
 # A bridge for the Claude Code command line program
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-18
 Candidate: none (a further bridge under the accepted decision `2026-10-22-model-calls-go-through-vendor-bridges`; the plan `2026-10-22-ask-codex-bridge` named `ask-claude` as a later module that passes the same checklist)
 Specs: model-bridge, module-contract, terms
