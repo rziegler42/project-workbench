@@ -646,6 +646,25 @@ def inside_path(base, value, what):
     return current
 
 
+def is_inside(path, boundary):
+    """True when `path` is `boundary` or below it, whatever links and case spellings lead there. A part of the
+    path that does not exist yet is skipped (it cannot be the boundary, but something may be put there later),
+    and a part that cannot be examined counts as inside."""
+    current = os.path.realpath(path)
+    while True:
+        try:
+            if os.path.samefile(current, boundary):
+                return True
+        except FileNotFoundError:
+            pass
+        except OSError:
+            return True
+        parent = os.path.dirname(current)
+        if parent == current:
+            return False
+        current = parent
+
+
 def check_root(base, value):
     """`--root` is validated by the contract's rules and then ignored: a server has no working directory."""
     path = inside_path(base, value, "--root")
@@ -653,6 +672,10 @@ def check_root(base, value):
         raise Refused("--root is not a directory the program can enter")
     if any(part in (".git", ".workbench") for part in os.path.relpath(path, base).split(os.sep)):
         raise Refused("--root may not be inside .git or .workbench")
+    for guarded in (".git", ".workbench"):  # by the directory the path is, whatever its letter case on this disk
+        entry = os.path.join(base, guarded)
+        if os.path.lexists(entry) and is_inside(path, entry):
+            raise Refused("--root may not be inside .git or .workbench")
 
 
 def read_schema(base, value):

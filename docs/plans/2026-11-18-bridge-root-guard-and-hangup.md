@@ -262,5 +262,28 @@ Empty until a review is asked for.
   a failed signal assertion can leave the fake `codex` running its 300-second sleep, a leak on a failure path only; the SIGINT test
   fails if the runner ignores SIGINT (already on the owner's todo list).
 - Release: the owner released; two new records (the package and `ask-codex`) are committed with the increment.
+- (Increment B was committed as `4c19d0e`.)
+
+### Increment C
+
+- `ask-ollama`: a new `is_inside(path, boundary)` above `check_root` (a diff against the copies in `ask-claude` and `ask-codex` shows
+  the three are identical), and `check_root` now also refuses a root that `is_inside` finds to be the project's `.git` or `.workbench`
+  or below one, when that entry exists, after the unchanged name check. No signal change: this bridge starts no program. The helper
+  imports nothing new. New `tests/test_askollama_guards.py`: the root matrix (48 cells: the exact lower-case `.git` and `.workbench` as a
+  relative path are retained from `test_a_root_inside_git_or_the_workbench_directory_is_refused`, and the file also runs the other 14
+  lower-case cells; the 32 case-variant cells are new), the accepted cases (the project root in four spellings, and `.gitx`,
+  `.workbench-old`, `.github`, `docs`, each checked to reach the fake server), and a nested `sub/.git`.
+- Verification run on the real tree: the module's 443 tests OK (439 before; they include the module's imports test); the `claude`
+  module's tests 34 OK (12 skipped), also after the owner's release; `wb run code-work check` no problems; `wb verify packages/workbench`
+  lists the module at its new tree. Red run in a scratch copy of `HEAD`: exactly the 32 case-variant cells failed against the unchanged
+  helper, nothing else. Three deliberate breaks of the fixed helper (guard loop disabled, guard comparing with the project root, guard
+  comparing only the path itself with `samefile` so that descendants slip through) each failed tests. Not run: a case-sensitive disk,
+  the full suite.
+- The installed copy of `ask-ollama` in this project is the version before this increment until the owner runs `wb upgrade`.
+- Review: one `reviewer` round, no blocking finding and nothing to defer: the guard is called only from `ask` behind `--root`, the
+  refusal text is constant and shows no address, an `OSError` in `is_inside` fails closed, and the tests cannot pass while the guard is
+  too broad (the accepted cases) or too narrow (the matrix). Not changed: the case-variant test skips as a whole when any spelling does
+  not resolve, as the plan says.
+- Release: the owner released; two new records (the package and `ask-ollama`) are committed with the increment.
 
 Empty until work starts.
