@@ -232,7 +232,12 @@ for a reason outside the module.
 
 ## Review record
 
-Empty until a review is asked for.
+- The plan: three rounds of the review engine through `ask-codex` (`.workbench/workbench/review-engine/plan-b3467ada1f26471b/`),
+  six findings, all applied: the contract's three effort levels, no edit of `tests/run_all.py`, the package manifest entry, a
+  prerequisite for the usage-limit sample and for the web probe, and a release procedure with controls that can succeed.
+- Each increment, A to E: one `reviewer` agent round, no blocking finding; the findings and what was done with each are in the Result.
+  A security review of the whole module, by the `security-reviewer` agent on a copy: no finding above Low, two Low findings left
+  open on the owner's todo list.
 
 ## Deferred work
 
@@ -337,3 +342,61 @@ Empty until a review is asked for.
   200-character gap does not pin the edge; a widened pattern would pass it). The mislabel only picks a non-retryable class and
   copies no text.
 - Release: the owner released; two new records (package and `ask-claude`) are committed with the increment.
+- (Increment D was committed as `73f6709`.)
+
+### Increment E
+
+- The owner ran `wb acknowledge` (the plan's review files), `wb upgrade` and `wb add --package packages/workbench --select
+  ask-claude`; the install wrote `.workbench/workbench/ask-claude/` and `.workbench/manifest.json`, which are not part of this
+  increment's commit (the owner's install commit). The first `wb upgrade` did not install the module, because an upgrade re-pins
+  modules that are already installed; a new module needs `wb add`. The installed helper refused `--server ned` as the check requires.
+- Ran the eight calls of the spec's release check on the owner's word (section "The first run of the release check" in
+  `docs/specs/ask-claude.md`): all three canaries counted, the init events were as required. `canary-check/` was deleted.
+- The owner was told, before the calls, what each of the eight sends to Anthropic and what each must show, and said to run them.
+  The agent ran them; the plan's wording that "the owner has run" the real run (goal, criterion 5) is met by that word, as the spec's
+  release check allows ("or says an agent may"). The installed helper was byte for byte the committed one (sha256 `e08915aa201c...`).
+  The record names the direct runs' flags, says that calls 7 and 8 were direct runs with the bridge's arguments copied, and no longer
+  contains the machine's host name; the conclusion reads "meets the acceptance rule of this check" and names the open limits,
+  including the two Low findings of the security review.
+- Step 3 (correct any spec statement the run contradicts): none was contradicted; the review of this increment's record asked for
+  wording corrections, which are made. Step 4 (a release of the approvals): none was needed, since no code changed.
+  `docs/specs/model-bridge.md` was not changed in this increment.
+- Completion criteria, as they stand: (1) the spec exists and states the mapping and the limits it knows; it is not "indexed",
+  because `docs/specs/README.md` lists no specs (see increment A). (2) the module passes its checklist against a fake, with the
+  `usage_limit` and `effort_unsupported` rows built from wording and marked unconfirmed. (3) met by increment D's tests. (4) the
+  helper's imports hold no network module, shown by a test and by the review; no credential is read. (5) met as said above, by the
+  agent on the owner's word. (6) the module is named in `packages/workbench/package.json` and its tests are found by the existing
+  runner; `tests.test_boundary` was run again after the install and has the same two failures that a clean export of `HEAD` has
+  (on the owner's todo list), so the installer boundary test does not pass as the criterion words it, for a reason that is not this plan's.
+- Verification: the recorded run read against the spec; `wb run code-work check` no problems. No test of the module was run: this
+  increment changes no code. Not run: the release check on any other release of `claude`.
+- Not done, as before: the usage-limit sample and the unsupported-effort sample (unconfirmed 1 and 2, the first on the owner's todo
+  list), the `CLAUDE.md` question (unconfirmed 6), the two Low fixes of the security review and the `_NO_MODEL` edge (todo list),
+  removing the stale shipped-approval records of B, C and D (the owner's), and a roadmap candidate for `ask-claude` (the owner's
+  word; none was written).
+
+### Security review (before increment E)
+
+- Asked of the owner once for this surface and run on the owner's word: the `security-reviewer` agent, on a copy in its scratch
+  directory, with a fake `claude` that records what it receives; no real `claude`, no network, no real secret; the tree under review
+  was clean afterwards. Result: no Critical, High or Medium finding; two Low findings, shared with `ask-codex`:
+  (1) `working_root` compares `.git` and `.workbench` by name, so `--root .GIT` or `.WORKBENCH` passes on a case-insensitive disk
+  and the program starts inside them (tested on this Mac's APFS; not a boundary, since the default root holds both); correction:
+  compare by `samefile`. (2) Only SIGTERM is handled, so a hang-up of the helper leaves the program, in its own session, running
+  with the read-only tools; correction: handle SIGHUP like SIGTERM. Both are one item on the owner's todo list, to be fixed in both
+  bridges under a plan of their own, each with a regression test that fails first and a second look; the owner chose not to widen
+  this plan.
+- Tested and sound: the path guard (links, `..`, a leading dash, relative and absolute spellings, `ok/`, `ok//`), the program
+  lookup (a program or an entry inside the repository, through a link, through `..`, in another case, relative or empty), the
+  environment allow list (a planted key and token never reached the program), the argument list (a prompt that spells
+  options stayed on standard input), hostile output (100,000-deep nesting, a repeated key, `NaN`, 10,000 digits, invalid UTF-8,
+  `1e999`, boolean counts, a 65-character model name, a non-string `result`, controls and a right-to-left override), the bounds
+  (a reply of 262,145 bytes, 2 MB of output, maximal astral and six-byte-escape replies), `ok` agreeing with the exit code, the
+  classifier on 1 MB of repeats (0.2 s or less), the timeout and group kill (a program that ignores SIGTERM and forks, one that
+  closes its streams, one that never reads its prompt), SIGTERM of the helper, and that nothing is written.
+- Read only, not tested: the race between the path check and its use (a local writer inside the project could swap a directory for
+  a link; rated very low); a recycled process group id; a parent directory with its own `.git` (fails closed); the spec's claim that
+  the program denies a `Read` outside its working directory under `dontAsk` (needs the real program).
+- Limits: a copy on a case-insensitive disk (a case-sensitive one would not show finding 1); the repository's own tests were not run
+  by the reviewer; some gaps in the tests may exist that it did not look for. Noted, inherent: a child that starts its own session
+  survives the timeout, and a child that keeps the pipes open turns a valid answer into a retryable `timeout`.
