@@ -14,7 +14,9 @@ Close the two Low findings that the security review of `ask-claude` found and th
   as `.git` and `.workbench` are, and the absolute spellings with them.
 - A hang-up of the helper (SIGHUP, the terminal closing) stops the program it started, as SIGTERM already does, in `ask-claude` and
   `ask-codex`: the process group is killed and the helper exits. A caller that deliberately ignores SIGHUP (for example under `nohup`) is
-  not overridden.
+  not overridden. (Increments A and B did this for a program whose main process is still running. The second look, increment D, found
+  that a SIGHUP, SIGTERM or SIGINT leaves a child of the program running when the main process has already exited and the child still
+  holds the pipes; increment D-A closes that, so that the group is killed whether or not the main process is still running.)
 - Each fix has a regression test that failed before the fix, in the scratch copy of `HEAD`, and passes after it, and an independent
   second look, because a fix is new attack surface.
 - `model-bridge.md` says both rules in words, written after the code that makes them true has landed.
@@ -23,7 +25,10 @@ Close the two Low findings that the security review of `ask-claude` found and th
 
 - `ask-claude`, `ask-codex` and `ask-ollama`: `working_root` (the guard), and for the first two the signal handlers of the helper's
   `__main__` block, with their tests.
-- A re-check of both fixes by the `security-reviewer` agent, on a copy.
+- A re-check of both fixes by the `security-reviewer` agent, on a copy (done: increment D).
+- Increment D-A, which the re-check made necessary: in `ask-claude` and `ask-codex`, the cleanup of `run_program` kills the program's group
+  on an interrupt whether or not the main process has exited; the signal handler ignores a further stop signal once it has run; and in
+  `ask-codex` the scratch directory is made inside the `try` that removes it.
 - Last, `docs/specs/model-bridge.md` (the path rule in "Input", and guarantee 6), and one line in `ask-claude.md` and `ask-ollama.md`
   where they restate the rule: written after the code, so that a current spec is never ahead of the code.
 
@@ -34,6 +39,10 @@ Close the two Low findings that the security review of `ask-claude` found and th
   that keeps the pipes open after a valid reply.
 - Making `--root` a boundary: it is where the program starts and does not limit what it reads, as the contract says.
 - SIGKILL of the helper, which cannot be handled.
+- A stop signal that lands between `subprocess.Popen` returning and the `try` that holds the cleanup, or inside `Popen` after the fork
+  (found by the second look; a fraction of a microsecond and a fraction of a millisecond, shown only on copies with a deliberate
+  pause). The fork-to-exec part cannot be closed without masking signals, which the program might inherit through the exec; the
+  other part is a window of bytecodes. Both are recorded as residual risk, not fixed here.
 - Any change to the kit, the installer, the review engine or the action-review engine, or a shared code file for the bridges (each
   helper is one file that imports only the standard library and `wbkit`).
 - Changing the options, the objects or the error classes of any bridge.
@@ -51,7 +60,8 @@ Close the two Low findings that the security review of `ask-claude` found and th
 - The second flaw: the helper's `__main__` block handles SIGTERM only, so SIGHUP kills the helper and leaves the program, which runs in its
   own session, running. SIGINT already raises `KeyboardInterrupt`, which reaches the `finally` that kills the group.
 - A write under `packages/workbench/` locks the tools until the owner releases the approvals: each increment that changes a module
-  prepares its files in the scratchpad, applies them in one scripted pass, and then waits for the owner's release. Three release rounds.
+  prepares its files in the scratchpad, applies them in one scripted pass, and then waits for the owner's release. Four release rounds
+  (A, B, C and D-A).
 - Tests are `unittest`. The verification of a module increment is that module's own tests, and `wb run code-work check`.
   `tests.test_boundary` has two failures on a clean `HEAD` that are not this plan's (on the owner's todo list) and is not part of any
   verification here.
@@ -78,11 +88,19 @@ Close the two Low findings that the security review of `ask-claude` found and th
    case-sensitive one.
 2. In `ask-claude` and `ask-codex`, a SIGHUP sent to the helper while it waits for a hanging fake program kills the fake and its
    children and ends the helper with exit code 129, and the existing SIGTERM test still passes with exit code 143; with SIGHUP ignored
-   by the caller the helper does not install a handler for it.
+   by the caller the helper does not install a handler for it. (Met by A and B for a fake whose main process is still running; widened
+   by criterion 7.)
 3. Each regression test failed against the unchanged helper in a scratch copy of `HEAD` and passes after the change.
 4. The `security-reviewer` agent has re-checked both fixes on a copy and its report is recorded in the Result.
 5. `model-bridge.md` states both rules, committed after the three bridges implement them, and `ask-claude.md` and `ask-ollama.md` agree.
 6. The shipped approvals are released by the owner after each module change and the records are committed with it.
+7. In `ask-claude` and `ask-codex`, a SIGHUP, a SIGTERM and a SIGINT sent to the helper while the program's main process has already
+   exited and a child of it holds the pipes kill that child and end the helper with exit code 129, 143 and 130; and a successful call
+   kills the program's group once, as before (a test counts the kills); and an interrupt during the normal path's waits does not kill
+   again (a test raises in the first wait and counts the kills).
+8. In both, once the handler has run, a further SIGTERM, SIGHUP or SIGINT does not interrupt the cleanup (a test calls the handler
+   and checks that all three signals are then ignored); in `ask-codex` the scratch directory is made inside the `try` that removes it
+   (a structural test), and the cleanup removes it only if it was made.
 
 ## Increments
 
@@ -160,12 +178,55 @@ the `claude` module's tests after the release; `wb run code-work check`.
 each, recorded in the Result), and then the one local commit, with the trailer `Plan: 2026-11-18-bridge-root-guard-and-hangup#D`,
 holding the plan's Result.
 
+### Increment D-A — Kill the program's group on any interrupt, and close the small windows
+
+**Outcome:** in `ask-claude` and `ask-codex`, an interrupt (SIGHUP, SIGTERM or SIGINT) kills the program's process group whether or not
+the program's main process has exited; a first stop signal makes the handler ignore the others, so that the cleanup is not interrupted;
+and in `ask-codex` the scratch directory is made inside the `try` that removes it. The three findings of increment D that are not
+residual (Low 1, 2b and 2c) are closed, and each has a test that failed first.
+**Dependencies:** A and B (it changes the same two helpers and extends their signal tests); D (its record is the reason).
+**Affected areas:** `packages/workbench/ask-claude/helper/ask-claude` and `packages/workbench/ask-codex/helper/ask-codex` (`run_program`,
+the handler and the `__main__` block, and in `ask-codex` `ask`), the fakes in `tests/support_claude.py` and `tests/support_codex.py` (one
+new control), the signal tests of the two modules, and the shipped approval records (owner-run). One scripted pass for both modules, so
+that one release serves both.
+**Steps:**
+1. Add to each fake a control `orphan`: the fake records its call, starts a child that sleeps and holds the inherited output pipes,
+   writes the child's pid to `pids`, and exits at once, so that the program's main process is gone while a child holds the pipes.
+2. Write the tests, in the scratch copy first: (a) with `orphan`, the helper run as a subprocess, a SIGHUP, a SIGTERM and a SIGINT each
+   (three tests per module) end the helper with 129, 143 and 130 and leave the child gone; (b) with `orphan` and `--timeout 1`, the
+   timeout kills the child (it must already pass); (c) a successful in-process call, with `kill` replaced by a counter, calls it once,
+   and a call in which the first `process.wait` is made to raise `SystemExit` (as the handler does) calls it once too, the second
+   test failing against a flag set after the waits;
+   (d) the handler, a module-level function `stop(signum, frame)`, called with `signal.signal` replaced by a recorder, sets SIGTERM, SIGHUP
+   and SIGINT to ignore and raises `SystemExit(128 + signum)`; (e) for `ask-codex`, a structural test (the syntax tree of `ask`) that
+   the call of `tempfile.mkdtemp` lies inside the `try` whose `finally` removes the scratch directory, and that the `finally` removes it
+   only if it was made; and the existing signal tests, with the SIGINT test now expecting 130. Run them against the unchanged helpers and
+   see (a), (d) and (e) fail and (b) and (c) pass.
+3. Change `run_program`: a flag, set immediately after the normal path's first `kill(process)` and before any of its waits; the
+   `finally` kills the group and waits whenever the flag is unset, and does not call `poll()` first (so that an exited but unreaped
+   main process keeps its pid, and a `killpg` of its group cannot reach a recycled number). An interrupt during the normal path's waits
+   then finds the flag set and does not kill again: the group has already been sent SIGKILL, and a leader that is reaped by then is
+   never the target of a second `killpg`. An interrupt in the few bytecodes between the kill and the flag finds the leader not yet
+   reaped (no wait has run), so a second kill reaches the same group and not a recycled number. Change the handler to the module-level function of step 2 and install it for SIGTERM, for SIGHUP and for
+   SIGINT, each unless the caller already ignores it. In `ask-codex`, set `scratch = None` before the `try`, make the directory inside
+   it, and have the `finally` remove it only if it is set. Leave the window between `Popen` and the `try` as it is (residual).
+4. Apply to the real tree in one scripted pass with the verification; mutation-check the helpers (the flag removed, the unconditional
+   kill, the handler not ignoring, `mkdtemp` outside the `try`); the owner releases the approvals.
+**Verification:** `python3 -B -W error -m unittest discover -s packages/workbench/ask-claude/tests -t packages/workbench/ask-claude/tests`
+and the same for `ask-codex`; the `claude` module's tests after the release; `wb run code-work check`. `ask-ollama` and the other modules
+are not touched.
+**Evidence:** the reviewer's findings and what was done with each, recorded in the Result; then the one local commit, with the trailer
+`Plan: 2026-11-18-bridge-root-guard-and-hangup#D-A`, holding the two helpers, the tests and the new release records. After it, a second
+`security-reviewer` run on the two changed functions only, at the owner's word, is recommended and not required.
+
 ### Increment E — The contract text
 
 **Outcome:** `model-bridge.md` says that the guard on `--root` compares what the path is, however its letters are spelled, and that a
-hang-up of the helper stops the program as a termination does; `ask-claude.md` and `ask-ollama.md` agree. It is written after the code
-and the second look, so that no committed spec is ahead of the code.
-**Dependencies:** A, B, C and D.
+hang-up, a termination or an interrupt of the helper kills the program's process group whether or not its main process is still
+running (a child that starts its own session stays out of reach), and that the helper does not override a hang-up its caller ignores;
+`ask-claude.md` and `ask-ollama.md` agree. It is written after the code and the second look, so that no committed spec is ahead of
+the code.
+**Dependencies:** A, B, C, D and D-A.
 **Affected areas:** `docs/specs/model-bridge.md` ("Input", "Paths" and the guarantee 6 text), `docs/specs/ask-claude.md` and
 `docs/specs/ask-ollama.md` (one line each where they restate the path rule or the timeout).
 **Steps:**
@@ -183,7 +244,8 @@ and the second look, so that no committed spec is ahead of the code.
 ## Verification for the plan as a whole
 
 Each increment's recorded verification stands unless a later one changed its inputs: the three helpers are separate files and the
-three modules' tests do not share code, so A, B and C do not invalidate one another. What is rerun at the end: nothing beyond
+three modules' tests do not share code, so A, B and C do not invalidate one another; D-A changes the helpers and signal tests of A and
+B, and reruns the whole of those two modules' tests, which is why it is verified with them. What is rerun at the end: nothing beyond
 increment E's check, except `wb verify packages/workbench` once after the last release. A run of the whole suite
 (`python3 -B -W error tests/run_all.py`) is not planned; the one thing outside the modules that changes is the set of shipped approval
 records, which the `claude` module's tests check after each release.
@@ -198,7 +260,17 @@ records, which the `claude` module's tests check after each release.
   `.git`, below its root), and a root that is the project root must still be accepted: a test says so.
 - **Case-sensitive disks.** The case-spelling tests cannot fail there and are skipped; the fix is then shown only by reading and by
   the second look on this Mac's disk. The plan says so in the Result.
-- **Three package edits, three releases.** Each release is the owner's, in a terminal, with the tools locked until then.
+- **Four package edits, four releases.** Each release is the owner's, in a terminal, with the tools locked until then.
+- **A handler that ignores signals.** After its first call the handler sets SIGTERM, SIGHUP and SIGINT to ignore. It runs only when the
+  helper is about to exit, after the program has been started, and a signal ignored in the helper is not inherited by a program
+  started before; the helper starts no other program. A test shows what the handler sets, and a test shows that the exit code is still
+  128 plus the signal number.
+- **The kill in the cleanup.** The `finally` kills the group on an interrupt even when the main process has exited, so that the pid
+  used for `killpg` must still belong to the group: the cleanup does not call `poll()` first, so an exited but unreaped main process
+  keeps its pid until the kill, and a group with no member left gives `ProcessLookupError`, which `kill` already ignores. The flag
+  keeps the normal path to one kill, and it is set before the normal path's waits, because a wait reaps the leader and a later
+  `killpg` of a reaped leader's number is the recycled-group risk that this plan accepts as residual; that risk remains only where the
+  leader is reaped by something other than this helper's own waits, which nothing here does.
 - **Security.** The change touches a path guard, a subprocess and signals; increment D is the second look, and a fix that fails it
   is a new increment.
 
@@ -209,6 +281,9 @@ Empty until a review is asked for.
 ## Deferred work
 
 - The race between the path check and its use, and the notes of the security review that this plan does not take.
+- A stop signal between `Popen` returning and the `try` of `run_program`, or inside `Popen` after the fork, which can leave the
+  program's group running (residual; see the non-goals). A signal inside `tempfile.mkdtemp` after its mkdir, before it returns, which
+  leaves an empty scratch directory.
 - A `--schema` file under `.git` or `.workbench`, if the owner wants the contract to forbid it.
 - One shared copy of the path and signal code for the bridges, which the one-file rule of a helper forbids today.
 

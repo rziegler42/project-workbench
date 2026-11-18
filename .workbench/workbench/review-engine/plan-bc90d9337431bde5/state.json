@@ -21,10 +21,17 @@
       "earlier": [],
       "finding": "R2-F1",
       "reason": "The plan now states that every increment, the second look and the contract text included, is reviewed before its commit, with the outcome recorded in the Result."
+    },
+    {
+      "at": "2026-11-18T22:04:06Z",
+      "choice": "applied",
+      "earlier": [],
+      "finding": "R4-F1",
+      "reason": "The flag is now set right after the first kill and before any wait, the explanation says which interval is safe and why, and a test raises in the first wait and counts the kills."
     }
   ],
   "format": 1,
-  "generation": 7,
+  "generation": 10,
   "kind": "plan",
   "path": "docs/plans/2026-11-18-bridge-root-guard-and-hangup.md",
   "rounds": [
@@ -113,11 +120,40 @@
         "total_tokens": null
       },
       "verdict": "no_meaningful_changes"
+    },
+    {
+      "at": "2026-11-18T22:03:49Z",
+      "bridge": "ask-codex",
+      "document_sha256": "acb6c3fea31898abe6f5eefa3383b4c447f42eeb201ef7f87a43567cb09a5d04",
+      "file": "round-4.json",
+      "findings": [
+        {
+          "id": "R4-F1",
+          "severity": "minor"
+        }
+      ],
+      "mismatch": false,
+      "model": "gpt-6.1-sol",
+      "n": 4,
+      "profile": "second-opinion",
+      "reading": "no_meaningful_changes",
+      "requested": {
+        "effort": "low",
+        "model": "gpt-6.1-sol",
+        "options": {}
+      },
+      "sha256": "32fae1d08b4a44020008ddf652f74df5e2bb71bda7f5349f1bc259185772580e",
+      "usage": {
+        "input_tokens": 190188,
+        "output_tokens": 696,
+        "total_tokens": null
+      },
+      "verdict": "no_meaningful_changes"
     }
   ],
-  "seal": "ebb57202ae5f687b4c5189dcfbd79ba12021b4fa914638faadf7087b5906795b",
+  "seal": "66136c64a4b847a2cf12bc1df0778b310561924de33d9ddaeccbbfdcede26a6a",
   "window": {
-    "bound": 3,
+    "bound": 4,
     "first": 1
   }
 }

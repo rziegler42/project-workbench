@@ -1,0 +1,15 @@
+{
+  "findings": [
+    {
+      "id": "R4-F1",
+      "location": "docs/plans/2026-11-18-bridge-root-guard-and-hangup.md — Increment D-A step 3; Risks, “The kill in the cleanup”",
+      "problem": "The claim that avoiding poll() keeps the leader unreaped until cleanup is not true on every path: run_program already calls wait() on the normal path, and D-A places its flag after another wait(). An interrupt after that wait returns but before the flag is set can therefore repeat killpg using a reaped leader's number. The Result's description of this second kill as harmless is too strong.",
+      "severity": "minor",
+      "suggestion": "Correct the safety explanation and explicitly include this interval in the accepted recycled-process-group residual risk, or adjust the cleanup state and ordering to prevent a second group kill after reaping."
+    }
+  ],
+  "format": 1,
+  "round": 4,
+  "summary": "The earlier findings are addressed. One safety explanation overstates protection against a recycled process-group number; no additional blocking gap or spec drift was found.",
+  "verdict": "no_meaningful_changes"
+}
