@@ -98,7 +98,9 @@ kit refuses a profile option that is a reserved name or a prefix of one, and a b
 **Paths.** `--root` and `--schema` are resolved against the project root found as `wb run` finds it, and a
 relative path is read that way, not against the caller's directory. Every component of the path must be inside
 the project and none may be a link. `--root` must exist, be a directory the program can enter, and not lie inside
-`.git` or `.workbench`; `--schema` must be a regular file. A path that breaks any rule is refused before anything
+`.git` or `.workbench`: the comparison is with the directory the path names and not with how its letters are spelled, so on a disk
+that does not tell the cases apart `.GIT`, `.Git/` and `.WORKBENCH`, and anything below them, are refused as `.git` and `.workbench`
+are; `--schema` must be a regular file. A path that breaks any rule is refused before anything
 runs. A path may not start with a dash, so that a flag such as `--confine` is never read as the value of `--root` or
 `--schema`, as a `--model` cannot start with one either; a relative path that does is written with `./` before it.
 
@@ -361,6 +363,15 @@ network rules and the treatment of the reply as data. Its own rules for the conn
    to a bound its spec names and stops at it, with the same error.
 6. **A timeout ends the whole call.** At the timeout the vendor program and its children are killed as a
    process group and the error is `timeout`. A bridge to a server closes the connection at the timeout, and the error is `timeout`.
+   A bridge to a program is stopped the same way by a termination (SIGTERM), a hang-up (SIGHUP) or an interrupt (SIGINT) of the
+   helper: the program's process group is killed whether or not the program's main process is still running (so that a child of it
+   that holds the output pipes is stopped too), the helper ends with 128 plus the signal's number (143, 129 and 130), and once the
+   first of them has been handled the others are ignored so that the cleanup is not interrupted. A signal that the helper's caller
+   already ignores (a `nohup` run, a background job) stays ignored. (Two different signals within one bytecode boundary give the
+   exit code of the lower-numbered one.) What this does not cover: a child that starts its own session or moves to another process
+   group; a stop signal in the one or two milliseconds between the fork of the program and the helper holding its handle (it can
+   leave the program running until it ends by itself), in the few bytecodes around the kill, or during the removal of the temporary
+   directory (it can leave that directory, guarantee 4); and SIGKILL of the helper.
 7. **Network, and no log.** A bridge to a program opens no connection of its own. A bridge to a server opens a connection only to
    the endpoint the store names, follows no redirect to another host, and has a hard timeout. It sends only the model request
    built from the prompt and the validated options and, for an authenticated endpoint, the endpoint record's credential in the one
@@ -437,7 +448,9 @@ and the store. The checklist of a bridge to a server is completed by its own spe
    `vendor_error`.
 10. A usage limit, an unusable reply, a rejected schema and an unclassified non-zero exit are `vendor_error`
     with `usage_limit`, `unusable_reply`, `bad_schema` and `bad_exit`, and a non-null `detail`.
-11. A fake that never exits ends at the timeout with `timeout`, and its children are gone.
+11. A fake that never exits ends at the timeout with `timeout`, and its children are gone; a SIGTERM, a SIGHUP and a SIGINT of the
+    helper each end it with 143, 129 and 130 and leave the fake and its children gone, also when the fake's main process has exited
+    and a child holds the pipes; a hang-up or other stop signal that the caller ignores is not overridden.
 12. A fake that writes more than a bound (a reply over 262,144 bytes, or output over 1,048,576) is stopped and
     reported as `reply_too_large`; a maximal reply of characters that escape to six bytes still fits the object
     bound.
@@ -514,16 +527,25 @@ How it meets the contract:
 - **The schema is a copy.** The vendor program is given a copy of the schema in the private temporary directory,
   not the file in the project; it holds the bytes the bridge read.
 - **Paths and the temporary directory.** The temporary directory is checked before it is made: a `TMPDIR` inside
-  the project is refused. `--root` inside `.git` or `.workbench` is refused (stricter than the contract), as is a
-  root the program cannot enter.
+  the project is refused. `--root` inside `.git` or `.workbench` is refused by what the path is and not by its spelling (since
+  plan `2026-11-18-bridge-root-guard-and-hangup`), as is a root the program cannot enter.
 - **The trusted-path boundary** is the outermost repository, in the bridge and in the kit's `wb` search alike
   (`module-boundary.md`), compared by file identity, so a project nested in another repository, a link and a
   differently spelled case do not make a `PATH` entry look outside. A home directory that is itself a repository
   would make the guarded store look untrusted; the result is a refusal.
 - **Sign-in text.** The text of a failure is classified by patterns; "401" counts only beside "status", "error"
   or "code".
-- **Interrupts.** On SIGTERM the bridge stops the vendor program's process group and removes the temporary
-  directory.
+- **Interrupts.** On SIGTERM, SIGHUP or SIGINT the bridge stops the vendor program's process group, also when the program's main
+  process has already exited, and removes the temporary directory (guarantees 4 and 6). Left over, measured on 2026-11-18 with
+  fake programs on one Mac: a signal in the 1 to 2 ms between the fork and the helper holding the program's handle leaves the
+  program running; a signal in the 100 to 300 microseconds of the removal of the temporary directory leaves it (a mode 0700
+  directory holding the reply); and between the first wait and the kill's flag (124 to 225 microseconds, upper bounds) a signal
+  can send the kill to the number of a leader that the first wait has already reaped. That last case is not only the
+  interrupted one: every successful call sends its kill to a leader that has just been reaped, so it is the normal path, and it is
+  covered by an argument and not by a test: a number that still names a live group is not reused, and reusing the number of a
+  group with no member left needs the process numbers to wrap (about 3.5 minutes of forking at the measured rate, against a
+  window of 0.2 ms). The argument assumes the BSD rule for a live group's number, which was not tested on this system, and the
+  wrap was not forced.
 
 Limits:
 

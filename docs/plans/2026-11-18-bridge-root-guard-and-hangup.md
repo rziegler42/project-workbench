@@ -276,7 +276,13 @@ records, which the `claude` module's tests check after each release.
 
 ## Review record
 
-Empty until a review is asked for.
+- The plan: three rounds of the review engine through `ask-codex` (findings: the contract text ahead of the code, an undefined test
+  matrix, no per-increment review step; all applied), then, after the second look had found that a hang-up did not stop a child of a
+  program whose main process had exited, increment D-A was added and a fourth round (the bound extended by the owner to 4) found one
+  minor point, the placement of the flag, which was applied. Review files: `.workbench/workbench/review-engine/plan-bc90d9337431bde5/`.
+- Each increment, A to E and D-A: one `reviewer` agent round, no blocking finding; the findings and what was done with each are in
+  the Result. A second look by the `security-reviewer` agent after A to C (no finding above Low; one that contradicted the plan's
+  claim and led to D-A) and a re-check after D-A (no finding above Low; three Low, one on the owner's todo list).
 
 ## Deferred work
 
@@ -453,3 +459,72 @@ Empty until a review is asked for.
   tests could in theory race with the fake writing it (a failure path only, as in the older tests); the tests couple to the helper's
   wait call shapes, which breaks them loudly and cannot make them pass wrongly.
 - Release: the owner released; three new records (the package, `ask-claude` and `ask-codex`) are committed with the increment.
+- (Increment D-A was committed as `2ca3424`.)
+
+### The re-check after D-A (recommended by the plan, run at the owner's word)
+
+- The `security-reviewer` agent again, on copies of both helpers at `2ca3424` with fake programs (APFS, Python 3.15.0; no real
+  program, no network). The tree was untouched (a read-only walk of 2,526 entries found nothing newer than the agent's first scratch file).
+  It disclosed that three scripts already in its scratch directory ran once before it had read them, and that it kept no output of
+  those; every result below is from scripts it wrote afterwards. Result: no Critical, High or Medium finding; three Low.
+- **Tested and sound:** the orphan case under SIGHUP, SIGTERM and SIGINT, each repeated, every ordered pair, and all three, with
+  gaps of 0 and 1 ms and with a 250 KB unread prompt: in all of the cases the child was gone, TMPDIR was empty, and the exit codes were
+  129, 143 or 130, with no hang; the 84 instrumented runs (a pause at seven points of the normal path, three signals, two fakes, two
+  helpers) left nothing running and no scratch directory; a signal in `select` and a second signal inside the handler (exit 130,
+  cleanup done, all three then ignored); a caller that ignores one, two or all three signals (not overridden), a blocked SIGHUP (stays
+  pending, a later SIGTERM stops it), an ignored SIGCHLD; a failing `mkdtemp` (a clean refusal); SIGINT sent to a whole process group
+  (helper 130, program group killed); and the shell behaviour on the new SIGINT exit, which is the same as before in `/bin/sh`,
+  `bash` and `zsh`.
+- **Width of the reaped-leader window** that increment D-A's review named (the first wait returning to the flag being set): 132 to 225
+  microseconds in `ask-claude` and 124 to 196 in `ask-codex` (upper bounds). Reusing that pid as a group would need the pid space
+  (99,999 here) to wrap, about 3.5 minutes of forking at the measured 450 forks a second, against a window of at most 0.2 ms; on this
+  system it is not reachable. The agent assumed BSD semantics for XNU that a pid serving as a live group's id is not reallocated,
+  and did not test that. The plan's Risks sentence that the leader is reaped "only by something other than this helper's own waits"
+  is wrong, as D-A's review said: **every successful call sends its `killpg` to a leader that the first wait has already reaped** (to
+  the live group, or `ESRCH`). The pid argument above is what covers it.
+- **Low 1, `ask-codex` `ask`, the `finally` before and during `shutil.rmtree`** (a window of 100 to 300 microseconds, the median 99): a first
+  stop signal that lands there leaves `ask-codex-*` in TMPDIR (mode 0700) holding `reply.txt` (the model's reply) and, with a
+  schema, `schema.json`. It predates D-A; the handler has not run before the `finally` starts, so ignoring signals later does not
+  protect it. Correction named: mask or ignore the stop signals around the removal. The owner decides whether to close it.
+- **Low 2, a signal after the fork and before `process` is assigned** (the known residual): in 4 of 4 runs the program and its
+  children kept running after the helper exited 129. Measured width **1.0 to 1.8 ms**, wider than the plan's "fraction of a
+  millisecond"; the non-goal's text understates it. No cheap fix without signal masking, which the program inherits through the exec.
+- **Low 3, the text of the plan and of increment E:** a child that calls `setpgid` into another group is out of reach exactly as a
+  `setsid` child is (tested: it survives a normal end and a SIGHUP kill; the group's own members are killed). Increment E names both.
+- Informational: two different signals within one bytecode boundary print `Exception ignored ... Signal N ignored due to race
+  condition` and the exit code is that of the lowest-numbered signal; a signal after the result was written still gives exit
+  128 plus the number with the complete object on standard output; the `finally`'s unbounded `process.wait()` would hang on a program
+  that cannot be killed at all (read only); stdout closed at the start or a reader that has gone gives a crash or exit 120 (both predate
+  this plan). Not checked: how the kit runner maps a child's exit status; the pid-reuse claim by forcing a wrap.
+- (The re-check's Result entry is committed with increment E.)
+
+### Increment E
+
+- Wrote the contract text, after the code and the re-check: `model-bridge.md` ("Paths": the `.git` and `.workbench` rule by what the
+  path is and not its spelling; guarantee 6: a SIGTERM, SIGHUP or SIGINT of the helper kills the program's group whether or not its
+  main process is running, exit codes 143, 129 and 130, the others ignored once the first is handled, a caller-ignored signal left
+  alone, and what is not covered; checklist item 11; the "As built" bullets for paths and interrupts, with the three measured
+  windows); `ask-claude.md` (a section "Stopping the program", and the conclusion of the first run of the release check, which says
+  the run was made before the fixes and that the two Low flaws are fixed); `ask-ollama.md` (the `--root` row). The plan's non-goal
+  text and the Risks sentence that the re-check showed wrong are not edited (an approved plan's text is not changed after approval):
+  this Result and the contract text state what is true.
+- Verification: `wb run code-work check` no problems and `git diff --check` clean, after the edits. No test was run: this increment
+  changes no code; the code and its tests were verified in A, B, C and D-A (84, 122 and 443 tests, and the re-check). Not checked: how
+  the kit runner maps a helper's exit status of 129, 130 or 143.
+- Review: one `reviewer` round, no blocking finding; it checked each new sentence against the code and found it true as written,
+  and found no other statement of the old rule in `docs/specs`. Applied: the pointer "below" to "above"; the pid-reuse sentence now
+  says it is an argument, that it assumes a BSD rule that was not tested here, that the wrap was not forced, and that the case is
+  the normal path of every successful call and not only an interrupted one; the removal of the temporary directory is in guarantee
+  6's list of what is not covered and the bullet cites guarantees 4 and 6; the window is given as 124 to 225 microseconds; a
+  parenthesis says that two different signals in one bytecode boundary give the exit code of the lower-numbered one. Not changed: the
+  conclusion of the release check says the canaries "do not depend on" the fixes, which is a reasonable statement and an assertion,
+  and is worded as one.
+- Completion criteria, as they stand: (1) met by the matrix tests of A, B and C on this Mac's case-insensitive disk (they skip, with
+  the reason named, on a case-sensitive one; none was run there). (2) met for a fake whose main process stays alive, by A and B, and
+  for one whose main process has exited, by D-A (criterion 7). (3) each regression test failed against the unchanged helper in a
+  scratch copy of `HEAD` and passed after (the Result of each increment). (4) the second look (increment D) and a re-check after D-A
+  are recorded. (5) met by this increment. (6) the owner released after A, B, C and D-A and the records are committed with each. (7)
+  and (8) met by D-A. Not met or not claimed: a case-sensitive disk, a second look after E's text (docs only), and the three
+  residual windows (fork, first wait to flag, removal of the temporary directory), which are recorded in the contract text.
+- The installed copies of `ask-claude`, `ask-codex` and `ask-ollama` in this project are the versions before this plan until the
+  owner runs `wb upgrade`.

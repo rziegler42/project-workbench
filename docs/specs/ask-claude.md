@@ -102,6 +102,16 @@ claude -p --output-format json --no-session-persistence --setting-sources "" --d
   one JSON object) and passed as the text read.
 - No `--bare`, `--settings`, `--system-prompt`, `--add-dir`, `--allowedTools`, `--fallback-model` or `--max-budget-usd`.
 
+### Stopping the program
+
+A SIGTERM, a SIGHUP or a SIGINT of the helper kills the program's process group whether or not the program's main process is still
+running, ends the helper with 143, 129 or 130, and makes the helper ignore the other two while it cleans up; a signal that the
+helper's caller already ignores stays ignored (`model-bridge.md`, guarantee 6). `--root` is refused when it is the project's `.git` or
+`.workbench` or below one, by what the path is and not by how its letters are spelled. Not covered: a child that starts its own session
+or moves to another process group; a stop signal in the 1 to 2 ms between the program's fork and the helper holding its handle, and
+in the microseconds around the kill; SIGKILL of the helper (measured on copies with fake programs, 2026-11-18; plan
+`2026-11-18-bridge-root-guard-and-hangup`).
+
 ### `--confine`
 
 `--confine` replaces `--tools "Read,Grep,Glob"` with `--tools ""` and changes nothing else (the contract's item 18 says the
@@ -225,9 +235,10 @@ the check requires, so `claude` 2.1.327 with this bridge meets the acceptance ru
 tripwire and not a boundary, as "`--confine`" says. The limits are: one run per call, a model that is asked to try and not an
 attack, a shell canary that the model could guess, what the four built-in plugins and six built-in agents can do (unconfirmed 5), and
 tools the program may add in a later release (the check is repeated for each release). The security review of 2026-11-18 found two
-Low flaws in the helper, which are open and are shared with `ask-codex`: a `--root` spelled `.GIT` or `.WORKBENCH` is accepted on a
-case-insensitive disk, so the program can start inside them, and a hang-up of the helper (SIGHUP) leaves the program running in its
-own session with the file tools. Neither changes what the canaries show, and both are on the owner's todo list. The calls also showed the bridge working end to end for the first time:
+Low flaws in the helper, shared with `ask-codex`: a `--root` spelled `.GIT` or `.WORKBENCH` accepted on a case-insensitive disk, and a
+hang-up of the helper that left the program running. Both are fixed (plan `2026-11-18-bridge-root-guard-and-hangup`, increments
+A, D-A) and the fixes were re-checked on copies on 2026-11-18; the first run of this check above was made before the fixes and
+the canaries do not depend on them. What remains of the second flaw is in "Stopping the program" above. The calls also showed the bridge working end to end for the first time:
 the contract object with `model` `claude-haiku-5-5`, `usage` counts with the input sum (call 1: 14,917 input of which 10,615
 cached, 97 output), `total_tokens` null, and a non-zero `reasoning_output_tokens` (98) in call 6. The unconfirmed statements
 below are unchanged: no usage-limit sample, no unsupported-effort sample, and the question of whether the program loads a
