@@ -1,6 +1,6 @@
 # Fix the case-spelled root guard and the hang-up orphan in the model bridges
 
-Status: Proposed
+Status: Completed
 Created: 2026-11-18
 Candidate: none (corrections that follow from the two Low findings of the security review in plan `2026-11-18-ask-claude-bridge`)
 Specs: model-bridge, ask-claude, ask-ollama
